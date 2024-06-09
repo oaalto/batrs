@@ -1,0 +1,25 @@
+[package]
+name = "batrs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+libmudtelnet = "2.0"
+tokio = { version = "1.38", features = ["full", "tracing"] }
+tokio-stream = "0.1"
+tokio-util = { version = "0.7", features = ["full"] }
+bytes = "1.6"
+futures = { version = "0.3", features = ["thread-pool"]}
+http = "1.1"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+httparse = "1.8"
+httpdate = "1.0"
+once_cell = "1.19"
+rand = "0.8"
+
+[dependencies.iced]
+git = "https://github.com/iced-rs/iced.git"
+rev = "06ff17fcf87495663a295d1548df1c2ac03dafbd"
+features = ["advanced", "debug", "tokio"]
