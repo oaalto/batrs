@@ -28,7 +28,6 @@ enum Message {
     NewMessageChanged(String),
     Send(mud::Message),
     Mud(mud::Event),
-    Server,
 }
 
 fn init_app() -> BatRs {
@@ -83,7 +82,6 @@ impl BatRs {
                     )
                 }
             },
-            Message::Server => Command::none(),
         }
     }
 
