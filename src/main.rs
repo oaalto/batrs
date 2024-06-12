@@ -1,19 +1,20 @@
+use std::io::BufRead;
+
+use bytes::{BufMut, BytesMut};
+use iced::widget::{self, scrollable};
+use iced::{Command, Element, Font, Subscription, Theme};
+use once_cell::sync::Lazy;
+
 use crate::ansi_text::StyledLine;
 use crate::message::Message;
-use crate::update::update;
-use crate::view::view;
-use bytes::{BufMut, BytesMut};
-use iced::alignment::Alignment;
-use iced::widget::{self, column, row, scrollable, text_input};
-use iced::{Command, Element, Font, Length, Subscription, Theme};
-use once_cell::sync::Lazy;
-use std::io::BufRead;
+use crate::stats::Stats;
 
 mod ansi_codes;
 mod ansi_colors;
 mod ansi_text;
 mod message;
 mod mud;
+mod stats;
 mod update;
 mod view;
 
@@ -29,9 +30,10 @@ pub fn main() -> iced::Result {
 #[derive(Default)]
 struct BatRs {
     lines: Vec<StyledLine>,
-    new_message: String,
+    input: String,
     state: State,
     buffer: BytesMut,
+    stats: Stats,
 }
 
 fn init_app() -> BatRs {

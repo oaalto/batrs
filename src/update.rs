@@ -9,13 +9,13 @@ use std::io::BufRead;
 pub fn update(app: &mut BatRs, message: Message) -> Command<Message> {
     match message {
         Message::NewMessageChanged(new_message) => {
-            app.new_message = new_message;
+            app.input = new_message;
 
             Command::none()
         }
         Message::Send(message) => match &mut app.state {
             State::Connected(connection) => {
-                app.new_message.clear();
+                app.input.clear();
 
                 connection.send(message);
 

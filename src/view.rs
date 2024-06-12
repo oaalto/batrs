@@ -1,10 +1,54 @@
+use iced::widget::{
+    column, row, scrollable, text, text_input, Column, Rule, Scrollable, TextInput,
+};
+use iced::{Element, Length};
+
 use crate::message::Message;
 use crate::{BatRs, SCROLLABLE_ID};
-use iced::widget::{column, row, scrollable, text_input};
-use iced::{Alignment, Element, Length};
 
 pub fn view(app: &BatRs) -> Element<Message> {
-    let lines = scrollable(column(
+    let lines = view_lines(app);
+
+    let input = view_input(app);
+
+    let stats = view_stats(app);
+
+    let column = column![lines, input]
+        .height(Length::Fill)
+        .width(Length::FillPortion(6))
+        .padding(20)
+        .spacing(10);
+
+    let divider = Rule::vertical(1);
+
+    row![column, divider, stats].into()
+}
+
+fn view_stats(app: &BatRs) -> Column<Message> {
+    column![
+        app.stats.hp_text_element(),
+        app.stats.sp_text_element(),
+        app.stats.ep_text_element(),
+    ]
+    .width(Length::FillPortion(1))
+    .height(Length::Fill)
+    .padding(10)
+}
+
+fn view_input(app: &BatRs) -> TextInput<Message> {
+    let mut input = text_input("", &app.input)
+        .on_input(Message::NewMessageChanged)
+        .padding(10);
+
+    if app.is_connected() && !app.input.is_empty() {
+        input = input.on_submit(Message::Send(app.input.clone()));
+    }
+
+    input
+}
+
+fn view_lines(app: &BatRs) -> Scrollable<Message> {
+    scrollable(column(
         app.lines
             .iter()
             .map(|line| line.to_row())
@@ -12,23 +56,4 @@ pub fn view(app: &BatRs) -> Element<Message> {
     ))
     .id(SCROLLABLE_ID.clone())
     .height(Length::Fill)
-    .width(Length::Fill);
-
-    let mut input = text_input("", &app.new_message)
-        .on_input(Message::NewMessageChanged)
-        .padding(10);
-
-    if app.is_connected() && !app.new_message.is_empty() {
-        input = input.on_submit(Message::Send(app.new_message.clone()));
-    }
-
-    let new_message_input = row![input]
-        .align_items(Alignment::Center)
-        .width(Length::Fill);
-
-    iced::widget::column![lines, new_message_input]
-        .height(Length::Fill)
-        .padding(20)
-        .spacing(10)
-        .into()
 }
