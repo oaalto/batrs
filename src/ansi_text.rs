@@ -105,6 +105,8 @@ lazy_static! {
 fn parse_ansi_code_block(block: &[u8]) -> Vec<AnsiCodes> {
     match std::str::from_utf8(block) {
         Ok(s) => {
+            // println!("Match: {:?}", s);
+
             if let Some(captures) = ANSI_REGEX.captures(s) {
                 let (_, groups): (&str, [&str; 1]) = captures.extract();
 
