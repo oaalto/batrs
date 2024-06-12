@@ -1,11 +1,15 @@
-mod mud;
-
-use iced::alignment::{self, Alignment};
-use iced::widget::{
-    self, button, center, column, row, scrollable, text, text_input,
-};
-use iced::{color, Command, Element, Font, Length, Subscription, Theme};
+use crate::ansi_text::StyledLine;
+use bytes::{BufMut, BytesMut};
+use iced::alignment::Alignment;
+use iced::widget::{self, column, row, scrollable, text_input};
+use iced::{Command, Element, Font, Length, Subscription, Theme};
 use once_cell::sync::Lazy;
+use std::io::BufRead;
+
+mod ansi_codes;
+mod ansi_colors;
+mod ansi_text;
+mod mud;
 
 pub fn main() -> iced::Result {
     iced::program("BatMUD", BatRs::update, BatRs::view)
@@ -18,20 +22,22 @@ pub fn main() -> iced::Result {
 
 #[derive(Default)]
 struct BatRs {
-    messages: Vec<mud::Message>,
+    lines: Vec<StyledLine>,
     new_message: String,
     state: State,
+    buffer: BytesMut,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
     NewMessageChanged(String),
-    Send(mud::Message),
+    Send(String),
     Mud(mud::Event),
 }
 
 fn init_app() -> BatRs {
     BatRs {
+        buffer: BytesMut::with_capacity(1024),
         ..Default::default()
     }
 }
@@ -62,24 +68,22 @@ impl BatRs {
                 mud::Event::Connected(connection) => {
                     self.state = State::Connected(connection);
 
-                    self.messages.push(mud::Message::connected());
-
                     Command::none()
                 }
-                mud::Event::Disconnected => {
-                    self.state = State::Disconnected;
+                mud::Event::CommandGoAhead => {
+                    let lines: Vec<String> =
+                        self.buffer.lines().map(|l| l.unwrap_or_default()).collect();
+                    lines
+                        .iter()
+                        .for_each(|line| self.lines.push(StyledLine::new(line)));
 
-                    self.messages.push(mud::Message::disconnected());
+                    self.buffer.clear();
+                    scrollable::snap_to(MESSAGE_LOG.clone(), scrollable::RelativeOffset::END)
+                }
+                mud::Event::DataReceived(data) => {
+                    self.buffer.put(data);
 
                     Command::none()
-                }
-                mud::Event::MessageReceived(message) => {
-                    self.messages.push(message);
-
-                    scrollable::snap_to(
-                        MESSAGE_LOG.clone(),
-                        scrollable::RelativeOffset::END,
-                    )
                 }
             },
         }
@@ -90,46 +94,29 @@ impl BatRs {
     }
 
     fn view(&self) -> Element<Message> {
-        let message_log: Element<_> = if self.messages.is_empty() {
-            center(
-                text("Your messages will appear here...")
-                    .color(color!(0x888888)),
-            )
-            .into()
-        } else {
-            scrollable(
-                column(self.messages.iter().map(text).map(Element::from))
-            )
-            .id(MESSAGE_LOG.clone())
-            .height(Length::Fill)
-            .into()
-        };
+        let lines = scrollable(column(
+            self.lines
+                .iter()
+                .map(|line| line.to_row())
+                .map(Element::from),
+        ))
+        .id(MESSAGE_LOG.clone())
+        .height(Length::Fill)
+        .width(Length::Fill);
 
-        let new_message_input = {
-            let mut input = text_input("Type a message...", &self.new_message)
-                .on_input(Message::NewMessageChanged)
-                .padding(10);
+        let mut input = text_input("", &self.new_message)
+            .on_input(Message::NewMessageChanged)
+            .padding(10);
 
-            let mut button = button(
-                text("Send")
-                    .height(40)
-                    .vertical_alignment(alignment::Vertical::Center),
-            )
-            .padding([0, 20]);
+        if matches!(self.state, State::Connected(_)) && !self.new_message.is_empty() {
+            input = input.on_submit(Message::Send(self.new_message.clone()));
+        }
 
-            if matches!(self.state, State::Connected(_)) {
-                if let Some(message) = mud::Message::new(&self.new_message) {
-                    input = input.on_submit(Message::Send(message.clone()));
-                    button = button.on_press(Message::Send(message));
-                }
-            }
+        let new_message_input = row![input]
+            .align_items(Alignment::Center)
+            .width(Length::Fill);
 
-            row![input, button]
-                .spacing(10)
-                .align_items(Alignment::Center)
-        };
-
-        column![message_log, new_message_input]
+        column![lines, new_message_input]
             .height(Length::Fill)
             .padding(20)
             .spacing(10)
