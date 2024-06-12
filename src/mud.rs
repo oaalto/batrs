@@ -8,6 +8,7 @@ use futures::stream::StreamExt;
 use iced::futures;
 use iced::subscription::{self, Subscription};
 use libmudtelnet::events::TelnetEvents;
+use libmudtelnet::telnet::op_command;
 use libmudtelnet::Parser;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -71,9 +72,10 @@ pub fn connect() -> Subscription<Event> {
 async fn log_event(event: &TelnetEvents, out: &mut mpsc::Sender<Event>) {
     match event {
         TelnetEvents::IAC(iac) => {
-            println!("IAC Command: {}", iac.command);
-            if 249 == iac.command {
+            if op_command::GA == iac.command {
                 let _ = out.send(Event::CommandGoAhead).await;
+            } else {
+                println!("Unknown IAC Command: {}", iac.command);
             }
         }
         TelnetEvents::Negotiation(neg) => {
