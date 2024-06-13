@@ -1,6 +1,4 @@
-use std::io::BufRead;
-
-use bytes::{BufMut, BytesMut};
+use bytes::BytesMut;
 use iced::widget::{self, scrollable};
 use iced::{Command, Element, Font, Subscription, Theme};
 use once_cell::sync::Lazy;
@@ -15,6 +13,7 @@ mod ansi_text;
 mod message;
 mod mud;
 mod stats;
+mod triggers;
 mod update;
 mod view;
 
@@ -32,13 +31,13 @@ struct BatApp {
     lines: Vec<StyledLine>,
     input: String,
     state: State,
-    buffer: BytesMut,
+    buffer: Option<BytesMut>,
     stats: Stats,
 }
 
 fn init_app() -> BatApp {
     BatApp {
-        buffer: BytesMut::with_capacity(1024),
+        buffer: Some(BytesMut::with_capacity(1024)),
         ..Default::default()
     }
 }
@@ -46,10 +45,6 @@ fn init_app() -> BatApp {
 impl BatApp {
     fn load() -> Command<Message> {
         widget::focus_next()
-    }
-
-    pub fn is_connected(&self) -> bool {
-        matches!(self.state, State::Connected(_))
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {

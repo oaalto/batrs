@@ -1,7 +1,7 @@
 use crate::ansi_text::StyledLine;
 use crate::message::Message;
-use crate::{mud, BatApp, State, SCROLLABLE_ID};
-use bytes::BufMut;
+use crate::{mud, triggers, BatApp, State, SCROLLABLE_ID};
+use bytes::{BufMut, BytesMut};
 use iced::widget::scrollable;
 use iced::Command;
 use std::io::BufRead;
@@ -30,20 +30,45 @@ pub fn update(app: &mut BatApp, message: Message) -> Command<Message> {
                 Command::none()
             }
             mud::Event::CommandGoAhead => {
-                let lines: Vec<String> =
-                    app.buffer.lines().map(|l| l.unwrap_or_default()).collect();
-                lines
-                    .iter()
-                    .for_each(|line| app.lines.push(StyledLine::new(line)));
+                let mut buffer = app.buffer.replace(BytesMut::with_capacity(1024)).unwrap();
 
-                app.buffer.clear();
+                let mut lines = buffer
+                    .lines()
+                    .map(|l| l.unwrap_or_default())
+                    .map(|line| StyledLine::new(&line))
+                    .map(|mut styled_line| {
+                        process_triggers(app, &mut styled_line);
+                        styled_line
+                    })
+                    .collect();
+
+                app.lines.append(&mut lines);
+
+                if let Some(buffer) = &mut app.buffer {
+                    buffer.clear();
+                }
+
                 scrollable::snap_to(SCROLLABLE_ID.clone(), scrollable::RelativeOffset::END)
             }
             mud::Event::DataReceived(data) => {
-                app.buffer.put(data);
+                if let Some(buffer) = &mut app.buffer {
+                    buffer.put(data);
+                }
 
                 Command::none()
             }
         },
+        Message::UpdateStats(stats) => {
+            println!("Updating stats to: {:?}", &stats);
+            app.stats = stats;
+
+            Command::none()
+        }
     }
+}
+
+fn process_triggers(app: &mut BatApp, styled_line: &mut StyledLine) {
+    triggers::TRIGGERS
+        .iter()
+        .for_each(|trigger| trigger.process(app, styled_line));
 }

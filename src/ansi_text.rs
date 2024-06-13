@@ -42,8 +42,8 @@ impl StyledTextBlock {
 }
 
 pub struct StyledLine {
-    plain_line: String,
-    blocks: Vec<StyledTextBlock>,
+    pub plain_line: String,
+    pub blocks: Vec<StyledTextBlock>,
 }
 
 impl StyledLine {

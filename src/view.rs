@@ -29,6 +29,7 @@ fn view_stats(app: &BatApp) -> Column<Message> {
         app.stats.hp_text_element(),
         app.stats.sp_text_element(),
         app.stats.ep_text_element(),
+        app.stats.exp_text_element()
     ]
     .width(Length::FillPortion(1))
     .height(Length::Fill)
@@ -36,15 +37,11 @@ fn view_stats(app: &BatApp) -> Column<Message> {
 }
 
 fn view_input(app: &BatApp) -> TextInput<Message> {
-    let mut input = text_input("", &app.input)
+    let input = text_input("", &app.input)
         .on_input(Message::NewMessageChanged)
         .padding(10);
 
-    if !app.input.is_empty() {
-        input = input.on_submit(Message::Send(app.input.clone()));
-    }
-
-    input
+    input.on_submit(Message::Send(app.input.clone()))
 }
 
 fn view_lines(app: &BatApp) -> Scrollable<Message> {
