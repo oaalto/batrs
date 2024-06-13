@@ -19,16 +19,16 @@ mod update;
 mod view;
 
 pub fn main() -> iced::Result {
-    iced::program("BatMUD", BatRs::update, BatRs::view)
-        .load(BatRs::load)
-        .subscription(BatRs::subscription)
+    iced::program("BatMUD", BatApp::update, BatApp::view)
+        .load(BatApp::load)
+        .subscription(BatApp::subscription)
         .theme(|_| Theme::Dark)
         .default_font(Font::MONOSPACE)
         .run_with(init_app)
 }
 
 #[derive(Default)]
-struct BatRs {
+struct BatApp {
     lines: Vec<StyledLine>,
     input: String,
     state: State,
@@ -36,14 +36,14 @@ struct BatRs {
     stats: Stats,
 }
 
-fn init_app() -> BatRs {
-    BatRs {
+fn init_app() -> BatApp {
+    BatApp {
         buffer: BytesMut::with_capacity(1024),
         ..Default::default()
     }
 }
 
-impl BatRs {
+impl BatApp {
     fn load() -> Command<Message> {
         widget::focus_next()
     }

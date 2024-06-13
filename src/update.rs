@@ -1,12 +1,12 @@
 use crate::ansi_text::StyledLine;
 use crate::message::Message;
-use crate::{mud, BatRs, State, SCROLLABLE_ID};
+use crate::{mud, BatApp, State, SCROLLABLE_ID};
 use bytes::BufMut;
 use iced::widget::scrollable;
 use iced::Command;
 use std::io::BufRead;
 
-pub fn update(app: &mut BatRs, message: Message) -> Command<Message> {
+pub fn update(app: &mut BatApp, message: Message) -> Command<Message> {
     match message {
         Message::NewMessageChanged(new_message) => {
             app.input = new_message;

@@ -4,9 +4,9 @@ use iced::widget::{
 use iced::{Element, Length};
 
 use crate::message::Message;
-use crate::{BatRs, SCROLLABLE_ID};
+use crate::{BatApp, SCROLLABLE_ID};
 
-pub fn view(app: &BatRs) -> Element<Message> {
+pub fn view(app: &BatApp) -> Element<Message> {
     let lines = view_lines(app);
 
     let input = view_input(app);
@@ -24,7 +24,7 @@ pub fn view(app: &BatRs) -> Element<Message> {
     row![column, divider, stats].into()
 }
 
-fn view_stats(app: &BatRs) -> Column<Message> {
+fn view_stats(app: &BatApp) -> Column<Message> {
     column![
         app.stats.hp_text_element(),
         app.stats.sp_text_element(),
@@ -35,7 +35,7 @@ fn view_stats(app: &BatRs) -> Column<Message> {
     .padding(10)
 }
 
-fn view_input(app: &BatRs) -> TextInput<Message> {
+fn view_input(app: &BatApp) -> TextInput<Message> {
     let mut input = text_input("", &app.input)
         .on_input(Message::NewMessageChanged)
         .padding(10);
@@ -47,7 +47,7 @@ fn view_input(app: &BatRs) -> TextInput<Message> {
     input
 }
 
-fn view_lines(app: &BatRs) -> Scrollable<Message> {
+fn view_lines(app: &BatApp) -> Scrollable<Message> {
     scrollable(column(
         app.lines
             .iter()
