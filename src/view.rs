@@ -40,7 +40,7 @@ fn view_input(app: &BatApp) -> TextInput<Message> {
         .on_input(Message::NewMessageChanged)
         .padding(10);
 
-    if app.is_connected() && !app.input.is_empty() {
+    if !app.input.is_empty() {
         input = input.on_submit(Message::Send(app.input.clone()));
     }
 
