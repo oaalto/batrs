@@ -15,13 +15,9 @@ pub struct PromptTrigger {}
 
 impl Trigger for PromptTrigger {
     fn process(&self, app: &mut BatApp, styled_line: &mut StyledLine) {
-        println!("Matching: {}", &styled_line.plain_line);
-
         if let Some(captures) = REGEX.captures(&styled_line.plain_line) {
-            println!("Found {} captures", captures.len());
             let (_, stats): (&str, [&str; 7]) = captures.extract();
             let stats = stats.map(|stat| stat.parse::<i32>().unwrap_or_default());
-            println!("Stats: {:?}", &stats);
             app.stats = Stats::new(stats);
         }
     }

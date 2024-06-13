@@ -1,6 +1,4 @@
-use iced::widget::{
-    column, row, scrollable, text, text_input, Column, Rule, Scrollable, TextInput,
-};
+use iced::widget::{column, row, scrollable, text_input, Column, Rule, Scrollable, TextInput};
 use iced::{Element, Length};
 
 use crate::message::Message;

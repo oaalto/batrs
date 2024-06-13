@@ -54,12 +54,6 @@ pub fn update(app: &mut BatApp, message: Message) -> Command<Message> {
                 Command::none()
             }
         },
-        Message::UpdateStats(stats) => {
-            println!("Updating stats to: {:?}", &stats);
-            app.stats = stats;
-
-            Command::none()
-        }
     }
 }
 
