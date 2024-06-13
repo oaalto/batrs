@@ -42,14 +42,14 @@ impl StyledTextBlock {
 }
 
 pub struct StyledLine {
-    original: String,
+    plain_line: String,
     blocks: Vec<StyledTextBlock>,
 }
 
 impl StyledLine {
     pub fn new(line: &str) -> Self {
         Self {
-            original: line.to_owned(),
+            plain_line: remove_ansi_codes(line),
             blocks: Self::parse_line(line),
         }
     }
@@ -123,4 +123,8 @@ fn parse_ansi_code_block(block: &[u8]) -> Vec<AnsiCodes> {
     }
 
     Vec::new()
+}
+
+fn remove_ansi_codes(line: &str) -> String {
+    ANSI_REGEX.replace_all(line, "").to_string()
 }
