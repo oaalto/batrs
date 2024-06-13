@@ -30,7 +30,7 @@ pub fn update(app: &mut BatApp, message: Message) -> Command<Message> {
                 Command::none()
             }
             mud::Event::CommandGoAhead => {
-                let mut buffer = app.buffer.replace(BytesMut::with_capacity(1024)).unwrap();
+                let buffer = app.buffer.replace(BytesMut::with_capacity(1024)).unwrap();
 
                 let mut lines = buffer
                     .lines()
@@ -43,10 +43,6 @@ pub fn update(app: &mut BatApp, message: Message) -> Command<Message> {
                     .collect();
 
                 app.lines.append(&mut lines);
-
-                if let Some(buffer) = &mut app.buffer {
-                    buffer.clear();
-                }
 
                 scrollable::snap_to(SCROLLABLE_ID.clone(), scrollable::RelativeOffset::END)
             }
