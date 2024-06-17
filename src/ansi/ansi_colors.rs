@@ -1,4 +1,4 @@
-use crate::ansi_codes::AnsiCode;
+use crate::ansi::AnsiCode;
 
 pub const RED: iced::Color = iced::Color::from_rgb(0.73, 0f32, 0f32);
 pub const GREEN: iced::Color = iced::Color::from_rgb(0f32, 0.73, 0f32);

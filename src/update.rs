@@ -1,4 +1,4 @@
-use crate::ansi_text::StyledLine;
+use crate::ansi::StyledLine;
 use crate::message::Message;
 use crate::{mud, triggers, BatApp, State, SCROLLABLE_ID};
 use bytes::{BufMut, BytesMut};

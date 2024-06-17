@@ -1,4 +1,4 @@
-use crate::ansi_text::StyledLine;
+use crate::ansi::StyledLine;
 use crate::BatApp;
 use lazy_static::lazy_static;
 

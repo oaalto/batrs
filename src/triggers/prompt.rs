@@ -1,4 +1,4 @@
-use crate::ansi_text::StyledLine;
+use crate::ansi::StyledLine;
 use crate::stats::Stats;
 use crate::triggers::Trigger;
 use crate::BatApp;

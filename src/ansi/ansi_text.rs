@@ -1,5 +1,5 @@
-use crate::ansi_codes::AnsiCode;
-use crate::{ansi_colors, Message};
+use crate::ansi::{ansi_colors, AnsiCode};
+use crate::Message;
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
 use regex::Regex;

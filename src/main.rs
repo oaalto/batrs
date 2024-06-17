@@ -1,15 +1,13 @@
+use crate::ansi::StyledLine;
+use crate::message::Message;
+use crate::stats::Stats;
+
 use bytes::BytesMut;
 use iced::widget::{self, scrollable};
 use iced::{Command, Element, Font, Subscription, Theme};
 use once_cell::sync::Lazy;
 
-use crate::ansi_text::StyledLine;
-use crate::message::Message;
-use crate::stats::Stats;
-
-mod ansi_codes;
-mod ansi_colors;
-mod ansi_text;
+mod ansi;
 mod message;
 mod mud;
 mod stats;
