@@ -1,5 +1,4 @@
-use crate::ansi_codes::AnsiCodes;
-use crate::ansi_colors::AnsiColors;
+use crate::ansi_codes::AnsiCode;
 use crate::{ansi_colors, Message};
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
@@ -8,7 +7,7 @@ use regex::Regex;
 #[derive(Debug, Clone)]
 pub struct StyledTextBlock {
     pub bold: bool,
-    pub color: AnsiColors,
+    pub color: AnsiCode,
     pub text: String,
 }
 
@@ -16,7 +15,7 @@ impl StyledTextBlock {
     pub fn new() -> Self {
         Self {
             bold: false,
-            color: AnsiColors::White,
+            color: AnsiCode::White,
             text: "".to_string(),
         }
     }
@@ -25,13 +24,13 @@ impl StyledTextBlock {
         *self = StyledTextBlock::new();
     }
 
-    pub fn process_ansi_codes(&mut self, ansi_codes: &[AnsiCodes]) {
+    pub fn process_ansi_codes(&mut self, ansi_codes: &[AnsiCode]) {
         ansi_codes.iter().for_each(|code| match code {
-            AnsiCodes::Reset => self.reset(),
-            AnsiCodes::Bold => self.bold = true,
-            AnsiCodes::BoldOff => self.bold = false,
-            AnsiCodes::DefaultColor => self.color = AnsiColors::White,
-            color => self.color = AnsiColors::from_ansi_code(color),
+            AnsiCode::Reset => self.reset(),
+            AnsiCode::Bold => self.bold = true,
+            AnsiCode::BoldOff => self.bold = false,
+            AnsiCode::DefaultColor => self.color = AnsiCode::White,
+            color => self.color = *color,
         });
     }
 
@@ -98,7 +97,7 @@ lazy_static! {
     pub static ref ANSI_REGEX: Regex = Regex::new(r"\u{1b}\[(.*)m").unwrap();
 }
 
-fn parse_ansi_code_block(block: &[u8]) -> Vec<AnsiCodes> {
+fn parse_ansi_code_block(block: &[u8]) -> Vec<AnsiCode> {
     match std::str::from_utf8(block) {
         Ok(s) => {
             if let Some(captures) = ANSI_REGEX.captures(s) {
@@ -107,7 +106,7 @@ fn parse_ansi_code_block(block: &[u8]) -> Vec<AnsiCodes> {
                 return groups[0]
                     .split(';')
                     .filter_map(|c| c.parse::<u8>().ok())
-                    .filter_map(AnsiCodes::from_u8)
+                    .filter_map(AnsiCode::from_u8)
                     .collect();
             }
         }

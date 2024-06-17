@@ -1,5 +1,5 @@
 #[derive(Debug, PartialEq, PartialOrd, Eq, Clone, Copy, num_derive::FromPrimitive)]
-pub enum AnsiCodes {
+pub enum AnsiCode {
     Reset = 0,
     Bold = 1,
     BoldOff = 22,
