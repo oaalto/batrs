@@ -1,7 +1,7 @@
 use crate::ansi::StyledLine;
 use crate::message::Message;
-use crate::stats::Stats;
 
+use crate::view::Stats;
 use bytes::BytesMut;
 use iced::widget::{self, scrollable};
 use iced::{Command, Element, Font, Subscription, Theme};
@@ -10,7 +10,6 @@ use once_cell::sync::Lazy;
 mod ansi;
 mod message;
 mod mud;
-mod stats;
 mod triggers;
 mod update;
 mod view;

@@ -1,6 +1,6 @@
 use crate::ansi::StyledLine;
-use crate::stats::Stats;
 use crate::triggers::Trigger;
+use crate::view::Stats;
 use crate::BatApp;
 use lazy_static::lazy_static;
 use regex::Regex;
