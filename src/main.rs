@@ -1,71 +1,29 @@
-use crate::ansi::StyledLine;
-use crate::message::Message;
+#![warn(clippy::all, rust_2018_idioms)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use crate::view::Stats;
-use bytes::BytesMut;
-use iced::widget::{self, scrollable};
-use iced::{Command, Element, Font, Subscription, Theme};
-use once_cell::sync::Lazy;
+use crate::app::BatApp;
+use std::net::TcpStream;
 
 mod ansi;
-mod message;
-mod mud;
+mod app;
+mod stats;
 mod triggers;
-mod update;
-mod view;
 
-pub fn main() -> iced::Result {
-    iced::program("BatMUD", BatApp::update, BatApp::view)
-        .load(BatApp::load)
-        .subscription(BatApp::subscription)
-        .theme(|_| Theme::Dark)
-        .default_font(Font::MONOSPACE)
-        .run_with(init_app)
-}
+fn main() -> eframe::Result<()> {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
-#[derive(Default)]
-struct BatApp {
-    lines: Vec<StyledLine>,
-    input: String,
-    state: State,
-    buffer: Option<BytesMut>,
-    stats: Stats,
-}
-
-fn init_app() -> BatApp {
-    BatApp {
-        buffer: Some(BytesMut::with_capacity(1024)),
+    let stream = TcpStream::connect("95.175.124.84:23").expect("connection to succeed");
+    /* stream
+            .set_nonblocking(true)
+            .expect("set_nonblocking call failed");
+    */
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_fullscreen(true),
         ..Default::default()
-    }
+    };
+    eframe::run_native(
+        "BatMUD Client",
+        native_options,
+        Box::new(|cc| Box::new(BatApp::new(cc, stream))),
+    )
 }
-
-impl BatApp {
-    fn load() -> Command<Message> {
-        widget::focus_next()
-    }
-
-    fn update(&mut self, message: Message) -> Command<Message> {
-        update::update(self, message)
-    }
-
-    fn subscription(&self) -> Subscription<Message> {
-        mud::connect().map(Message::Mud)
-    }
-
-    fn view(&self) -> Element<Message> {
-        view::view(self)
-    }
-}
-
-enum State {
-    Disconnected,
-    Connected(mud::Connection),
-}
-
-impl Default for State {
-    fn default() -> Self {
-        Self::Disconnected
-    }
-}
-
-static SCROLLABLE_ID: Lazy<scrollable::Id> = Lazy::new(scrollable::Id::unique);

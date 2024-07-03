@@ -1,5 +1,8 @@
-use crate::ansi::{ansi_colors, AnsiCode};
-use crate::Message;
+use crate::ansi::ansi_colors::get_color;
+use crate::ansi::AnsiCode;
+use eframe::epaint::FontId;
+use egui::text::LayoutJob;
+use egui::TextFormat;
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
 use regex::Regex;
@@ -33,29 +36,41 @@ impl StyledTextBlock {
             color => self.color = *color,
         });
     }
-
-    pub fn to_text_element(&self) -> iced::Element<'_, Message> {
-        let color = ansi_colors::get_color(&self.color, self.bold);
-        iced::Element::from(iced::widget::text(&self.text).color(color))
-    }
 }
 
 pub struct StyledLine {
     pub plain_line: String,
     pub blocks: Vec<StyledTextBlock>,
+    pub gag: bool,
 }
 
 impl StyledLine {
     pub fn new(line: &str) -> Self {
         Self {
-            plain_line: remove_ansi_codes(line),
             blocks: Self::parse_line(line),
+            plain_line: remove_ansi_codes(line),
+            gag: false,
         }
     }
 
-    pub fn to_row(&self) -> iced::widget::Row<'_, Message> {
-        iced::widget::row(self.blocks.iter().map(StyledTextBlock::to_text_element))
-            .width(iced::Length::Fill)
+    pub fn show(&self, ui: &mut egui::Ui) {
+        if self.gag {
+            return;
+        }
+
+        let mut job = LayoutJob::default();
+        self.blocks.iter().for_each(|block| {
+            job.append(
+                &block.text,
+                0.0,
+                TextFormat {
+                    font_id: FontId::monospace(16.0),
+                    color: get_color(block.color, block.bold),
+                    ..Default::default()
+                },
+            );
+        });
+        ui.label(job);
     }
 
     fn parse_line(line: &str) -> Vec<StyledTextBlock> {
@@ -94,7 +109,8 @@ impl StyledLine {
 }
 
 lazy_static! {
-    pub static ref ANSI_REGEX: Regex = Regex::new(r"\u{1b}\[(.*)m").unwrap();
+    pub static ref ANSI_REGEX: Regex =
+        Regex::new(r"\x1b\[([\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e])").unwrap();
 }
 
 fn parse_ansi_code_block(block: &[u8]) -> Vec<AnsiCode> {

@@ -1,72 +1,57 @@
 use crate::ansi::AnsiCode;
+use egui::Color32;
 
-pub const RED: iced::Color = iced::Color::from_rgb(0.73, 0f32, 0f32);
-pub const GREEN: iced::Color = iced::Color::from_rgb(0f32, 0.73, 0f32);
-pub const YELLOW: iced::Color = iced::Color::from_rgb(0.73, 0.73, 0f32);
-pub const BLUE: iced::Color = iced::Color::from_rgb(0f32, 0f32, 0.73);
-pub const MAGENTA: iced::Color = iced::Color::from_rgb(0.73, 0f32, 0.73);
-pub const CYAN: iced::Color = iced::Color::from_rgb(0f32, 0.73, 0.73);
-pub const WHITE: iced::Color = iced::Color::from_rgb(0.73, 0.73, 0.73);
-
-pub const BOLD_RED: iced::Color = iced::Color::from_rgb(1.0, 0.33, 0.33);
-pub const BOLD_GREEN: iced::Color = iced::Color::from_rgb(0.33, 1.0, 0.33);
-pub const BOLD_YELLOW: iced::Color = iced::Color::from_rgb(1.0, 1.0, 0.33);
-pub const BOLD_BLUE: iced::Color = iced::Color::from_rgb(0.33, 0.33, 1.0);
-pub const BOLD_MAGENTA: iced::Color = iced::Color::from_rgb(1.0, 0.33, 1.0);
-pub const BOLD_CYAN: iced::Color = iced::Color::from_rgb(0.33, 1.0, 1.0);
-pub const BOLD_WHITE: iced::Color = iced::Color::from_rgb(1.0, 1.0, 1.0);
-
-pub fn get_color(color: &AnsiCode, bold: bool) -> iced::Color {
+pub fn get_color(color: AnsiCode, bold: bool) -> Color32 {
     match color {
         AnsiCode::Red => {
             if bold {
-                BOLD_RED
+                Color32::RED
             } else {
-                RED
+                Color32::LIGHT_RED
             }
         }
         AnsiCode::Green => {
             if bold {
-                BOLD_GREEN
+                Color32::GREEN
             } else {
-                GREEN
+                Color32::LIGHT_GREEN
             }
         }
         AnsiCode::Yellow => {
             if bold {
-                BOLD_YELLOW
+                Color32::YELLOW
             } else {
-                YELLOW
+                Color32::LIGHT_YELLOW
             }
         }
         AnsiCode::Blue => {
             if bold {
-                BOLD_BLUE
+                Color32::BLUE
             } else {
-                BLUE
+                Color32::DARK_BLUE
             }
         }
         AnsiCode::Magenta => {
             if bold {
-                BOLD_MAGENTA
+                Color32::from_rgb(187, 0, 187)
             } else {
-                MAGENTA
+                Color32::from_rgb(255, 0, 255)
             }
         }
         AnsiCode::Cyan => {
             if bold {
-                BOLD_CYAN
+                Color32::from_rgb(85, 255, 255)
             } else {
-                CYAN
+                Color32::from_rgb(0, 187, 187)
             }
         }
         AnsiCode::White => {
             if bold {
-                BOLD_WHITE
+                Color32::WHITE
             } else {
-                WHITE
+                Color32::from_rgb(187, 187, 187)
             }
         }
-        _ => WHITE,
+        _ => Color32::from_rgb(187, 187, 187),
     }
 }
