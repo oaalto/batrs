@@ -20,6 +20,7 @@ impl Trigger for ShortScoreTrigger {
             let (_, stats): (&str, [&str; 13]) = captures.extract();
             let stats = stats.map(|stat| stat.parse::<i32>().unwrap_or_default());
             app.stats = Stats::new_from_sc(stats);
+            styled_line.gag = true;
         }
     }
 }

@@ -75,6 +75,8 @@ impl BatApp {
                     })
                     .collect();
 
+                remove_gagged_lines(&mut lines);
+
                 self.lines.append(&mut lines);
             }
             TelnetEvents::DataSend(_) => {}
@@ -98,6 +100,22 @@ impl BatApp {
             self.input.clear();
         }
     }
+}
+
+fn remove_gagged_lines(lines: &mut Vec<StyledLine>) {
+    let num_lines = lines.len();
+    let mut indices: Vec<usize> = lines
+        .iter()
+        .enumerate()
+        .map(|(index, line)| if line.gag { index } else { num_lines + 1 })
+        .filter(|index| *index < num_lines + 1)
+        .collect();
+
+    indices.sort_by(|a, b| b.cmp(a));
+
+    indices.iter().for_each(|index| {
+        lines.remove(*index);
+    });
 }
 
 impl eframe::App for BatApp {

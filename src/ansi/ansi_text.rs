@@ -54,10 +54,6 @@ impl StyledLine {
     }
 
     pub fn show(&self, ui: &mut egui::Ui) {
-        if self.gag {
-            return;
-        }
-
         let mut job = LayoutJob::default();
         self.blocks.iter().for_each(|block| {
             job.append(
