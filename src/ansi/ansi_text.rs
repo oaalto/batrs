@@ -107,12 +107,13 @@ impl StyledLine {
 lazy_static! {
     pub static ref ANSI_REGEX: Regex =
         Regex::new(r"\x1b\[([\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e])").unwrap();
+    pub static ref ANSI_CODE_REGEX: Regex = Regex::new(r"\u{1b}\[(.*)m").unwrap();
 }
 
 fn parse_ansi_code_block(block: &[u8]) -> Vec<AnsiCode> {
     match std::str::from_utf8(block) {
         Ok(s) => {
-            if let Some(captures) = ANSI_REGEX.captures(s) {
+            if let Some(captures) = ANSI_CODE_REGEX.captures(s) {
                 let (_, groups): (&str, [&str; 1]) = captures.extract();
 
                 return groups[0]
