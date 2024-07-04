@@ -1,10 +1,14 @@
 use crate::ansi::StyledLine;
 use crate::stats::Stats;
 use crate::triggers;
+use bytes::{BufMut, BytesMut};
 use egui::{FontId, ScrollArea, TextStyle};
 use libmudtelnet::events::TelnetEvents;
+use libmudtelnet::telnet::op_command;
 use std::io::BufRead;
 use std::sync::mpsc::{Receiver, Sender};
+
+static CARRIAGE_RETURN_NEW_LINE: &[u8] = &[13, 10];
 
 pub struct BatApp {
     pub lines: Vec<StyledLine>,
@@ -13,6 +17,7 @@ pub struct BatApp {
     pub stats: Stats,
     pub event_receiver: Receiver<TelnetEvents>,
     pub command_sender: Sender<String>,
+    pub buffer: Option<BytesMut>,
 }
 
 impl BatApp {
@@ -48,6 +53,7 @@ impl BatApp {
             stats: Default::default(),
             event_receiver,
             command_sender,
+            buffer: Some(BytesMut::with_capacity(1024)),
         }
     }
 
@@ -56,6 +62,10 @@ impl BatApp {
         match event {
             TelnetEvents::IAC(iac) => {
                 println!("IAC: {:?}", iac);
+                if op_command::GA == iac.command {
+                    let buffer = self.buffer.replace(BytesMut::with_capacity(1024)).unwrap();
+                    self.process_input_data(buffer);
+                }
             }
             TelnetEvents::Negotiation(neg) => {
                 println!("Negotiation: {:?}", neg);
@@ -64,26 +74,40 @@ impl BatApp {
                 println!("Subnegotiation: {:?}", sub_neg);
             }
             TelnetEvents::DataReceive(bytes) => {
-                let mut lines = bytes
-                    .lines()
-                    .map(|l| l.unwrap_or_default())
-                    .map(|line| StyledLine::new(&line))
-                    // TODO: a better way than this...
-                    .map(|mut styled_line| {
-                        process_triggers(self, &mut styled_line);
-                        styled_line
-                    })
-                    .collect();
+                if !bytes.ends_with(CARRIAGE_RETURN_NEW_LINE) {
+                    if let Some(buffer) = &mut self.buffer {
+                        buffer.put(bytes.clone());
+                    }
+                    return;
+                }
 
-                remove_gagged_lines(&mut lines);
+                let mut buffer = self.buffer.replace(BytesMut::with_capacity(1024)).unwrap();
+                buffer.put(bytes.clone());
 
-                self.lines.append(&mut lines);
+                self.process_input_data(buffer);
             }
             TelnetEvents::DataSend(_) => {}
             TelnetEvents::DecompressImmediate(_) => {
                 println!("Decompress data");
             }
         }
+    }
+
+    fn process_input_data(&mut self, bytes: BytesMut) {
+        let mut lines = bytes
+            .lines()
+            .map(|l| l.unwrap_or_default())
+            .map(|line| StyledLine::new(&line))
+            // TODO: a better way than this...
+            .map(|mut styled_line| {
+                process_triggers(self, &mut styled_line);
+                styled_line
+            })
+            .collect();
+
+        remove_gagged_lines(&mut lines);
+
+        self.lines.append(&mut lines);
     }
 
     fn read_input(&mut self) {
