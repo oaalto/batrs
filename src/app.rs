@@ -1,8 +1,8 @@
 use crate::ansi::StyledLine;
 use crate::stats::Stats;
-use crate::triggers;
+use crate::{command, triggers};
 use bytes::{BufMut, BytesMut};
-use egui::{FontId, ScrollArea, TextStyle};
+use egui::{FontId, ScrollArea, TextStyle, ViewportCommand};
 use libmudtelnet::events::TelnetEvents;
 use libmudtelnet::telnet::op_command;
 use std::io::BufRead;
@@ -13,7 +13,6 @@ static CARRIAGE_RETURN_NEW_LINE: &[u8] = &[13, 10];
 pub struct BatApp {
     pub lines: Vec<StyledLine>,
     pub input: String,
-    pub send_input: bool,
     pub stats: Stats,
     pub event_receiver: Receiver<TelnetEvents>,
     pub command_sender: Sender<String>,
@@ -33,10 +32,15 @@ impl BatApp {
             style.override_font_id = Some(monospace);
         });
 
+        cc.egui_ctx
+            .send_viewport_cmd(ViewportCommand::Maximized(true));
+
+        cc.egui_ctx
+            .send_viewport_cmd(ViewportCommand::Fullscreen(true));
+
         BatApp {
             lines: vec![],
             input: "".to_string(),
-            send_input: false,
             stats: Default::default(),
             event_receiver,
             command_sender,
@@ -79,14 +83,15 @@ impl BatApp {
         }
     }
 
+    #[allow(clippy::lines_filter_map_ok)]
     fn process_input_data(&mut self, bytes: BytesMut) {
         let mut lines = bytes
             .lines()
-            .map(|l| l.unwrap_or_default())
+            .filter_map(Result::ok)
             .map(|line| StyledLine::new(&line))
             // TODO: a better way than this...
             .map(|mut styled_line| {
-                process_triggers(self, &mut styled_line);
+                triggers::process(self, &mut styled_line);
                 styled_line
             })
             .collect();
@@ -104,7 +109,10 @@ impl BatApp {
 
     fn send_output(&mut self, ctx: &egui::Context) {
         if ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
-            if let Err(e) = self.command_sender.send(self.input.clone()) {
+            if self.input.starts_with('/') {
+                let cmd = &self.input[1..];
+                command::process(cmd, ctx);
+            } else if let Err(e) = self.command_sender.send(self.input.clone()) {
                 eprintln!("failed to send data: {}", e);
             }
             self.input.clear();
@@ -164,10 +172,4 @@ impl eframe::App for BatApp {
     }
 
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
-}
-
-fn process_triggers(app: &mut BatApp, styled_line: &mut StyledLine) {
-    triggers::TRIGGERS
-        .iter()
-        .for_each(|trigger| trigger.process(app, styled_line));
 }

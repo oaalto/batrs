@@ -18,3 +18,9 @@ lazy_static! {
         Box::new(ShortScoreTrigger::default())
     ];
 }
+
+pub fn process(app: &mut BatApp, styled_line: &mut StyledLine) {
+    TRIGGERS
+        .iter()
+        .for_each(|trigger| trigger.process(app, styled_line));
+}

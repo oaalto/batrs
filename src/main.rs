@@ -15,6 +15,7 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 
 mod ansi;
 mod app;
+mod command;
 mod stats;
 mod triggers;
 
@@ -23,13 +24,9 @@ fn main() -> eframe::Result<()> {
 
     let (event_receiver, command_sender) = setup_connection();
 
-    let native_options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_fullscreen(true),
-        ..Default::default()
-    };
     eframe::run_native(
         "BatMUD Client",
-        native_options,
+        Default::default(),
         Box::new(|cc| Box::new(BatApp::new(cc, event_receiver, command_sender))),
     )
 }
