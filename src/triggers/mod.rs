@@ -3,14 +3,18 @@ use crate::BatApp;
 use lazy_static::lazy_static;
 
 mod prompt;
+mod short_score;
 
-pub use prompt::PromptTrigger;
+use prompt::PromptTrigger;
+use short_score::ShortScoreTrigger;
 
 pub trait Trigger {
     fn process(&self, app: &mut BatApp, styled_line: &mut StyledLine);
 }
 
 lazy_static! {
-    pub static ref TRIGGERS: Vec<Box<(dyn Trigger + Sync)>> =
-        vec![Box::new(PromptTrigger::default())];
+    pub static ref TRIGGERS: Vec<Box<(dyn Trigger + Sync)>> = vec![
+        Box::new(PromptTrigger::default()),
+        Box::new(ShortScoreTrigger::default())
+    ];
 }
