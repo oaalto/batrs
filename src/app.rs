@@ -26,25 +26,12 @@ impl BatApp {
         event_receiver: Receiver<TelnetEvents>,
         command_sender: Sender<String>,
     ) -> Self {
-        // This is also where you can customize the look and feel of egui using
-        // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
         cc.egui_ctx.set_visuals(egui::Visuals::dark());
 
         cc.egui_ctx.style_mut(|style| {
             let monospace = FontId::monospace(16.0);
             style.override_font_id = Some(monospace);
         });
-
-        // Load previous app state (if any).
-        // Note that you must enable the `persistence` feature for this to work.
-        /*if let Some(storage) = cc.storage {
-                    let saved_state = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-                    return BatApp {
-                        state: saved_state,
-                        ..Default::default()
-                    };
-                }
-        */
 
         BatApp {
             lines: vec![],
@@ -58,7 +45,6 @@ impl BatApp {
     }
 
     fn handle_event(&mut self, event: &TelnetEvents) {
-        println!("handling event: {:?}", event);
         match event {
             TelnetEvents::IAC(iac) => {
                 println!("IAC: {:?}", iac);
@@ -146,8 +132,6 @@ impl eframe::App for BatApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.read_input();
 
-        // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
-
         egui::TopBottomPanel::bottom("input_panel").show(ctx, |ui| {
             let response = ui.add_sized(
                 ui.available_size(),
@@ -179,9 +163,7 @@ impl eframe::App for BatApp {
         ctx.request_repaint();
     }
 
-    fn save(&mut self, _storage: &mut dyn eframe::Storage) {
-        // eframe::set_value(storage, eframe::APP_KEY, &self.state);
-    }
+    fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
 }
 
 fn process_triggers(app: &mut BatApp, styled_line: &mut StyledLine) {

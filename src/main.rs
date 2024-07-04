@@ -4,8 +4,10 @@
 use crate::app::BatApp;
 use futures::future;
 use futures::stream::StreamExt;
+use libmudtelnet::events::TelnetEvents;
 use libmudtelnet::Parser;
 use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
@@ -19,6 +21,20 @@ mod triggers;
 fn main() -> eframe::Result<()> {
     env_logger::init();
 
+    let (event_receiver, command_sender) = setup_connection();
+
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_fullscreen(true),
+        ..Default::default()
+    };
+    eframe::run_native(
+        "BatMUD Client",
+        native_options,
+        Box::new(|cc| Box::new(BatApp::new(cc, event_receiver, command_sender))),
+    )
+}
+
+fn setup_connection() -> (Receiver<TelnetEvents>, Sender<String>) {
     let rt = Runtime::new().expect("Unable to create Runtime");
 
     // Enter the runtime so that `tokio::spawn` is available immediately.
@@ -73,13 +89,5 @@ fn main() -> eframe::Result<()> {
         })
     });
 
-    let native_options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_fullscreen(true),
-        ..Default::default()
-    };
-    eframe::run_native(
-        "BatMUD Client",
-        native_options,
-        Box::new(|cc| Box::new(BatApp::new(cc, event_receiver, command_sender))),
-    )
+    (event_receiver, command_sender)
 }
