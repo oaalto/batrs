@@ -152,7 +152,7 @@ impl eframe::App for BatApp {
             response.request_focus();
         });
 
-        egui::SidePanel::right("stats").show(ctx, |ui| {
+        egui::SidePanel::left("stats").show(ctx, |ui| {
             self.stats.show(ui);
         });
 
