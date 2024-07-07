@@ -1,6 +1,7 @@
 mod ansi_codes;
 mod ansi_colors;
-mod ansi_text;
+mod styled_line;
+mod styled_text_block;
 
 pub use ansi_codes::*;
-pub use ansi_text::*;
+pub use styled_line::*;

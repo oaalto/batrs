@@ -1,5 +1,5 @@
-use crate::ansi::ansi_colors::get_color;
-use crate::ansi::AnsiCode;
+use crate::ansi::styled_text_block::StyledTextBlock;
+use crate::ansi::{ansi_colors, AnsiCode};
 use eframe::epaint::FontId;
 use egui::text::LayoutJob;
 use egui::{TextBuffer, TextFormat};
@@ -8,51 +8,6 @@ use num_traits::FromPrimitive;
 use regex::Regex;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
-
-#[derive(Debug, Clone)]
-pub struct StyledTextBlock {
-    pub bold: bool,
-    pub color: AnsiCode,
-    pub range: Range<usize>,
-}
-
-impl StyledTextBlock {
-    pub fn new() -> Self {
-        Self {
-            bold: false,
-            color: AnsiCode::White,
-            range: Range::default(),
-        }
-    }
-
-    pub fn reset(&mut self) {
-        *self = StyledTextBlock::new();
-    }
-
-    pub fn process_ansi_codes(&mut self, ansi_codes: &[AnsiCode]) {
-        ansi_codes.iter().for_each(|code| match code {
-            AnsiCode::Reset => self.reset(),
-            AnsiCode::Bold => self.bold = true,
-            AnsiCode::BoldOff => self.bold = false,
-            AnsiCode::DefaultColor => self.color = AnsiCode::White,
-            color => self.color = *color,
-        });
-    }
-
-    fn len(&self) -> usize {
-        self.range.end - self.range.start
-    }
-}
-
-impl Display for StyledTextBlock {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "({}..{}), color: {:?}, bold: {}",
-            self.range.start, self.range.end, self.color, self.bold
-        )
-    }
-}
 
 pub struct StyledLine {
     pub plain_line: String,
@@ -78,7 +33,7 @@ impl StyledLine {
                 0.0,
                 TextFormat {
                     font_id: FontId::monospace(16.0),
-                    color: get_color(block.color, block.bold),
+                    color: ansi_colors::get_color(block.color, block.bold),
                     ..Default::default()
                 },
             );
