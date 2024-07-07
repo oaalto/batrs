@@ -16,6 +16,7 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 mod ansi;
 mod app;
 mod command;
+mod guilds;
 mod stats;
 mod triggers;
 

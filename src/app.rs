@@ -1,4 +1,5 @@
 use crate::ansi::StyledLine;
+use crate::guilds::{Guild, ReaverGuild};
 use crate::stats::Stats;
 use crate::{command, triggers};
 use bytes::{BufMut, BytesMut};
@@ -17,6 +18,7 @@ pub struct BatApp {
     pub event_receiver: Receiver<TelnetEvents>,
     pub command_sender: Sender<String>,
     pub buffer: Option<BytesMut>,
+    pub selected_guilds: Vec<Box<dyn Guild>>,
 }
 
 impl BatApp {
@@ -45,6 +47,7 @@ impl BatApp {
             event_receiver,
             command_sender,
             buffer: Some(BytesMut::with_capacity(1024)),
+            selected_guilds: vec![Box::new(ReaverGuild::default())],
         }
     }
 
@@ -109,11 +112,12 @@ impl BatApp {
 
     fn send_output(&mut self, ctx: &egui::Context) {
         if ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
-            if self.input.starts_with('/') {
-                let cmd = &self.input[1..];
-                command::process(cmd, ctx);
-            } else if let Err(e) = self.command_sender.send(self.input.clone()) {
-                eprintln!("failed to send data: {}", e);
+            let cmd = command::process(&self.input, ctx, &self.selected_guilds);
+
+            if let Some(s) = cmd {
+                if let Err(e) = self.command_sender.send(s) {
+                    eprintln!("failed to send data: {}", e);
+                }
             }
             self.input.clear();
         }

@@ -1,23 +1,37 @@
 mod quit;
 
 use crate::command::quit::Quit;
-use lazy_static::lazy_static;
+use crate::guilds::Guild;
 use std::collections::HashMap;
 
-pub fn process(cmd: &str, ctx: &egui::Context) {
+pub fn process(cmd: &str, ctx: &egui::Context, guilds: &[Box<dyn Guild>]) -> Option<String> {
     let data = Data::new(cmd);
-    if let Some(cmd) = COMMANDS.get(&data.cmd) {
-        cmd.process(&data, ctx);
+    let guild_cmds: HashMap<String, Box<dyn Command>> =
+        guilds.iter().flat_map(|g| g.commands()).collect();
+
+    if let Some(cmd) = commands().get(&data.cmd) {
+        cmd.process(&data, ctx)
+    } else if let Some(cmd) = guild_cmds.get(&data.cmd) {
+        cmd.process(&data, ctx)
+    } else {
+        Some(cmd.to_string())
     }
 }
 
-trait Command {
-    fn process(&self, data: &Data, ctx: &egui::Context);
+pub fn commands() -> HashMap<String, Box<dyn Command>> {
+    HashMap::from([(
+        "/quit".to_string(),
+        Box::new(Quit::default()) as Box<(dyn Command)>,
+    )])
 }
 
-struct Data {
-    cmd: String,
-    args: Vec<String>,
+pub trait Command {
+    fn process(&self, data: &Data, ctx: &egui::Context) -> Option<String>;
+}
+
+pub struct Data {
+    pub cmd: String,
+    pub args: Vec<String>,
 }
 
 impl Data {
@@ -29,11 +43,4 @@ impl Data {
             args: split[1..].iter().map(String::from).collect(),
         }
     }
-}
-
-lazy_static! {
-    static ref COMMANDS: HashMap<String, Box<(dyn Command + Sync)>> = HashMap::from([(
-        String::from("quit"),
-        Box::new(Quit::default()) as Box<(dyn Command + Sync)>
-    )]);
 }
