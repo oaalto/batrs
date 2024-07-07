@@ -2,16 +2,18 @@ use crate::ansi::ansi_colors::get_color;
 use crate::ansi::AnsiCode;
 use eframe::epaint::FontId;
 use egui::text::LayoutJob;
-use egui::TextFormat;
+use egui::{TextBuffer, TextFormat};
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
 use regex::Regex;
+use std::fmt::{Display, Formatter};
+use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub struct StyledTextBlock {
     pub bold: bool,
     pub color: AnsiCode,
-    pub text: String,
+    pub range: Range<usize>,
 }
 
 impl StyledTextBlock {
@@ -19,7 +21,7 @@ impl StyledTextBlock {
         Self {
             bold: false,
             color: AnsiCode::White,
-            text: "".to_string(),
+            range: Range::default(),
         }
     }
 
@@ -36,6 +38,20 @@ impl StyledTextBlock {
             color => self.color = *color,
         });
     }
+
+    fn len(&self) -> usize {
+        self.range.end - self.range.start
+    }
+}
+
+impl Display for StyledTextBlock {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "({}..{}), color: {:?}, bold: {}",
+            self.range.start, self.range.end, self.color, self.bold
+        )
+    }
 }
 
 pub struct StyledLine {
@@ -46,9 +62,10 @@ pub struct StyledLine {
 
 impl StyledLine {
     pub fn new(line: &str) -> Self {
+        let plain_line = remove_ansi_codes(line);
         Self {
-            blocks: Self::parse_line(line),
-            plain_line: remove_ansi_codes(line),
+            blocks: Self::parse_line(line, &plain_line),
+            plain_line,
             gag: false,
         }
     }
@@ -57,7 +74,7 @@ impl StyledLine {
         let mut job = LayoutJob::default();
         self.blocks.iter().for_each(|block| {
             job.append(
-                &block.text,
+                self.get_string(&block.range),
                 0.0,
                 TextFormat {
                     font_id: FontId::monospace(16.0),
@@ -69,38 +86,67 @@ impl StyledLine {
         ui.label(job);
     }
 
-    fn parse_line(line: &str) -> Vec<StyledTextBlock> {
+    fn get_string(&self, range: &Range<usize>) -> &str {
+        self.plain_line.char_range(range.clone())
+    }
+
+    fn parse_line(line: &str, plain_line: &str) -> Vec<StyledTextBlock> {
         let matches = parse_ansi::parse_bytes(line.as_bytes());
         let mut blocks: Vec<StyledTextBlock> = Vec::new();
         let mut current_block = StyledTextBlock::new();
         let mut prev_end = 0;
 
         matches.for_each(|m| {
-            if m.start() > 0 {
-                current_block.text = line[prev_end..m.start()].to_string();
-                blocks.push(current_block.clone());
-                current_block = StyledTextBlock::new();
+            if m.start() > 0 && prev_end < m.start() {
+                let sub = &line[prev_end..m.start()];
+                let start = plain_line.find(sub).unwrap_or_default();
+                let end = start + sub.len();
+                current_block.range = Range { start, end };
 
-                let ansi_codes = parse_ansi_code_block(m.as_bytes());
-                current_block.process_ansi_codes(&ansi_codes);
-                prev_end = m.end();
-            } else {
-                let ansi_codes = parse_ansi_code_block(m.as_bytes());
-                current_block.process_ansi_codes(&ansi_codes);
-                prev_end = m.end();
+                blocks.push(current_block.clone());
+                current_block.reset();
             }
+
+            let ansi_codes = parse_ansi_code_block(m.as_bytes());
+            current_block.process_ansi_codes(&ansi_codes);
+
+            prev_end = m.end();
         });
 
         // No matches means no ansi control sequences found
         if blocks.is_empty() {
-            current_block.text = line.to_string();
+            current_block.range = Range {
+                start: 0,
+                end: plain_line.len(),
+            };
             blocks.push(current_block);
         } else if prev_end < line.len() {
-            current_block.text = line[prev_end..].to_string();
-            blocks.push(current_block);
+            let sub = &line[prev_end..];
+            if !sub.trim().is_empty() {
+                let start = plain_line.find(sub).unwrap_or_default();
+                current_block.range = Range {
+                    start,
+                    end: plain_line.len(),
+                };
+
+                blocks.push(current_block);
+            }
         }
 
         blocks
+    }
+}
+
+impl Display for StyledLine {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let blocks = self
+            .blocks
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        write!(f, "{}: {}", &self.plain_line, blocks)
     }
 }
 
