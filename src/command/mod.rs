@@ -29,11 +29,11 @@ pub struct Data {
 
 impl Data {
     fn new(line: &str) -> Self {
-        let index = line.find(" ").unwrap_or(line.len());
+        let index = line.find(' ').unwrap_or(line.len());
 
         Self {
             cmd: line[..index].to_owned(),
-            args: line[index..].to_owned(),
+            args: line[index..].trim().to_owned(),
         }
     }
 }
