@@ -3,6 +3,7 @@ use crate::guilds::{Guild, ReaverGuild};
 use crate::stats::Stats;
 use crate::{command, triggers};
 use bytes::{BufMut, BytesMut};
+use chrono::{DateTime, Local, Timelike};
 use egui::{Color32, FontId, ScrollArea, TextStyle, ViewportCommand};
 use libmudtelnet::events::TelnetEvents;
 use libmudtelnet::telnet::op_command;
@@ -150,11 +151,24 @@ impl eframe::App for BatApp {
         });
 
         egui::TopBottomPanel::bottom("input_panel").show(ctx, |ui| {
-            let response = ui.add_sized(
-                ui.available_size(),
-                egui::TextEdit::singleline(&mut self.input),
+            ui.with_layout(
+                egui::Layout::right_to_left(egui::Align::Center).with_cross_justify(true),
+                |ui| {
+                    let local: DateTime<Local> = Local::now();
+                    ui.label(format!(
+                        "{:02}:{:02}:{:02}",
+                        local.hour(),
+                        local.minute(),
+                        local.second()
+                    ));
+
+                    let response = ui.add_sized(
+                        ui.available_size(),
+                        egui::TextEdit::singleline(&mut self.input),
+                    );
+                    response.request_focus();
+                },
             );
-            response.request_focus();
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {

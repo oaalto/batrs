@@ -35,6 +35,7 @@ tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["full"] }
 futures = { version = "0.3", features = ["thread-pool"] }
 futures-channel = "0.3.30"
+chrono = "0.4"
 
 # Optimize all dependencies even in debug builds:
 [profile.dev.package."*"]
