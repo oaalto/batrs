@@ -1,4 +1,4 @@
-use egui::{Color32, ProgressBar, RichText};
+use egui::{Color32, ProgressBar, RichText, Vec2};
 
 #[derive(Default, Debug, Clone)]
 pub struct Stats {
@@ -50,32 +50,37 @@ impl Stats {
     }
 
     pub fn show(&self, ui: &mut egui::Ui) {
-        ui.vertical_centered_justified(|ui| {
-            ui.horizontal(|ui| {
-                ui.label("Hp:");
-                self.show_stat_progress_bar(ui, self.hp, self.max_hp, self.diff_hp)
-            });
+        ui.with_layout(
+            egui::Layout::bottom_up(egui::Align::Center).with_cross_justify(true),
+            |ui| {
+                ui.spacing_mut().item_spacing = Vec2::new(0.0, 8.0);
 
-            ui.horizontal(|ui| {
-                ui.label("Sp:");
-                self.show_stat_progress_bar(ui, self.sp, self.max_sp, self.diff_sp)
-            });
+                ui.horizontal(|ui| {
+                    ui.label("Hp:");
+                    self.show_stat_progress_bar(ui, self.hp, self.max_hp, self.diff_hp)
+                });
 
-            ui.horizontal(|ui| {
-                ui.label("Ep:");
-                self.show_stat_progress_bar(ui, self.ep, self.max_ep, self.diff_ep)
-            });
+                ui.horizontal(|ui| {
+                    ui.label("Sp:");
+                    self.show_stat_progress_bar(ui, self.sp, self.max_sp, self.diff_sp)
+                });
 
-            ui.horizontal(|ui| {
-                ui.label("Exp:");
-                self.show_value_label(ui, self.exp, self.diff_exp);
-            });
+                ui.horizontal(|ui| {
+                    ui.label("Ep:");
+                    self.show_stat_progress_bar(ui, self.ep, self.max_ep, self.diff_ep)
+                });
 
-            ui.horizontal(|ui| {
-                ui.label("Money:");
-                self.show_value_label(ui, self.money, self.diff_money);
-            });
-        });
+                ui.horizontal(|ui| {
+                    ui.label("Exp:");
+                    self.show_value_label(ui, self.exp, self.diff_exp);
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Money:");
+                    self.show_value_label(ui, self.money, self.diff_money);
+                });
+            },
+        );
     }
 
     fn show_value_label(&self, ui: &mut egui::Ui, value: i32, diff: i32) {
