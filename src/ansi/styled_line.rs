@@ -78,7 +78,7 @@ impl StyledLine {
         } else if prev_end < line.len() {
             let sub = &line[prev_end..];
             if !sub.trim().is_empty() {
-                let start = plain_line.find(sub).unwrap_or_default();
+                let start = plain_line.rfind(sub).unwrap_or_default();
                 current_block.range = Range {
                     start,
                     end: plain_line.len(),

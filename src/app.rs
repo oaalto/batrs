@@ -3,7 +3,7 @@ use crate::guilds::{Guild, ReaverGuild};
 use crate::stats::Stats;
 use crate::{command, triggers};
 use bytes::{BufMut, BytesMut};
-use egui::{FontId, ScrollArea, TextStyle, ViewportCommand};
+use egui::{Color32, FontId, ScrollArea, TextStyle, ViewportCommand};
 use libmudtelnet::events::TelnetEvents;
 use libmudtelnet::telnet::op_command;
 use std::io::BufRead;
@@ -32,6 +32,7 @@ impl BatApp {
         cc.egui_ctx.style_mut(|style| {
             let monospace = FontId::monospace(16.0);
             style.override_font_id = Some(monospace);
+            style.visuals.panel_fill = Color32::BLACK;
         });
 
         cc.egui_ctx
