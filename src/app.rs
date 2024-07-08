@@ -4,7 +4,7 @@ use crate::stats::Stats;
 use crate::{command, triggers};
 use bytes::{BufMut, BytesMut};
 use chrono::{DateTime, Local, Timelike};
-use egui::{Color32, FontId, ScrollArea, TextStyle, ViewportCommand};
+use egui::{Color32, FontId, ScrollArea, TextStyle, Ui, ViewportCommand};
 use libmudtelnet::events::TelnetEvents;
 use libmudtelnet::telnet::op_command;
 use std::io::BufRead;
@@ -126,22 +126,6 @@ impl BatApp {
     }
 }
 
-fn remove_gagged_lines(lines: &mut Vec<StyledLine>) {
-    let num_lines = lines.len();
-    let mut indices: Vec<usize> = lines
-        .iter()
-        .enumerate()
-        .map(|(index, line)| if line.gag { index } else { num_lines + 1 })
-        .filter(|index| *index < num_lines + 1)
-        .collect();
-
-    indices.sort_by(|a, b| b.cmp(a));
-
-    indices.iter().for_each(|index| {
-        lines.remove(*index);
-    });
-}
-
 impl eframe::App for BatApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.read_input();
@@ -154,13 +138,7 @@ impl eframe::App for BatApp {
             ui.with_layout(
                 egui::Layout::right_to_left(egui::Align::Center).with_cross_justify(true),
                 |ui| {
-                    let local: DateTime<Local> = Local::now();
-                    ui.label(format!(
-                        "{:02}:{:02}:{:02}",
-                        local.hour(),
-                        local.minute(),
-                        local.second()
-                    ));
+                    show_clock(ui);
 
                     let response = ui.add_sized(
                         ui.available_size(),
@@ -191,4 +169,30 @@ impl eframe::App for BatApp {
     }
 
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
+}
+
+fn show_clock(ui: &mut Ui) {
+    let local: DateTime<Local> = Local::now();
+    ui.label(format!(
+        "{:02}:{:02}:{:02}",
+        local.hour(),
+        local.minute(),
+        local.second()
+    ));
+}
+
+fn remove_gagged_lines(lines: &mut Vec<StyledLine>) {
+    let num_lines = lines.len();
+    let mut indices: Vec<usize> = lines
+        .iter()
+        .enumerate()
+        .map(|(index, line)| if line.gag { index } else { num_lines + 1 })
+        .filter(|index| *index < num_lines + 1)
+        .collect();
+
+    indices.sort_by(|a, b| b.cmp(a));
+
+    indices.iter().for_each(|index| {
+        lines.remove(*index);
+    });
 }
