@@ -145,16 +145,16 @@ impl eframe::App for BatApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.read_input();
 
+        egui::SidePanel::left("stats").show(ctx, |ui| {
+            self.stats.show(ui);
+        });
+
         egui::TopBottomPanel::bottom("input_panel").show(ctx, |ui| {
             let response = ui.add_sized(
                 ui.available_size(),
                 egui::TextEdit::singleline(&mut self.input),
             );
             response.request_focus();
-        });
-
-        egui::SidePanel::left("stats").show(ctx, |ui| {
-            self.stats.show(ui);
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
