@@ -1,15 +1,11 @@
 use crate::command;
 use crate::command::Command;
-use crate::guilds::{cast_spell, use_skill, Guild};
-use crate::triggers::Trigger;
+use crate::guilds::{cast_spell, use_skill, ReaverGuild};
 use egui::Context;
 use std::collections::HashMap;
 
-#[derive(Default)]
-pub struct ReaverGuild {}
-
-impl Guild for ReaverGuild {
-    fn commands(&self) -> HashMap<String, Command> {
+impl ReaverGuild {
+    pub fn get_commands(&self) -> HashMap<String, Command> {
         HashMap::from([
             // Skills
             ("uss".to_string(), Self::use_scythe_swipe as Command),
@@ -36,13 +32,7 @@ impl Guild for ReaverGuild {
         ])
     }
 
-    fn triggers(&self) -> Vec<Box<dyn Trigger>> {
-        Vec::new()
-    }
-}
-
-impl ReaverGuild {
-    fn reaver_threaten(data: &command::Data) -> String {
+    pub fn reaver_threaten(data: &command::Data) -> String {
         if !data.args.is_empty() {
             return format!("reaver threaten {}", &data.args);
         }
@@ -51,7 +41,7 @@ impl ReaverGuild {
 
     // SKILLS
 
-    fn use_scythe_swipe(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn use_scythe_swipe(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -59,7 +49,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn use_rampant_cutting(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn use_rampant_cutting(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -67,7 +57,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn use_reaver_strike(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn use_reaver_strike(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -75,7 +65,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn use_blood_harvest(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn use_blood_harvest(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -83,7 +73,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn use_reave_shield(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn use_reave_shield(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -91,7 +81,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn use_reave_weapon(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn use_reave_weapon(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -99,7 +89,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn use_reave_armour(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn use_reave_armour(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -107,7 +97,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn use_true_reaving(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn use_true_reaving(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -115,7 +105,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn use_corrosive_cut(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn use_corrosive_cut(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -123,7 +113,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn use_breath_of_doom(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn use_breath_of_doom(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -131,7 +121,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn use_prayer_to_destruction(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn use_prayer_to_destruction(data: &command::Data, _ctx: &Context) -> Option<String> {
         if !data.args.is_empty() {
             return Some(format!("use prayer to destruction at {}", &data.args));
         }
@@ -140,7 +130,7 @@ impl ReaverGuild {
 
     // SPELLS
 
-    fn cast_word_of_spite(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn cast_word_of_spite(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -148,7 +138,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn cast_word_of_blasting(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn cast_word_of_blasting(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -156,7 +146,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn cast_word_of_destruction(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn cast_word_of_destruction(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -164,7 +154,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn cast_word_of_slaughter(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn cast_word_of_slaughter(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -172,7 +162,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn cast_word_of_genocide(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn cast_word_of_genocide(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),
@@ -180,7 +170,7 @@ impl ReaverGuild {
         ))
     }
 
-    fn cast_word_of_attrition(data: &command::Data, _ctx: &Context) -> Option<String> {
+    pub fn cast_word_of_attrition(data: &command::Data, _ctx: &Context) -> Option<String> {
         Some(format!(
             "{};{}",
             Self::reaver_threaten(data),

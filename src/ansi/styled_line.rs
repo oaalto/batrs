@@ -3,6 +3,7 @@ use crate::ansi::{ansi_colors, AnsiCode};
 use eframe::epaint::FontId;
 use egui::text::LayoutJob;
 use egui::{TextBuffer, TextFormat};
+use env_logger::fmt::style::AnsiColor;
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
 use regex::Regex;
@@ -39,6 +40,17 @@ impl StyledLine {
             );
         });
         ui.label(job);
+    }
+
+    pub fn set_line_color(&mut self, color: AnsiCode, bold: bool) {
+        self.blocks = vec![StyledTextBlock {
+            bold,
+            color,
+            range: Range {
+                start: 0,
+                end: self.plain_line.len(),
+            },
+        }]
     }
 
     fn get_string(&self, range: &Range<usize>) -> &str {

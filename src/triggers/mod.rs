@@ -5,22 +5,24 @@ use lazy_static::lazy_static;
 mod prompt;
 mod short_score;
 
-use prompt::PromptTrigger;
-use short_score::ShortScoreTrigger;
-
-pub trait Trigger {
-    fn process(&self, app: &mut BatApp, styled_line: &mut StyledLine);
-}
-
 lazy_static! {
-    pub static ref TRIGGERS: Vec<Box<(dyn Trigger + Sync)>> = vec![
-        Box::new(PromptTrigger::default()),
-        Box::new(ShortScoreTrigger::default())
-    ];
+    static ref TRIGGERS: Vec<Trigger> = vec![prompt::trigger, short_score::trigger];
 }
 
+pub type Trigger = fn(app: &mut BatApp, styled_line: &mut StyledLine);
+
+// TODO: Add a way to add new lines to output
 pub fn process(app: &mut BatApp, styled_line: &mut StyledLine) {
     TRIGGERS
         .iter()
-        .for_each(|trigger| trigger.process(app, styled_line));
+        .for_each(|trigger| trigger(app, styled_line));
+
+    let guild_triggers: Vec<Trigger> = app
+        .selected_guilds
+        .iter()
+        .flat_map(|g| g.triggers())
+        .collect();
+    guild_triggers
+        .iter()
+        .for_each(|trigger| trigger(app, styled_line))
 }

@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 pub trait Guild {
     fn commands(&self) -> HashMap<String, Command>;
-    fn triggers(&self) -> Vec<Box<dyn Trigger>>;
+    fn triggers(&self) -> Vec<Trigger>;
 }
 
 pub fn use_skill(skill_name: &str, data: &Data) -> String {
