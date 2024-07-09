@@ -3,7 +3,6 @@ use crate::ansi::{ansi_colors, AnsiCode};
 use eframe::epaint::FontId;
 use egui::text::LayoutJob;
 use egui::{TextBuffer, TextFormat};
-use env_logger::fmt::style::AnsiColor;
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
 use regex::Regex;
