@@ -20,6 +20,7 @@ pub struct BatApp {
     pub command_sender: Sender<String>,
     pub buffer: Option<BytesMut>,
     pub selected_guilds: Vec<Box<dyn Guild>>,
+    pub fullscreen: bool,
 }
 
 impl BatApp {
@@ -50,6 +51,7 @@ impl BatApp {
             command_sender,
             buffer: Some(BytesMut::with_capacity(1024)),
             selected_guilds: vec![Box::new(ReaverGuild::default())],
+            fullscreen: true,
         }
     }
 
@@ -165,6 +167,10 @@ impl eframe::App for BatApp {
 
         self.send_output(ctx);
 
+        if ctx.input(|i| i.key_pressed(egui::Key::F12)) {
+            self.fullscreen = !self.fullscreen;
+            ctx.send_viewport_cmd(ViewportCommand::Fullscreen(self.fullscreen));
+        }
         ctx.request_repaint();
     }
 
