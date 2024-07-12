@@ -1,25 +1,25 @@
 use crate::ansi::AnsiCode;
 use std::fmt::{Display, Formatter};
-use std::ops::Range;
 
 #[derive(Debug, Clone)]
-pub struct StyledTextBlock {
+pub struct StyledChar {
     pub bold: bool,
     pub color: AnsiCode,
-    pub range: Range<usize>,
+    pub character: String,
 }
 
-impl StyledTextBlock {
-    pub fn new() -> Self {
+impl StyledChar {
+    pub fn new(c: String) -> Self {
         Self {
             bold: false,
             color: AnsiCode::White,
-            range: Range::default(),
+            character: c,
         }
     }
 
     pub fn reset(&mut self) {
-        *self = StyledTextBlock::new();
+        self.bold = false;
+        self.color = AnsiCode::White;
     }
 
     pub fn process_ansi_codes(&mut self, ansi_codes: &[AnsiCode]) {
@@ -33,12 +33,12 @@ impl StyledTextBlock {
     }
 }
 
-impl Display for StyledTextBlock {
+impl Display for StyledChar {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "({}..{}), color: {:?}, bold: {}",
-            self.range.start, self.range.end, self.color, self.bold
+            "char: {}, color: {:?}, bold: {}",
+            self.character, self.color, self.bold
         )
     }
 }

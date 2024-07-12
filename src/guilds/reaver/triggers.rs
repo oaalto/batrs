@@ -21,6 +21,7 @@ lazy_static! {
         Regex::new("(.+) shifts position and you cannot hit the (.+) time.").unwrap(),
         Regex::new("Your frenzied attempts to destroy (.+) are easily deflected.").unwrap()
     ];
+    static ref KILLING_BLOW: Regex = Regex::new("You score a KILLING BLOW on (.+)!").unwrap();
 }
 
 impl ReaverGuild {
@@ -30,6 +31,7 @@ impl ReaverGuild {
             Self::rampant_cutting_trigger,
             Self::reaver_strike_trigger,
             Self::attack_fails_trigger,
+            Self::killing_blow_trigger,
         ]
     }
 
@@ -63,6 +65,12 @@ impl ReaverGuild {
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Red, true);
+        }
+    }
+
+    pub fn killing_blow_trigger(_app: &mut BatApp, styled_line: &mut StyledLine) {
+        if KILLING_BLOW.is_match(&styled_line.plain_line) {
+            styled_line.set_block_color("KILLING BLOW", AnsiCode::Red, true);
         }
     }
 }

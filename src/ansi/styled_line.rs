@@ -1,39 +1,45 @@
-use crate::ansi::styled_text_block::StyledTextBlock;
+use crate::ansi::styled_text_block::StyledChar;
 use crate::ansi::{ansi_colors, AnsiCode};
 use eframe::epaint::FontId;
 use egui::text::LayoutJob;
-use egui::{TextBuffer, TextFormat};
+use egui::TextFormat;
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
 use regex::Regex;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
+use unicode_segmentation::UnicodeSegmentation;
 
 pub struct StyledLine {
     pub plain_line: String,
-    pub blocks: Vec<StyledTextBlock>,
+    pub styled_chars: Vec<StyledChar>,
     pub gag: bool,
+}
+
+struct MatchedAnsiBlock {
+    start: usize,
+    end: usize,
+    codes: Vec<AnsiCode>,
 }
 
 impl StyledLine {
     pub fn new(line: &str) -> Self {
-        let plain_line = remove_ansi_codes(line);
         Self {
-            blocks: Self::parse_line(line, &plain_line),
-            plain_line,
+            styled_chars: Self::parse_line(line),
+            plain_line: remove_ansi_codes(line),
             gag: false,
         }
     }
 
     pub fn show(&self, ui: &mut egui::Ui) {
         let mut job = LayoutJob::default();
-        self.blocks.iter().for_each(|block| {
+        self.styled_chars.iter().for_each(|c| {
             job.append(
-                self.get_string(&block.range),
+                &c.character.to_string(),
                 0.0,
                 TextFormat {
                     font_id: FontId::monospace(16.0),
-                    color: ansi_colors::get_color(block.color, block.bold),
+                    color: ansi_colors::get_color(c.color, c.bold),
                     ..Default::default()
                 },
             );
@@ -41,72 +47,82 @@ impl StyledLine {
         ui.label(job);
     }
 
-    pub fn set_line_color(&mut self, color: AnsiCode, bold: bool) {
-        self.blocks = vec![StyledTextBlock {
-            bold,
-            color,
-            range: Range {
-                start: 0,
-                end: self.plain_line.len(),
-            },
-        }]
-    }
-
-    fn get_string(&self, range: &Range<usize>) -> &str {
-        self.plain_line.char_range(range.clone())
-    }
-
-    fn parse_line(line: &str, plain_line: &str) -> Vec<StyledTextBlock> {
-        let matches = parse_ansi::parse_bytes(line.as_bytes());
-        let mut blocks: Vec<StyledTextBlock> = Vec::new();
-        let mut current_block = StyledTextBlock::new();
-        let mut prev_end = 0;
-
-        matches.for_each(|m| {
-            if m.start() > 0 && prev_end < m.start() {
-                let sub = &line[prev_end..m.start()];
-                let start = plain_line.find(sub).unwrap_or_default();
-                let end = start + sub.len();
-                current_block.range = Range { start, end };
-
-                blocks.push(current_block.clone());
-                current_block.reset();
-            }
-
-            let ansi_codes = parse_ansi_code_block(m.as_bytes());
-            current_block.process_ansi_codes(&ansi_codes);
-
-            prev_end = m.end();
-        });
-
-        // No matches means no ansi control sequences found
-        if blocks.is_empty() {
-            current_block.range = Range {
-                start: 0,
-                end: plain_line.len(),
-            };
-            blocks.push(current_block);
-        } else if prev_end < line.len() {
-            let sub = &line[prev_end..];
-            if !sub.trim().is_empty() {
-                let start = plain_line.rfind(sub).unwrap_or_default();
-                current_block.range = Range {
-                    start,
-                    end: plain_line.len(),
-                };
-
-                blocks.push(current_block);
-            }
+    pub fn set_block_color(&mut self, part: &str, color: AnsiCode, bold: bool) {
+        if let Some(range) = self.get_range_for(part) {
+            range.into_iter().for_each(|index| {
+                self.styled_chars[index].color = color;
+                self.styled_chars[index].bold = bold;
+            });
         }
+    }
 
-        blocks
+    fn get_range_for(&self, part: &str) -> Option<Range<usize>> {
+        self.plain_line.find(part).map(|start| Range {
+            start,
+            end: start + part.len(),
+        })
+    }
+
+    pub fn set_line_color(&mut self, color: AnsiCode, bold: bool) {
+        self.styled_chars = self
+            .plain_line
+            .graphemes(true)
+            .map(|c| StyledChar {
+                bold,
+                color,
+                character: c.to_string(),
+            })
+            .collect();
+    }
+
+    fn parse_line(line: &str) -> Vec<StyledChar> {
+        let matches = parse_ansi::parse_bytes(line.as_bytes());
+
+        let matched_ansi_blocks: Vec<MatchedAnsiBlock> = matches
+            .map(|m| MatchedAnsiBlock {
+                start: m.start(),
+                end: m.end(),
+                codes: parse_ansi_code_block(m.as_bytes()),
+            })
+            .collect();
+
+        let find_block = |i| matched_ansi_blocks.iter().rfind(|b| b.end <= i);
+
+        let is_inside_ansi_block = |i| {
+            matched_ansi_blocks
+                .iter()
+                .any(|b| b.start <= i && b.end > i)
+        };
+
+        let chars = line
+            .graphemes(true)
+            .map(|c| StyledChar {
+                bold: false,
+                color: AnsiCode::White,
+                character: c.to_string(),
+            })
+            .enumerate()
+            .filter_map(|(i, mut styled_char)| {
+                if is_inside_ansi_block(i) {
+                    return None;
+                }
+
+                if let Some(block) = find_block(i) {
+                    styled_char.process_ansi_codes(&block.codes);
+                }
+
+                Some(styled_char)
+            })
+            .collect();
+
+        chars
     }
 }
 
 impl Display for StyledLine {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let blocks = self
-            .blocks
+            .styled_chars
             .iter()
             .map(ToString::to_string)
             .collect::<Vec<String>>()
