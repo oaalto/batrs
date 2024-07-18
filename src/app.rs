@@ -7,20 +7,25 @@ use chrono::{DateTime, Local, Timelike};
 use egui::{Color32, FontId, ScrollArea, TextStyle, Ui, ViewportCommand};
 use libmudtelnet::events::TelnetEvents;
 use libmudtelnet::telnet::op_command;
+use std::cmp::{max, min};
 use std::io::BufRead;
+use std::mem;
 use std::sync::mpsc::{Receiver, Sender};
 
 static CARRIAGE_RETURN_NEW_LINE: &[u8] = &[13, 10];
 
 pub struct BatApp {
     pub lines: Vec<StyledLine>,
-    pub input: String,
+    pub current_typed_input: String,
+    pub displayed_input: String,
     pub stats: Stats,
     pub event_receiver: Receiver<TelnetEvents>,
     pub command_sender: Sender<String>,
     pub buffer: Option<BytesMut>,
     pub selected_guilds: Vec<Box<dyn Guild>>,
     pub fullscreen: bool,
+    pub history: Vec<String>,
+    pub cur_history_pos: usize,
 }
 
 impl BatApp {
@@ -45,13 +50,16 @@ impl BatApp {
 
         BatApp {
             lines: vec![],
-            input: "".to_string(),
+            current_typed_input: String::new(),
+            displayed_input: String::new(),
             stats: Default::default(),
             event_receiver,
             command_sender,
             buffer: Some(BytesMut::with_capacity(1024)),
             selected_guilds: vec![Box::new(ReaverGuild::default())],
             fullscreen: true,
+            history: vec![],
+            cur_history_pos: 1,
         }
     }
 
@@ -96,7 +104,11 @@ impl BatApp {
             .lines()
             .filter_map(Result::ok)
             .map(|line| StyledLine::new(&line))
-            .flat_map(|mut styled_line| triggers::process(self, &mut styled_line))
+            .flat_map(|mut styled_line| {
+                let mut new_lines = triggers::process(self, &mut styled_line);
+                new_lines.push(styled_line);
+                new_lines
+            })
             .collect();
 
         remove_gagged_lines(&mut lines);
@@ -112,14 +124,47 @@ impl BatApp {
 
     fn send_output(&mut self, ctx: &egui::Context) {
         if ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
-            let cmd = command::process(&self.input, ctx, &self.selected_guilds);
+            let cmd = command::process(&self.displayed_input, ctx, &self.selected_guilds);
 
             if let Some(s) = cmd {
                 if let Err(e) = self.command_sender.send(s) {
                     eprintln!("failed to send data: {}", e);
                 }
             }
-            self.input.clear();
+
+            self.history.push(mem::take(&mut self.displayed_input));
+            self.cur_history_pos = self.history.len();
+        }
+    }
+
+    fn handle_history_input(&mut self, ctx: &egui::Context) {
+        let prev_pos = self.cur_history_pos;
+
+        if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
+            self.cur_history_pos = max(
+                0,
+                self.cur_history_pos
+                    .checked_sub(1)
+                    .unwrap_or(self.cur_history_pos),
+            );
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
+            self.cur_history_pos = min(
+                self.history.len(),
+                self.cur_history_pos
+                    .checked_add(1)
+                    .unwrap_or(self.cur_history_pos),
+            );
+        }
+
+        if prev_pos != self.cur_history_pos {
+            #[allow(clippy::comparison_chain)]
+            if self.cur_history_pos < self.history.len() {
+                self.displayed_input
+                    .clone_from(&self.history[self.cur_history_pos]);
+            } else if self.cur_history_pos == self.history.len() {
+                self.displayed_input.clone_from(&self.current_typed_input);
+            }
         }
     }
 }
@@ -140,9 +185,13 @@ impl eframe::App for BatApp {
 
                     let response = ui.add_sized(
                         ui.available_size(),
-                        egui::TextEdit::singleline(&mut self.input),
+                        egui::TextEdit::singleline(&mut self.displayed_input),
                     );
                     response.request_focus();
+                    if response.changed() {
+                        self.current_typed_input.clone_from(&self.displayed_input);
+                        self.cur_history_pos = self.history.len();
+                    }
                 },
             );
         });
@@ -161,12 +210,15 @@ impl eframe::App for BatApp {
                 });
         });
 
+        self.handle_history_input(ctx);
+
         self.send_output(ctx);
 
         if ctx.input(|i| i.key_pressed(egui::Key::F12)) {
             self.fullscreen = !self.fullscreen;
             ctx.send_viewport_cmd(ViewportCommand::Fullscreen(self.fullscreen));
         }
+
         ctx.request_repaint();
     }
 
