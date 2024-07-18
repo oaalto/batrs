@@ -9,14 +9,6 @@ pub struct StyledChar {
 }
 
 impl StyledChar {
-    pub fn new(c: String) -> Self {
-        Self {
-            bold: false,
-            color: AnsiCode::White,
-            character: c,
-        }
-    }
-
     pub fn reset(&mut self) {
         self.bold = false;
         self.color = AnsiCode::White;
