@@ -96,11 +96,7 @@ impl BatApp {
             .lines()
             .filter_map(Result::ok)
             .map(|line| StyledLine::new(&line))
-            // TODO: a better way than this...
-            .map(|mut styled_line| {
-                triggers::process(self, &mut styled_line);
-                styled_line
-            })
+            .flat_map(|mut styled_line| triggers::process(self, &mut styled_line))
             .collect();
 
         remove_gagged_lines(&mut lines);
