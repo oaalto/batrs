@@ -35,42 +35,62 @@ impl ReaverGuild {
         ]
     }
 
-    pub fn scythe_swipe_trigger(_app: &mut BatApp, styled_line: &mut StyledLine) {
+    pub fn scythe_swipe_trigger(
+        _app: &mut BatApp,
+        styled_line: &mut StyledLine,
+    ) -> Vec<StyledLine> {
         if SCYTHE_SWIPE_REGEX.is_match(&styled_line.plain_line) {
             styled_line.set_line_color(AnsiCode::Blue, false);
         }
+        vec![]
     }
 
-    pub fn rampant_cutting_trigger(_app: &mut BatApp, styled_line: &mut StyledLine) {
+    pub fn rampant_cutting_trigger(
+        _app: &mut BatApp,
+        styled_line: &mut StyledLine,
+    ) -> Vec<StyledLine> {
         if RAMPANT_CUTTING_REGEXS
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Blue, false);
         }
+        vec![]
     }
 
-    pub fn reaver_strike_trigger(_app: &mut BatApp, styled_line: &mut StyledLine) {
+    pub fn reaver_strike_trigger(
+        _app: &mut BatApp,
+        styled_line: &mut StyledLine,
+    ) -> Vec<StyledLine> {
         if REAVER_STRIKE_REGEXS
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Blue, false);
         }
+        vec![]
     }
 
-    pub fn attack_fails_trigger(_app: &mut BatApp, styled_line: &mut StyledLine) {
+    pub fn attack_fails_trigger(
+        _app: &mut BatApp,
+        styled_line: &mut StyledLine,
+    ) -> Vec<StyledLine> {
         if ATTACK_FAILS
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Red, true);
         }
+        vec![]
     }
 
-    pub fn killing_blow_trigger(_app: &mut BatApp, styled_line: &mut StyledLine) {
+    pub fn killing_blow_trigger(
+        _app: &mut BatApp,
+        styled_line: &mut StyledLine,
+    ) -> Vec<StyledLine> {
         if KILLING_BLOW.is_match(&styled_line.plain_line) {
             styled_line.set_block_color("KILLING BLOW", AnsiCode::Red, true);
         }
+        vec![]
     }
 }
