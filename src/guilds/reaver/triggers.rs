@@ -32,6 +32,7 @@ impl ReaverGuild {
             Self::reaver_strike_trigger,
             Self::attack_fails_trigger,
             Self::killing_blow_trigger,
+            Self::threaten_usage_trigger,
         ]
     }
 
@@ -90,6 +91,16 @@ impl ReaverGuild {
     ) -> Vec<StyledLine> {
         if KILLING_BLOW.is_match(&styled_line.plain_line) {
             styled_line.set_block_color("KILLING BLOW", AnsiCode::Red, true);
+        }
+        vec![]
+    }
+
+    pub fn threaten_usage_trigger(
+        _app: &mut BatApp,
+        styled_line: &mut StyledLine,
+    ) -> Vec<StyledLine> {
+        if "Can only be used once per 10 minutes." == styled_line.plain_line {
+            styled_line.gag = true;
         }
         vec![]
     }
