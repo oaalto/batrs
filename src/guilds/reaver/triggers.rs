@@ -32,45 +32,76 @@ impl ReaverGuild {
             Self::reaver_strike_trigger,
             Self::attack_fails_trigger,
             Self::killing_blow_trigger,
+            Self::threaten_usage_trigger,
         ]
     }
 
-    pub fn scythe_swipe_trigger(_app: &mut BatApp, styled_line: &mut StyledLine) {
+    pub fn scythe_swipe_trigger(
+        _app: &mut BatApp,
+        styled_line: &mut StyledLine,
+    ) -> Vec<StyledLine> {
         if SCYTHE_SWIPE_REGEX.is_match(&styled_line.plain_line) {
             styled_line.set_line_color(AnsiCode::Blue, false);
         }
+        vec![]
     }
 
-    pub fn rampant_cutting_trigger(_app: &mut BatApp, styled_line: &mut StyledLine) {
+    pub fn rampant_cutting_trigger(
+        _app: &mut BatApp,
+        styled_line: &mut StyledLine,
+    ) -> Vec<StyledLine> {
         if RAMPANT_CUTTING_REGEXS
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Blue, false);
         }
+        vec![]
     }
 
-    pub fn reaver_strike_trigger(_app: &mut BatApp, styled_line: &mut StyledLine) {
+    pub fn reaver_strike_trigger(
+        _app: &mut BatApp,
+        styled_line: &mut StyledLine,
+    ) -> Vec<StyledLine> {
         if REAVER_STRIKE_REGEXS
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Blue, false);
         }
+        vec![]
     }
 
-    pub fn attack_fails_trigger(_app: &mut BatApp, styled_line: &mut StyledLine) {
+    pub fn attack_fails_trigger(
+        _app: &mut BatApp,
+        styled_line: &mut StyledLine,
+    ) -> Vec<StyledLine> {
         if ATTACK_FAILS
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Red, true);
         }
+        vec![]
     }
 
-    pub fn killing_blow_trigger(_app: &mut BatApp, styled_line: &mut StyledLine) {
+    pub fn killing_blow_trigger(
+        _app: &mut BatApp,
+        styled_line: &mut StyledLine,
+    ) -> Vec<StyledLine> {
         if KILLING_BLOW.is_match(&styled_line.plain_line) {
             styled_line.set_block_color("KILLING BLOW", AnsiCode::Red, true);
         }
+        vec![]
+    }
+
+    pub fn threaten_usage_trigger(
+        _app: &mut BatApp,
+        styled_line: &mut StyledLine,
+    ) -> Vec<StyledLine> {
+        if "Can only be used once per 10 minutes." == styled_line.plain_line {
+            styled_line.gag = true;
+        }
+        vec![]
     }
 }
