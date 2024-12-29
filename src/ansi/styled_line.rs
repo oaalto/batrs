@@ -96,11 +96,7 @@ impl StyledLine {
 
         let chars = line
             .graphemes(true)
-            .map(|c| StyledChar {
-                bold: false,
-                color: AnsiCode::White,
-                character: c.to_string(),
-            })
+            .map(|c| StyledChar::new(c.to_string()))
             .enumerate()
             .filter_map(|(i, mut styled_char)| {
                 if is_inside_ansi_block(i) {
