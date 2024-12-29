@@ -12,14 +12,14 @@ impl StyledChar {
     pub fn new(c: String) -> Self {
         Self {
             bold: false,
-            color: AnsiCode::White,
+            color: AnsiCode::DefaultColor,
             character: c,
         }
     }
 
     pub fn reset(&mut self) {
         self.bold = false;
-        self.color = AnsiCode::White;
+        self.color = AnsiCode::DefaultColor;
     }
 
     pub fn process_ansi_codes(&mut self, ansi_codes: &[AnsiCode]) {
