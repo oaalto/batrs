@@ -28,7 +28,7 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "BatMUD Client",
         Default::default(),
-        Box::new(|cc| Box::new(BatApp::new(cc, event_receiver, command_sender))),
+        Box::new(|cc| Ok(Box::new(BatApp::new(cc, event_receiver, command_sender)))),
     )
 }
 
