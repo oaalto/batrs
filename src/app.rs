@@ -34,8 +34,6 @@ impl BatApp {
         event_receiver: Receiver<TelnetEvents>,
         command_sender: Sender<String>,
     ) -> Self {
-        cc.egui_ctx.set_visuals(egui::Visuals::dark());
-
         cc.egui_ctx.style_mut(|style| {
             let monospace = FontId::monospace(16.0);
             style.override_font_id = Some(monospace);
@@ -66,17 +64,17 @@ impl BatApp {
     fn handle_event(&mut self, event: &TelnetEvents) {
         match event {
             TelnetEvents::IAC(iac) => {
-                println!("IAC: {:?}", iac);
+                println!("IAC: {iac:?}");
                 if op_command::GA == iac.command {
                     let buffer = self.buffer.replace(BytesMut::with_capacity(1024)).unwrap();
                     self.process_input_data(buffer);
                 }
             }
             TelnetEvents::Negotiation(neg) => {
-                println!("Negotiation: {:?}", neg);
+                println!("Negotiation: {neg:?}");
             }
             TelnetEvents::Subnegotiation(sub_neg) => {
-                println!("Subnegotiation: {:?}", sub_neg);
+                println!("Subnegotiation: {sub_neg:?}");
             }
             TelnetEvents::DataReceive(bytes) => {
                 if !bytes.ends_with(CARRIAGE_RETURN_NEW_LINE) {
@@ -128,7 +126,7 @@ impl BatApp {
 
             if let Some(s) = cmd {
                 if let Err(e) = self.command_sender.send(s) {
-                    eprintln!("failed to send data: {}", e);
+                    eprintln!("failed to send data: {e}");
                 }
             }
 

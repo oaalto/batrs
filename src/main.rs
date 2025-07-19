@@ -4,8 +4,8 @@
 use crate::app::BatApp;
 use futures::future;
 use futures::stream::StreamExt;
-use libmudtelnet::events::TelnetEvents;
 use libmudtelnet::Parser;
+use libmudtelnet::events::TelnetEvents;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use tokio::io::AsyncWriteExt;
@@ -25,10 +25,21 @@ fn main() -> eframe::Result<()> {
 
     let (event_receiver, command_sender) = setup_connection();
 
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([1200.0, 800.0])
+            .with_maximized(true),
+        ..Default::default()
+    };
+
     eframe::run_native(
         "BatMUD Client",
-        Default::default(),
-        Box::new(|cc| Ok(Box::new(BatApp::new(cc, event_receiver, command_sender)))),
+        options,
+        Box::new(|cc| {
+            // Set dark theme before creating the app
+            cc.egui_ctx.set_visuals(egui::Visuals::dark());
+            Ok(Box::new(BatApp::new(cc, event_receiver, command_sender)))
+        }),
     )
 }
 
@@ -53,7 +64,7 @@ fn setup_connection() -> (Receiver<TelnetEvents>, Sender<String>) {
                 let stream = FramedRead::new(reader, BytesCodec::new()).filter_map(|i| match i {
                     Ok(i) => future::ready(Some(i.freeze())),
                     Err(e) => {
-                        eprintln!("failed to read from socket; error={}", e);
+                        eprintln!("failed to read from socket; error={e}");
                         future::ready(None)
                     }
                 });
@@ -80,7 +91,7 @@ fn setup_connection() -> (Receiver<TelnetEvents>, Sender<String>) {
                 if let Ok(message) = command_receiver.recv() {
                     let events = parser.send_text(&message);
                     if let Err(e) = writer.write_all(&events.to_bytes()).await {
-                        eprintln!("{}", e);
+                        eprintln!("{e}");
                     }
                 }
             }

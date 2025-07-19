@@ -85,18 +85,18 @@ impl Stats {
 
     fn show_value_label(&self, ui: &mut egui::Ui, value: i32, diff: i32) {
         let text = if diff == 0 {
-            format!("{}", value)
+            format!("{value}")
         } else {
-            format!("{} ({:+})", value, diff)
+            format!("{value} ({diff:+})")
         };
         ui.label(text);
     }
 
     fn show_stat_progress_bar(&self, ui: &mut egui::Ui, value: i32, max_value: i32, diff: i32) {
         let progress_text = if diff == 0 {
-            format!("{}/{}", value, max_value)
+            format!("{value}/{max_value}")
         } else {
-            format!("{}/{} ({:+})", value, max_value, diff)
+            format!("{value}/{max_value} ({diff:+})")
         };
         let progress: f32 = if value == 0 {
             0.0

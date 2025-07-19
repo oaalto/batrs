@@ -13,7 +13,7 @@ pub trait Guild {
 
 pub fn use_skill(skill_name: &str, data: &Data) -> String {
     if data.args.is_empty() {
-        format!("@use '{}'", skill_name)
+        format!("@use '{skill_name}'")
     } else {
         format!("@target {};use '{}' {}", &data.args, skill_name, &data.args)
     }
@@ -21,7 +21,7 @@ pub fn use_skill(skill_name: &str, data: &Data) -> String {
 
 pub fn cast_spell(spell_name: &str, data: &Data) -> String {
     if data.args.is_empty() {
-        format!("@cast '{}'", spell_name)
+        format!("@cast '{spell_name}'")
     } else {
         format!(
             "@target {};cast '{}' {}",

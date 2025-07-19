@@ -1,8 +1,8 @@
 use crate::ansi::styled_text_block::StyledChar;
-use crate::ansi::{ansi_colors, AnsiCode};
+use crate::ansi::{AnsiCode, ansi_colors};
 use eframe::epaint::FontId;
-use egui::text::LayoutJob;
 use egui::TextFormat;
+use egui::text::LayoutJob;
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
 use regex::Regex;
@@ -94,8 +94,7 @@ impl StyledLine {
                 .any(|b| b.start <= i && b.end > i)
         };
 
-        let chars = line
-            .graphemes(true)
+        line.graphemes(true)
             .map(|c| StyledChar::new(c.to_string()))
             .enumerate()
             .filter_map(|(i, mut styled_char)| {
@@ -109,9 +108,7 @@ impl StyledLine {
 
                 Some(styled_char)
             })
-            .collect();
-
-        chars
+            .collect()
     }
 }
 
@@ -148,7 +145,7 @@ fn parse_ansi_code_block(block: &[u8]) -> Vec<AnsiCode> {
             }
         }
         Err(e) => {
-            eprintln!("parsing ansi code: {}", e)
+            eprintln!("parsing ansi code: {e}")
         }
     }
 
