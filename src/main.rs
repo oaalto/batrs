@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use crate::app::BatApp;
+use egui::ThemePreference;
 use futures::future;
 use futures::stream::StreamExt;
 use libmudtelnet::Parser;
@@ -36,8 +37,7 @@ fn main() -> eframe::Result<()> {
         "BatMUD Client",
         options,
         Box::new(|cc| {
-            // Set dark theme before creating the app
-            cc.egui_ctx.set_visuals(egui::Visuals::dark());
+            cc.egui_ctx.set_theme(ThemePreference::Dark);
             Ok(Box::new(BatApp::new(cc, event_receiver, command_sender)))
         }),
     )
