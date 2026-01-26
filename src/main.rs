@@ -23,6 +23,7 @@ mod ansi;
 mod app;
 mod automation;
 mod command;
+mod config;
 mod guilds;
 mod stats;
 mod triggers;

@@ -78,6 +78,10 @@ impl SessionState {
     pub fn set_last_login_input(&mut self, input: String) {
         self.last_login_input = Some(input);
     }
+
+    pub fn login_name(&self) -> Option<&str> {
+        self.login_name.as_deref()
+    }
 }
 
 #[cfg(test)]

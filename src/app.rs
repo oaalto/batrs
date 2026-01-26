@@ -5,6 +5,7 @@ mod telnet_buffer;
 
 use crate::ansi::StyledLine;
 use crate::automation::{Action, Automation};
+use crate::config::ConfigManager;
 use crate::guilds::{Guild, ReaverGuild};
 use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
@@ -32,6 +33,8 @@ pub struct BatApp {
     selected_guilds: Vec<Box<dyn Guild>>,
     should_quit: bool,
     automation: Automation,
+    config_manager: Option<ConfigManager>,
+    user_config_loaded: bool,
 }
 
 impl BatApp {
@@ -39,6 +42,18 @@ impl BatApp {
         event_receiver: Receiver<TelnetEvents>,
         command_sender: Sender<String>,
     ) -> Self {
+        let config_manager = match ConfigManager::new() {
+            Ok(mut manager) => {
+                if let Err(e) = manager.init_base() {
+                    eprintln!("failed to initialize base config: {e}");
+                }
+                Some(manager)
+            }
+            Err(e) => {
+                eprintln!("failed to initialize config manager: {e}");
+                None
+            }
+        };
         let mut app = BatApp {
             output: OutputBuffer::new(),
             input: InputState::new(),
@@ -50,6 +65,8 @@ impl BatApp {
             selected_guilds: vec![Box::new(ReaverGuild::default())],
             should_quit: false,
             automation: Automation::new(),
+            config_manager,
+            user_config_loaded: false,
         };
 
         for guild in &app.selected_guilds {
@@ -64,8 +81,12 @@ impl BatApp {
 
         for line in lines {
             let mut styled_line = StyledLine::new(&line);
+            let was_logged_in = self.session.is_logged_in();
             if self.session.update_login_state(&styled_line.plain_line) {
                 self.input.clear_all();
+            }
+            if !was_logged_in && self.session.is_logged_in() {
+                self.load_user_config();
             }
 
             if self.session.is_logged_in() {
@@ -224,6 +245,25 @@ impl BatApp {
     }
 
     // TODO: keep around scroll position when manual scrolling is added.
+}
+
+impl BatApp {
+    fn load_user_config(&mut self) {
+        if self.user_config_loaded {
+            return;
+        }
+        self.user_config_loaded = true;
+        let Some(manager) = self.config_manager.as_mut() else {
+            return;
+        };
+        let Some(player_name) = self.session.login_name() else {
+            eprintln!("logged in without a known player name; skipping user config");
+            return;
+        };
+        if let Err(e) = manager.load_user(player_name) {
+            eprintln!("failed to load user config for {player_name}: {e}");
+        }
+    }
 }
 
 fn show_clock() -> String {
