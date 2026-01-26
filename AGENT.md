@@ -1,3 +1,8 @@
+---
+globs:
+alwaysApply: true
+---
+
 ## Agent Guide
 
 This project values correctness, functional style, and concise code. Prefer small, focused functions and keep logic easy to reason about.
