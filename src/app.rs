@@ -13,6 +13,8 @@ use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::text::{Line, Text};
 use ratatui::widgets::{Block, Paragraph, Wrap};
 use ratatui::Frame;
+use lazy_static::lazy_static;
+use regex::Regex;
 use std::io::BufRead;
 use std::mem;
 use std::sync::mpsc::{Receiver, Sender};
@@ -33,6 +35,17 @@ pub struct BatApp {
     pub history: Vec<String>,
     pub cur_history_pos: usize,
     pub automation: Automation,
+    pub login_state: LoginState,
+    pub login_name: Option<String>,
+    pub last_login_input: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoginState {
+    Choice,
+    Name,
+    Password,
+    LoggedIn,
 }
 
 impl BatApp {
@@ -53,6 +66,9 @@ impl BatApp {
             history: vec![],
             cur_history_pos: 1,
             automation: Automation::new(),
+            login_state: LoginState::Choice,
+            login_name: None,
+            last_login_input: None,
         };
 
         for guild in &app.selected_guilds {
@@ -99,19 +115,25 @@ impl BatApp {
 
     #[allow(clippy::lines_filter_map_ok)]
     fn process_input_data(&mut self, bytes: BytesMut) {
-        let mut lines: Vec<StyledLine> = bytes
-            .lines()
-            .filter_map(Result::ok)
-            .map(|line| StyledLine::new(&line))
-            .flat_map(|mut styled_line| {
+        let mut lines = Vec::new();
+
+        for line in bytes.lines().filter_map(Result::ok) {
+            let mut styled_line = StyledLine::new(&line);
+            self.update_login_state(&styled_line.plain_line);
+
+            if self.is_logged_in() {
                 let mut new_lines = triggers::process(self, &mut styled_line);
                 new_lines.push(styled_line);
-                new_lines
-            })
-            .collect();
+                lines.extend(new_lines);
+            } else {
+                lines.push(styled_line);
+            }
+        }
 
-        for line in &lines {
-            self.run_automation(&line.plain_line);
+        if self.is_logged_in() {
+            for line in &lines {
+                self.run_automation(&line.plain_line);
+            }
         }
 
         remove_gagged_lines(&mut lines);
@@ -119,6 +141,54 @@ impl BatApp {
         self.lines.append(&mut lines);
     }
 
+    fn update_login_state(&mut self, line: &str) {
+        let line = line.trim_end();
+        if line == "You entered a wrong password!" {
+            self.login_state = LoginState::Choice;
+            self.login_name = None;
+            self.last_login_input = None;
+            self.clear_input();
+            return;
+        }
+
+        if line == "Please enter your choice or name:" {
+            self.login_state = LoginState::Choice;
+            self.login_name = None;
+            self.last_login_input = None;
+            self.clear_input();
+            return;
+        }
+
+        if line.starts_with("What is your name:") {
+            self.login_state = LoginState::Name;
+            self.clear_input();
+            return;
+        }
+
+        if line.starts_with("Password:") {
+            self.login_state = LoginState::Password;
+            if self.login_name.is_none() {
+                self.login_name = self.last_login_input.clone();
+            }
+            self.clear_input();
+            return;
+        }
+
+        if !self.is_logged_in()
+            && (PROMPT_REGEX.is_match(line) || SHORT_SCORE_REGEX.is_match(line))
+        {
+            self.login_state = LoginState::LoggedIn;
+        }
+    }
+
+    fn clear_input(&mut self) {
+        self.displayed_input.clear();
+        self.current_typed_input.clear();
+    }
+
+    fn is_logged_in(&self) -> bool {
+        self.login_state == LoginState::LoggedIn
+    }
     pub fn read_input(&mut self) {
         while let Ok(event) = self.event_receiver.try_recv() {
             self.handle_event(&event);
@@ -129,8 +199,16 @@ impl BatApp {
         match event.code {
             KeyCode::Enter => self.submit_input(),
             KeyCode::Backspace => self.backspace(),
-            KeyCode::Up => self.move_history(-1),
-            KeyCode::Down => self.move_history(1),
+            KeyCode::Up => {
+                if self.is_logged_in() {
+                    self.move_history(-1);
+                }
+            }
+            KeyCode::Down => {
+                if self.is_logged_in() {
+                    self.move_history(1);
+                }
+            }
             KeyCode::Char(c) => {
                 if !event.modifiers.contains(KeyModifiers::CONTROL)
                     && !event.modifiers.contains(KeyModifiers::ALT)
@@ -163,18 +241,24 @@ impl BatApp {
         let output = Paragraph::new(Text::from(output_lines)).scroll((scroll_offset, 0));
         frame.render_widget(output, output_area);
 
-        let stats_chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Min(10), Constraint::Length(12)])
-            .split(stats_area);
+        if self.is_logged_in() {
+            let stats_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Min(10), Constraint::Length(12)])
+                .split(stats_area);
 
-        let stats_line = self.stats.render_inline();
-        let stats_widget = Paragraph::new(stats_line);
-        frame.render_widget(stats_widget, stats_chunks[0]);
+            let stats_line = self.stats.render_inline();
+            let stats_widget = Paragraph::new(stats_line);
+            frame.render_widget(stats_widget, stats_chunks[0]);
 
-        let clock = show_clock();
-        let clock_widget = Paragraph::new(clock).alignment(Alignment::Center);
-        frame.render_widget(clock_widget, stats_chunks[1]);
+            let clock = show_clock();
+            let clock_widget = Paragraph::new(clock).alignment(Alignment::Center);
+            frame.render_widget(clock_widget, stats_chunks[1]);
+        } else {
+            let clock = show_clock();
+            let clock_widget = Paragraph::new(clock).alignment(Alignment::Right);
+            frame.render_widget(clock_widget, stats_area);
+        }
 
         let input_chunks = Layout::default()
             .direction(Direction::Horizontal)
@@ -182,7 +266,7 @@ impl BatApp {
             .split(input_area);
 
         let input_block = Block::default();
-        let input_text = format!("> {}", self.displayed_input);
+        let input_text = format!("> {}", self.displayed_input_text());
         let input = Paragraph::new(input_text)
             .block(input_block.clone())
             .wrap(Wrap { trim: false });
@@ -192,7 +276,7 @@ impl BatApp {
 
         let input_inner = input_block.inner(input_chunks[0]);
         if input_inner.width > 0 && input_inner.height > 0 {
-            let cursor_offset = self.displayed_input.graphemes(true).count() as u16 + 2;
+            let cursor_offset = self.cursor_offset();
             let cursor_x = input_inner
                 .x
                 .saturating_add(cursor_offset.min(input_inner.width.saturating_sub(1)));
@@ -237,6 +321,36 @@ impl BatApp {
     }
 
     fn submit_input(&mut self) {
+        if !self.is_logged_in() {
+            let input = mem::take(&mut self.displayed_input);
+            if input.is_empty() {
+                return;
+            }
+
+            if input.starts_with('/') {
+                let mut ctx = command::CommandContext::new(self.automation.snapshot_flags());
+                let cmd = command::process(&input, &mut ctx, &self.selected_guilds);
+                if ctx.should_quit {
+                    self.should_quit = true;
+                    return;
+                }
+                if let Some(s) = cmd {
+                    self.send_command(s);
+                }
+            } else {
+                if self.login_state == LoginState::Name {
+                    self.login_name = Some(input.clone());
+                }
+                if self.login_state == LoginState::Choice {
+                    self.last_login_input = Some(input.clone());
+                }
+                self.send_command(input);
+            }
+
+            self.current_typed_input.clear();
+            return;
+        }
+
         let mut ctx = command::CommandContext::new(self.automation.snapshot_flags());
         let cmd = command::process(&self.displayed_input, &mut ctx, &self.selected_guilds);
 
@@ -253,6 +367,22 @@ impl BatApp {
 
         self.history.push(mem::take(&mut self.displayed_input));
         self.cur_history_pos = self.history.len();
+    }
+
+    fn displayed_input_text(&self) -> String {
+        if self.login_state == LoginState::Password {
+            String::new()
+        } else {
+            self.displayed_input.clone()
+        }
+    }
+
+    fn cursor_offset(&self) -> u16 {
+        if self.login_state == LoginState::Password {
+            2
+        } else {
+            self.displayed_input.graphemes(true).count() as u16 + 2
+        }
     }
 
     fn run_automation(&mut self, line: &str) {
@@ -284,6 +414,14 @@ fn show_clock() -> String {
         local.minute(),
         local.second()
     )
+}
+
+lazy_static! {
+    static ref PROMPT_REGEX: Regex =
+        Regex::new(r"^Hp:(.+)/(.+) Sp:(.+)/(.+) Ep:(.+)/(.+) Exp:(.+) >$").unwrap();
+    static ref SHORT_SCORE_REGEX: Regex =
+        Regex::new(r"^H:(.+)/(.+) \[(.*)\] S:(.+)/(.+) \[(.*)\] E:(.+)/(.+) \[(.*)\] \\$:(.+) \[(.*)\] exp:(.+) \[(.*)\]$")
+            .unwrap();
 }
 
 fn remove_gagged_lines(lines: &mut Vec<StyledLine>) {
