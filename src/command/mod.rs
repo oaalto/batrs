@@ -1,5 +1,6 @@
 mod quit;
 
+use crate::automation::Action;
 use crate::guilds::Guild;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
@@ -28,9 +29,29 @@ pub fn process(
 
 pub type Command = fn(&Data, &mut CommandContext) -> Option<String>;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct CommandContext {
     pub should_quit: bool,
+    pub automation_actions: Vec<Action>,
+    pub automation_flags: HashMap<String, bool>,
+}
+
+impl CommandContext {
+    pub fn new(automation_flags: HashMap<String, bool>) -> Self {
+        Self {
+            should_quit: false,
+            automation_actions: Vec::new(),
+            automation_flags,
+        }
+    }
+
+    pub fn flag(&self, key: &str) -> bool {
+        self.automation_flags.get(key).copied().unwrap_or(false)
+    }
+
+    pub fn push_action(&mut self, action: Action) {
+        self.automation_actions.push(action);
+    }
 }
 
 pub struct Data {
@@ -43,7 +64,7 @@ impl Data {
         let index = line.find(' ').unwrap_or(line.len());
 
         Self {
-            cmd: line[..index].to_owned(),
+            cmd: line[..index].to_ascii_lowercase(),
             args: line[index..].trim().to_owned(),
         }
     }

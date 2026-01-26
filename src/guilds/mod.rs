@@ -2,6 +2,7 @@ mod reaver;
 
 pub use reaver::ReaverGuild;
 
+use crate::automation::Automation;
 use crate::command::{Command, Data};
 use crate::triggers::Trigger;
 use std::collections::HashMap;
@@ -9,6 +10,7 @@ use std::collections::HashMap;
 pub trait Guild {
     fn commands(&self) -> HashMap<String, Command>;
     fn triggers(&self) -> Vec<Trigger>;
+    fn register_automation(&self, _automation: &mut Automation) {}
 }
 
 pub fn use_skill(skill_name: &str, data: &Data) -> String {

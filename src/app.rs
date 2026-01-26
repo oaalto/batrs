@@ -1,4 +1,5 @@
 use crate::ansi::StyledLine;
+use crate::automation::{Action, Automation};
 use crate::guilds::{Guild, ReaverGuild};
 use crate::stats::Stats;
 use crate::{command, triggers};
@@ -10,7 +11,7 @@ use libmudtelnet::telnet::op_command;
 use log::debug;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::text::{Line, Text};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::{Block, Paragraph, Wrap};
 use ratatui::Frame;
 use std::io::BufRead;
 use std::mem;
@@ -31,6 +32,7 @@ pub struct BatApp {
     pub should_quit: bool,
     pub history: Vec<String>,
     pub cur_history_pos: usize,
+    pub automation: Automation,
 }
 
 impl BatApp {
@@ -38,7 +40,7 @@ impl BatApp {
         event_receiver: Receiver<TelnetEvents>,
         command_sender: Sender<String>,
     ) -> Self {
-        BatApp {
+        let mut app = BatApp {
             lines: vec![],
             current_typed_input: String::new(),
             displayed_input: String::new(),
@@ -50,7 +52,14 @@ impl BatApp {
             should_quit: false,
             history: vec![],
             cur_history_pos: 1,
+            automation: Automation::new(),
+        };
+
+        for guild in &app.selected_guilds {
+            guild.register_automation(&mut app.automation);
         }
+
+        app
     }
 
     fn handle_event(&mut self, event: &TelnetEvents) {
@@ -90,7 +99,7 @@ impl BatApp {
 
     #[allow(clippy::lines_filter_map_ok)]
     fn process_input_data(&mut self, bytes: BytesMut) {
-        let mut lines = bytes
+        let mut lines: Vec<StyledLine> = bytes
             .lines()
             .filter_map(Result::ok)
             .map(|line| StyledLine::new(&line))
@@ -100,6 +109,10 @@ impl BatApp {
                 new_lines
             })
             .collect();
+
+        for line in &lines {
+            self.run_automation(&line.plain_line);
+        }
 
         remove_gagged_lines(&mut lines);
 
@@ -224,7 +237,7 @@ impl BatApp {
     }
 
     fn submit_input(&mut self) {
-        let mut ctx = command::CommandContext::default();
+        let mut ctx = command::CommandContext::new(self.automation.snapshot_flags());
         let cmd = command::process(&self.displayed_input, &mut ctx, &self.selected_guilds);
 
         if ctx.should_quit {
@@ -232,14 +245,32 @@ impl BatApp {
             return;
         }
 
+        self.apply_automation_actions(ctx.automation_actions);
+
         if let Some(s) = cmd {
-            if let Err(e) = self.command_sender.send(s) {
-                eprintln!("failed to send data: {e}");
-            }
+            self.send_command(s);
         }
 
         self.history.push(mem::take(&mut self.displayed_input));
         self.cur_history_pos = self.history.len();
+    }
+
+    fn run_automation(&mut self, line: &str) {
+        for cmd in self.automation.process_line(line) {
+            self.send_command(cmd);
+        }
+    }
+
+    fn apply_automation_actions(&mut self, actions: Vec<Action>) {
+        for cmd in self.automation.apply_actions(actions) {
+            self.send_command(cmd);
+        }
+    }
+
+    fn send_command(&mut self, command: String) {
+        if let Err(e) = self.command_sender.send(command) {
+            eprintln!("failed to send data: {e}");
+        }
     }
 
     // TODO: keep around scroll position when manual scrolling is added.
