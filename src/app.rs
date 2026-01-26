@@ -6,7 +6,7 @@ mod telnet_buffer;
 use crate::ansi::StyledLine;
 use crate::automation::{Action, Automation};
 use crate::config::ConfigManager;
-use crate::guilds::{Guild, ReaverGuild};
+use crate::guilds::{build_guilds, default_guild_keys, guild_definitions, Guild};
 use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
 use crate::{command, triggers};
@@ -31,10 +31,12 @@ pub struct BatApp {
     command_sender: Sender<String>,
     telnet_buffer: TelnetBuffer,
     selected_guilds: Vec<Box<dyn Guild>>,
+    selected_guild_keys: Vec<String>,
     should_quit: bool,
     automation: Automation,
     config_manager: Option<ConfigManager>,
     user_config_loaded: bool,
+    guild_dialog: Option<GuildDialog>,
 }
 
 impl BatApp {
@@ -62,16 +64,16 @@ impl BatApp {
             event_receiver,
             command_sender,
             telnet_buffer: TelnetBuffer::new(),
-            selected_guilds: vec![Box::new(ReaverGuild::default())],
+            selected_guilds: Vec::new(),
+            selected_guild_keys: default_guild_keys(),
             should_quit: false,
             automation: Automation::new(),
             config_manager,
             user_config_loaded: false,
+            guild_dialog: None,
         };
 
-        for guild in &app.selected_guilds {
-            guild.register_automation(&mut app.automation);
-        }
+        app.apply_selected_guilds(app.selected_guild_keys.clone());
 
         app
     }
@@ -124,6 +126,10 @@ impl BatApp {
     }
 
     pub fn handle_key_event(&mut self, event: KeyEvent) {
+        if self.guild_dialog.is_some() {
+            self.handle_guild_dialog_event(event);
+            return;
+        }
         match event.code {
             KeyCode::Enter => self.submit_input(),
             KeyCode::Backspace => self.input.backspace(),
@@ -171,6 +177,8 @@ impl BatApp {
             clock: show_clock(),
             input_text,
             cursor_offset: self.input.cursor_offset(hide_input),
+            show_cursor: self.guild_dialog.is_none(),
+            guild_dialog: self.guild_dialog.as_ref().map(|dialog| dialog.view_model()),
         };
 
         Renderer::render(frame, &view);
@@ -184,11 +192,15 @@ impl BatApp {
             }
 
             if input.starts_with('/') {
-                let mut ctx = command::CommandContext::new(self.automation.snapshot_flags());
+                let mut ctx =
+                    command::CommandContext::new(self.automation.snapshot_flags(), false);
                 let outcome = command::process(&input, &mut ctx, &self.selected_guilds);
                 if outcome.should_quit {
                     self.should_quit = true;
                     return;
+                }
+                if outcome.open_guilds_dialog {
+                    self.open_guilds_dialog();
                 }
                 if let Some(s) = outcome.send {
                     self.send_command(s);
@@ -207,13 +219,17 @@ impl BatApp {
             return;
         }
 
-        let mut ctx = command::CommandContext::new(self.automation.snapshot_flags());
+        let mut ctx = command::CommandContext::new(self.automation.snapshot_flags(), true);
         let outcome =
             command::process(self.input.displayed_input(), &mut ctx, &self.selected_guilds);
 
         if outcome.should_quit {
             self.should_quit = true;
             return;
+        }
+
+        if outcome.open_guilds_dialog {
+            self.open_guilds_dialog();
         }
 
         self.apply_automation_actions(outcome.automation_actions);
@@ -235,6 +251,60 @@ impl BatApp {
     fn apply_automation_actions(&mut self, actions: Vec<Action>) {
         for cmd in self.automation.apply_actions(actions) {
             self.send_command(cmd);
+        }
+    }
+
+    fn apply_selected_guilds(&mut self, keys: Vec<String>) {
+        self.selected_guild_keys = keys;
+        self.selected_guilds = build_guilds(&self.selected_guild_keys);
+        self.automation = Automation::new();
+        for guild in &self.selected_guilds {
+            guild.register_automation(&mut self.automation);
+        }
+    }
+
+    fn open_guilds_dialog(&mut self) {
+        if !self.session.is_logged_in() {
+            return;
+        }
+        let definitions = guild_definitions();
+        let selected = definitions
+            .iter()
+            .map(|def| self.selected_guild_keys.iter().any(|key| key == def.key))
+            .collect();
+        self.guild_dialog = Some(GuildDialog::new(definitions, selected));
+    }
+
+    fn handle_guild_dialog_event(&mut self, event: KeyEvent) {
+        let Some(dialog) = self.guild_dialog.as_mut() else {
+            return;
+        };
+        match event.code {
+            KeyCode::Up => dialog.move_cursor(-1),
+            KeyCode::Down => dialog.move_cursor(1),
+            KeyCode::Char(' ') => dialog.toggle_selected(),
+            KeyCode::Esc => {
+                self.guild_dialog = None;
+            }
+            KeyCode::Enter => {
+                let keys = dialog.selected_keys();
+                self.guild_dialog = None;
+                self.apply_selected_guilds(keys.clone());
+                self.save_selected_guilds(keys);
+            }
+            _ => {}
+        }
+    }
+
+    fn save_selected_guilds(&mut self, keys: Vec<String>) {
+        if !self.user_config_loaded {
+            self.load_user_config();
+        }
+        let Some(manager) = self.config_manager.as_mut() else {
+            return;
+        };
+        if let Err(e) = manager.save_user_guilds(&keys) {
+            eprintln!("failed to save user guilds: {e}");
         }
     }
 
@@ -262,6 +332,11 @@ impl BatApp {
         };
         if let Err(e) = manager.load_user(player_name) {
             eprintln!("failed to load user config for {player_name}: {e}");
+            return;
+        }
+
+        if let Some(keys) = manager.user_guilds() {
+            self.apply_selected_guilds(filter_known_guilds(keys));
         }
     }
 }
@@ -274,5 +349,71 @@ fn show_clock() -> String {
         local.minute(),
         local.second()
     )
+}
+
+fn filter_known_guilds(keys: Vec<String>) -> Vec<String> {
+    let definitions = guild_definitions();
+    keys.into_iter()
+        .filter(|key| definitions.iter().any(|def| def.key == key))
+        .collect()
+}
+
+struct GuildDialog {
+    definitions: Vec<crate::guilds::GuildDefinition>,
+    selected: Vec<bool>,
+    cursor: usize,
+}
+
+impl GuildDialog {
+    fn new(definitions: Vec<crate::guilds::GuildDefinition>, selected: Vec<bool>) -> Self {
+        let mut selected = selected;
+        if selected.len() < definitions.len() {
+            selected.resize(definitions.len(), false);
+        }
+        let cursor = if definitions.is_empty() { 0 } else { 0 };
+        Self {
+            definitions,
+            selected,
+            cursor,
+        }
+    }
+
+    fn move_cursor(&mut self, delta: i32) {
+        if self.definitions.is_empty() {
+            return;
+        }
+        let max = self.definitions.len().saturating_sub(1) as i32;
+        let next = (self.cursor as i32 + delta).clamp(0, max);
+        self.cursor = next as usize;
+    }
+
+    fn toggle_selected(&mut self) {
+        if let Some(selected) = self.selected.get_mut(self.cursor) {
+            *selected = !*selected;
+        }
+    }
+
+    fn selected_keys(&self) -> Vec<String> {
+        self.definitions
+            .iter()
+            .zip(self.selected.iter())
+            .filter_map(|(def, selected)| selected.then_some(def.key.to_string()))
+            .collect()
+    }
+
+    fn view_model(&self) -> crate::ui::GuildDialogViewModel {
+        crate::ui::GuildDialogViewModel {
+            items: self
+                .definitions
+                .iter()
+                .zip(self.selected.iter())
+                .map(|(def, selected)| crate::ui::GuildDialogItem {
+                    name: def.name.to_string(),
+                    selected: *selected,
+                })
+                .collect(),
+            cursor: self.cursor,
+        }
+    }
 }
 

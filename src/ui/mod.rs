@@ -1,6 +1,7 @@
-use ratatui::layout::{Alignment, Constraint, Direction, Layout};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Text};
-use ratatui::widgets::{Block, Paragraph, Wrap};
+use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
 use ratatui::Frame;
 
 pub struct ViewModel<'a> {
@@ -11,6 +12,18 @@ pub struct ViewModel<'a> {
     pub clock: String,
     pub input_text: String,
     pub cursor_offset: u16,
+    pub show_cursor: bool,
+    pub guild_dialog: Option<GuildDialogViewModel>,
+}
+
+pub struct GuildDialogItem {
+    pub name: String,
+    pub selected: bool,
+}
+
+pub struct GuildDialogViewModel {
+    pub items: Vec<GuildDialogItem>,
+    pub cursor: usize,
 }
 
 pub struct Renderer;
@@ -64,12 +77,80 @@ impl Renderer {
         frame.render_widget(Paragraph::new(""), input_chunks[1]);
 
         let input_inner = input_block.inner(input_chunks[0]);
-        if input_inner.width > 0 && input_inner.height > 0 {
+        if view.show_cursor && input_inner.width > 0 && input_inner.height > 0 {
             let cursor_x = input_inner
                 .x
                 .saturating_add(view.cursor_offset.min(input_inner.width.saturating_sub(1)));
             let cursor_y = input_inner.y;
             frame.set_cursor_position((cursor_x, cursor_y));
         }
+
+        if let Some(dialog) = &view.guild_dialog {
+            render_guild_dialog(frame, dialog);
+        }
     }
+}
+
+fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
+    let area = centered_rect(60, 60, frame.area());
+    frame.render_widget(Clear, area);
+
+    let dialog_style = Style::default().bg(Color::Black).fg(Color::White);
+    let background = Paragraph::new("").style(dialog_style);
+    frame.render_widget(background, area);
+
+    let block = Block::default()
+        .title("Guilds")
+        .borders(Borders::ALL)
+        .style(dialog_style);
+    frame.render_widget(&block, area);
+    let inner = block.inner(area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1), Constraint::Length(1)])
+        .split(inner);
+
+    let items = dialog
+        .items
+        .iter()
+        .map(|item| {
+            let marker = if item.selected { "✓" } else { " " };
+            ListItem::new(format!("{marker} {}", item.name))
+        })
+        .collect::<Vec<ListItem<'_>>>();
+
+    let list = List::new(items)
+        .highlight_symbol("> ")
+        .style(dialog_style)
+        .highlight_style(dialog_style);
+    let mut state = ListState::default();
+    if !dialog.items.is_empty() {
+        state.select(Some(dialog.cursor.min(dialog.items.len() - 1)));
+    }
+    frame.render_stateful_widget(list, chunks[0], &mut state);
+
+    let instructions = Paragraph::new("Up/Down: move  Space: toggle  Enter: save  Esc: cancel")
+        .style(dialog_style);
+    frame.render_widget(instructions, chunks[1]);
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, rect: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(rect);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }
