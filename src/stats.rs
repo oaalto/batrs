@@ -1,4 +1,7 @@
-use egui::{Color32, ProgressBar, RichText, Vec2};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::{Color, Style};
+use ratatui::widgets::{Block, Borders, Gauge, Paragraph};
+use ratatui::Frame;
 
 #[derive(Default, Debug, Clone)]
 pub struct Stats {
@@ -49,87 +52,93 @@ impl Stats {
         }
     }
 
-    pub fn show(&self, ui: &mut egui::Ui) {
-        ui.with_layout(
-            egui::Layout::bottom_up(egui::Align::Center).with_cross_justify(true),
-            |ui| {
-                ui.spacing_mut().item_spacing = Vec2::new(0.0, 8.0);
+    pub fn render(&self, frame: &mut Frame<'_>, area: Rect) {
+        let block = Block::default().title("Stats").borders(Borders::ALL);
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
 
-                ui.horizontal(|ui| {
-                    ui.label("Hp:");
-                    self.show_stat_progress_bar(ui, self.hp, self.max_hp, self.diff_hp)
-                });
+        let rows = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(2),
+                Constraint::Length(2),
+                Constraint::Length(2),
+                Constraint::Length(1),
+                Constraint::Length(1),
+            ])
+            .split(inner);
 
-                ui.horizontal(|ui| {
-                    ui.label("Sp:");
-                    self.show_stat_progress_bar(ui, self.sp, self.max_sp, self.diff_sp)
-                });
+        self.render_stat_gauge(frame, rows[0], "Hp", self.hp, self.max_hp, self.diff_hp);
+        self.render_stat_gauge(frame, rows[1], "Sp", self.sp, self.max_sp, self.diff_sp);
+        self.render_stat_gauge(frame, rows[2], "Ep", self.ep, self.max_ep, self.diff_ep);
 
-                ui.horizontal(|ui| {
-                    ui.label("Ep:");
-                    self.show_stat_progress_bar(ui, self.ep, self.max_ep, self.diff_ep)
-                });
+        let exp_label = self.value_label("Exp", self.exp, self.diff_exp);
+        let exp_widget = Paragraph::new(exp_label);
+        frame.render_widget(exp_widget, rows[3]);
 
-                ui.horizontal(|ui| {
-                    ui.label("Exp:");
-                    self.show_value_label(ui, self.exp, self.diff_exp);
-                });
-
-                ui.horizontal(|ui| {
-                    ui.label("Money:");
-                    self.show_value_label(ui, self.money, self.diff_money);
-                });
-            },
-        );
+        let money_label = self.value_label("Money", self.money, self.diff_money);
+        let money_widget = Paragraph::new(money_label);
+        frame.render_widget(money_widget, rows[4]);
     }
 
-    fn show_value_label(&self, ui: &mut egui::Ui, value: i32, diff: i32) {
-        let text = if diff == 0 {
-            format!("{value}")
+    fn value_label(&self, label: &str, value: i32, diff: i32) -> String {
+        if diff == 0 {
+            format!("{label}: {value}")
         } else {
-            format!("{value} ({diff:+})")
-        };
-        ui.label(text);
+            format!("{label}: {value} ({diff:+})")
+        }
     }
 
-    fn show_stat_progress_bar(&self, ui: &mut egui::Ui, value: i32, max_value: i32, diff: i32) {
+    fn render_stat_gauge(
+        &self,
+        frame: &mut Frame<'_>,
+        area: Rect,
+        label: &str,
+        value: i32,
+        max_value: i32,
+        diff: i32,
+    ) {
         let progress_text = if diff == 0 {
-            format!("{value}/{max_value}")
+            format!("{label}: {value}/{max_value}")
         } else {
-            format!("{value}/{max_value} ({diff:+})")
+            format!("{label}: {value}/{max_value} ({diff:+})")
         };
-        let progress: f32 = if value == 0 {
+
+        let progress = if value == 0 || max_value == 0 {
             0.0
         } else {
             value as f32 / max_value as f32
         };
-        let progress = ProgressBar::new(progress)
-            .fill(progress_color(progress))
-            .text(RichText::new(progress_text).color(Color32::BLACK));
-        ui.add(progress);
+
+        let gauge = Gauge::default()
+            .ratio(progress.clamp(0.0, 1.0) as f64)
+            .label(progress_text)
+            .gauge_style(Style::default().fg(progress_color(progress)));
+
+        frame.render_widget(gauge, area);
     }
 }
 
-fn progress_color(value: f32) -> Color32 {
+fn progress_color(value: f32) -> Color {
     if value < 0.1 {
-        Color32::DARK_RED
+        Color::Rgb(128, 0, 0)
     } else if value < 0.2 {
-        Color32::RED
+        Color::Red
     } else if value < 0.3 {
-        Color32::LIGHT_RED
+        Color::LightRed
     } else if value < 0.4 {
-        Color32::YELLOW
+        Color::Yellow
     } else if value < 0.5 {
-        Color32::LIGHT_YELLOW
+        Color::LightYellow
     } else if value < 0.6 {
-        Color32::DARK_BLUE
+        Color::Rgb(0, 0, 128)
     } else if value < 0.7 {
-        Color32::BLUE
+        Color::Blue
     } else if value < 0.8 {
-        Color32::LIGHT_BLUE
+        Color::LightBlue
     } else if value < 0.9 {
-        Color32::DARK_GREEN
+        Color::Rgb(0, 128, 0)
     } else {
-        Color32::GREEN
+        Color::Green
     }
 }

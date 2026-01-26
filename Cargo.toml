@@ -5,21 +5,17 @@ edition = "2024"
 authors = ["Olli Aalto <oaalto@gmail.com>"]
 
 [dependencies]
-libmudtelnet = "2.0.1"
-bytes = "1.8"
-parse-ansi = "0.1.6"
-lazy_static = "1.5.0"
-regex = "1.11"
+libmudtelnet = "2.0"
+bytes = "1.11"
+parse-ansi = "0.1"
+lazy_static = "1.5"
+regex = "1.12"
 num-derive = "0.4"
 num-traits = "0.2"
-egui = "0.32.0"
-eframe = { version = "0.32.0", default-features = false, features = [
-    "default_fonts", # Embed the default egui fonts.
-    "glow", # Use the glow rendering backend. Alternative: "wgpu".
-    "persistence", # Enable restoring app state when restarting the app.
-] }
+ratatui = "0.29"
+crossterm = "0.29"
 env_logger = "0.11"
-tokio = { version = "1.40", features = ["full", "tracing"] }
+tokio = { version = "1.49", features = ["full", "tracing"] }
 tokio-util = { version = "0.7", features = ["full"] }
 futures = { version = "0.3", features = ["thread-pool"] }
 chrono = "0.4"

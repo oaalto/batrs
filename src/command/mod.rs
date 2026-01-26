@@ -9,7 +9,11 @@ lazy_static! {
         HashMap::from([("/quit".to_string(), quit::run as Command)]);
 }
 
-pub fn process(cmd: &str, ctx: &egui::Context, guilds: &[Box<dyn Guild>]) -> Option<String> {
+pub fn process(
+    cmd: &str,
+    ctx: &mut CommandContext,
+    guilds: &[Box<dyn Guild>],
+) -> Option<String> {
     let data = Data::new(cmd);
     let guild_cmds: HashMap<String, Command> = guilds.iter().flat_map(|g| g.commands()).collect();
 
@@ -22,7 +26,12 @@ pub fn process(cmd: &str, ctx: &egui::Context, guilds: &[Box<dyn Guild>]) -> Opt
     }
 }
 
-pub type Command = fn(&Data, &egui::Context) -> Option<String>;
+pub type Command = fn(&Data, &mut CommandContext) -> Option<String>;
+
+#[derive(Default, Debug)]
+pub struct CommandContext {
+    pub should_quit: bool,
+}
 
 pub struct Data {
     pub cmd: String,

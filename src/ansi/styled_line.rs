@@ -1,10 +1,9 @@
 use crate::ansi::styled_text_block::StyledChar;
 use crate::ansi::{AnsiCode, ansi_colors};
-use eframe::epaint::FontId;
-use egui::TextFormat;
-use egui::text::LayoutJob;
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
 use regex::Regex;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
@@ -31,20 +30,19 @@ impl StyledLine {
         }
     }
 
-    pub fn show(&self, ui: &mut egui::Ui) {
-        let mut job = LayoutJob::default();
-        self.styled_chars.iter().for_each(|c| {
-            job.append(
-                &c.character.to_string(),
-                0.0,
-                TextFormat {
-                    font_id: FontId::monospace(16.0),
-                    color: ansi_colors::get_color(c.color, c.bold),
-                    ..Default::default()
-                },
-            );
-        });
-        ui.label(job);
+    pub fn to_line(&self) -> Line<'_> {
+        let spans: Vec<Span<'_>> = self
+            .styled_chars
+            .iter()
+            .map(|c| {
+                let mut style = Style::default().fg(ansi_colors::get_color(c.color, c.bold));
+                if c.bold {
+                    style = style.add_modifier(Modifier::BOLD);
+                }
+                Span::styled(c.character.clone(), style)
+            })
+            .collect();
+        Line::from(spans)
     }
 
     pub fn set_block_color(&mut self, part: &str, color: AnsiCode, bold: bool) {

@@ -4,13 +4,17 @@ use crate::stats::Stats;
 use crate::{command, triggers};
 use bytes::{BufMut, BytesMut};
 use chrono::{DateTime, Local, Timelike};
-use egui::{Color32, FontId, ScrollArea, TextStyle, Ui, ViewportCommand};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use libmudtelnet::events::TelnetEvents;
 use libmudtelnet::telnet::op_command;
-use std::cmp::{max, min};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout};
+use ratatui::text::{Line, Text};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::Frame;
 use std::io::BufRead;
 use std::mem;
 use std::sync::mpsc::{Receiver, Sender};
+use unicode_segmentation::UnicodeSegmentation;
 
 static CARRIAGE_RETURN_NEW_LINE: &[u8] = &[13, 10];
 
@@ -23,29 +27,16 @@ pub struct BatApp {
     pub command_sender: Sender<String>,
     pub buffer: Option<BytesMut>,
     pub selected_guilds: Vec<Box<dyn Guild>>,
-    pub fullscreen: bool,
+    pub should_quit: bool,
     pub history: Vec<String>,
     pub cur_history_pos: usize,
 }
 
 impl BatApp {
     pub fn new(
-        cc: &eframe::CreationContext<'_>,
         event_receiver: Receiver<TelnetEvents>,
         command_sender: Sender<String>,
     ) -> Self {
-        cc.egui_ctx.style_mut(|style| {
-            let monospace = FontId::monospace(16.0);
-            style.override_font_id = Some(monospace);
-            style.visuals.panel_fill = Color32::BLACK;
-        });
-
-        cc.egui_ctx
-            .send_viewport_cmd(ViewportCommand::Maximized(true));
-
-        cc.egui_ctx
-            .send_viewport_cmd(ViewportCommand::Fullscreen(true));
-
         BatApp {
             lines: vec![],
             current_typed_input: String::new(),
@@ -55,7 +46,7 @@ impl BatApp {
             command_sender,
             buffer: Some(BytesMut::with_capacity(1024)),
             selected_guilds: vec![Box::new(ReaverGuild::default())],
-            fullscreen: true,
+            should_quit: false,
             history: vec![],
             cur_history_pos: 1,
         }
@@ -114,49 +105,107 @@ impl BatApp {
         self.lines.append(&mut lines);
     }
 
-    fn read_input(&mut self) {
+    pub fn read_input(&mut self) {
         while let Ok(event) = self.event_receiver.try_recv() {
             self.handle_event(&event);
         }
     }
 
-    fn send_output(&mut self, ctx: &egui::Context) {
-        if ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
-            let cmd = command::process(&self.displayed_input, ctx, &self.selected_guilds);
-
-            if let Some(s) = cmd {
-                if let Err(e) = self.command_sender.send(s) {
-                    eprintln!("failed to send data: {e}");
+    pub fn handle_key_event(&mut self, event: KeyEvent) {
+        match event.code {
+            KeyCode::Enter => self.submit_input(),
+            KeyCode::Backspace => self.backspace(),
+            KeyCode::Up => self.move_history(-1),
+            KeyCode::Down => self.move_history(1),
+            KeyCode::Char(c) => {
+                if !event.modifiers.contains(KeyModifiers::CONTROL)
+                    && !event.modifiers.contains(KeyModifiers::ALT)
+                {
+                    self.insert_char(c);
                 }
             }
+            _ => {}
+        }
+    }
 
-            self.history.push(mem::take(&mut self.displayed_input));
+    pub fn draw(&mut self, frame: &mut Frame<'_>) {
+        let root = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(1), Constraint::Length(3)])
+            .split(frame.area());
+
+        let main_area = root[0];
+        let input_area = root[1];
+
+        let main_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Length(30), Constraint::Min(1)])
+            .split(main_area);
+
+        self.stats.render(frame, main_chunks[0]);
+
+        let output_area = main_chunks[1];
+        let visible_height = output_area.height.saturating_sub(2) as usize;
+        let output_lines = self.visible_lines(visible_height);
+        let output = Paragraph::new(Text::from(output_lines))
+            .block(Block::default().title("Output").borders(Borders::ALL))
+            .wrap(Wrap { trim: false });
+        frame.render_widget(output, output_area);
+
+        let input_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Min(10), Constraint::Length(12)])
+            .split(input_area);
+
+        let input_block = Block::default().title("Input").borders(Borders::ALL);
+        let input = Paragraph::new(self.displayed_input.as_str())
+            .block(input_block.clone())
+            .wrap(Wrap { trim: false });
+        frame.render_widget(input, input_chunks[0]);
+
+        let clock = show_clock();
+        let clock_widget = Paragraph::new(clock)
+            .block(Block::default().borders(Borders::ALL))
+            .alignment(Alignment::Center);
+        frame.render_widget(clock_widget, input_chunks[1]);
+
+        let input_inner = input_block.inner(input_chunks[0]);
+        if input_inner.width > 0 && input_inner.height > 0 {
+            let cursor_offset = self.displayed_input.graphemes(true).count() as u16;
+            let cursor_x = input_inner
+                .x
+                .saturating_add(cursor_offset.min(input_inner.width.saturating_sub(1)));
+            let cursor_y = input_inner.y;
+            frame.set_cursor_position((cursor_x, cursor_y));
+        }
+    }
+
+    fn insert_char(&mut self, c: char) {
+        self.displayed_input.push(c);
+        self.current_typed_input.clone_from(&self.displayed_input);
+        self.cur_history_pos = self.history.len();
+    }
+
+    fn backspace(&mut self) {
+        if let Some((index, _)) = self.displayed_input.grapheme_indices(true).last() {
+            self.displayed_input.truncate(index);
+            self.current_typed_input.clone_from(&self.displayed_input);
             self.cur_history_pos = self.history.len();
         }
     }
 
-    fn handle_history_input(&mut self, ctx: &egui::Context) {
+    fn move_history(&mut self, direction: i32) {
         let prev_pos = self.cur_history_pos;
 
-        if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
-            self.cur_history_pos = max(
-                0,
-                self.cur_history_pos
-                    .checked_sub(1)
-                    .unwrap_or(self.cur_history_pos),
-            );
-        }
-        if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
-            self.cur_history_pos = min(
-                self.history.len(),
-                self.cur_history_pos
-                    .checked_add(1)
-                    .unwrap_or(self.cur_history_pos),
-            );
+        if direction < 0 {
+            if self.cur_history_pos > 0 {
+                self.cur_history_pos = self.cur_history_pos.saturating_sub(1);
+            }
+        } else if self.cur_history_pos < self.history.len() {
+            self.cur_history_pos = self.cur_history_pos.saturating_add(1);
         }
 
         if prev_pos != self.cur_history_pos {
-            #[allow(clippy::comparison_chain)]
             if self.cur_history_pos < self.history.len() {
                 self.displayed_input
                     .clone_from(&self.history[self.cur_history_pos]);
@@ -165,72 +214,47 @@ impl BatApp {
             }
         }
     }
-}
 
-impl eframe::App for BatApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.read_input();
+    fn submit_input(&mut self) {
+        let mut ctx = command::CommandContext::default();
+        let cmd = command::process(&self.displayed_input, &mut ctx, &self.selected_guilds);
 
-        egui::SidePanel::left("stats").show(ctx, |ui| {
-            self.stats.show(ui);
-        });
-
-        egui::TopBottomPanel::bottom("input_panel").show(ctx, |ui| {
-            ui.with_layout(
-                egui::Layout::right_to_left(egui::Align::Center).with_cross_justify(true),
-                |ui| {
-                    show_clock(ui);
-
-                    let response = ui.add_sized(
-                        ui.available_size(),
-                        egui::TextEdit::singleline(&mut self.displayed_input),
-                    );
-                    response.request_focus();
-                    if response.changed() {
-                        self.current_typed_input.clone_from(&self.displayed_input);
-                        self.cur_history_pos = self.history.len();
-                    }
-                },
-            );
-        });
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            let text_style = TextStyle::Body;
-            let row_height = ui.text_style_height(&text_style);
-
-            ScrollArea::vertical()
-                .auto_shrink(false)
-                .stick_to_bottom(true)
-                .show_rows(ui, row_height, self.lines.len(), |ui, row_range| {
-                    for row in row_range {
-                        self.lines[row].show(ui);
-                    }
-                });
-        });
-
-        self.handle_history_input(ctx);
-
-        self.send_output(ctx);
-
-        if ctx.input(|i| i.key_pressed(egui::Key::F12)) {
-            self.fullscreen = !self.fullscreen;
-            ctx.send_viewport_cmd(ViewportCommand::Fullscreen(self.fullscreen));
+        if ctx.should_quit {
+            self.should_quit = true;
+            return;
         }
 
-        ctx.request_repaint();
+        if let Some(s) = cmd {
+            if let Err(e) = self.command_sender.send(s) {
+                eprintln!("failed to send data: {e}");
+            }
+        }
+
+        self.history.push(mem::take(&mut self.displayed_input));
+        self.cur_history_pos = self.history.len();
     }
 
-    fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
+    fn visible_lines(&self, height: usize) -> Vec<Line<'_>> {
+        if height == 0 || self.lines.is_empty() {
+            return Vec::new();
+        }
+
+        let start = self.lines.len().saturating_sub(height);
+        self.lines[start..]
+            .iter()
+            .map(StyledLine::to_line)
+            .collect()
+    }
 }
 
-fn show_clock(ui: &mut Ui) {
+fn show_clock() -> String {
     let local: DateTime<Local> = Local::now();
-    ui.label(format!(
+    format!(
         "{:02}:{:02}:{:02}",
         local.hour(),
         local.minute(),
         local.second()
-    ));
+    )
 }
 
 fn remove_gagged_lines(lines: &mut Vec<StyledLine>) {

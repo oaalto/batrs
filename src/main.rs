@@ -2,17 +2,22 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use crate::app::BatApp;
-use egui::ThemePreference;
+use crossterm::event::{self, Event};
+use crossterm::execute;
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use futures::future;
 use futures::stream::StreamExt;
 use libmudtelnet::Parser;
 use libmudtelnet::events::TelnetEvents;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
+use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_util::codec::{BytesCodec, FramedRead};
+use ratatui::backend::CrosstermBackend;
+use ratatui::Terminal;
 
 mod ansi;
 mod app;
@@ -21,26 +26,61 @@ mod guilds;
 mod stats;
 mod triggers;
 
-fn main() -> eframe::Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
     let (event_receiver, command_sender) = setup_connection();
 
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1200.0, 800.0])
-            .with_maximized(true),
-        ..Default::default()
-    };
+    enable_raw_mode()?;
+    let mut stdout = std::io::stdout();
+    execute!(stdout, EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+    terminal.clear()?;
 
-    eframe::run_native(
-        "BatMUD Client",
-        options,
-        Box::new(|cc| {
-            cc.egui_ctx.set_theme(ThemePreference::Dark);
-            Ok(Box::new(BatApp::new(cc, event_receiver, command_sender)))
-        }),
-    )
+    let app = BatApp::new(event_receiver, command_sender);
+    let result = run_app(&mut terminal, app);
+
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    terminal.show_cursor()?;
+
+    result?;
+    Ok(())
+}
+
+fn run_app(
+    terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
+    mut app: BatApp,
+) -> std::io::Result<()> {
+    let tick_rate = Duration::from_millis(200);
+    let mut last_tick = Instant::now();
+
+    loop {
+        terminal.draw(|frame| app.draw(frame))?;
+
+        let timeout = tick_rate
+            .checked_sub(last_tick.elapsed())
+            .unwrap_or(Duration::from_millis(0));
+
+        if event::poll(timeout)? {
+            if let Event::Key(key) = event::read()? {
+                app.handle_key_event(key);
+            }
+        }
+
+        app.read_input();
+
+        if last_tick.elapsed() >= tick_rate {
+            last_tick = Instant::now();
+        }
+
+        if app.should_quit {
+            break;
+        }
+    }
+
+    Ok(())
 }
 
 fn setup_connection() -> (Receiver<TelnetEvents>, Sender<String>) {

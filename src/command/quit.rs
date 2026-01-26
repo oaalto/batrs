@@ -1,8 +1,8 @@
 use crate::command::Data;
-use egui::ViewportCommand;
+use crate::command::CommandContext;
 
-pub fn run(_data: &Data, ctx: &egui::Context) -> Option<String> {
-    ctx.send_viewport_cmd(ViewportCommand::Close);
+pub fn run(_data: &Data, ctx: &mut CommandContext) -> Option<String> {
+    ctx.should_quit = true;
 
     None
 }
