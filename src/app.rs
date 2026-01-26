@@ -156,7 +156,7 @@ impl BatApp {
         let stats_area = root[1];
         let input_area = root[2];
 
-        let visible_height = output_area.height.saturating_sub(2) as usize;
+        let visible_height = output_area.height.saturating_sub(1) as usize;
         let output_lines: Vec<Line<'_>> = self.lines.iter().map(StyledLine::to_line).collect();
         let scroll_offset = self.lines.len().saturating_sub(visible_height);
         let scroll_offset = scroll_offset.min(u16::MAX as usize) as u16;

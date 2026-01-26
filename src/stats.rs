@@ -1,4 +1,4 @@
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
 #[derive(Default, Debug, Clone)]
@@ -51,44 +51,60 @@ impl Stats {
     }
 
     pub fn render_inline(&self) -> Line<'static> {
-        let hp = self.inline_stat("HP", self.hp, self.max_hp, self.diff_hp, progress_color);
-        let sp = self.inline_stat("SP", self.sp, self.max_sp, self.diff_sp, progress_color);
-        let ep = self.inline_stat("EP", self.ep, self.max_ep, self.diff_ep, progress_color);
-        let exp = self.inline_value("Exp", self.exp, self.diff_exp);
-        let money = self.inline_value("Money", self.money, self.diff_money);
+        let mut spans = Vec::new();
+        spans.extend(self.inline_stat_spans("Hp", self.hp, self.max_hp, self.diff_hp));
+        spans.push(Span::raw("  "));
+        spans.extend(self.inline_stat_spans("Sp", self.sp, self.max_sp, self.diff_sp));
+        spans.push(Span::raw("  "));
+        spans.extend(self.inline_stat_spans("Ep", self.ep, self.max_ep, self.diff_ep));
+        spans.push(Span::raw("  "));
+        spans.push(self.inline_value("Exp", self.exp, self.diff_exp));
+        spans.push(Span::raw("  "));
+        spans.push(self.inline_value("Money", self.money, self.diff_money));
 
-        Line::from(vec![
-            hp,
-            Span::raw("  "),
-            sp,
-            Span::raw("  "),
-            ep,
-            Span::raw("  "),
-            exp,
-            Span::raw("  "),
-            money,
-        ])
+        Line::from(spans)
     }
 
-    fn inline_stat(
+    fn inline_stat_spans(
         &self,
         label: &str,
         value: i32,
         max_value: i32,
         diff: i32,
-        color_fn: fn(f32) -> Color,
-    ) -> Span<'static> {
-        let text = if diff == 0 {
-            format!("{label}: {value}/{max_value}")
+    ) -> Vec<Span<'static>> {
+        let diff_value = if diff == 0 {
+            None
         } else {
-            format!("{label}: {value}/{max_value} ({diff:+})")
+            Some(format!("{diff:+}"))
         };
         let progress = if value == 0 || max_value == 0 {
             0.0
         } else {
             value as f32 / max_value as f32
         };
-        Span::styled(text, Style::default().fg(color_fn(progress)))
+        let mut spans = vec![
+            Span::raw(format!("{label}: ")),
+            Span::styled(value.to_string(), Style::default().fg(progress_color(progress))),
+            Span::raw("/"),
+            Span::styled(
+                max_value.to_string(),
+                Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+            ),
+        ];
+
+        if let Some(diff_text) = diff_value {
+            let diff_color = if diff > 0 {
+                Color::Green
+            } else {
+                Color::Red
+            };
+            spans.push(Span::raw(" "));
+            spans.push(Span::raw("("));
+            spans.push(Span::styled(diff_text, Style::default().fg(diff_color)));
+            spans.push(Span::raw(")"));
+        }
+
+        spans
     }
 
     fn inline_value(&self, label: &str, value: i32, diff: i32) -> Span<'static> {
