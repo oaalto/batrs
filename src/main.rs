@@ -26,6 +26,7 @@ mod command;
 mod guilds;
 mod stats;
 mod triggers;
+mod ui;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
@@ -76,7 +77,7 @@ fn run_app(
             last_tick = Instant::now();
         }
 
-        if app.should_quit {
+        if app.should_quit() {
             break;
         }
     }

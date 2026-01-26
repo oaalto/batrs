@@ -1,5 +1,5 @@
 use crate::ansi::{AnsiCode, StyledLine};
-use crate::app::BatApp;
+use crate::triggers::TriggerContext;
 use crate::guilds::ReaverGuild;
 use crate::triggers::Trigger;
 use lazy_static::lazy_static;
@@ -82,7 +82,7 @@ impl ReaverGuild {
     }
 
     pub fn scythe_swipe_trigger(
-        _app: &mut BatApp,
+        _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> Vec<StyledLine> {
         if SCYTHE_SWIPE_REGEX.is_match(&styled_line.plain_line) {
@@ -92,7 +92,7 @@ impl ReaverGuild {
     }
 
     pub fn rampant_cutting_trigger(
-        _app: &mut BatApp,
+        _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> Vec<StyledLine> {
         if RAMPANT_CUTTING_REGEXS
@@ -105,7 +105,7 @@ impl ReaverGuild {
     }
 
     pub fn reaver_strike_trigger(
-        _app: &mut BatApp,
+        _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> Vec<StyledLine> {
         if REAVER_STRIKE_REGEXS
@@ -118,7 +118,7 @@ impl ReaverGuild {
     }
 
     pub fn attack_fails_trigger(
-        _app: &mut BatApp,
+        _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> Vec<StyledLine> {
         if ATTACK_FAILS
@@ -131,7 +131,7 @@ impl ReaverGuild {
     }
 
     pub fn killing_blow_trigger(
-        _app: &mut BatApp,
+        _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> Vec<StyledLine> {
         if KILLING_BLOW.is_match(&styled_line.plain_line) {
@@ -141,7 +141,7 @@ impl ReaverGuild {
     }
 
     pub fn speak_ancient_trigger(
-        _app: &mut BatApp,
+        _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> Vec<StyledLine> {
         if SPEAK_ANCIENT.is_match(&styled_line.plain_line) {
@@ -151,7 +151,7 @@ impl ReaverGuild {
     }
 
     pub fn destructive_energy_trigger(
-        _app: &mut BatApp,
+        _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> Vec<StyledLine> {
         if DESTRUCTIVE_ENERGY
@@ -164,7 +164,7 @@ impl ReaverGuild {
     }
 
     pub fn blue_hilites_trigger(
-        _app: &mut BatApp,
+        _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> Vec<StyledLine> {
         if BLUE_HILITES
@@ -177,7 +177,7 @@ impl ReaverGuild {
     }
 
     pub fn magenta_hilites_trigger(
-        _app: &mut BatApp,
+        _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> Vec<StyledLine> {
         if MAGENTA_HILITES
@@ -190,7 +190,7 @@ impl ReaverGuild {
     }
 
     pub fn green_hilites_trigger(
-        _app: &mut BatApp,
+        _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> Vec<StyledLine> {
         if GREEN_HILITES
@@ -203,7 +203,7 @@ impl ReaverGuild {
     }
 
     pub fn red_hilites_trigger(
-        _app: &mut BatApp,
+        _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> Vec<StyledLine> {
         if RED_HILITES
@@ -216,7 +216,7 @@ impl ReaverGuild {
     }
 
     pub fn threaten_usage_trigger(
-        _app: &mut BatApp,
+        _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> Vec<StyledLine> {
         if "Can only be used once per 10 minutes." == styled_line.plain_line {

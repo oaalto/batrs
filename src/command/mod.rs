@@ -4,6 +4,7 @@ use crate::automation::Action;
 use crate::guilds::Guild;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::mem;
 
 lazy_static! {
     static ref COMMANDS: HashMap<String, Command> =
@@ -14,17 +15,19 @@ pub fn process(
     cmd: &str,
     ctx: &mut CommandContext,
     guilds: &[Box<dyn Guild>],
-) -> Option<String> {
+) -> CommandOutcome {
     let data = Data::new(cmd);
     let guild_cmds: HashMap<String, Command> = guilds.iter().flat_map(|g| g.commands()).collect();
 
-    if let Some(cmd) = COMMANDS.get(&data.cmd) {
+    let send = if let Some(cmd) = COMMANDS.get(&data.cmd) {
         cmd(&data, ctx)
     } else if let Some(cmd) = guild_cmds.get(&data.cmd) {
         cmd(&data, ctx)
     } else {
         Some(cmd.to_string())
-    }
+    };
+
+    CommandOutcome::from_ctx(send, ctx)
 }
 
 pub type Command = fn(&Data, &mut CommandContext) -> Option<String>;
@@ -66,6 +69,22 @@ impl Data {
         Self {
             cmd: line[..index].to_ascii_lowercase(),
             args: line[index..].trim().to_owned(),
+        }
+    }
+}
+
+pub struct CommandOutcome {
+    pub send: Option<String>,
+    pub should_quit: bool,
+    pub automation_actions: Vec<Action>,
+}
+
+impl CommandOutcome {
+    fn from_ctx(send: Option<String>, ctx: &mut CommandContext) -> Self {
+        Self {
+            send,
+            should_quit: ctx.should_quit,
+            automation_actions: mem::take(&mut ctx.automation_actions),
         }
     }
 }
