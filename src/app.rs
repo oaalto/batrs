@@ -7,6 +7,7 @@ use chrono::{DateTime, Local, Timelike};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use libmudtelnet::events::TelnetEvents;
 use libmudtelnet::telnet::op_command;
+use log::debug;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::text::{Line, Text};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
@@ -55,17 +56,17 @@ impl BatApp {
     fn handle_event(&mut self, event: &TelnetEvents) {
         match event {
             TelnetEvents::IAC(iac) => {
-                println!("IAC: {iac:?}");
+                debug!("IAC: {iac:?}");
                 if op_command::GA == iac.command {
                     let buffer = self.buffer.replace(BytesMut::with_capacity(1024)).unwrap();
                     self.process_input_data(buffer);
                 }
             }
             TelnetEvents::Negotiation(neg) => {
-                println!("Negotiation: {neg:?}");
+                debug!("Negotiation: {neg:?}");
             }
             TelnetEvents::Subnegotiation(sub_neg) => {
-                println!("Subnegotiation: {sub_neg:?}");
+                debug!("Subnegotiation: {sub_neg:?}");
             }
             TelnetEvents::DataReceive(bytes) => {
                 if !bytes.ends_with(CARRIAGE_RETURN_NEW_LINE) {
@@ -82,7 +83,7 @@ impl BatApp {
             }
             TelnetEvents::DataSend(_) => {}
             TelnetEvents::DecompressImmediate(_) => {
-                println!("Decompress data");
+                debug!("Decompress data");
             }
         }
     }
@@ -131,47 +132,54 @@ impl BatApp {
     pub fn draw(&mut self, frame: &mut Frame<'_>) {
         let root = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Min(1), Constraint::Length(3)])
+            .constraints([
+                Constraint::Min(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+            ])
             .split(frame.area());
 
-        let main_area = root[0];
-        let input_area = root[1];
+        let output_area = root[0];
+        let stats_area = root[1];
+        let input_area = root[2];
 
-        let main_chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Length(30), Constraint::Min(1)])
-            .split(main_area);
-
-        self.stats.render(frame, main_chunks[0]);
-
-        let output_area = main_chunks[1];
         let visible_height = output_area.height.saturating_sub(2) as usize;
-        let output_lines = self.visible_lines(visible_height);
-        let output = Paragraph::new(Text::from(output_lines))
-            .block(Block::default().title("Output").borders(Borders::ALL))
-            .wrap(Wrap { trim: false });
+        let output_lines: Vec<Line<'_>> = self.lines.iter().map(StyledLine::to_line).collect();
+        let scroll_offset = self.lines.len().saturating_sub(visible_height);
+        let scroll_offset = scroll_offset.min(u16::MAX as usize) as u16;
+        let output = Paragraph::new(Text::from(output_lines)).scroll((scroll_offset, 0));
         frame.render_widget(output, output_area);
+
+        let stats_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Min(10), Constraint::Length(12)])
+            .split(stats_area);
+
+        let stats_line = self.stats.render_inline();
+        let stats_widget = Paragraph::new(stats_line);
+        frame.render_widget(stats_widget, stats_chunks[0]);
+
+        let clock = show_clock();
+        let clock_widget = Paragraph::new(clock).alignment(Alignment::Center);
+        frame.render_widget(clock_widget, stats_chunks[1]);
 
         let input_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Min(10), Constraint::Length(12)])
             .split(input_area);
 
-        let input_block = Block::default().title("Input").borders(Borders::ALL);
-        let input = Paragraph::new(self.displayed_input.as_str())
+        let input_block = Block::default();
+        let input_text = format!("> {}", self.displayed_input);
+        let input = Paragraph::new(input_text)
             .block(input_block.clone())
             .wrap(Wrap { trim: false });
         frame.render_widget(input, input_chunks[0]);
 
-        let clock = show_clock();
-        let clock_widget = Paragraph::new(clock)
-            .block(Block::default().borders(Borders::ALL))
-            .alignment(Alignment::Center);
-        frame.render_widget(clock_widget, input_chunks[1]);
+        frame.render_widget(Paragraph::new(""), input_chunks[1]);
 
         let input_inner = input_block.inner(input_chunks[0]);
         if input_inner.width > 0 && input_inner.height > 0 {
-            let cursor_offset = self.displayed_input.graphemes(true).count() as u16;
+            let cursor_offset = self.displayed_input.graphemes(true).count() as u16 + 2;
             let cursor_x = input_inner
                 .x
                 .saturating_add(cursor_offset.min(input_inner.width.saturating_sub(1)));
@@ -234,17 +242,7 @@ impl BatApp {
         self.cur_history_pos = self.history.len();
     }
 
-    fn visible_lines(&self, height: usize) -> Vec<Line<'_>> {
-        if height == 0 || self.lines.is_empty() {
-            return Vec::new();
-        }
-
-        let start = self.lines.len().saturating_sub(height);
-        self.lines[start..]
-            .iter()
-            .map(StyledLine::to_line)
-            .collect()
-    }
+    // TODO: keep around scroll position when manual scrolling is added.
 }
 
 fn show_clock() -> String {

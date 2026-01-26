@@ -1,6 +1,7 @@
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Style};
-use ratatui::widgets::{Block, Borders, Gauge, Paragraph};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Gauge, Paragraph};
 use ratatui::Frame;
 
 #[derive(Default, Debug, Clone)]
@@ -53,7 +54,7 @@ impl Stats {
     }
 
     pub fn render(&self, frame: &mut Frame<'_>, area: Rect) {
-        let block = Block::default().title("Stats").borders(Borders::ALL);
+        let block = Block::default();
         let inner = block.inner(area);
         frame.render_widget(block, area);
 
@@ -79,6 +80,26 @@ impl Stats {
         let money_label = self.value_label("Money", self.money, self.diff_money);
         let money_widget = Paragraph::new(money_label);
         frame.render_widget(money_widget, rows[4]);
+    }
+
+    pub fn render_inline(&self) -> Line<'static> {
+        let hp = self.inline_stat("HP", self.hp, self.max_hp, self.diff_hp, progress_color);
+        let sp = self.inline_stat("SP", self.sp, self.max_sp, self.diff_sp, progress_color);
+        let ep = self.inline_stat("EP", self.ep, self.max_ep, self.diff_ep, progress_color);
+        let exp = self.inline_value("Exp", self.exp, self.diff_exp);
+        let money = self.inline_value("Money", self.money, self.diff_money);
+
+        Line::from(vec![
+            hp,
+            Span::raw("  "),
+            sp,
+            Span::raw("  "),
+            ep,
+            Span::raw("  "),
+            exp,
+            Span::raw("  "),
+            money,
+        ])
     }
 
     fn value_label(&self, label: &str, value: i32, diff: i32) -> String {
@@ -116,6 +137,36 @@ impl Stats {
             .gauge_style(Style::default().fg(progress_color(progress)));
 
         frame.render_widget(gauge, area);
+    }
+
+    fn inline_stat(
+        &self,
+        label: &str,
+        value: i32,
+        max_value: i32,
+        diff: i32,
+        color_fn: fn(f32) -> Color,
+    ) -> Span<'static> {
+        let text = if diff == 0 {
+            format!("{label}: {value}/{max_value}")
+        } else {
+            format!("{label}: {value}/{max_value} ({diff:+})")
+        };
+        let progress = if value == 0 || max_value == 0 {
+            0.0
+        } else {
+            value as f32 / max_value as f32
+        };
+        Span::styled(text, Style::default().fg(color_fn(progress)))
+    }
+
+    fn inline_value(&self, label: &str, value: i32, diff: i32) -> Span<'static> {
+        let text = if diff == 0 {
+            format!("{label}: {value}")
+        } else {
+            format!("{label}: {value} ({diff:+})")
+        };
+        Span::raw(text)
     }
 }
 

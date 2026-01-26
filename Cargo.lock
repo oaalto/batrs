@@ -110,6 +110,7 @@ dependencies = [
  "futures",
  "lazy_static",
  "libmudtelnet",
+ "log",
  "num-derive",
  "num-traits",
  "parse-ansi",
