@@ -136,10 +136,10 @@ fn apply_rule_action(
             }
         }
         RuleAction::MoneySummary { list_index } => {
-            if let MatchData::Regex(captures) = match_data {
-                if let Some(m) = captures.get(*list_index) {
-                    push_money_summary(m.as_str(), output_lines);
-                }
+            if let MatchData::Regex(captures) = match_data
+                && let Some(m) = captures.get(*list_index)
+            {
+                push_money_summary(m.as_str(), output_lines);
             }
         }
         RuleAction::Echo { text, color, bold } => {
@@ -274,9 +274,7 @@ fn push_money_summary(list_text: &str, output_lines: &mut Vec<StyledLine>) {
 
     for entry in normalized.split(", ") {
         let mut parts = entry.splitn(2, ' ');
-        let amount = parts
-            .next()
-            .and_then(|value| value.parse::<u64>().ok());
+        let amount = parts.next().and_then(|value| value.parse::<u64>().ok());
         let coin = parts.next().and_then(CoinType::from_str);
 
         let (Some(amount), Some(coin)) = (amount, coin) else {
@@ -287,10 +285,10 @@ fn push_money_summary(list_text: &str, output_lines: &mut Vec<StyledLine>) {
         if counts[idx].is_some() {
             return;
         }
-        if let Some(last_idx) = last_index {
-            if idx <= last_idx {
-                return;
-            }
+        if let Some(last_idx) = last_index
+            && idx <= last_idx
+        {
+            return;
         }
 
         counts[idx] = Some(amount);
@@ -1014,7 +1012,14 @@ mod tests {
         let (output, _line, _automation) =
             run_trigger("It contains 2 anipium and 1 platinum coins.", None);
 
-        let lines: Vec<&str> = output.lines.iter().map(|line| line.plain_line.as_str()).collect();
-        assert_eq!(lines, vec!["Platinum 1 = 10", "Anipium 2 = 100", "Total = 110"]);
+        let lines: Vec<&str> = output
+            .lines
+            .iter()
+            .map(|line| line.plain_line.as_str())
+            .collect();
+        assert_eq!(
+            lines,
+            vec!["Platinum 1 = 10", "Anipium 2 = 100", "Total = 110"]
+        );
     }
 }
