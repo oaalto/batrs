@@ -20,3 +20,33 @@ pub fn trigger(ctx: &mut TriggerContext<'_>, styled_line: &mut StyledLine) -> Tr
 
     TriggerOutput::default()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::automation::Automation;
+
+    #[test]
+    fn trigger_parses_short_score_stats_and_gags() {
+        let mut stats = Stats::default();
+        let mut automation = Automation::new();
+        let mut ctx = TriggerContext {
+            stats: &mut stats,
+            automation: &mut automation,
+            rig: None,
+        };
+        let line_text = "H:571/802 [+20] S:635/635 [] E:311/311 [] $:2786 [] exp:21657 []";
+        let mut line = StyledLine::new(line_text);
+
+        let _ = trigger(&mut ctx, &mut line);
+
+        assert!(line.gag);
+        assert_eq!(
+            format!("{:?}", *ctx.stats),
+            format!(
+                "{:?}",
+                Stats::new_from_sc([571, 802, 20, 635, 635, 0, 311, 311, 0, 2786, 0, 21657, 0])
+            )
+        );
+    }
+}

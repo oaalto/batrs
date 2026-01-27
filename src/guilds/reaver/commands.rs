@@ -1,3 +1,4 @@
+use crate::ansi::StyledLine;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
@@ -161,11 +162,12 @@ impl ReaverGuild {
 
     pub fn use_prayer_to_destruction(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
+        ctx: &mut command::CommandContext,
     ) -> Option<String> {
         if !data.args.is_empty() {
             return Some(format!("@use prayer to destruction at {}", &data.args));
         }
+        ctx.push_output_line(StyledLine::new("No target!"));
         None
     }
 
@@ -337,4 +339,25 @@ fn set_prayer_flag(ctx: &mut command::CommandContext, flag: &str) {
     }
 
     ctx.push_action(Action::SetFlag(flag.to_string(), true));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn prayer_to_destruction_requires_target() {
+        let data = command::Data {
+            cmd: "upd".to_string(),
+            args: "".to_string(),
+        };
+        let mut ctx = command::CommandContext::new(HashMap::new(), true);
+
+        let result = ReaverGuild::use_prayer_to_destruction(&data, &mut ctx);
+
+        assert!(result.is_none());
+        assert_eq!(ctx.output_lines.len(), 1);
+        assert_eq!(ctx.output_lines[0].plain_line, "No target!");
+    }
 }

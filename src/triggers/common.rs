@@ -21,6 +21,11 @@ enum RuleAction {
         color: AnsiCode,
         bold: bool,
     },
+    Echo {
+        text: &'static str,
+        color: AnsiCode,
+        bold: bool,
+    },
     Send(&'static str),
     SetFlag {
         key: &'static str,
@@ -73,6 +78,7 @@ impl Rule {
         &self,
         match_data: &MatchData<'_>,
         styled_line: &mut StyledLine,
+        output_lines: &mut Vec<StyledLine>,
         actions: &mut Vec<Action>,
     ) {
         for action in self.actions.iter().filter(|action| {
@@ -84,7 +90,7 @@ impl Rule {
                 }
             )
         }) {
-            apply_rule_action(action, match_data, styled_line, actions);
+            apply_rule_action(action, match_data, styled_line, output_lines, actions);
         }
 
         for action in &self.actions {
@@ -97,7 +103,7 @@ impl Rule {
             ) {
                 continue;
             }
-            apply_rule_action(action, match_data, styled_line, actions);
+            apply_rule_action(action, match_data, styled_line, output_lines, actions);
         }
     }
 }
@@ -106,6 +112,7 @@ fn apply_rule_action(
     action: &RuleAction,
     match_data: &MatchData<'_>,
     styled_line: &mut StyledLine,
+    output_lines: &mut Vec<StyledLine>,
     actions: &mut Vec<Action>,
 ) {
     match action {
@@ -124,6 +131,11 @@ fn apply_rule_action(
             if let MatchData::Regex(captures) = match_data {
                 apply_capture_hilite(styled_line, captures, *index, *color, *bold);
             }
+        }
+        RuleAction::Echo { text, color, bold } => {
+            let mut line = StyledLine::new(text);
+            line.set_line_color(*color, *bold);
+            output_lines.push(line);
         }
         RuleAction::Send(template) => {
             actions.push(Action::Send((*template).to_string()));
@@ -170,6 +182,11 @@ fn tf_hilite(code: &str, target: HiliteTarget) -> RuleAction {
         color,
         bold,
     }
+}
+
+fn tf_echo(code: &str, text: &'static str) -> RuleAction {
+    let (color, bold) = tf_color(code).unwrap_or((AnsiCode::White, false));
+    RuleAction::Echo { text, color, bold }
 }
 
 fn tf_color(code: &str) -> Option<(AnsiCode, bool)> {
@@ -355,22 +372,7 @@ lazy_static! {
             ),
             ("It doesn't hurt at all!", "BCgreen"),
             ("Your thoughts still feel clear and calm.", "BCgreen"),
-            ("You get hit, and your eyes lose focus slightly.", "BCred"),
             ("You are stunned and unable to do anything.", "Cred"),
-            (
-                "You try to concentrate but your head spins like a whirligig!",
-                "BCred",
-            ),
-            (
-                "You lose connection to reality, becoming truly STUNNED.",
-                "BCred",
-            ),
-            ("You become somewhat confused, losing your edge.", "BCred"),
-            ("Your mind reels and the world becomes blurred.", "BCred"),
-            (
-                "You get hit badly, and have problems staying in balance.",
-                "BCred",
-            ),
         ] {
             push_rule(
                 &mut rules,
@@ -379,6 +381,27 @@ lazy_static! {
                 10,
                 None,
                 vec![tf_hilite(color, HiliteTarget::Whole)],
+            );
+        }
+
+        for pattern in [
+            "You get hit, and your eyes lose focus slightly.",
+            "You try to concentrate but your head spins like a whirligig!",
+            "You lose connection to reality, becoming truly STUNNED.",
+            "You become somewhat confused, losing your edge.",
+            "Your mind reels and the world becomes blurred.",
+            "You get hit badly, and have problems staying in balance.",
+        ] {
+            push_rule(
+                &mut rules,
+                &mut order,
+                RuleMatcher::Simple(pattern),
+                10,
+                None,
+                vec![
+                    tf_hilite("BCred", HiliteTarget::Whole),
+                    tf_echo("BCred", "STUNNED!"),
+                ],
             );
         }
 
@@ -585,7 +608,7 @@ lazy_static! {
         push_rule(
             &mut rules,
             &mut order,
-            RuleMatcher::Simple("You discover a glowing ball of concentrated zinium < >"),
+            RuleMatcher::Simple("You discover a glowing ball of concentrated zinium <<radiating>>"),
             10,
             None,
             vec![
@@ -760,8 +783,83 @@ pub fn trigger(ctx: &mut TriggerContext<'_>, styled_line: &mut StyledLine) -> Tr
         if !rule.condition_met(ctx) {
             continue;
         }
-        rule.apply(&match_data, styled_line, &mut output.actions);
+        rule.apply(
+            &match_data,
+            styled_line,
+            &mut output.lines,
+            &mut output.actions,
+        );
     }
 
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::automation::Automation;
+    use crate::stats::Stats;
+
+    fn run_trigger(line: &str, rig: Option<&str>) -> (TriggerOutput, StyledLine, Automation) {
+        let mut stats = Stats::default();
+        let mut automation = Automation::new();
+        let mut ctx = TriggerContext {
+            stats: &mut stats,
+            automation: &mut automation,
+            rig,
+        };
+        let mut styled_line = StyledLine::new(line);
+        let output = trigger(&mut ctx, &mut styled_line);
+
+        (output, styled_line, automation)
+    }
+
+    #[test]
+    fn battle_round_sets_actions_and_flag() {
+        let (output, _line, _automation) = run_trigger("*** Round 1 ***", None);
+        let mut saw_scan_all = false;
+        let mut saw_sc = false;
+        let mut saw_flag = false;
+
+        for action in &output.actions {
+            match action {
+                Action::Send(cmd) if cmd == "@scan all" => saw_scan_all = true,
+                Action::Send(cmd) if cmd == "@sc" => saw_sc = true,
+                Action::SetFlag(key, value) if key == "in_battle" && *value => saw_flag = true,
+                _ => {}
+            }
+        }
+
+        assert!(saw_scan_all);
+        assert!(saw_sc);
+        assert!(saw_flag);
+    }
+
+    #[test]
+    fn stunned_lines_echo_local_notice() {
+        let (output, _line, _automation) =
+            run_trigger("You get hit, and your eyes lose focus slightly.", None);
+
+        assert_eq!(output.lines.len(), 1);
+        assert_eq!(output.lines[0].plain_line, "STUNNED!");
+        let first_char = &output.lines[0].styled_chars[0];
+        assert_eq!(first_char.color, AnsiCode::Red);
+        assert!(first_char.bold);
+    }
+
+    #[test]
+    fn zinium_ball_sends_keep_command() {
+        let (output, _line, _automation) = run_trigger(
+            "You discover a glowing ball of concentrated zinium <<radiating>>",
+            Some("pack"),
+        );
+        let saw_send = output.actions.iter().any(|action| {
+            matches!(
+                action,
+                Action::Send(cmd) if cmd == "@keep all orb;put all orb in {rig}"
+            )
+        });
+
+        assert!(saw_send);
+    }
 }

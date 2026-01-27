@@ -117,3 +117,61 @@ impl Automation {
 lazy_static! {
     static ref TEMPLATE_REGEX: Regex = Regex::new(r"\{([A-Za-z0-9_]+)\}").unwrap();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn apply_actions_expands_templates_and_sets_flags() {
+        let mut automation = Automation::new();
+        let sends = automation.apply_actions(vec![
+            Action::SetVar("rig".to_string(), "satchel".to_string()),
+            Action::SetFlag("in_battle".to_string(), true),
+            Action::Send("put all essence in {rig}".to_string()),
+        ]);
+
+        assert_eq!(sends, vec!["put all essence in satchel"]);
+        assert!(automation.flag_is_set("in_battle"));
+    }
+
+    #[test]
+    fn apply_actions_replaces_missing_var_with_empty() {
+        let mut automation = Automation::new();
+        let sends = automation.apply_actions(vec![Action::Send("carry {missing}".to_string())]);
+
+        assert_eq!(sends, vec!["carry "]);
+    }
+
+    #[test]
+    fn process_line_handles_waiter_consumption() {
+        let mut automation = Automation::new();
+        automation.add_waiter(Waiter {
+            pattern: Regex::new("hello").unwrap(),
+            actions: vec![Action::Send("hi".to_string())],
+            consume: true,
+        });
+
+        let first = automation.process_line("hello");
+        let second = automation.process_line("hello");
+
+        assert_eq!(first, vec!["hi"]);
+        assert!(second.is_empty());
+    }
+
+    #[test]
+    fn process_line_keeps_non_consuming_waiters() {
+        let mut automation = Automation::new();
+        automation.add_waiter(Waiter {
+            pattern: Regex::new("pong").unwrap(),
+            actions: vec![Action::Send("ping".to_string())],
+            consume: false,
+        });
+
+        let first = automation.process_line("pong");
+        let second = automation.process_line("pong");
+
+        assert_eq!(first, vec!["ping"]);
+        assert_eq!(second, vec!["ping"]);
+    }
+}

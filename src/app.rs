@@ -233,6 +233,9 @@ impl BatApp {
                 if let Some(rig) = outcome.set_rig {
                     self.update_user_rig(rig);
                 }
+                if !outcome.output_lines.is_empty() {
+                    self.output.append_lines(outcome.output_lines);
+                }
                 if let Some(s) = outcome.send {
                     self.send_command(s);
                 }
@@ -272,6 +275,9 @@ impl BatApp {
         self.apply_automation_actions(outcome.automation_actions);
         if let Some(rig) = outcome.set_rig {
             self.update_user_rig(rig);
+        }
+        if !outcome.output_lines.is_empty() {
+            self.output.append_lines(outcome.output_lines);
         }
 
         if let Some(s) = outcome.send {

@@ -19,3 +19,45 @@ pub fn trigger(ctx: &mut TriggerContext<'_>, styled_line: &mut StyledLine) -> Tr
 
     TriggerOutput::default()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::automation::Automation;
+
+    #[test]
+    fn trigger_parses_prompt_stats_and_gags() {
+        let mut stats = Stats::default();
+        let mut automation = Automation::new();
+        let mut ctx = TriggerContext {
+            stats: &mut stats,
+            automation: &mut automation,
+            rig: None,
+        };
+        let mut line = StyledLine::new("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >");
+
+        let _ = trigger(&mut ctx, &mut line);
+
+        assert!(line.gag);
+        assert_eq!(
+            format!("{:?}", *ctx.stats),
+            format!("{:?}", Stats::new([1, 2, 3, 4, 5, 6, 7]))
+        );
+    }
+
+    #[test]
+    fn trigger_ignores_non_prompt_lines() {
+        let mut stats = Stats::default();
+        let mut automation = Automation::new();
+        let mut ctx = TriggerContext {
+            stats: &mut stats,
+            automation: &mut automation,
+            rig: None,
+        };
+        let mut line = StyledLine::new("not a prompt");
+
+        let _ = trigger(&mut ctx, &mut line);
+
+        assert!(!line.gag);
+    }
+}

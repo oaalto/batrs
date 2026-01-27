@@ -3,7 +3,8 @@ use crate::guilds::ReaverGuild;
 use crate::triggers::Trigger;
 use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
-use regex::Regex;
+use regex::{Captures, Regex};
+use unicode_segmentation::UnicodeSegmentation;
 
 lazy_static! {
     static ref SCYTHE_SWIPE_REGEX: Regex =
@@ -142,8 +143,10 @@ impl ReaverGuild {
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> TriggerOutput {
-        if SPEAK_ANCIENT.is_match(&styled_line.plain_line) {
-            styled_line.set_line_color(AnsiCode::White, true);
+        let plain_line = styled_line.plain_line.clone();
+        if let Some(captures) = SPEAK_ANCIENT.captures(&plain_line) {
+            apply_capture_hilite(styled_line, &captures, 1, AnsiCode::White, true);
+            apply_capture_hilite(styled_line, &captures, 2, AnsiCode::White, true);
         }
         TriggerOutput::default()
     }
@@ -152,11 +155,12 @@ impl ReaverGuild {
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> TriggerOutput {
-        if DESTRUCTIVE_ENERGY
+        let plain_line = styled_line.plain_line.clone();
+        if let Some(captures) = DESTRUCTIVE_ENERGY
             .iter()
-            .any(|r| r.is_match(&styled_line.plain_line))
+            .find_map(|r| r.captures(&plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Cyan, false);
+            apply_capture_hilite(styled_line, &captures, 1, AnsiCode::Cyan, false);
         }
         TriggerOutput::default()
     }
@@ -221,5 +225,87 @@ impl ReaverGuild {
             styled_line.gag = true;
         }
         TriggerOutput::default()
+    }
+}
+
+fn apply_capture_hilite(
+    styled_line: &mut StyledLine,
+    captures: &Captures<'_>,
+    index: usize,
+    color: AnsiCode,
+    bold: bool,
+) {
+    let Some(m) = captures.get(index) else {
+        return;
+    };
+
+    let start = byte_to_grapheme_index(&styled_line.plain_line, m.start());
+    let end = byte_to_grapheme_index(&styled_line.plain_line, m.end());
+    let len = styled_line.styled_chars.len();
+    let start = start.min(len);
+    let end = end.min(len);
+
+    for i in start..end {
+        styled_line.styled_chars[i].color = color;
+        styled_line.styled_chars[i].bold = bold;
+    }
+}
+
+fn byte_to_grapheme_index(text: &str, byte_index: usize) -> usize {
+    text.get(..byte_index)
+        .map(|slice| slice.graphemes(true).count())
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::automation::Automation;
+    use crate::stats::Stats;
+
+    #[test]
+    fn speak_ancient_highlights_only_matches() {
+        let mut stats = Stats::default();
+        let mut automation = Automation::new();
+        let mut ctx = TriggerContext {
+            stats: &mut stats,
+            automation: &mut automation,
+            rig: None,
+        };
+        let mut line = StyledLine::new("You speak the ancient Ruun 'kael'");
+
+        let _ = ReaverGuild::speak_ancient_trigger(&mut ctx, &mut line);
+
+        let ruun_start = line.plain_line.find("Ruun").unwrap();
+        let kael_start = line.plain_line.find("kael").unwrap();
+        let ruun_idx = ruun_start;
+        let kael_idx = kael_start;
+
+        assert_eq!(line.styled_chars[0].color, AnsiCode::DefaultColor);
+        assert!(!line.styled_chars[0].bold);
+        assert_eq!(line.styled_chars[ruun_idx].color, AnsiCode::White);
+        assert!(line.styled_chars[ruun_idx].bold);
+        assert_eq!(line.styled_chars[kael_idx].color, AnsiCode::White);
+        assert!(line.styled_chars[kael_idx].bold);
+    }
+
+    #[test]
+    fn destructive_energy_highlights_amount() {
+        let mut stats = Stats::default();
+        let mut automation = Automation::new();
+        let mut ctx = TriggerContext {
+            stats: &mut stats,
+            automation: &mut automation,
+            rig: None,
+        };
+        let mut line =
+            StyledLine::new("You feel you have released 42 amount of destructive energy.");
+
+        let _ = ReaverGuild::destructive_energy_trigger(&mut ctx, &mut line);
+
+        let amount_start = line.plain_line.find("42").unwrap();
+        assert_eq!(line.styled_chars[amount_start].color, AnsiCode::Cyan);
+        assert!(!line.styled_chars[amount_start].bold);
+        assert_eq!(line.styled_chars[0].color, AnsiCode::DefaultColor);
     }
 }

@@ -64,3 +64,44 @@ pub fn cast_spell(spell_name: &str, data: &Data) -> String {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn use_skill_builds_targeted_commands() {
+        let empty = Data {
+            cmd: "use".to_string(),
+            args: "".to_string(),
+        };
+        let with_args = Data {
+            cmd: "use".to_string(),
+            args: "orc".to_string(),
+        };
+
+        assert_eq!(use_skill("scythe swipe", &empty), "@use 'scythe swipe'");
+        assert_eq!(
+            use_skill("scythe swipe", &with_args),
+            "@target orc;use 'scythe swipe' orc"
+        );
+    }
+
+    #[test]
+    fn cast_spell_builds_targeted_commands() {
+        let empty = Data {
+            cmd: "cast".to_string(),
+            args: "".to_string(),
+        };
+        let with_args = Data {
+            cmd: "cast".to_string(),
+            args: "goblin".to_string(),
+        };
+
+        assert_eq!(cast_spell("word of spite", &empty), "@cast 'word of spite'");
+        assert_eq!(
+            cast_spell("word of spite", &with_args),
+            "@target goblin;cast 'word of spite' goblin"
+        );
+    }
+}

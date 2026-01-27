@@ -9,6 +9,7 @@ use std::fmt::{Display, Formatter};
 use std::ops::Range;
 use unicode_segmentation::UnicodeSegmentation;
 
+#[derive(Debug)]
 pub struct StyledLine {
     pub plain_line: String,
     pub styled_chars: Vec<StyledChar>,
