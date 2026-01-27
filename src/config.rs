@@ -1,7 +1,71 @@
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SettingEntry {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct UserSettings {
+    pub entries: Vec<SettingEntry>,
+}
+
+impl UserSettings {
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.entries
+            .iter()
+            .find(|entry| entry.key == key)
+            .map(|entry| entry.value.as_str())
+    }
+}
+
+#[derive(Debug)]
+pub enum SettingsError {
+    EmptyKey,
+    DuplicateKey(String),
+    MissingEquals(String),
+    InvalidValue(String),
+    Io(io::Error),
+}
+
+impl std::fmt::Display for SettingsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SettingsError::EmptyKey => write!(f, "settings key is empty"),
+            SettingsError::DuplicateKey(key) => write!(f, "duplicate settings key: {key}"),
+            SettingsError::MissingEquals(line) => {
+                write!(f, "settings line missing '=': {line}")
+            }
+            SettingsError::InvalidValue(value) => {
+                write!(f, "settings value must be quoted: {value}")
+            }
+            SettingsError::Io(err) => write!(f, "settings IO error: {err}"),
+        }
+    }
+}
+
+impl std::error::Error for SettingsError {}
+
+impl From<io::Error> for SettingsError {
+    fn from(err: io::Error) -> Self {
+        SettingsError::Io(err)
+    }
+}
+
+struct SettingDefinition {
+    key: &'static str,
+    default: &'static str,
+}
+
+const SETTINGS_DEFS: &[SettingDefinition] = &[SettingDefinition {
+    key: "rig",
+    default: "",
+}];
 
 #[derive(Debug, Default)]
 pub struct ConfigManager {
@@ -48,9 +112,14 @@ impl ConfigManager {
         parse_guilds(config)
     }
 
-    pub fn user_rig(&self) -> Option<String> {
-        let config = self.user_config.as_deref()?;
-        parse_rig(config)
+    pub fn user_settings(&mut self) -> Result<UserSettings, SettingsError> {
+        let config = self.user_config.as_deref().unwrap_or("");
+        let parsed = parse_settings(config)?;
+        let (entries, changed) = normalize_settings_entries(parsed.unwrap_or_default());
+        if changed {
+            self.persist_user_config(update_settings_config(config, &entries))?;
+        }
+        Ok(UserSettings { entries })
     }
 
     pub fn save_user_guilds(&mut self, guilds: &[String]) -> io::Result<()> {
@@ -66,14 +135,27 @@ impl ConfigManager {
         Ok(())
     }
 
-    pub fn save_user_rig(&mut self, rig: &str) -> io::Result<()> {
+    pub fn save_user_settings(&mut self, settings: &UserSettings) -> io::Result<()> {
         let Some(path) = self.user_config_path.as_ref() else {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
                 "user config path not set",
             ));
         };
-        let updated = update_rig_config(self.user_config.as_deref().unwrap_or(""), rig);
+        let (entries, _) = normalize_settings_entries(settings.entries.clone());
+        let updated = update_settings_config(self.user_config.as_deref().unwrap_or(""), &entries);
+        fs::write(path, updated.as_bytes())?;
+        self.user_config = Some(updated);
+        Ok(())
+    }
+
+    fn persist_user_config(&mut self, updated: String) -> io::Result<()> {
+        let Some(path) = self.user_config_path.as_ref() else {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "user config path not set",
+            ));
+        };
         fs::write(path, updated.as_bytes())?;
         self.user_config = Some(updated);
         Ok(())
@@ -81,10 +163,18 @@ impl ConfigManager {
 }
 
 fn ensure_empty_file(path: &Path) -> io::Result<()> {
-    if !path.exists() {
-        fs::File::create(path)?;
+    if path.exists() {
+        return Ok(());
     }
-    Ok(())
+    match fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+    {
+        Ok(_) => Ok(()),
+        Err(err) if err.kind() == io::ErrorKind::AlreadyExists => Ok(()),
+        Err(err) => Err(err),
+    }
 }
 
 pub(crate) fn sanitize_name(name: &str) -> String {
@@ -134,21 +224,125 @@ fn parse_guilds(config: &str) -> Option<Vec<String>> {
     None
 }
 
-fn parse_rig(config: &str) -> Option<String> {
+fn parse_settings(config: &str) -> Result<Option<Vec<SettingEntry>>, SettingsError> {
+    let mut entries = Vec::new();
+    let mut seen = HashSet::new();
+    let mut in_settings = false;
+    let mut found = false;
+
     for line in config.lines() {
-        let line = line.split('#').next().unwrap_or("").trim();
-        let eq_index = match line.find('=') {
-            Some(index) => index,
-            None => continue,
-        };
-        if line[..eq_index].trim() != "rig" {
+        let trimmed = line.split('#').next().unwrap_or("").trim();
+        if trimmed.is_empty() {
             continue;
         }
-        let value = line[eq_index + 1..].trim();
-        let value = value.trim_matches(|c| c == '"' || c == '\'');
-        return Some(value.to_string());
+        if is_table_header(trimmed) {
+            in_settings = trimmed == "[settings]";
+            if in_settings {
+                found = true;
+            }
+            continue;
+        }
+        if !in_settings {
+            continue;
+        }
+
+        let (key, value) = trimmed
+            .split_once('=')
+            .ok_or_else(|| SettingsError::MissingEquals(trimmed.to_string()))?;
+        let key = key.trim();
+        if key.is_empty() {
+            return Err(SettingsError::EmptyKey);
+        }
+        if !seen.insert(key.to_string()) {
+            return Err(SettingsError::DuplicateKey(key.to_string()));
+        }
+        let value = parse_settings_value(value.trim())?;
+        entries.push(SettingEntry {
+            key: key.to_string(),
+            value,
+        });
     }
-    None
+
+    if found { Ok(Some(entries)) } else { Ok(None) }
+}
+
+fn normalize_settings_entries(entries: Vec<SettingEntry>) -> (Vec<SettingEntry>, bool) {
+    let mut known = HashMap::new();
+    let mut extras = Vec::new();
+    for entry in entries {
+        if SETTINGS_DEFS.iter().any(|def| def.key == entry.key) {
+            known.insert(entry.key, entry.value);
+        } else {
+            extras.push(entry);
+        }
+    }
+
+    let mut changed = false;
+    let mut normalized = Vec::new();
+    for def in SETTINGS_DEFS {
+        if let Some(value) = known.remove(def.key) {
+            normalized.push(SettingEntry {
+                key: def.key.to_string(),
+                value,
+            });
+        } else {
+            normalized.push(SettingEntry {
+                key: def.key.to_string(),
+                value: def.default.to_string(),
+            });
+            changed = true;
+        }
+    }
+    normalized.extend(extras);
+    (normalized, changed)
+}
+
+fn parse_settings_value(value: &str) -> Result<String, SettingsError> {
+    let value = value.trim();
+    if value.starts_with('"') && value.ends_with('"') && value.len() >= 2 {
+        let inner = &value[1..value.len().saturating_sub(1)];
+        return Ok(inner.replace("\\\"", "\""));
+    }
+    if value.starts_with('\'') && value.ends_with('\'') && value.len() >= 2 {
+        let inner = &value[1..value.len().saturating_sub(1)];
+        return Ok(inner.replace("\\'", "'"));
+    }
+    Err(SettingsError::InvalidValue(value.to_string()))
+}
+
+fn update_settings_config(existing: &str, entries: &[SettingEntry]) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    let mut in_settings = false;
+    for line in existing.lines() {
+        let trimmed = line.split('#').next().unwrap_or("").trim();
+        if is_table_header(trimmed) {
+            in_settings = trimmed == "[settings]";
+            if in_settings {
+                continue;
+            }
+        }
+        if in_settings {
+            continue;
+        }
+        lines.push(line.to_string());
+    }
+
+    if !lines.is_empty() && !lines.last().is_some_and(|line| line.is_empty()) {
+        lines.push(String::new());
+    }
+    lines.push("[settings]".to_string());
+    for entry in entries {
+        let formatted = entry.value.replace('"', "\\\"");
+        lines.push(format!("{} = \"{formatted}\"", entry.key));
+    }
+
+    let mut output = lines.join("\n");
+    output.push('\n');
+    output
+}
+
+fn is_table_header(line: &str) -> bool {
+    line.starts_with('[') && line.ends_with(']')
 }
 
 fn update_guilds_config(existing: &str, guilds: &[String]) -> String {
@@ -167,31 +361,6 @@ fn update_guilds_config(existing: &str, guilds: &[String]) -> String {
         .collect::<Vec<String>>()
         .join(", ");
     lines.push(format!("guilds = [{formatted}]"));
-
-    let mut output = lines.join("\n");
-    output.push('\n');
-    output
-}
-
-fn update_rig_config(existing: &str, rig: &str) -> String {
-    let mut lines: Vec<String> = Vec::new();
-    for line in existing.lines() {
-        let trimmed = line.trim_start();
-        let eq_index = match trimmed.find('=') {
-            Some(index) => index,
-            None => {
-                lines.push(line.to_string());
-                continue;
-            }
-        };
-        if trimmed[..eq_index].trim() == "rig" {
-            continue;
-        }
-        lines.push(line.to_string());
-    }
-
-    let formatted = rig.replace('"', "\\\"");
-    lines.push(format!("rig = \"{formatted}\""));
 
     let mut output = lines.join("\n");
     output.push('\n');

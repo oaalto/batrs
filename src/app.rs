@@ -6,7 +6,7 @@ mod telnet_buffer;
 
 use crate::ansi::StyledLine;
 use crate::automation::{Action, Automation};
-use crate::config::ConfigManager;
+use crate::config::{ConfigManager, SettingEntry, UserSettings};
 use crate::guilds::{Guild, build_guilds, default_guild_keys, guild_definitions};
 use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
@@ -40,6 +40,7 @@ pub struct BatApp {
     user_config_loaded: bool,
     user_rig: Option<String>,
     guild_dialog: Option<GuildDialog>,
+    settings_dialog: Option<SettingsDialog>,
     player_logger: Option<PlayerLogger>,
 }
 
@@ -73,6 +74,7 @@ impl BatApp {
             user_config_loaded: false,
             user_rig: None,
             guild_dialog: None,
+            settings_dialog: None,
             player_logger: PlayerLogger::new().ok(),
         };
 
@@ -146,6 +148,10 @@ impl BatApp {
             self.handle_guild_dialog_event(event);
             return;
         }
+        if self.settings_dialog.is_some() {
+            self.handle_settings_dialog_event(event);
+            return;
+        }
         match event.code {
             KeyCode::Enter => self.submit_input(),
             KeyCode::Backspace => self.input.backspace(),
@@ -193,8 +199,12 @@ impl BatApp {
             clock: show_clock(),
             input_text,
             cursor_offset: self.input.cursor_offset(hide_input),
-            show_cursor: self.guild_dialog.is_none(),
+            show_cursor: self.guild_dialog.is_none() && self.settings_dialog.is_none(),
             guild_dialog: self.guild_dialog.as_ref().map(|dialog| dialog.view_model()),
+            settings_dialog: self
+                .settings_dialog
+                .as_ref()
+                .map(|dialog| dialog.view_model()),
         };
 
         Renderer::render(frame, &view);
@@ -216,6 +226,9 @@ impl BatApp {
                 }
                 if outcome.open_guilds_dialog {
                     self.open_guilds_dialog();
+                }
+                if outcome.open_settings_dialog {
+                    self.open_settings_dialog();
                 }
                 if let Some(rig) = outcome.set_rig {
                     self.update_user_rig(rig);
@@ -252,6 +265,9 @@ impl BatApp {
         if outcome.open_guilds_dialog {
             self.open_guilds_dialog();
         }
+        if outcome.open_settings_dialog {
+            self.open_settings_dialog();
+        }
 
         self.apply_automation_actions(outcome.automation_actions);
         if let Some(rig) = outcome.set_rig {
@@ -279,19 +295,46 @@ impl BatApp {
     }
 
     fn update_user_rig(&mut self, rig: String) {
-        if rig.is_empty() {
-            return;
-        }
         if !self.user_config_loaded {
             self.load_user_config();
         }
+        let entries = if let Some(manager) = self.config_manager.as_mut() {
+            match manager.user_settings() {
+                Ok(settings) => {
+                    let mut entries = settings.entries;
+                    if let Some(entry) = entries.iter_mut().find(|entry| entry.key == "rig") {
+                        entry.value = rig.clone();
+                    } else {
+                        entries.push(SettingEntry {
+                            key: "rig".to_string(),
+                            value: rig.clone(),
+                        });
+                    }
+                    entries
+                }
+                Err(e) => {
+                    eprintln!("invalid settings config: {e}");
+                    std::process::exit(1);
+                }
+            }
+        } else {
+            vec![SettingEntry {
+                key: "rig".to_string(),
+                value: rig.clone(),
+            }]
+        };
+        self.apply_user_settings(UserSettings { entries });
+    }
+
+    fn apply_user_settings(&mut self, settings: UserSettings) {
+        let rig = settings.get("rig").unwrap_or_default().to_string();
         self.user_rig = Some(rig.clone());
-        self.automation.set_var("rig", rig.clone());
+        self.automation.set_var("rig", rig);
         let Some(manager) = self.config_manager.as_mut() else {
             return;
         };
-        if let Err(e) = manager.save_user_rig(&rig) {
-            eprintln!("failed to save user rig: {e}");
+        if let Err(e) = manager.save_user_settings(&settings) {
+            eprintln!("failed to save user settings: {e}");
         }
     }
 
@@ -322,6 +365,28 @@ impl BatApp {
         self.guild_dialog = Some(GuildDialog::new(definitions, selected));
     }
 
+    fn open_settings_dialog(&mut self) {
+        if !self.session.is_logged_in() {
+            return;
+        }
+        if !self.user_config_loaded {
+            self.load_user_config();
+        }
+        let entries = {
+            let Some(manager) = self.config_manager.as_mut() else {
+                return;
+            };
+            match manager.user_settings() {
+                Ok(settings) => settings.entries,
+                Err(e) => {
+                    eprintln!("invalid settings config: {e}");
+                    std::process::exit(1);
+                }
+            }
+        };
+        self.settings_dialog = Some(SettingsDialog::new(entries));
+    }
+
     fn handle_guild_dialog_event(&mut self, event: KeyEvent) {
         let Some(dialog) = self.guild_dialog.as_mut() else {
             return;
@@ -338,6 +403,33 @@ impl BatApp {
                 self.guild_dialog = None;
                 self.apply_selected_guilds(keys.clone());
                 self.save_selected_guilds(keys);
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_settings_dialog_event(&mut self, event: KeyEvent) {
+        let Some(dialog) = self.settings_dialog.as_mut() else {
+            return;
+        };
+        match event.code {
+            KeyCode::Up => dialog.move_cursor(-1),
+            KeyCode::Down => dialog.move_cursor(1),
+            KeyCode::Backspace => dialog.backspace(),
+            KeyCode::Char(c) => {
+                if !event.modifiers.contains(KeyModifiers::CONTROL)
+                    && !event.modifiers.contains(KeyModifiers::ALT)
+                {
+                    dialog.insert_char(c);
+                }
+            }
+            KeyCode::Esc => {
+                self.settings_dialog = None;
+            }
+            KeyCode::Enter => {
+                let entries = dialog.entries();
+                self.settings_dialog = None;
+                self.apply_user_settings(UserSettings { entries });
             }
             _ => {}
         }
@@ -374,7 +466,7 @@ impl BatApp {
             eprintln!("logged in without a known player name; skipping user config");
             return;
         };
-        let (guild_keys, rig) = {
+        let (guild_keys, settings) = {
             let Some(manager) = self.config_manager.as_mut() else {
                 return;
             };
@@ -382,18 +474,27 @@ impl BatApp {
                 eprintln!("failed to load user config for {player_name}: {e}");
                 return;
             }
-            (manager.user_guilds(), manager.user_rig())
+            let settings = match manager.user_settings() {
+                Ok(settings) => Some(settings),
+                Err(e) => {
+                    eprintln!("invalid settings config: {e}");
+                    std::process::exit(1);
+                }
+            };
+            (manager.user_guilds(), settings)
         };
 
         if let Some(keys) = guild_keys {
             self.apply_selected_guilds(filter_known_guilds(keys));
         }
 
-        self.user_rig = rig;
-        if let Some(rig) = self.user_rig.as_ref()
-            && !rig.is_empty()
-        {
-            self.automation.set_var("rig", rig.clone());
+        if let Some(settings) = settings {
+            self.user_rig = settings.get("rig").map(|rig| rig.to_string());
+            if let Some(rig) = self.user_rig.as_ref()
+                && !rig.is_empty()
+            {
+                self.automation.set_var("rig", rig.clone());
+            }
         }
     }
 }
@@ -419,6 +520,57 @@ struct GuildDialog {
     definitions: Vec<crate::guilds::GuildDefinition>,
     selected: Vec<bool>,
     cursor: usize,
+}
+
+struct SettingsDialog {
+    entries: Vec<SettingEntry>,
+    cursor: usize,
+}
+
+impl SettingsDialog {
+    fn new(entries: Vec<SettingEntry>) -> Self {
+        let cursor = 0;
+        Self { entries, cursor }
+    }
+
+    fn move_cursor(&mut self, delta: i32) {
+        if self.entries.is_empty() {
+            return;
+        }
+        let max = self.entries.len().saturating_sub(1) as i32;
+        let next = (self.cursor as i32 + delta).clamp(0, max);
+        self.cursor = next as usize;
+    }
+
+    fn insert_char(&mut self, c: char) {
+        if let Some(entry) = self.entries.get_mut(self.cursor) {
+            entry.value.push(c);
+        }
+    }
+
+    fn backspace(&mut self) {
+        if let Some(entry) = self.entries.get_mut(self.cursor) {
+            entry.value.pop();
+        }
+    }
+
+    fn entries(&self) -> Vec<SettingEntry> {
+        self.entries.clone()
+    }
+
+    fn view_model(&self) -> crate::ui::SettingsDialogViewModel {
+        crate::ui::SettingsDialogViewModel {
+            items: self
+                .entries
+                .iter()
+                .map(|entry| crate::ui::SettingsDialogItem {
+                    key: entry.key.clone(),
+                    value: entry.value.clone(),
+                })
+                .collect(),
+            cursor: self.cursor,
+        }
+    }
 }
 
 impl GuildDialog {

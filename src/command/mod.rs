@@ -1,6 +1,7 @@
 mod guilds;
 mod quit;
 mod rig;
+mod settings;
 
 use crate::automation::Action;
 use crate::guilds::Guild;
@@ -21,6 +22,10 @@ lazy_static! {
         (
             "/rig".to_string(),
             CommandDef::new(rig::run as Command, true),
+        ),
+        (
+            "/settings".to_string(),
+            CommandDef::new(settings::run as Command, true),
         ),
     ]);
 }
@@ -66,6 +71,7 @@ pub struct CommandContext {
     pub automation_actions: Vec<Action>,
     pub automation_flags: HashMap<String, bool>,
     pub open_guilds_dialog: bool,
+    pub open_settings_dialog: bool,
     pub logged_in: bool,
     pub set_rig: Option<String>,
 }
@@ -77,6 +83,7 @@ impl CommandContext {
             automation_actions: Vec::new(),
             automation_flags,
             open_guilds_dialog: false,
+            open_settings_dialog: false,
             logged_in,
             set_rig: None,
         }
@@ -92,6 +99,10 @@ impl CommandContext {
 
     pub fn open_guilds_dialog(&mut self) {
         self.open_guilds_dialog = true;
+    }
+
+    pub fn open_settings_dialog(&mut self) {
+        self.open_settings_dialog = true;
     }
 
     pub fn set_rig(&mut self, rig: String) {
@@ -120,6 +131,7 @@ pub struct CommandOutcome {
     pub should_quit: bool,
     pub automation_actions: Vec<Action>,
     pub open_guilds_dialog: bool,
+    pub open_settings_dialog: bool,
     pub set_rig: Option<String>,
 }
 
@@ -130,6 +142,7 @@ impl CommandOutcome {
             should_quit: ctx.should_quit,
             automation_actions: mem::take(&mut ctx.automation_actions),
             open_guilds_dialog: ctx.open_guilds_dialog,
+            open_settings_dialog: ctx.open_settings_dialog,
             set_rig: ctx.set_rig.take(),
         }
     }

@@ -14,6 +14,7 @@ pub struct ViewModel<'a> {
     pub cursor_offset: u16,
     pub show_cursor: bool,
     pub guild_dialog: Option<GuildDialogViewModel>,
+    pub settings_dialog: Option<SettingsDialogViewModel>,
 }
 
 pub struct GuildDialogItem {
@@ -23,6 +24,16 @@ pub struct GuildDialogItem {
 
 pub struct GuildDialogViewModel {
     pub items: Vec<GuildDialogItem>,
+    pub cursor: usize,
+}
+
+pub struct SettingsDialogItem {
+    pub key: String,
+    pub value: String,
+}
+
+pub struct SettingsDialogViewModel {
+    pub items: Vec<SettingsDialogItem>,
     pub cursor: usize,
 }
 
@@ -88,6 +99,9 @@ impl Renderer {
         if let Some(dialog) = &view.guild_dialog {
             render_guild_dialog(frame, dialog);
         }
+        if let Some(dialog) = &view.settings_dialog {
+            render_settings_dialog(frame, dialog);
+        }
     }
 }
 
@@ -132,6 +146,48 @@ fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
 
     let instructions = Paragraph::new("Up/Down: move  Space: toggle  Enter: save  Esc: cancel")
         .style(dialog_style);
+    frame.render_widget(instructions, chunks[1]);
+}
+
+fn render_settings_dialog(frame: &mut Frame<'_>, dialog: &SettingsDialogViewModel) {
+    let area = centered_rect(60, 60, frame.area());
+    frame.render_widget(Clear, area);
+
+    let dialog_style = Style::default().bg(Color::Black);
+    let background = Paragraph::new("").style(dialog_style);
+    frame.render_widget(background, area);
+
+    let block = Block::default()
+        .title("Settings")
+        .borders(Borders::ALL)
+        .style(dialog_style);
+    frame.render_widget(&block, area);
+    let inner = block.inner(area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1), Constraint::Length(1)])
+        .split(inner);
+
+    let items = dialog
+        .items
+        .iter()
+        .map(|item| ListItem::new(format!("{}: {}", item.key, item.value)))
+        .collect::<Vec<ListItem<'_>>>();
+
+    let list = List::new(items)
+        .highlight_symbol("> ")
+        .style(dialog_style)
+        .highlight_style(dialog_style);
+    let mut state = ListState::default();
+    if !dialog.items.is_empty() {
+        state.select(Some(dialog.cursor.min(dialog.items.len() - 1)));
+    }
+    frame.render_stateful_widget(list, chunks[0], &mut state);
+
+    let instructions =
+        Paragraph::new("Type: edit  Backspace: delete  Up/Down: move  Enter: save  Esc: cancel")
+            .style(dialog_style);
     frame.render_widget(instructions, chunks[1]);
 }
 
