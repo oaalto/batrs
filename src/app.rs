@@ -7,7 +7,7 @@ mod telnet_buffer;
 use crate::ansi::StyledLine;
 use crate::automation::{Action, Automation};
 use crate::config::ConfigManager;
-use crate::guilds::{build_guilds, default_guild_keys, guild_definitions, Guild};
+use crate::guilds::{Guild, build_guilds, default_guild_keys, guild_definitions};
 use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
 use crate::{command, triggers};
@@ -16,8 +16,8 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use input_state::InputState;
 use libmudtelnet::events::TelnetEvents;
 use player_logger::PlayerLogger;
-use ratatui::text::Line;
 use ratatui::Frame;
+use ratatui::text::Line;
 use std::sync::mpsc::{Receiver, Sender};
 use telnet_buffer::TelnetBuffer;
 
@@ -38,15 +38,13 @@ pub struct BatApp {
     automation: Automation,
     config_manager: Option<ConfigManager>,
     user_config_loaded: bool,
+    user_rig: Option<String>,
     guild_dialog: Option<GuildDialog>,
     player_logger: Option<PlayerLogger>,
 }
 
 impl BatApp {
-    pub fn new(
-        event_receiver: Receiver<TelnetEvents>,
-        command_sender: Sender<String>,
-    ) -> Self {
+    pub fn new(event_receiver: Receiver<TelnetEvents>, command_sender: Sender<String>) -> Self {
         let config_manager = match ConfigManager::new() {
             Ok(mut manager) => {
                 if let Err(e) = manager.init_base() {
@@ -73,6 +71,7 @@ impl BatApp {
             automation: Automation::new(),
             config_manager,
             user_config_loaded: false,
+            user_rig: None,
             guild_dialog: None,
             player_logger: PlayerLogger::new().ok(),
         };
@@ -94,23 +93,26 @@ impl BatApp {
             if !was_logged_in && self.session.is_logged_in() {
                 self.load_user_config();
             }
-            if let Some(player_name) = self.session.login_name() {
-                if let Some(logger) = self.player_logger.as_mut() {
-                    logger.set_player_name(player_name);
-                }
+            if let Some(player_name) = self.session.login_name()
+                && let Some(logger) = self.player_logger.as_mut()
+            {
+                logger.set_player_name(player_name);
             }
-            if let Some(logger) = self.player_logger.as_mut() {
-                if let Err(e) = logger.log_line(&styled_line.plain_line) {
-                    eprintln!("failed to log line: {e}");
-                }
+            if let Some(logger) = self.player_logger.as_mut()
+                && let Err(e) = logger.log_line(&styled_line.plain_line)
+            {
+                eprintln!("failed to log line: {e}");
             }
 
             if self.session.is_logged_in() {
                 let mut ctx = triggers::TriggerContext {
                     stats: &mut self.stats,
+                    automation: &mut self.automation,
+                    rig: self.user_rig.as_deref(),
                 };
-                let mut new_lines =
-                    triggers::process(&mut ctx, &self.selected_guilds, &mut styled_line);
+                let result = triggers::process(&mut ctx, &self.selected_guilds, &mut styled_line);
+                self.apply_automation_actions(result.actions);
+                let mut new_lines = result.lines;
                 new_lines.push(styled_line);
                 output_lines.extend(new_lines);
             } else {
@@ -206,8 +208,7 @@ impl BatApp {
             }
 
             if input.starts_with('/') {
-                let mut ctx =
-                    command::CommandContext::new(self.automation.snapshot_flags(), false);
+                let mut ctx = command::CommandContext::new(self.automation.snapshot_flags(), false);
                 let outcome = command::process(&input, &mut ctx, &self.selected_guilds);
                 if outcome.should_quit {
                     self.should_quit = true;
@@ -215,6 +216,9 @@ impl BatApp {
                 }
                 if outcome.open_guilds_dialog {
                     self.open_guilds_dialog();
+                }
+                if let Some(rig) = outcome.set_rig {
+                    self.update_user_rig(rig);
                 }
                 if let Some(s) = outcome.send {
                     self.send_command(s);
@@ -234,8 +238,11 @@ impl BatApp {
         }
 
         let mut ctx = command::CommandContext::new(self.automation.snapshot_flags(), true);
-        let outcome =
-            command::process(self.input.displayed_input(), &mut ctx, &self.selected_guilds);
+        let outcome = command::process(
+            self.input.displayed_input(),
+            &mut ctx,
+            &self.selected_guilds,
+        );
 
         if outcome.should_quit {
             self.should_quit = true;
@@ -247,6 +254,9 @@ impl BatApp {
         }
 
         self.apply_automation_actions(outcome.automation_actions);
+        if let Some(rig) = outcome.set_rig {
+            self.update_user_rig(rig);
+        }
 
         if let Some(s) = outcome.send {
             self.send_command(s);
@@ -268,12 +278,35 @@ impl BatApp {
         }
     }
 
+    fn update_user_rig(&mut self, rig: String) {
+        if rig.is_empty() {
+            return;
+        }
+        if !self.user_config_loaded {
+            self.load_user_config();
+        }
+        self.user_rig = Some(rig.clone());
+        self.automation.set_var("rig", rig.clone());
+        let Some(manager) = self.config_manager.as_mut() else {
+            return;
+        };
+        if let Err(e) = manager.save_user_rig(&rig) {
+            eprintln!("failed to save user rig: {e}");
+        }
+    }
+
     fn apply_selected_guilds(&mut self, keys: Vec<String>) {
         self.selected_guild_keys = keys;
         self.selected_guilds = build_guilds(&self.selected_guild_keys);
         self.automation = Automation::new();
         for guild in &self.selected_guilds {
             guild.register_automation(&mut self.automation);
+        }
+        self.automation.set_flag("in_battle", false);
+        if let Some(rig) = self.user_rig.as_ref()
+            && !rig.is_empty()
+        {
+            self.automation.set_var("rig", rig.clone());
         }
     }
 
@@ -337,20 +370,30 @@ impl BatApp {
             return;
         }
         self.user_config_loaded = true;
-        let Some(manager) = self.config_manager.as_mut() else {
-            return;
-        };
         let Some(player_name) = self.session.login_name() else {
             eprintln!("logged in without a known player name; skipping user config");
             return;
         };
-        if let Err(e) = manager.load_user(player_name) {
-            eprintln!("failed to load user config for {player_name}: {e}");
-            return;
+        let (guild_keys, rig) = {
+            let Some(manager) = self.config_manager.as_mut() else {
+                return;
+            };
+            if let Err(e) = manager.load_user(player_name) {
+                eprintln!("failed to load user config for {player_name}: {e}");
+                return;
+            }
+            (manager.user_guilds(), manager.user_rig())
+        };
+
+        if let Some(keys) = guild_keys {
+            self.apply_selected_guilds(filter_known_guilds(keys));
         }
 
-        if let Some(keys) = manager.user_guilds() {
-            self.apply_selected_guilds(filter_known_guilds(keys));
+        self.user_rig = rig;
+        if let Some(rig) = self.user_rig.as_ref()
+            && !rig.is_empty()
+        {
+            self.automation.set_var("rig", rig.clone());
         }
     }
 }
@@ -384,7 +427,7 @@ impl GuildDialog {
         if selected.len() < definitions.len() {
             selected.resize(definitions.len(), false);
         }
-        let cursor = if definitions.is_empty() { 0 } else { 0 };
+        let cursor = 0;
         Self {
             definitions,
             selected,
@@ -430,4 +473,3 @@ impl GuildDialog {
         }
     }
 }
-

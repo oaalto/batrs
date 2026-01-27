@@ -22,8 +22,10 @@ This project values correctness, functional style, and concise code. Prefer smal
 - Keep side effects at the edges; core logic should be pure.
 
 ### Quality Checks
-- After each feature, run `cargo clippy`, `cargo build`, and `cargo test`.
+- After each feature, run `cargo clippy`, `cargo build`, `cargo fmt`, and `cargo test`.
 - Always fix warnings and errors before moving on.
+- Remove any unused functions and fields
+- Never use #[allow(dead_code)]
 
 ### TUI Code Conventions
 - Use concise styling helpers from ratatui’s `Stylize` trait.

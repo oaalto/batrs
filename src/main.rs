@@ -4,11 +4,15 @@
 use crate::app::BatApp;
 use crossterm::event::{self, Event};
 use crossterm::execute;
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
+use crossterm::terminal::{
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+};
 use futures::future;
 use futures::stream::StreamExt;
 use libmudtelnet::Parser;
 use libmudtelnet::events::TelnetEvents;
+use ratatui::Terminal;
+use ratatui::backend::CrosstermBackend;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant};
@@ -16,8 +20,6 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_util::codec::{BytesCodec, FramedRead};
-use ratatui::backend::CrosstermBackend;
-use ratatui::Terminal;
 
 mod ansi;
 mod app;
@@ -66,10 +68,10 @@ fn run_app(
             .checked_sub(last_tick.elapsed())
             .unwrap_or(Duration::from_millis(0));
 
-        if event::poll(timeout)? {
-            if let Event::Key(key) = event::read()? {
-                app.handle_key_event(key);
-            }
+        if event::poll(timeout)?
+            && let Event::Key(key) = event::read()?
+        {
+            app.handle_key_event(key);
         }
 
         app.read_input();

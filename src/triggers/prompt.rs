@@ -1,6 +1,6 @@
 use crate::ansi::StyledLine;
 use crate::stats::Stats;
-use crate::triggers::TriggerContext;
+use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -9,10 +9,7 @@ lazy_static! {
         Regex::new(r"^Hp:(.+)/(.+) Sp:(.+)/(.+) Ep:(.+)/(.+) Exp:(.+) >$").unwrap();
 }
 
-pub fn trigger(
-    ctx: &mut TriggerContext<'_>,
-    styled_line: &mut StyledLine,
-) -> Vec<StyledLine> {
+pub fn trigger(ctx: &mut TriggerContext<'_>, styled_line: &mut StyledLine) -> TriggerOutput {
     if let Some(captures) = REGEX.captures(&styled_line.plain_line) {
         let (_, stats): (&str, [&str; 7]) = captures.extract();
         let stats = stats.map(|stat| stat.parse::<i32>().unwrap_or_default());
@@ -20,5 +17,5 @@ pub fn trigger(
         styled_line.gag = true;
     }
 
-    vec![]
+    TriggerOutput::default()
 }

@@ -1,5 +1,6 @@
-mod quit;
 mod guilds;
+mod quit;
+mod rig;
 
 use crate::automation::Action;
 use crate::guilds::Guild;
@@ -17,14 +18,14 @@ lazy_static! {
             "/guilds".to_string(),
             CommandDef::new(guilds::run as Command, true),
         ),
+        (
+            "/rig".to_string(),
+            CommandDef::new(rig::run as Command, true),
+        ),
     ]);
 }
 
-pub fn process(
-    cmd: &str,
-    ctx: &mut CommandContext,
-    guilds: &[Box<dyn Guild>],
-) -> CommandOutcome {
+pub fn process(cmd: &str, ctx: &mut CommandContext, guilds: &[Box<dyn Guild>]) -> CommandOutcome {
     let data = Data::new(cmd);
     let guild_cmds: HashMap<String, Command> = guilds.iter().flat_map(|g| g.commands()).collect();
 
@@ -66,6 +67,7 @@ pub struct CommandContext {
     pub automation_flags: HashMap<String, bool>,
     pub open_guilds_dialog: bool,
     pub logged_in: bool,
+    pub set_rig: Option<String>,
 }
 
 impl CommandContext {
@@ -76,6 +78,7 @@ impl CommandContext {
             automation_flags,
             open_guilds_dialog: false,
             logged_in,
+            set_rig: None,
         }
     }
 
@@ -89,6 +92,10 @@ impl CommandContext {
 
     pub fn open_guilds_dialog(&mut self) {
         self.open_guilds_dialog = true;
+    }
+
+    pub fn set_rig(&mut self, rig: String) {
+        self.set_rig = Some(rig);
     }
 }
 
@@ -113,6 +120,7 @@ pub struct CommandOutcome {
     pub should_quit: bool,
     pub automation_actions: Vec<Action>,
     pub open_guilds_dialog: bool,
+    pub set_rig: Option<String>,
 }
 
 impl CommandOutcome {
@@ -122,6 +130,7 @@ impl CommandOutcome {
             should_quit: ctx.should_quit,
             automation_actions: mem::take(&mut ctx.automation_actions),
             open_guilds_dialog: ctx.open_guilds_dialog,
+            set_rig: ctx.set_rig.take(),
         }
     }
 }

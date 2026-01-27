@@ -1,8 +1,8 @@
+use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Text};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
-use ratatui::Frame;
 
 pub struct ViewModel<'a> {
     pub output_lines: Vec<Line<'a>>,
@@ -43,8 +43,8 @@ impl Renderer {
         let stats_area = root[1];
         let input_area = root[2];
 
-        let output = Paragraph::new(Text::from(view.output_lines.clone()))
-            .scroll((view.scroll_offset, 0));
+        let output =
+            Paragraph::new(Text::from(view.output_lines.clone())).scroll((view.scroll_offset, 0));
         frame.render_widget(output, output_area);
 
         if view.show_stats {

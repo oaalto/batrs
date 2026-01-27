@@ -44,14 +44,18 @@ impl Guild for ReaverGuild {
                 Action::IfFlag {
                     flag: "cast_call_armour".to_string(),
                     actions: vec![
-                        Action::Send("@cast call armour at amount {call_armour_amount}".to_string()),
+                        Action::Send(
+                            "@cast call armour at amount {call_armour_amount}".to_string(),
+                        ),
                         Action::ClearFlag("cast_call_armour".to_string()),
                     ],
                 },
                 Action::IfFlag {
                     flag: "cast_spirit_drain".to_string(),
                     actions: vec![
-                        Action::Send("@cast spirit drain at {spirit_drain_target} amount 100".to_string()),
+                        Action::Send(
+                            "@cast spirit drain at {spirit_drain_target} amount 100".to_string(),
+                        ),
                         Action::ClearFlag("cast_spirit_drain".to_string()),
                     ],
                 },

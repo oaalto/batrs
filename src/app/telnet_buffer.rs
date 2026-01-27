@@ -38,8 +38,7 @@ impl TelnetBuffer {
                     return Vec::new();
                 }
 
-                let mut buffer =
-                    std::mem::replace(&mut self.buffer, BytesMut::with_capacity(1024));
+                let mut buffer = std::mem::replace(&mut self.buffer, BytesMut::with_capacity(1024));
                 buffer.put(bytes.clone());
 
                 return self.process_input_data(buffer);

@@ -21,7 +21,7 @@ impl InputState {
     }
 
     pub fn backspace(&mut self) {
-        if let Some((index, _)) = self.displayed_input.grapheme_indices(true).last() {
+        if let Some((index, _)) = self.displayed_input.grapheme_indices(true).next_back() {
             self.displayed_input.truncate(index);
             self.current_typed_input.clone_from(&self.displayed_input);
             self.cur_history_pos = self.history.len();

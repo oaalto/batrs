@@ -9,7 +9,6 @@ pub struct Waiter {
     pub consume: bool,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub enum Action {
     Send(String),
@@ -17,15 +16,7 @@ pub enum Action {
     SetVar(String, String),
     ClearFlag(String),
     ClearVar(String),
-    IfFlag {
-        flag: String,
-        actions: Vec<Action>,
-    },
-    IfVarNotEmpty {
-        var: String,
-        actions: Vec<Action>,
-    },
-    AddWaiters(Vec<Waiter>),
+    IfFlag { flag: String, actions: Vec<Action> },
 }
 
 #[derive(Default, Debug)]
@@ -44,24 +35,16 @@ impl Automation {
         self.flags.clone()
     }
 
-    #[allow(dead_code)]
+    pub fn flag_is_set(&self, key: &str) -> bool {
+        *self.flags.get(key).unwrap_or(&false)
+    }
+
     pub fn set_flag(&mut self, key: &str, value: bool) {
         self.flags.insert(key.to_string(), value);
     }
 
-    #[allow(dead_code)]
-    pub fn clear_flag(&mut self, key: &str) {
-        self.flags.remove(key);
-    }
-
-    #[allow(dead_code)]
     pub fn set_var(&mut self, key: &str, value: String) {
         self.vars.insert(key.to_string(), value);
-    }
-
-    #[allow(dead_code)]
-    pub fn clear_var(&mut self, key: &str) {
-        self.vars.remove(key);
     }
 
     pub fn add_waiter(&mut self, waiter: Waiter) {
@@ -70,21 +53,18 @@ impl Automation {
 
     pub fn apply_actions(&mut self, actions: Vec<Action>) -> Vec<String> {
         let mut sends = Vec::new();
-        let mut to_add = Vec::new();
-        self.execute_actions(&actions, &mut sends, &mut to_add);
-        self.waiters.extend(to_add);
+        self.execute_actions(&actions, &mut sends);
         sends
     }
 
     pub fn process_line(&mut self, line: &str) -> Vec<String> {
         let mut sends = Vec::new();
-        let mut to_add = Vec::new();
         let mut retained = Vec::with_capacity(self.waiters.len());
         let waiters = std::mem::take(&mut self.waiters);
 
         for waiter in waiters {
             if waiter.pattern.is_match(line) {
-                self.execute_actions(&waiter.actions, &mut sends, &mut to_add);
+                self.execute_actions(&waiter.actions, &mut sends);
                 if !waiter.consume {
                     retained.push(waiter);
                 }
@@ -94,16 +74,10 @@ impl Automation {
         }
 
         self.waiters = retained;
-        self.waiters.extend(to_add);
         sends
     }
 
-    fn execute_actions(
-        &mut self,
-        actions: &[Action],
-        sends: &mut Vec<String>,
-        to_add: &mut Vec<Waiter>,
-    ) {
+    fn execute_actions(&mut self, actions: &[Action], sends: &mut Vec<String>) {
         for action in actions {
             match action {
                 Action::Send(template) => {
@@ -123,21 +97,8 @@ impl Automation {
                 }
                 Action::IfFlag { flag, actions } => {
                     if *self.flags.get(flag).unwrap_or(&false) {
-                        self.execute_actions(actions, sends, to_add);
+                        self.execute_actions(actions, sends);
                     }
-                }
-                Action::IfVarNotEmpty { var, actions } => {
-                    if self
-                        .vars
-                        .get(var)
-                        .map(|value| !value.is_empty())
-                        .unwrap_or(false)
-                    {
-                        self.execute_actions(actions, sends, to_add);
-                    }
-                }
-                Action::AddWaiters(waiters) => {
-                    to_add.extend(waiters.clone());
                 }
             }
         }

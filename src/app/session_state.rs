@@ -62,8 +62,7 @@ impl SessionState {
             return true;
         }
 
-        if !self.is_logged_in()
-            && (PROMPT_REGEX.is_match(line) || SHORT_SCORE_REGEX.is_match(line))
+        if !self.is_logged_in() && (PROMPT_REGEX.is_match(line) || SHORT_SCORE_REGEX.is_match(line))
         {
             self.login_state = LoginState::LoggedIn;
         }

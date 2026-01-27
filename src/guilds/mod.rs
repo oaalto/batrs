@@ -38,9 +38,8 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         if !seen.insert(key.to_string()) {
             continue;
         }
-        match key.as_str() {
-            "reaver" => guilds.push(Box::new(ReaverGuild::default())),
-            _ => {}
+        if key.as_str() == "reaver" {
+            guilds.push(Box::new(ReaverGuild::default()));
         }
     }
 

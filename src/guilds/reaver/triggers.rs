@@ -1,7 +1,7 @@
 use crate::ansi::{AnsiCode, StyledLine};
-use crate::triggers::TriggerContext;
 use crate::guilds::ReaverGuild;
 use crate::triggers::Trigger;
+use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -23,8 +23,7 @@ lazy_static! {
     ];
     static ref KILLING_BLOW: Regex =
         Regex::new("You score a \\(?KILLING BLOW\\)? on (.+)!?").unwrap();
-    static ref SPEAK_ANCIENT: Regex =
-        Regex::new("You speak the ancient (.+) '(.+)'").unwrap();
+    static ref SPEAK_ANCIENT: Regex = Regex::new("You speak the ancient (.+) '(.+)'").unwrap();
     static ref DESTRUCTIVE_ENERGY: Vec<Regex> = vec![
         Regex::new("You feel you have released (.+) amount of destructive energy.").unwrap(),
         Regex::new("You feel you have released (.+) amounts of destructive energy.").unwrap(),
@@ -58,9 +57,8 @@ lazy_static! {
         Regex::new("The (.+) is destroyed in a mass of sparks!").unwrap(),
         Regex::new("The (.+) is smashed into a million pieces!").unwrap(),
     ];
-    static ref RED_HILITES: Vec<Regex> = vec![
-        Regex::new("You strike at (.+) but do no significant damage.").unwrap(),
-    ];
+    static ref RED_HILITES: Vec<Regex> =
+        vec![Regex::new("You strike at (.+) but do no significant damage.").unwrap(),];
 }
 
 impl ReaverGuild {
@@ -84,144 +82,144 @@ impl ReaverGuild {
     pub fn scythe_swipe_trigger(
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
-    ) -> Vec<StyledLine> {
+    ) -> TriggerOutput {
         if SCYTHE_SWIPE_REGEX.is_match(&styled_line.plain_line) {
             styled_line.set_line_color(AnsiCode::Blue, false);
         }
-        vec![]
+        TriggerOutput::default()
     }
 
     pub fn rampant_cutting_trigger(
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
-    ) -> Vec<StyledLine> {
+    ) -> TriggerOutput {
         if RAMPANT_CUTTING_REGEXS
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Blue, false);
         }
-        vec![]
+        TriggerOutput::default()
     }
 
     pub fn reaver_strike_trigger(
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
-    ) -> Vec<StyledLine> {
+    ) -> TriggerOutput {
         if REAVER_STRIKE_REGEXS
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Blue, false);
         }
-        vec![]
+        TriggerOutput::default()
     }
 
     pub fn attack_fails_trigger(
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
-    ) -> Vec<StyledLine> {
+    ) -> TriggerOutput {
         if ATTACK_FAILS
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Red, true);
         }
-        vec![]
+        TriggerOutput::default()
     }
 
     pub fn killing_blow_trigger(
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
-    ) -> Vec<StyledLine> {
+    ) -> TriggerOutput {
         if KILLING_BLOW.is_match(&styled_line.plain_line) {
             styled_line.set_block_color("KILLING BLOW", AnsiCode::Red, true);
         }
-        vec![]
+        TriggerOutput::default()
     }
 
     pub fn speak_ancient_trigger(
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
-    ) -> Vec<StyledLine> {
+    ) -> TriggerOutput {
         if SPEAK_ANCIENT.is_match(&styled_line.plain_line) {
             styled_line.set_line_color(AnsiCode::White, true);
         }
-        vec![]
+        TriggerOutput::default()
     }
 
     pub fn destructive_energy_trigger(
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
-    ) -> Vec<StyledLine> {
+    ) -> TriggerOutput {
         if DESTRUCTIVE_ENERGY
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Cyan, false);
         }
-        vec![]
+        TriggerOutput::default()
     }
 
     pub fn blue_hilites_trigger(
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
-    ) -> Vec<StyledLine> {
+    ) -> TriggerOutput {
         if BLUE_HILITES
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Blue, false);
         }
-        vec![]
+        TriggerOutput::default()
     }
 
     pub fn magenta_hilites_trigger(
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
-    ) -> Vec<StyledLine> {
+    ) -> TriggerOutput {
         if MAGENTA_HILITES
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Magenta, true);
         }
-        vec![]
+        TriggerOutput::default()
     }
 
     pub fn green_hilites_trigger(
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
-    ) -> Vec<StyledLine> {
+    ) -> TriggerOutput {
         if GREEN_HILITES
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Green, false);
         }
-        vec![]
+        TriggerOutput::default()
     }
 
     pub fn red_hilites_trigger(
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
-    ) -> Vec<StyledLine> {
+    ) -> TriggerOutput {
         if RED_HILITES
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
             styled_line.set_line_color(AnsiCode::Red, false);
         }
-        vec![]
+        TriggerOutput::default()
     }
 
     pub fn threaten_usage_trigger(
         _ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
-    ) -> Vec<StyledLine> {
+    ) -> TriggerOutput {
         if "Can only be used once per 10 minutes." == styled_line.plain_line {
             styled_line.gag = true;
         }
-        vec![]
+        TriggerOutput::default()
     }
 }

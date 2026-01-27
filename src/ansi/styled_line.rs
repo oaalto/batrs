@@ -30,10 +30,6 @@ impl StyledLine {
         }
     }
 
-    pub fn to_line(&self) -> Line<'_> {
-        Self::line_from_chars(&self.styled_chars)
-    }
-
     pub fn to_wrapped_lines(&self, width: u16) -> Vec<Line<'_>> {
         if width == 0 {
             return Vec::new();

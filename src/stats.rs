@@ -84,20 +84,21 @@ impl Stats {
         };
         let mut spans = vec![
             Span::raw(format!("{label}: ")),
-            Span::styled(value.to_string(), Style::default().fg(progress_color(progress))),
+            Span::styled(
+                value.to_string(),
+                Style::default().fg(progress_color(progress)),
+            ),
             Span::raw("/"),
             Span::styled(
                 max_value.to_string(),
-                Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
             ),
         ];
 
         if let Some(diff_text) = diff_value {
-            let diff_color = if diff > 0 {
-                Color::Green
-            } else {
-                Color::Red
-            };
+            let diff_color = if diff > 0 { Color::Green } else { Color::Red };
             spans.push(Span::raw(" "));
             spans.push(Span::raw("("));
             spans.push(Span::styled(diff_text, Style::default().fg(diff_color)));

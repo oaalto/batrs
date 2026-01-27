@@ -1,7 +1,7 @@
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
-use crate::guilds::{cast_spell, use_skill, ReaverGuild};
+use crate::guilds::{ReaverGuild, cast_spell, use_skill};
 use std::collections::HashMap;
 
 impl ReaverGuild {

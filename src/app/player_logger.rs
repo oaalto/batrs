@@ -44,7 +44,10 @@ impl PlayerLogger {
             let log_dir = self.base_dir.join(&player_name).join("logs");
             fs::create_dir_all(&log_dir)?;
             let log_path = log_dir.join(format!("{date}.log"));
-            let file = OpenOptions::new().create(true).append(true).open(log_path)?;
+            let file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(log_path)?;
             self.file = Some(file);
             self.current_date = Some(date);
         }

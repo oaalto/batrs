@@ -11,10 +11,6 @@ impl OutputBuffer {
         Self::default()
     }
 
-    pub fn lines(&self) -> &[StyledLine] {
-        &self.lines
-    }
-
     pub fn wrapped_lines(&self, width: u16) -> Vec<Line<'_>> {
         if width == 0 {
             return Vec::new();

@@ -48,6 +48,11 @@ impl ConfigManager {
         parse_guilds(config)
     }
 
+    pub fn user_rig(&self) -> Option<String> {
+        let config = self.user_config.as_deref()?;
+        parse_rig(config)
+    }
+
     pub fn save_user_guilds(&mut self, guilds: &[String]) -> io::Result<()> {
         let Some(path) = self.user_config_path.as_ref() else {
             return Err(io::Error::new(
@@ -56,6 +61,19 @@ impl ConfigManager {
             ));
         };
         let updated = update_guilds_config(self.user_config.as_deref().unwrap_or(""), guilds);
+        fs::write(path, updated.as_bytes())?;
+        self.user_config = Some(updated);
+        Ok(())
+    }
+
+    pub fn save_user_rig(&mut self, rig: &str) -> io::Result<()> {
+        let Some(path) = self.user_config_path.as_ref() else {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "user config path not set",
+            ));
+        };
+        let updated = update_rig_config(self.user_config.as_deref().unwrap_or(""), rig);
         fs::write(path, updated.as_bytes())?;
         self.user_config = Some(updated);
         Ok(())
@@ -116,6 +134,23 @@ fn parse_guilds(config: &str) -> Option<Vec<String>> {
     None
 }
 
+fn parse_rig(config: &str) -> Option<String> {
+    for line in config.lines() {
+        let line = line.split('#').next().unwrap_or("").trim();
+        let eq_index = match line.find('=') {
+            Some(index) => index,
+            None => continue,
+        };
+        if line[..eq_index].trim() != "rig" {
+            continue;
+        }
+        let value = line[eq_index + 1..].trim();
+        let value = value.trim_matches(|c| c == '"' || c == '\'');
+        return Some(value.to_string());
+    }
+    None
+}
+
 fn update_guilds_config(existing: &str, guilds: &[String]) -> String {
     let mut lines: Vec<String> = Vec::new();
     for line in existing.lines() {
@@ -132,6 +167,31 @@ fn update_guilds_config(existing: &str, guilds: &[String]) -> String {
         .collect::<Vec<String>>()
         .join(", ");
     lines.push(format!("guilds = [{formatted}]"));
+
+    let mut output = lines.join("\n");
+    output.push('\n');
+    output
+}
+
+fn update_rig_config(existing: &str, rig: &str) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    for line in existing.lines() {
+        let trimmed = line.trim_start();
+        let eq_index = match trimmed.find('=') {
+            Some(index) => index,
+            None => {
+                lines.push(line.to_string());
+                continue;
+            }
+        };
+        if trimmed[..eq_index].trim() == "rig" {
+            continue;
+        }
+        lines.push(line.to_string());
+    }
+
+    let formatted = rig.replace('"', "\\\"");
+    lines.push(format!("rig = \"{formatted}\""));
 
     let mut output = lines.join("\n");
     output.push('\n');
