@@ -31,18 +31,29 @@ impl StyledLine {
     }
 
     pub fn to_line(&self) -> Line<'_> {
-        let spans: Vec<Span<'_>> = self
-            .styled_chars
-            .iter()
-            .map(|c| {
-                let mut style = Style::default().fg(ansi_colors::get_color(c.color, c.bold));
-                if c.bold {
-                    style = style.add_modifier(Modifier::BOLD);
-                }
-                Span::styled(c.character.clone(), style)
-            })
-            .collect();
-        Line::from(spans)
+        Self::line_from_chars(&self.styled_chars)
+    }
+
+    pub fn to_wrapped_lines(&self, width: u16) -> Vec<Line<'_>> {
+        if width == 0 {
+            return Vec::new();
+        }
+
+        if self.styled_chars.is_empty() {
+            return vec![Line::from("")];
+        }
+
+        let width = width as usize;
+        let mut lines = Vec::new();
+        let mut start = 0;
+
+        while start < self.styled_chars.len() {
+            let end = (start + width).min(self.styled_chars.len());
+            lines.push(Self::line_from_chars(&self.styled_chars[start..end]));
+            start = end;
+        }
+
+        lines
     }
 
     pub fn set_block_color(&mut self, part: &str, color: AnsiCode, bold: bool) {
@@ -107,6 +118,20 @@ impl StyledLine {
                 Some(styled_char)
             })
             .collect()
+    }
+
+    fn line_from_chars(chars: &[StyledChar]) -> Line<'_> {
+        let spans: Vec<Span<'_>> = chars
+            .iter()
+            .map(|c| {
+                let mut style = Style::default().fg(ansi_colors::get_color(c.color, c.bold));
+                if c.bold {
+                    style = style.add_modifier(Modifier::BOLD);
+                }
+                Span::styled(c.character.clone(), style)
+            })
+            .collect();
+        Line::from(spans)
     }
 }
 

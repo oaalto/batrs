@@ -156,10 +156,10 @@ impl BatApp {
 
     pub fn draw(&mut self, frame: &mut Frame<'_>) {
         let output_area_height = frame.area().height.saturating_sub(2);
+        let output_area_width = frame.area().width;
         let visible_height = output_area_height.saturating_sub(1) as usize;
-        let output_lines: Vec<Line<'_>> =
-            self.output.lines().iter().map(StyledLine::to_line).collect();
-        let scroll_offset = self.output.lines().len().saturating_sub(visible_height);
+        let output_lines: Vec<Line<'_>> = self.output.wrapped_lines(output_area_width);
+        let scroll_offset = output_lines.len().saturating_sub(visible_height);
         let scroll_offset = scroll_offset.min(u16::MAX as usize) as u16;
         let show_stats = self.session.is_logged_in();
         let stats_line = if show_stats {

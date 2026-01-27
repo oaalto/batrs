@@ -1,4 +1,5 @@
 use crate::ansi::StyledLine;
+use ratatui::text::Line;
 
 #[derive(Default)]
 pub struct OutputBuffer {
@@ -12,6 +13,17 @@ impl OutputBuffer {
 
     pub fn lines(&self) -> &[StyledLine] {
         &self.lines
+    }
+
+    pub fn wrapped_lines(&self, width: u16) -> Vec<Line<'_>> {
+        if width == 0 {
+            return Vec::new();
+        }
+
+        self.lines
+            .iter()
+            .flat_map(|line| line.to_wrapped_lines(width))
+            .collect()
     }
 
     pub fn append_lines(&mut self, mut lines: Vec<StyledLine>) {
