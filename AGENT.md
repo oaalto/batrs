@@ -45,3 +45,8 @@ This project values correctness, functional style, and concise code. Prefer smal
 - Building lines: use `vec![…].into()` to construct a `Line` when the target type is obvious and no extra type annotations are needed; otherwise use `Line::from(vec![…])`.
 - Avoid churn: don’t refactor between equivalent forms (`Span::styled` ↔ `set_style`, `Line::from` ↔ `.into()`) without a clear readability or functional gain; follow file‑local conventions and do not introduce type annotations solely to satisfy `.into()`.
 - Compactness: prefer the form that stays on one line after rustfmt; if only one of `Line::from(vec![…])` or `vec![…].into()` avoids wrapping, choose that. If both wrap, pick the one with fewer wrapped lines.
+
+### TinyFugue (tf)
+- Any files with the extension of `.tf` are TinyFugue script files, *not* Terraform.
+- @http://flaprider.dyndns.org/~hair/tf/commands/index.html
+- @http://flaprider.dyndns.org/~hair/tf/topics/index.html
