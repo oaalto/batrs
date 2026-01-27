@@ -21,6 +21,9 @@ enum RuleAction {
         color: AnsiCode,
         bold: bool,
     },
+    MoneySummary {
+        list_index: usize,
+    },
     Echo {
         text: &'static str,
         color: AnsiCode,
@@ -132,6 +135,13 @@ fn apply_rule_action(
                 apply_capture_hilite(styled_line, captures, *index, *color, *bold);
             }
         }
+        RuleAction::MoneySummary { list_index } => {
+            if let MatchData::Regex(captures) = match_data {
+                if let Some(m) = captures.get(*list_index) {
+                    push_money_summary(m.as_str(), output_lines);
+                }
+            }
+        }
         RuleAction::Echo { text, color, bold } => {
             let mut line = StyledLine::new(text);
             line.set_line_color(*color, *bold);
@@ -210,6 +220,109 @@ fn tf_color(code: &str) -> Option<(AnsiCode, bool)> {
     Some((color, bold))
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum CoinType {
+    Anipium,
+    Batium,
+    Mithril,
+    Platinum,
+}
+
+impl CoinType {
+    fn from_str(value: &str) -> Option<Self> {
+        match value {
+            "anipium" => Some(Self::Anipium),
+            "batium" => Some(Self::Batium),
+            "mithril" => Some(Self::Mithril),
+            "platinum" => Some(Self::Platinum),
+            _ => None,
+        }
+    }
+
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::Anipium => "Anipium",
+            Self::Batium => "Batium",
+            Self::Mithril => "Mithril",
+            Self::Platinum => "Platinum",
+        }
+    }
+
+    fn multiplier(self) -> u64 {
+        match self {
+            Self::Anipium => 50,
+            Self::Batium => 100,
+            Self::Mithril => 500,
+            Self::Platinum => 10,
+        }
+    }
+
+    fn order_index(self) -> usize {
+        match self {
+            Self::Anipium => 0,
+            Self::Batium => 1,
+            Self::Mithril => 2,
+            Self::Platinum => 3,
+        }
+    }
+}
+
+fn push_money_summary(list_text: &str, output_lines: &mut Vec<StyledLine>) {
+    let normalized = list_text.trim().replace(" and ", ", ");
+    let mut counts = [None; 4];
+    let mut last_index = None;
+
+    for entry in normalized.split(", ") {
+        let mut parts = entry.splitn(2, ' ');
+        let amount = parts
+            .next()
+            .and_then(|value| value.parse::<u64>().ok());
+        let coin = parts.next().and_then(CoinType::from_str);
+
+        let (Some(amount), Some(coin)) = (amount, coin) else {
+            return;
+        };
+
+        let idx = coin.order_index();
+        if counts[idx].is_some() {
+            return;
+        }
+        if let Some(last_idx) = last_index {
+            if idx <= last_idx {
+                return;
+            }
+        }
+
+        counts[idx] = Some(amount);
+        last_index = Some(idx);
+    }
+
+    if counts.iter().all(|value| value.is_none()) {
+        return;
+    }
+
+    let mut total = 0u64;
+    for coin in [
+        CoinType::Platinum,
+        CoinType::Anipium,
+        CoinType::Batium,
+        CoinType::Mithril,
+    ] {
+        if let Some(amount) = counts[coin.order_index()] {
+            let value = amount * coin.multiplier();
+            total += value;
+            output_lines.push(StyledLine::new(&format!(
+                "{} {} = {}",
+                coin.display_name(),
+                amount,
+                value
+            )));
+        }
+    }
+
+    output_lines.push(StyledLine::new(&format!("Total = {}", total)));
+}
+
 fn push_rule(
     rules: &mut Vec<Rule>,
     order: &mut usize,
@@ -232,6 +345,39 @@ lazy_static! {
     static ref RULES: Vec<Rule> = {
         let mut rules = Vec::new();
         let mut order = 0usize;
+
+        push_rule(
+            &mut rules,
+            &mut order,
+            RuleMatcher::Regex(Regex::new(r"^It contains (.+) coins\.$").unwrap()),
+            1000,
+            None,
+            vec![RuleAction::MoneySummary { list_index: 1 }],
+        );
+        push_rule(
+            &mut rules,
+            &mut order,
+            RuleMatcher::Simple("There is not that much platinum in the purse."),
+            1000,
+            None,
+            vec![RuleAction::Send("@get 50 anipium from purse")],
+        );
+        push_rule(
+            &mut rules,
+            &mut order,
+            RuleMatcher::Simple("There is not that much anipium in the purse."),
+            1000,
+            None,
+            vec![RuleAction::Send("@get 25 batium from purse")],
+        );
+        push_rule(
+            &mut rules,
+            &mut order,
+            RuleMatcher::Simple("There is not that much batium in the purse."),
+            1000,
+            None,
+            vec![RuleAction::Send("@get 5 mithril from purse")],
+        );
 
         push_rule(
             &mut rules,
@@ -861,5 +1007,14 @@ mod tests {
         });
 
         assert!(saw_send);
+    }
+
+    #[test]
+    fn money_summary_allows_missing_coin_types() {
+        let (output, _line, _automation) =
+            run_trigger("It contains 2 anipium and 1 platinum coins.", None);
+
+        let lines: Vec<&str> = output.lines.iter().map(|line| line.plain_line.as_str()).collect();
+        assert_eq!(lines, vec!["Platinum 1 = 10", "Anipium 2 = 100", "Total = 110"]);
     }
 }
