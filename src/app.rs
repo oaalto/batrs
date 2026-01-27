@@ -1,5 +1,6 @@
 mod input_state;
 mod output_buffer;
+mod player_logger;
 mod session_state;
 mod telnet_buffer;
 
@@ -14,6 +15,7 @@ use chrono::{DateTime, Local, Timelike};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use input_state::InputState;
 use libmudtelnet::events::TelnetEvents;
+use player_logger::PlayerLogger;
 use ratatui::text::Line;
 use ratatui::Frame;
 use std::sync::mpsc::{Receiver, Sender};
@@ -37,6 +39,7 @@ pub struct BatApp {
     config_manager: Option<ConfigManager>,
     user_config_loaded: bool,
     guild_dialog: Option<GuildDialog>,
+    player_logger: Option<PlayerLogger>,
 }
 
 impl BatApp {
@@ -71,6 +74,7 @@ impl BatApp {
             config_manager,
             user_config_loaded: false,
             guild_dialog: None,
+            player_logger: PlayerLogger::new().ok(),
         };
 
         app.apply_selected_guilds(app.selected_guild_keys.clone());
@@ -89,6 +93,16 @@ impl BatApp {
             }
             if !was_logged_in && self.session.is_logged_in() {
                 self.load_user_config();
+            }
+            if let Some(player_name) = self.session.login_name() {
+                if let Some(logger) = self.player_logger.as_mut() {
+                    logger.set_player_name(player_name);
+                }
+            }
+            if let Some(logger) = self.player_logger.as_mut() {
+                if let Err(e) = logger.log_line(&styled_line.plain_line) {
+                    eprintln!("failed to log line: {e}");
+                }
             }
 
             if self.session.is_logged_in() {

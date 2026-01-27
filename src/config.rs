@@ -69,7 +69,7 @@ fn ensure_empty_file(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
-fn sanitize_name(name: &str) -> String {
+pub(crate) fn sanitize_name(name: &str) -> String {
     let sanitized = name
         .chars()
         .map(|c| match c {
