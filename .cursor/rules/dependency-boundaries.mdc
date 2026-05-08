@@ -1,0 +1,19 @@
+---
+description: Architectural dependency boundary rules to prevent cycles and keep dependency declarations local
+globs: "**/*"
+alwaysApply: false
+---
+
+# Dependency Boundaries
+
+- **No cyclic dependencies:** Modules/packages/services must not depend on each other in cycles.
+- **Local-first dependencies:** Declare a dependency in the closest module/package that actually uses it.
+- **Root/shared dependency criteria:** Only promote dependencies to a shared/root layer when two or more modules genuinely require them.
+- **Boundary ownership:** Keep domain-level modules independent from application/adapter layers that depend on them.
+- **Direction clarity:** Define and preserve one-way dependency flow between layers.
+
+## Review Expectations
+
+- If a new dependency is introduced, explain why it belongs at that layer.
+- If a dependency is shared centrally, document which modules require it.
+- If a boundary exception is unavoidable, add a short rationale and follow-up refactor note.

@@ -1,0 +1,9 @@
+---
+description: Decision-making guidance for user-directed implementation choices
+alwaysApply: true
+---
+
+# Decision Making and User Guidance
+
+- **Multiple implementation choices:** When multiple valid approaches exist, present the options and ask the user which one they prefer.
+- **No assumptions:** Do not assume one choice is better without user input. Trade-offs depend on project constraints, performance goals, and architecture.

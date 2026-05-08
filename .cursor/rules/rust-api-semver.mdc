@@ -1,0 +1,19 @@
+---
+description: Rust public API and semver compatibility guidance
+globs: "**/*.rs"
+alwaysApply: false
+---
+
+# Rust API Semver
+
+- **Companion rule:** This rule specializes `rule:api-design-basics`; keep the generic API rule installed for cross-language API design consistency.
+- **Semver impact review:** Treat public API surface changes as compatibility decisions, not incidental refactors.
+- **Deprecate before removal:** Prefer deprecation windows and migration notes for public API changes.
+- **Document public interfaces:** Require rustdoc on public items, especially for non-obvious behavior or invariants.
+- **Stability-aware naming and types:** Favor explicit, future-proof names and types on public boundaries.
+- **Compatibility checks in release flow:** Include API compatibility review in release/upgrade validation when publishing crates.
+
+## Review Expectations
+
+- Public API diffs should include semver impact and migration guidance.
+- Breaking changes should be explicit and justified by product or maintenance goals.

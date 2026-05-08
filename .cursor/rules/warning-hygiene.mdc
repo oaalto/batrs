@@ -1,0 +1,19 @@
+---
+description: Keep changed code warning-clean and enforce narrow, justified suppressions
+globs: "**/*"
+alwaysApply: false
+---
+
+# Warning Hygiene
+
+- **Warning-clean changes:** Code you add or modify must pass the project's warning/lint checks without introducing new warnings.
+- **Treat warnings as quality signals:** Do not ignore warning output during implementation and review.
+- **Fix before suppressing:** Prefer code changes that remove the warning over suppression directives.
+- **Use local, narrow suppression only when unavoidable:** If suppression is necessary, scope it to the smallest possible block and document why.
+- **No broad disablement:** Do not disable warnings globally, for entire files, or for wide code regions as a default workaround.
+- **Track follow-up for temporary suppressions:** When a suppression is temporary, include a tracking reference or clear follow-up note.
+
+## Review Expectations
+
+- Warning/lint suppressions should be easy to justify and verify at review time.
+- New broad suppressions should be treated as design debt and rejected unless explicitly approved.

@@ -1,0 +1,18 @@
+---
+description: Generic API design rules for clear signatures and maintainable functions
+globs: "**/*"
+alwaysApply: false
+---
+
+# API Design Basics
+
+- **Avoid ambiguous boolean flags in public APIs:** Prefer named options/types over raw boolean parameters at call sites.
+- **Return structured outputs:** Prefer returning objects/results over output parameters so function contracts are explicit.
+- **Single responsibility:** Keep each function focused on one task with a clear purpose.
+- **Decompose complexity:** Split long or multi-branch logic into helper functions with descriptive names.
+- **Prefer explicit contracts:** Make required inputs, defaults, and failure outcomes visible in the signature.
+
+## Allowed Exceptions
+
+- Boolean parameters are acceptable for local/private helpers when intent is obvious and the call site remains readable.
+- Output parameters are acceptable only when required by language/runtime interoperability constraints, and should be documented.

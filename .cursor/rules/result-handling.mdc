@@ -1,0 +1,18 @@
+---
+description: Require explicit handling of meaningful return values and statuses
+globs: "**/*"
+alwaysApply: false
+---
+
+# Result Handling
+
+- **Do not ignore meaningful results:** Status-bearing or error-bearing return values must be handled explicitly.
+- **Use explicit handling patterns:** Handle results by branching, propagating, mapping/transforming, or logging-and-returning with clear intent.
+- **Make failure paths visible:** Keep error/status handling close to the call site or propagate with context so failures remain diagnosable.
+- **Avoid discard-only suppression:** Do not silence return values without handling their meaning.
+- **Treat ignored results as correctness bugs:** If a result can signal failure or state changes, omission is not acceptable.
+
+## Review Expectations
+
+- New calls to status/error-returning APIs should show clear handling paths.
+- Refactors should preserve or improve result handling behavior.

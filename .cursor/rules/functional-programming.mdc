@@ -1,0 +1,38 @@
+---
+description: Language-agnostic functional programming principles for composable, testable code
+globs: "**/*"
+alwaysApply: false
+---
+
+# Functional Programming Principles
+
+- **Immutability by default:** Treat mutable state as an explicit exception. Prefer immutable values and immutable data flows whenever practical.
+- **Pure functions first:** Prefer functions whose outputs depend only on inputs and that avoid side effects.
+- **Small focused functions:** Keep functions single-purpose, with clear inputs and outputs.
+- **Composition over orchestration-heavy code:** Build behavior by composing smaller functions rather than relying on inheritance-heavy or side-effect-heavy designs.
+- **Deterministic behavior:** Favor code paths that are predictable and reproducible from explicit inputs.
+
+## Core vs. Shell
+
+- Keep business logic and transformations in a mostly pure core.
+- Isolate side effects (I/O, networking, DB writes, environment access, logging) to a thin shell at application boundaries.
+
+## Data Transformation Style
+
+- Prefer declarative data transformations over mutation-heavy loops where language tools make this clear.
+- Use collection operations like map/filter/reduce (or equivalents) for readable transformation pipelines.
+- Avoid hidden mutable global state and implicit shared state transitions.
+
+## Error Handling
+
+- Keep error handling explicit in function contracts where practical (for example result/option types, tagged outcomes, or explicit error values).
+- Avoid using exceptions as the default control-flow mechanism in business logic unless project policy requires it.
+
+## Wrapping Impure Boundaries
+
+- Encapsulate impure or legacy APIs behind cleaner interfaces that expose explicit data contracts.
+- Keep impurity localized so the rest of the codebase can remain easier to test and reason about.
+
+## Encapsulated Internal Mutation
+
+- Internal mutation is acceptable when it is fully contained, does not leak mutable aliases, and preserves externally pure behavior.

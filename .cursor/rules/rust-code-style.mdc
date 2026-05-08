@@ -1,0 +1,18 @@
+---
+description: Rust style guidance for pattern matching, domain enums, and precise types
+globs: "**/*.rs"
+alwaysApply: false
+---
+
+# Rust Code Style
+
+- **Prefer pattern matching:** Use `match`, `if let`, and `let ... else` when they make branching clearer than chained conditionals.
+- **Model domains with enums:** Use enums for closed sets of domain values instead of string or integer keys.
+- **Keep types precise:** Let the compiler and static analysis guide design; avoid broad or lossy types when a narrower type captures the invariant.
+- **Make invariants explicit:** Prefer signatures and data structures that encode valid states over comments or runtime checks alone.
+- **Stay concise:** Remove redundant logic and avoid abstractions that do not simplify real call sites.
+
+## Companion Rules
+
+- Use `rule:rust-error-handling` for `Option`/`Result`, fallible paths, and panic avoidance.
+- Use `rule:functional-programming` for pure core logic, immutability, and side-effect boundaries.

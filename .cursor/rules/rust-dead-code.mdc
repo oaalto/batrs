@@ -1,0 +1,17 @@
+---
+description: Rust dead-code policy for removing unused functions, fields, and stale branches
+globs: "**/*.rs"
+alwaysApply: false
+---
+
+# Rust Dead Code
+
+- **Remove unused code:** Delete unused functions, fields, modules, imports, and stale branches when they are no longer part of active behavior.
+- **Do not suppress dead code:** Do not add `#[allow(dead_code)]` as a workaround for unused items.
+- **Keep retained code exercised:** If code must remain, connect it to the real code path or cover it with tests so it is not dead.
+- **Prefer removal over placeholders:** Avoid keeping speculative helpers or fields for possible future use.
+
+## Review Expectations
+
+- New or modified Rust code should not introduce dead-code warnings.
+- Dead-code suppressions should be treated as incomplete work unless the user explicitly approves an exception.

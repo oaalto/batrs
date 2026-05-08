@@ -1,0 +1,20 @@
+---
+description: Commit strategy guidance for splitting unrelated changes into self-contained commits
+alwaysApply: true
+---
+
+# Commit Strategy
+
+When the user asks for commit(s), organize changes into logical, self-contained commits.
+
+- **Split unrelated changes:** If edits address different concerns (for example feature work, refactors, docs-only updates), use multiple commits.
+- **Keep commits cohesive:** Each commit should represent one clear intent and avoid mixing unrelated modifications.
+- **Prefer reviewable units:** Structure commits so each can be reviewed, understood, and reverted independently.
+- **Preserve buildability:** Avoid commit splits that leave intermediate commits in a broken or inconsistent state.
+- **Combine when cohesive:** If changes are tightly coupled and serve one purpose, keep them in a single commit.
+
+## Before Committing
+
+- Group files by intent/scope.
+- Confirm no unrelated files are included in each commit.
+- Use clear commit messages that describe the purpose of each group.

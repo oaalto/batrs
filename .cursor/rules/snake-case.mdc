@@ -1,0 +1,17 @@
+---
+description: Language-agnostic snake_case naming convention guidance
+globs: "**/*.rs"
+alwaysApply: false
+---
+
+# Snake Case Naming
+
+- **Naming convention:** Use `snake_case` for identifiers (variables, functions, methods, fields, constants where applicable).
+- **Identifier boundaries:** Do not use underscores at the beginning or end of identifiers.
+- **Forbidden patterns:** `_name`, `name_`, `_name_`, `__name`, `name__`, `_private_member`, `public_method_`.
+- **Allowed patterns:** `name`, `my_variable`, `get_data`, `process_frame`, `client_id`.
+- **Single-letter plus underscore is forbidden:** Do not start any name with a single letter followed by an underscore.
+  - **Forbidden examples:** `i_count`, `x_value`, `t_data`.
+  - **Allowed alternatives:** `index_count`, `x_axis_value`, `type_data`.
+- **Single-character names:** Avoid single-character names except loop counters (`i`, `j`, `k`) in simple loops.
+- **Abbreviations:** Do not abbreviate words to single characters in names (use `index` not `i`, `count` not `c`, `data` not `d`).

@@ -1,0 +1,18 @@
+---
+description: Keep documentation synchronized with behavior, config, and operational changes
+globs: "**/*"
+alwaysApply: false
+---
+
+# Documentation Maintenance
+
+- **Keep docs in sync with behavior:** When functionality, configuration, setup, or operational workflows change, update the related documentation in the same change.
+- **Update user-facing surfaces:** Keep README files, usage guides, API docs, CLI docs, runbooks, and troubleshooting notes aligned with current behavior.
+- **Document complex logic:** Add concise in-code documentation for non-obvious algorithms, trade-offs, and constraints.
+- **Preserve or improve existing docs:** Do not remove or alter documentation unless replacing it with clearer or more accurate content.
+- **Reflect interface changes:** If function/module contracts change, update parameter, return-value, and error-handling documentation.
+
+## Review Expectations
+
+- Document updates should be included in the same PR/commit as the behavior/config change.
+- Missing docs updates for user-visible changes should be treated as incomplete work.

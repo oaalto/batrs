@@ -1,0 +1,298 @@
+{
+  "version": 1,
+  "entries": {
+    "cursor:rule:api-design-basics": {
+      "package_id": "rule:api-design-basics",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/api-design-basics.mdc",
+      "managed_block_id": "rule:api-design-basics",
+      "template_source_hash": "004125a94c6c279fdc321d21bc5e2cfcc26904fb9a69ac5488f1fb34b4b1d8e3",
+      "template_installed_hash": "004125a94c6c279fdc321d21bc5e2cfcc26904fb9a69ac5488f1fb34b4b1d8e3",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:code-format": {
+      "package_id": "rule:code-format",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/code-format.mdc",
+      "managed_block_id": "rule:code-format",
+      "template_source_hash": "6c8088c37726964ce763811ad6782a98f72966b027aaca6939e2901072921b20",
+      "template_installed_hash": "6c8088c37726964ce763811ad6782a98f72966b027aaca6939e2901072921b20",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {
+        "rule__code__format__globs": "**/*.rs"
+      },
+      "render_vars_hash": "7e00adbaf3da572e4eb5e0d538f743926cd97595ebab201f38f031736c29d7e5",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:commit": {
+      "package_id": "rule:commit",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/commit.mdc",
+      "managed_block_id": "rule:commit",
+      "template_source_hash": "2abb988c9f59e4d69a9a11e42d8732d2aaa132f63080505bc7ad80af3c59ef1d",
+      "template_installed_hash": "2abb988c9f59e4d69a9a11e42d8732d2aaa132f63080505bc7ad80af3c59ef1d",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:decision-making": {
+      "package_id": "rule:decision-making",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/decision-making.mdc",
+      "managed_block_id": "rule:decision-making",
+      "template_source_hash": "b23c71466ba3e049829b011224c86046687f0ad2d1c4729d2a663e0cc477cbaa",
+      "template_installed_hash": "b23c71466ba3e049829b011224c86046687f0ad2d1c4729d2a663e0cc477cbaa",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:dependency-boundaries": {
+      "package_id": "rule:dependency-boundaries",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/dependency-boundaries.mdc",
+      "managed_block_id": "rule:dependency-boundaries",
+      "template_source_hash": "9a86713d7e2156ffc8f55833c6e42421cf4396d29d9dfb688d6ebada9b827ad6",
+      "template_installed_hash": "9a86713d7e2156ffc8f55833c6e42421cf4396d29d9dfb688d6ebada9b827ad6",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:documentation-maintenance": {
+      "package_id": "rule:documentation-maintenance",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/documentation-maintenance.mdc",
+      "managed_block_id": "rule:documentation-maintenance",
+      "template_source_hash": "038a87ad40a2a91513715fd67126831fa74d0e5f4bee2f498ffb9479399160db",
+      "template_installed_hash": "038a87ad40a2a91513715fd67126831fa74d0e5f4bee2f498ffb9479399160db",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:functional-programming": {
+      "package_id": "rule:functional-programming",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/functional-programming.mdc",
+      "managed_block_id": "rule:functional-programming",
+      "template_source_hash": "7de2ee3591e427b47bf01ec991696a8db6c8907ce8fd301cdede005c218109c3",
+      "template_installed_hash": "7de2ee3591e427b47bf01ec991696a8db6c8907ce8fd301cdede005c218109c3",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:logging-practices": {
+      "package_id": "rule:logging-practices",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/logging-practices.mdc",
+      "managed_block_id": "rule:logging-practices",
+      "template_source_hash": "5e832c096fa26c790dd69ea5724a764cd119192a66fb83dbeb43b735c8323fd4",
+      "template_installed_hash": "5e832c096fa26c790dd69ea5724a764cd119192a66fb83dbeb43b735c8323fd4",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:result-handling": {
+      "package_id": "rule:result-handling",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/result-handling.mdc",
+      "managed_block_id": "rule:result-handling",
+      "template_source_hash": "bab622a2d47fc70b06ba142a1d88432eebda39a4dd2a8efca7fe62710eb778c4",
+      "template_installed_hash": "bab622a2d47fc70b06ba142a1d88432eebda39a4dd2a8efca7fe62710eb778c4",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:role": {
+      "package_id": "rule:role",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/role.mdc",
+      "managed_block_id": "rule:role",
+      "template_source_hash": "44b1d72d3066529f0c6c34f5584f4b0b6e6ec3487feee00949b642b9dde35120",
+      "template_installed_hash": "44b1d72d3066529f0c6c34f5584f4b0b6e6ec3487feee00949b642b9dde35120",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {
+        "rule__role__always__apply": "true"
+      },
+      "render_vars_hash": "3fe65d6045059a63214320ba7333ff1b8e10bc5ec78611122bfa21e989a38d8b",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:rust-api-semver": {
+      "package_id": "rule:rust-api-semver",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/rust-api-semver.mdc",
+      "managed_block_id": "rule:rust-api-semver",
+      "template_source_hash": "c914f828561b2ccd363e392db988c519b24eedb519d914710eb714c7d2e74b5a",
+      "template_installed_hash": "c914f828561b2ccd363e392db988c519b24eedb519d914710eb714c7d2e74b5a",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {
+        "rule__rust__api__semver__globs": "**/*.rs"
+      },
+      "render_vars_hash": "1546950d4754c985276565b785c595e4278969f71aec89cc151eb2dd338e9574",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:rust-dependency-hygiene": {
+      "package_id": "rule:rust-dependency-hygiene",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/rust-dependency-hygiene.mdc",
+      "managed_block_id": "rule:rust-dependency-hygiene",
+      "template_source_hash": "8390f88337c484337ef7a7c76b025d17697ab3a579d6b11c7328296a77d51e03",
+      "template_installed_hash": "8390f88337c484337ef7a7c76b025d17697ab3a579d6b11c7328296a77d51e03",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {
+        "rule__rust__dependency__hygiene__globs": "**/*.rs"
+      },
+      "render_vars_hash": "c36dbe60d737b075aaf6eb5a7c6238ef1cfc65cb2878dff97deec57f70165e41",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:rust-error-handling": {
+      "package_id": "rule:rust-error-handling",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/rust-error-handling.mdc",
+      "managed_block_id": "rule:rust-error-handling",
+      "template_source_hash": "80c4dfa97650d40e7e77299e51fd04247f76bbec3131eb9771fab44833221ba7",
+      "template_installed_hash": "80c4dfa97650d40e7e77299e51fd04247f76bbec3131eb9771fab44833221ba7",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {
+        "rule__rust__error__handling__globs": "**/*.rs"
+      },
+      "render_vars_hash": "fdf8f00320f16675c9d5eb4e429123f294753a8dee8dee95a5a5ba837fb15dc4",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:rust-observability": {
+      "package_id": "rule:rust-observability",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/rust-observability.mdc",
+      "managed_block_id": "rule:rust-observability",
+      "template_source_hash": "7357295508f9a238dee6470be62dabedb9b371ae09afc22ce9f4b564c9797e36",
+      "template_installed_hash": "7357295508f9a238dee6470be62dabedb9b371ae09afc22ce9f4b564c9797e36",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {
+        "rule__rust__observability__globs": "**/*.rs"
+      },
+      "render_vars_hash": "6d478c6eaa167834c8e866d4cdb49ff27a12593b98afa0f0c9e264641b159123",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:rust-testing-strategy": {
+      "package_id": "rule:rust-testing-strategy",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/rust-testing-strategy.mdc",
+      "managed_block_id": "rule:rust-testing-strategy",
+      "template_source_hash": "145e60621df9add4d3e4a449153ebdeb7b711a827a45c5b511d1bcf6c721c643",
+      "template_installed_hash": "145e60621df9add4d3e4a449153ebdeb7b711a827a45c5b511d1bcf6c721c643",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {
+        "rule__rust__testing__strategy__globs": "**/*.rs"
+      },
+      "render_vars_hash": "cc73bfd0fdc2c3a8b15e93e7e3217163991a51954fca35116bf5885f16d6d378",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:rust-workflow-gates": {
+      "package_id": "rule:rust-workflow-gates",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/rust-workflow-gates.mdc",
+      "managed_block_id": "rule:rust-workflow-gates",
+      "template_source_hash": "9b765ec26b2d0395362aca6fda80f4c72949e867a6fa68614af1e067ca5d5d58",
+      "template_installed_hash": "9b765ec26b2d0395362aca6fda80f4c72949e867a6fa68614af1e067ca5d5d58",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {
+        "rule__rust__workflow__gates__globs": "**/*.rs"
+      },
+      "render_vars_hash": "59ffea16f011c04718a18c94dd2f0122829c102a4549f0c05ac08d2b246cbdb3",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:signature": {
+      "package_id": "rule:signature",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/signature.mdc",
+      "managed_block_id": "rule:signature",
+      "template_source_hash": "10860264464a4d35766a09cbebbdecf2593e92eceec78b142011aaacbf64901a",
+      "template_installed_hash": "10860264464a4d35766a09cbebbdecf2593e92eceec78b142011aaacbf64901a",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:snake-case": {
+      "package_id": "rule:snake-case",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/snake-case.mdc",
+      "managed_block_id": "rule:snake-case",
+      "template_source_hash": "d5bb17136d512f47fc263e709b6713dc516baaebb65f5e13ff035861b986f108",
+      "template_installed_hash": "d5bb17136d512f47fc263e709b6713dc516baaebb65f5e13ff035861b986f108",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {
+        "rule__snake__case__globs": "**/*.rs"
+      },
+      "render_vars_hash": "e9b090d8e3820327e2581283c922f23fb774a9a1379047ef117b1dc8df93f20c",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:testing": {
+      "package_id": "rule:testing",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/testing.mdc",
+      "managed_block_id": "rule:testing",
+      "template_source_hash": "3026661b9dac5ceb2565dcfb64410614b8a78d4fdb702f131e6966906e70300c",
+      "template_installed_hash": "3026661b9dac5ceb2565dcfb64410614b8a78d4fdb702f131e6966906e70300c",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {
+        "rule__testing__globs": "**/test/**"
+      },
+      "render_vars_hash": "eb7576b991f728ee5e22913e77fc31c07a54071e38311a10506b63c8d6924d9a",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:warning-hygiene": {
+      "package_id": "rule:warning-hygiene",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/warning-hygiene.mdc",
+      "managed_block_id": "rule:warning-hygiene",
+      "template_source_hash": "8fffdc5472c7907feac44ebfac4bdc88a1f4361613d089ab617eab49da300ee7",
+      "template_installed_hash": "8fffdc5472c7907feac44ebfac4bdc88a1f4361613d089ab617eab49da300ee7",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778237103
+    },
+    "cursor:rule:workflow-gates": {
+      "package_id": "rule:workflow-gates",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/rules/workflow-gates.mdc",
+      "managed_block_id": "rule:workflow-gates",
+      "template_source_hash": "ce09d52a777db4e4f474bae23b3544b958660a2e30fd0c06de90b57b3c3179ee",
+      "template_installed_hash": "ce09d52a777db4e4f474bae23b3544b958660a2e30fd0c06de90b57b3c3179ee",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778237103
+    }
+  }
+}

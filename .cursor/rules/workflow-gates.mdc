@@ -1,0 +1,31 @@
+---
+description: Enforce ordered validation gates with fail-fast behavior
+globs: "**/*"
+alwaysApply: false
+---
+
+# Workflow Gates
+
+Apply validation in this order and stop on failure:
+
+1. **Format**
+   - Run the project's formatting step for changed files.
+   - Do not continue until formatting checks pass.
+2. **Build / Typecheck**
+   - Run the project's build/typecheck command for affected scope.
+   - Do not continue while compile/type errors exist.
+3. **Static analysis / lint**
+   - Run the relevant analysis/lint checks for changed areas.
+   - Treat findings as blocking unless project policy explicitly marks them non-blocking.
+4. **Tests**
+   - Run tests required for the changed scope.
+   - Do not mark work complete while failing tests remain.
+
+## Fail-Fast Policy
+
+- If any gate fails, fix issues at that gate before proceeding.
+- Do not skip gate order unless the project has an explicit documented exception.
+
+## Optional Docs-Only Path
+
+- For docs-only changes, allow a reduced validation path defined by project policy (for example docs build + link checks).
