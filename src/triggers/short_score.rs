@@ -1,5 +1,4 @@
 use crate::ansi::StyledLine;
-use crate::stats::Stats;
 use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -14,7 +13,7 @@ pub fn trigger(ctx: &mut TriggerContext<'_>, styled_line: &mut StyledLine) -> Tr
     if let Some(captures) = SC_REGEX.captures(&styled_line.plain_line) {
         let (_, stats): (&str, [&str; 13]) = captures.extract();
         let stats = stats.map(|stat| stat.parse::<i32>().unwrap_or_default());
-        *ctx.stats = Stats::new_from_sc(stats);
+        ctx.stats.update_from_short_score(stats);
         styled_line.gag = true;
     }
 
@@ -25,6 +24,7 @@ pub fn trigger(ctx: &mut TriggerContext<'_>, styled_line: &mut StyledLine) -> Tr
 mod tests {
     use super::*;
     use crate::automation::Automation;
+    use crate::stats::Stats;
 
     #[test]
     fn trigger_parses_short_score_stats_and_gags() {

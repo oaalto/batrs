@@ -1,7 +1,9 @@
+mod animist;
 mod disciple;
 mod monk;
 mod reaver;
 
+pub use animist::AnimistGuild;
 pub use disciple::DiscipleGuild;
 pub use monk::MonkGuild;
 pub use reaver::ReaverGuild;
@@ -25,6 +27,10 @@ pub struct GuildDefinition {
 
 pub fn guild_definitions() -> Vec<GuildDefinition> {
     vec![
+        GuildDefinition {
+            key: "animist",
+            name: "Animist",
+        },
         GuildDefinition {
             key: "reaver",
             name: "Reaver",
@@ -54,6 +60,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "reaver" {
             guilds.push(Box::new(ReaverGuild::default()));
+        }
+        if key.as_str() == "animist" {
+            guilds.push(Box::new(AnimistGuild::default()));
         }
         if key.as_str() == "disciple" {
             guilds.push(Box::new(DiscipleGuild::default()));
@@ -123,5 +132,19 @@ mod tests {
             cast_spell("word of spite", &with_args),
             "@target goblin;cast 'word of spite' goblin"
         );
+    }
+
+    #[test]
+    fn animist_is_registered_but_not_default() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| definition.key == "animist" && definition.name == "Animist")
+        );
+        assert!(!default_guild_keys().contains(&"animist".to_string()));
+
+        let guilds = build_guilds(&["animist".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
     }
 }

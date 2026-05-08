@@ -35,9 +35,10 @@ pub fn process(
     let guild_triggers: Vec<Trigger> = guilds.iter().flat_map(|g| g.triggers()).collect();
     let mut output = TriggerOutput::default();
 
-    for trigger in COMMON_TRIGGERS
+    // Guild triggers first so stats hooks (e.g. Animist soul companion) always run before the large common rule set.
+    for trigger in guild_triggers
         .iter()
-        .chain(guild_triggers.iter())
+        .chain(COMMON_TRIGGERS.iter())
         .chain(CORE_TRIGGERS.iter())
     {
         let result = trigger(ctx, styled_line);

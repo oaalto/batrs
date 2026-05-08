@@ -16,6 +16,13 @@ pub struct Stats {
     diff_exp: i32,
     money: i32,
     diff_money: i32,
+    soul_companion: Option<SoulCompanionStatus>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SoulCompanionStatus {
+    percent: i32,
+    description: String,
 }
 
 impl Stats {
@@ -47,7 +54,31 @@ impl Stats {
             diff_money: stats[10],
             exp: stats[11],
             diff_exp: stats[12],
+            ..Default::default()
         }
+    }
+
+    pub fn update_from_prompt(&mut self, stats: [i32; 7]) {
+        let soul_companion = self.soul_companion.clone();
+        *self = Self::new(stats);
+        self.soul_companion = soul_companion;
+    }
+
+    pub fn update_from_short_score(&mut self, stats: [i32; 13]) {
+        let soul_companion = self.soul_companion.clone();
+        *self = Self::new_from_sc(stats);
+        self.soul_companion = soul_companion;
+    }
+
+    pub fn set_soul_companion(&mut self, percent: i32, description: String) {
+        self.soul_companion = Some(SoulCompanionStatus {
+            percent,
+            description,
+        });
+    }
+
+    pub fn has_soul_companion_status(&self) -> bool {
+        self.soul_companion.is_some()
     }
 
     pub fn render_inline(&self) -> Line<'static> {
@@ -61,6 +92,24 @@ impl Stats {
         spans.push(self.inline_value("Exp", self.exp, self.diff_exp));
         spans.push(Span::raw("  "));
         spans.push(self.inline_value("Money", self.money, self.diff_money));
+
+        Line::from(spans)
+    }
+
+    pub fn render_soul_inline(&self) -> Line<'static> {
+        let Some(soul_companion) = &self.soul_companion else {
+            return Line::from("");
+        };
+
+        let mut spans = vec![
+            Span::raw("Soul: "),
+            Span::styled(
+                format!("{}%", soul_companion.percent),
+                Style::default().fg(progress_color(soul_companion.percent as f32 / 100.0)),
+            ),
+            Span::raw(" "),
+        ];
+        spans.extend(soul_description_spans(&soul_companion.description));
 
         Line::from(spans)
     }
@@ -118,6 +167,37 @@ impl Stats {
     }
 }
 
+/// Soul companion trailing text (e.g. `+` / `-` trend markers): color runs of `+` green and `-` red.
+fn soul_description_spans(description: &str) -> Vec<Span<'static>> {
+    let mut spans = Vec::new();
+    let mut plain = String::new();
+    let mut chars = description.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '+' || ch == '-' {
+            if !plain.is_empty() {
+                spans.push(Span::raw(std::mem::take(&mut plain)));
+            }
+            let color = if ch == '+' { Color::Green } else { Color::Red };
+            let mut run = ch.to_string();
+            while chars.peek() == Some(&ch) {
+                if let Some(c) = chars.next() {
+                    run.push(c);
+                }
+            }
+            spans.push(Span::styled(run, Style::default().fg(color)));
+        } else {
+            plain.push(ch);
+        }
+    }
+
+    if !plain.is_empty() {
+        spans.push(Span::raw(plain));
+    }
+
+    spans
+}
+
 fn progress_color(value: f32) -> Color {
     if value < 0.1 {
         Color::Rgb(128, 0, 0)
@@ -139,5 +219,79 @@ fn progress_color(value: f32) -> Color {
         Color::Rgb(0, 128, 0)
     } else {
         Color::Green
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn line_text(line: &Line<'_>) -> String {
+        line.spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect()
+    }
+
+    #[test]
+    fn render_inline_does_not_include_soul_companion_status() {
+        let mut stats = Stats::default();
+        stats.set_soul_companion(75, "resting".to_string());
+
+        assert!(!line_text(&stats.render_inline()).contains("Soul:"));
+    }
+
+    #[test]
+    fn render_soul_inline_includes_soul_companion_status_without_name() {
+        let mut stats = Stats::default();
+        stats.set_soul_companion(75, "resting".to_string());
+
+        assert_eq!(line_text(&stats.render_soul_inline()), "Soul: 75% resting");
+    }
+
+    #[test]
+    fn render_soul_inline_styles_plus_green_minus_red() {
+        let mut stats = Stats::default();
+        stats.set_soul_companion(88, "- x +".to_string());
+        let line = stats.render_soul_inline();
+
+        assert_eq!(line_text(&line), "Soul: 88% - x +");
+
+        let minus = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "-")
+            .expect("minus span");
+        assert_eq!(minus.style.fg, Some(Color::Red));
+
+        let plus = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "+")
+            .expect("plus span");
+        assert_eq!(plus.style.fg, Some(Color::Green));
+    }
+
+    #[test]
+    fn prompt_updates_preserve_soul_companion_status() {
+        let mut stats = Stats::default();
+        stats.set_soul_companion(90, "following".to_string());
+
+        stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
+
+        assert_eq!(
+            line_text(&stats.render_soul_inline()),
+            "Soul: 90% following"
+        );
+    }
+
+    #[test]
+    fn short_score_updates_preserve_soul_companion_status() {
+        let mut stats = Stats::default();
+        stats.set_soul_companion(45, "nearby".to_string());
+
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
+
+        assert_eq!(line_text(&stats.render_soul_inline()), "Soul: 45% nearby");
     }
 }

@@ -9,6 +9,8 @@ pub struct ViewModel<'a> {
     pub scroll_offset: u16,
     pub show_stats: bool,
     pub stats_line: Line<'static>,
+    pub show_soul_stats: bool,
+    pub soul_stats_line: Line<'static>,
     pub clock: String,
     pub input_text: String,
     pub cursor_offset: u16,
@@ -41,18 +43,25 @@ pub struct Renderer;
 
 impl Renderer {
     pub fn render(frame: &mut Frame<'_>, view: &ViewModel<'_>) {
+        let mut constraints = vec![Constraint::Min(1), Constraint::Length(1)];
+        if view.show_soul_stats {
+            constraints.push(Constraint::Length(1));
+        }
+        constraints.push(Constraint::Length(1));
+
         let root = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Min(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-            ])
+            .constraints(constraints)
             .split(frame.area());
 
         let output_area = root[0];
         let stats_area = root[1];
-        let input_area = root[2];
+        let soul_stats_area = view.show_soul_stats.then_some(root[2]);
+        let input_area = if view.show_soul_stats {
+            root[3]
+        } else {
+            root[2]
+        };
 
         let output =
             Paragraph::new(Text::from(view.output_lines.clone())).scroll((view.scroll_offset, 0));
@@ -72,6 +81,11 @@ impl Renderer {
         } else {
             let clock_widget = Paragraph::new(view.clock.clone()).alignment(Alignment::Right);
             frame.render_widget(clock_widget, stats_area);
+        }
+
+        if let Some(soul_stats_area) = soul_stats_area {
+            let soul_stats_widget = Paragraph::new(view.soul_stats_line.clone());
+            frame.render_widget(soul_stats_widget, soul_stats_area);
         }
 
         let input_chunks = Layout::default()

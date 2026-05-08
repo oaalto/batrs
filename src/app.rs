@@ -172,15 +172,27 @@ impl BatApp {
     }
 
     pub fn draw(&mut self, frame: &mut Frame<'_>) {
-        let output_area_height = frame.area().height.saturating_sub(2);
+        let show_stats = self.session.is_logged_in();
+        let soul_supported = self
+            .selected_guild_keys
+            .iter()
+            .any(|key| key.as_str() == "animist")
+            || self.stats.has_soul_companion_status();
+        let show_soul_stats = show_stats && soul_supported;
+        let reserved_rows = if show_soul_stats { 3 } else { 2 };
+        let output_area_height = frame.area().height.saturating_sub(reserved_rows);
         let output_area_width = frame.area().width;
         let visible_height = output_area_height.saturating_sub(1) as usize;
         let output_lines: Vec<Line<'_>> = self.output.wrapped_lines(output_area_width);
         let scroll_offset = output_lines.len().saturating_sub(visible_height);
         let scroll_offset = scroll_offset.min(u16::MAX as usize) as u16;
-        let show_stats = self.session.is_logged_in();
         let stats_line = if show_stats {
             self.stats.render_inline()
+        } else {
+            Line::from("")
+        };
+        let soul_stats_line = if show_soul_stats {
+            self.stats.render_soul_inline()
         } else {
             Line::from("")
         };
@@ -191,6 +203,8 @@ impl BatApp {
             scroll_offset,
             show_stats,
             stats_line,
+            show_soul_stats,
+            soul_stats_line,
             clock: show_clock(),
             input_text,
             cursor_offset: self.input.cursor_offset(hide_input),

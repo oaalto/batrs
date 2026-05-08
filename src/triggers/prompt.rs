@@ -1,5 +1,4 @@
 use crate::ansi::StyledLine;
-use crate::stats::Stats;
 use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -13,7 +12,7 @@ pub fn trigger(ctx: &mut TriggerContext<'_>, styled_line: &mut StyledLine) -> Tr
     if let Some(captures) = REGEX.captures(&styled_line.plain_line) {
         let (_, stats): (&str, [&str; 7]) = captures.extract();
         let stats = stats.map(|stat| stat.parse::<i32>().unwrap_or_default());
-        *ctx.stats = Stats::new(stats);
+        ctx.stats.update_from_prompt(stats);
         styled_line.gag = true;
     }
 
@@ -24,6 +23,7 @@ pub fn trigger(ctx: &mut TriggerContext<'_>, styled_line: &mut StyledLine) -> Tr
 mod tests {
     use super::*;
     use crate::automation::Automation;
+    use crate::stats::Stats;
 
     #[test]
     fn trigger_parses_prompt_stats_and_gags() {
