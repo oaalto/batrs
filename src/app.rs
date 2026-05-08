@@ -155,22 +155,17 @@ impl BatApp {
         match event.code {
             KeyCode::Enter => self.submit_input(),
             KeyCode::Backspace => self.input.backspace(),
-            KeyCode::Up => {
-                if self.session.is_logged_in() {
-                    self.input.move_history(-1);
-                }
+            KeyCode::Up if self.session.is_logged_in() => {
+                self.input.move_history(-1);
             }
-            KeyCode::Down => {
-                if self.session.is_logged_in() {
-                    self.input.move_history(1);
-                }
+            KeyCode::Down if self.session.is_logged_in() => {
+                self.input.move_history(1);
             }
-            KeyCode::Char(c) => {
+            KeyCode::Char(c)
                 if !event.modifiers.contains(KeyModifiers::CONTROL)
-                    && !event.modifiers.contains(KeyModifiers::ALT)
-                {
-                    self.input.insert_char(c);
-                }
+                    && !event.modifiers.contains(KeyModifiers::ALT) =>
+            {
+                self.input.insert_char(c);
             }
             _ => {}
         }
@@ -422,12 +417,11 @@ impl BatApp {
             KeyCode::Up => dialog.move_cursor(-1),
             KeyCode::Down => dialog.move_cursor(1),
             KeyCode::Backspace => dialog.backspace(),
-            KeyCode::Char(c) => {
+            KeyCode::Char(c)
                 if !event.modifiers.contains(KeyModifiers::CONTROL)
-                    && !event.modifiers.contains(KeyModifiers::ALT)
-                {
-                    dialog.insert_char(c);
-                }
+                    && !event.modifiers.contains(KeyModifiers::ALT) =>
+            {
+                dialog.insert_char(c);
             }
             KeyCode::Esc => {
                 self.settings_dialog = None;
