@@ -1,7 +1,9 @@
 mod disciple;
+mod monk;
 mod reaver;
 
 pub use disciple::DiscipleGuild;
+pub use monk::MonkGuild;
 pub use reaver::ReaverGuild;
 
 use crate::automation::Automation;
@@ -31,6 +33,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             key: "disciple",
             name: "Disciple",
         },
+        GuildDefinition {
+            key: "monk",
+            name: "Monk",
+        },
     ]
 }
 
@@ -51,6 +57,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "disciple" {
             guilds.push(Box::new(DiscipleGuild::default()));
+        }
+        if key.as_str() == "monk" {
+            guilds.push(Box::new(MonkGuild::default()));
         }
     }
 
