@@ -70,6 +70,7 @@ impl GenericCommands {
                 Self::cure_spells_group(),
                 Self::common_spells_group(),
                 Self::navigator_group(),
+                Self::common_skills_group(),
             ],
         }
     }
@@ -105,6 +106,9 @@ impl GenericCommands {
             "ctw" => cast_teleport_without_error,
             "cr" => cast_relocate,
             "chw" => cast_heavy_weight,
+            // common_skills (tf/done_nomad.tf)
+            "ufb" => use_fire_building,
+            "camp" => use_camping,
             _ => unknown_command,
         }
     }
@@ -165,6 +169,17 @@ impl GenericCommands {
                 GenericCommand::new("ctw", "@cast 'teleport without error'"),
                 GenericCommand::new("cr", "@cast 'relocate' {args}"),
                 GenericCommand::new("chw", "@cast 'heavy weight' {args}"),
+            ],
+        )
+    }
+
+    fn common_skills_group() -> GenericCommandGroup {
+        GenericCommandGroup::new(
+            "common_skills",
+            "Common Skills",
+            vec![
+                GenericCommand::new("ufb", "@use fire building"),
+                GenericCommand::new("camp", "@use camping"),
             ],
         )
     }
@@ -254,6 +269,14 @@ fn cast_heavy_weight(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
     }
 }
 
+fn use_fire_building(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
+    Some("@use fire building".to_string())
+}
+
+fn use_camping(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
+    Some("@use camping".to_string())
+}
+
 fn unknown_command(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
     None
 }
@@ -265,10 +288,11 @@ mod tests {
     #[test]
     fn default_has_predefined_groups() {
         let generic = GenericCommands::default();
-        assert_eq!(generic.groups.len(), 3);
+        assert_eq!(generic.groups.len(), 4);
         assert!(generic.groups.iter().any(|g| g.name == "cure_spells"));
         assert!(generic.groups.iter().any(|g| g.name == "common_spells"));
         assert!(generic.groups.iter().any(|g| g.name == "navigator"));
+        assert!(generic.groups.iter().any(|g| g.name == "common_skills"));
     }
 
     #[test]
@@ -358,5 +382,21 @@ mod tests {
         let mut ctx = CommandContext::new(HashMap::new(), true);
         let result = cast_relocate(&data, &mut ctx);
         assert_eq!(result, Some("@cast 'relocate' orthos".to_string()));
+    }
+
+    #[test]
+    fn use_fire_building_fixed_output() {
+        let data = Data::new("ufb");
+        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let result = use_fire_building(&data, &mut ctx);
+        assert_eq!(result, Some("@use fire building".to_string()));
+    }
+
+    #[test]
+    fn use_camping_fixed_output() {
+        let data = Data::new("camp");
+        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let result = use_camping(&data, &mut ctx);
+        assert_eq!(result, Some("@use camping".to_string()));
     }
 }
