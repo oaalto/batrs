@@ -32,6 +32,16 @@ pub struct PlayerToml {
     pub guilds: Option<Vec<String>>,
     #[serde(default)]
     pub settings: SettingsTable,
+    #[serde(default)]
+    pub generic_commands: GenericCommandsConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct GenericCommandsConfig {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub enabled_groups: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub disabled_commands: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
@@ -232,6 +242,30 @@ impl ConfigManager {
         player.settings = settings_table_from_entries(&entries);
         persist_player_to_path(path, player)
     }
+
+    pub fn generic_commands_config(&self) -> GenericCommandsConfig {
+        self.player_config
+            .as_ref()
+            .map(|p| p.generic_commands.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn save_generic_commands(&mut self, config: &GenericCommandsConfig) -> io::Result<()> {
+        let Some(path) = self.user_config_path.as_ref() else {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "user config path not set",
+            ));
+        };
+        let Some(player) = self.player_config.as_mut() else {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "player config not loaded",
+            ));
+        };
+        player.generic_commands = config.clone();
+        persist_player_to_path(path, player)
+    }
 }
 
 fn persist_player_to_path(path: &Path, player: &PlayerToml) -> io::Result<()> {
@@ -277,6 +311,7 @@ fn migrate_legacy_config(raw: &str) -> Result<PlayerToml, SettingsError> {
     Ok(PlayerToml {
         guilds,
         settings: settings_table_from_entries(&entries),
+        generic_commands: GenericCommandsConfig::default(),
     })
 }
 
@@ -532,6 +567,7 @@ mod tests {
                 tzarakk_mount: String::new(),
                 extra: HashMap::from([("note".to_string(), "hello".to_string())]),
             },
+            generic_commands: GenericCommandsConfig::default(),
         };
         let text = toml::to_string_pretty(&original).unwrap();
         let parsed: PlayerToml = toml::from_str(&text).unwrap();
@@ -547,6 +583,7 @@ mod tests {
                 tzarakk_mount: "Vedir".to_string(),
                 extra: HashMap::new(),
             },
+            generic_commands: GenericCommandsConfig::default(),
         };
         let text = toml::to_string_pretty(&original).unwrap();
         let parsed: PlayerToml = toml::from_str(&text).unwrap();
@@ -563,6 +600,7 @@ mod tests {
                 tzarakk_mount: "Orthos".to_string(),
                 extra: HashMap::new(),
             },
+            generic_commands: GenericCommandsConfig::default(),
         };
         let settings = player_to_user_settings(&player);
         assert_eq!(settings.get("rig"), Some("bag"));
