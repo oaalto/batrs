@@ -459,18 +459,6 @@ impl BatApp {
             return;
         };
         match event.code {
-            KeyCode::Up if !dialog.editing_mount => {
-                dialog.move_cursor(-1);
-            }
-            KeyCode::Down if !dialog.editing_mount => {
-                dialog.move_cursor(1);
-            }
-            KeyCode::Char(' ') if !dialog.editing_mount => {
-                dialog.toggle_selected();
-            }
-            KeyCode::Tab => {
-                dialog.toggle_edit_mount();
-            }
             KeyCode::Esc => {
                 self.guild_dialog = None;
             }
@@ -481,7 +469,38 @@ impl BatApp {
                 self.apply_selected_guilds(keys.clone());
                 self.save_selected_guilds_with_mount(keys, mount_name);
             }
-            KeyCode::Char(c) if dialog.editing_mount => {
+            _ => {
+                Self::apply_guild_dialog_keystroke(dialog, event);
+            }
+        }
+    }
+
+    fn apply_guild_dialog_keystroke(dialog: &mut GuildDialog, event: KeyEvent) {
+        let text_modifiers_ok = !event.modifiers.contains(KeyModifiers::CONTROL)
+            && !event.modifiers.contains(KeyModifiers::ALT);
+        match event.code {
+            KeyCode::Up if !dialog.editing_mount => {
+                dialog.move_cursor(-1);
+            }
+            KeyCode::Down if !dialog.editing_mount => {
+                dialog.move_cursor(1);
+            }
+            KeyCode::Char(' ') if !dialog.editing_mount => {
+                dialog.toggle_selected();
+            }
+            KeyCode::Tab | KeyCode::BackTab | KeyCode::Char('\t') => {
+                dialog.toggle_edit_mount();
+            }
+            KeyCode::Char(c)
+                if text_modifiers_ok
+                    && dialog.is_tzarakk_selected()
+                    && !dialog.editing_mount
+                    && !c.is_control() =>
+            {
+                dialog.enter_mount_edit_mode();
+                dialog.insert_mount_char(c);
+            }
+            KeyCode::Char(c) if dialog.editing_mount && text_modifiers_ok => {
                 dialog.insert_mount_char(c);
             }
             KeyCode::Backspace if dialog.editing_mount => {
@@ -965,6 +984,12 @@ impl GuildDialog {
         }
     }
 
+    fn enter_mount_edit_mode(&mut self) {
+        if self.is_tzarakk_selected() {
+            self.editing_mount = true;
+        }
+    }
+
     fn insert_mount_char(&mut self, c: char) {
         if self.editing_mount {
             self.mount_name.insert(self.mount_cursor, c);
@@ -1011,5 +1036,73 @@ impl GuildDialog {
             show_mount_input: self.is_tzarakk_selected(),
             mount_input_cursor: self.mount_cursor,
         }
+    }
+}
+
+#[cfg(test)]
+mod guild_dialog_keystroke_tests {
+    use super::{BatApp, GuildDialog};
+    use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+
+    fn key_char(c: char) -> KeyEvent {
+        KeyEvent::new_with_kind(KeyCode::Char(c), KeyModifiers::empty(), KeyEventKind::Press)
+    }
+
+    fn dialog_tzarakk_only() -> GuildDialog {
+        let definitions = super::guild_definitions();
+        let selected = definitions
+            .iter()
+            .map(|definition| definition.key == "tzarakk")
+            .collect();
+        GuildDialog::new(definitions, selected, String::new())
+    }
+
+    #[test]
+    fn typing_mount_name_without_tab_when_tzarakk_selected_inserts_text() {
+        let mut dialog = dialog_tzarakk_only();
+        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('V'));
+        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('e'));
+        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('d'));
+        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('i'));
+        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('r'));
+        assert_eq!(dialog.mount_name(), "Vedir");
+    }
+
+    #[test]
+    fn printable_keys_ignored_for_mount_when_tzarakk_not_selected() {
+        let definitions = super::guild_definitions();
+        let count = definitions.len();
+        let mut dialog = GuildDialog::new(definitions, vec![false; count], String::new());
+        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('x'));
+        assert_eq!(dialog.mount_name(), "");
+    }
+
+    #[test]
+    fn ctrl_letter_does_not_insert_into_mount_when_not_editing() {
+        let mut dialog = dialog_tzarakk_only();
+        BatApp::apply_guild_dialog_keystroke(
+            &mut dialog,
+            KeyEvent::new_with_kind(
+                KeyCode::Char('v'),
+                KeyModifiers::CONTROL,
+                KeyEventKind::Press,
+            ),
+        );
+        assert_eq!(dialog.mount_name(), "");
+    }
+
+    #[test]
+    fn tab_char_toggle_mount_edit_when_tzarakk_selected() {
+        let mut dialog = dialog_tzarakk_only();
+        BatApp::apply_guild_dialog_keystroke(
+            &mut dialog,
+            KeyEvent::new_with_kind(
+                KeyCode::Char('\t'),
+                KeyModifiers::empty(),
+                KeyEventKind::Press,
+            ),
+        );
+        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('Z'));
+        assert_eq!(dialog.mount_name(), "Z");
     }
 }

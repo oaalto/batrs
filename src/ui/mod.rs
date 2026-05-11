@@ -215,7 +215,7 @@ fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
         }
 
         let instructions = Paragraph::new(
-            "Up/Down: move  Space: toggle  Tab: edit mount  Enter: save  Esc: cancel",
+            "Up/Down: move  Space: toggle  Tab: mount focus  Type: mount name  Enter: save  Esc: cancel",
         )
         .style(dialog_style);
         frame.render_widget(instructions, chunks[2]);
