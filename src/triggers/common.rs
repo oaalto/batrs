@@ -380,6 +380,15 @@ lazy_static! {
         push_rule(
             &mut rules,
             &mut order,
+            RuleMatcher::Regex(Regex::new(r"^[^ ]+ is not wounded\.").unwrap()),
+            10,
+            None,
+            vec![tf_hilite("BCgreen", HiliteTarget::Whole)],
+        );
+
+        push_rule(
+            &mut rules,
+            &mut order,
             RuleMatcher::Regex(Regex::new(r"^[\*]+ Round .* [\*]+$").unwrap()),
             10000,
             None,
