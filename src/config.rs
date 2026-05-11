@@ -27,7 +27,7 @@ impl UserSettings {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct PlayerToml {
-    /// When omitted from file, guild lists do not override defaults at login (same as legacy).
+    /// When omitted from file, guild keys are not loaded from this player profile (selection stays empty until configured).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub guilds: Option<Vec<String>>,
     #[serde(default)]

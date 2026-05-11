@@ -8,7 +8,7 @@ use crate::ansi::StyledLine;
 use crate::automation::{Action, Automation};
 use crate::config::{ConfigManager, GenericCommandsConfig, SettingEntry, UserSettings};
 use crate::generic_commands::{GenericCommandGroup, GenericCommands};
-use crate::guilds::{Guild, build_guilds, default_guild_keys, guild_definitions};
+use crate::guilds::{Guild, build_guilds, guild_definitions};
 use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
 use crate::{command, triggers};
@@ -70,7 +70,7 @@ impl BatApp {
             command_sender,
             telnet_buffer: TelnetBuffer::new(),
             selected_guilds: Vec::new(),
-            selected_guild_keys: default_guild_keys(),
+            selected_guild_keys: Vec::new(),
             should_quit: false,
             automation: Automation::new(),
             config_manager,

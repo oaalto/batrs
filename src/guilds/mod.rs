@@ -52,10 +52,6 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
     ]
 }
 
-pub fn default_guild_keys() -> Vec<String> {
-    vec!["reaver".to_string()]
-}
-
 pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
     let mut guilds: Vec<Box<dyn Guild>> = Vec::new();
     let mut seen = HashSet::new();
@@ -144,13 +140,12 @@ mod tests {
     }
 
     #[test]
-    fn animist_is_registered_but_not_default() {
+    fn animist_is_registered_and_builds() {
         assert!(
             guild_definitions()
                 .iter()
                 .any(|definition| definition.key == "animist" && definition.name == "Animist")
         );
-        assert!(!default_guild_keys().contains(&"animist".to_string()));
 
         let guilds = build_guilds(&["animist".to_string()]);
 
@@ -158,13 +153,12 @@ mod tests {
     }
 
     #[test]
-    fn tzarakk_is_registered_but_not_default() {
+    fn tzarakk_is_registered_and_builds() {
         assert!(
             guild_definitions()
                 .iter()
                 .any(|definition| definition.key == "tzarakk" && definition.name == "Tzarakk")
         );
-        assert!(!default_guild_keys().contains(&"tzarakk".to_string()));
 
         let guilds = build_guilds(&["tzarakk".to_string()]);
 
