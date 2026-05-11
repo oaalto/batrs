@@ -366,6 +366,15 @@ impl BatApp {
         {
             self.automation.set_var("rig", rig.clone());
         }
+
+        // Set tzarakk mount variable if configured
+        if let Some(manager) = self.config_manager.as_mut()
+            && let Ok(settings) = manager.user_settings()
+            && let Some(mount) = settings.get("tzarakk_mount")
+            && !mount.is_empty()
+        {
+            self.automation.set_var("tzarakk_mount", mount.to_string());
+        }
     }
 
     fn open_guilds_dialog(&mut self) {
@@ -377,7 +386,23 @@ impl BatApp {
             .iter()
             .map(|def| self.selected_guild_keys.iter().any(|key| key == def.key))
             .collect();
-        self.guild_dialog = Some(GuildDialog::new(definitions, selected));
+
+        // Load mount name from config
+        let mount_name = if self.user_config_loaded {
+            if let Some(manager) = self.config_manager.as_mut() {
+                if let Ok(settings) = manager.user_settings() {
+                    settings.get("tzarakk_mount").unwrap_or("").to_string()
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
+        self.guild_dialog = Some(GuildDialog::new(definitions, selected, mount_name));
     }
 
     fn open_settings_dialog(&mut self) {
@@ -407,17 +432,39 @@ impl BatApp {
             return;
         };
         match event.code {
-            KeyCode::Up => dialog.move_cursor(-1),
-            KeyCode::Down => dialog.move_cursor(1),
-            KeyCode::Char(' ') => dialog.toggle_selected(),
+            KeyCode::Up if !dialog.editing_mount => {
+                dialog.move_cursor(-1);
+            }
+            KeyCode::Down if !dialog.editing_mount => {
+                dialog.move_cursor(1);
+            }
+            KeyCode::Char(' ') if !dialog.editing_mount => {
+                dialog.toggle_selected();
+            }
+            KeyCode::Tab => {
+                dialog.toggle_edit_mount();
+            }
             KeyCode::Esc => {
                 self.guild_dialog = None;
             }
             KeyCode::Enter => {
                 let keys = dialog.selected_keys();
+                let mount_name = dialog.mount_name();
                 self.guild_dialog = None;
                 self.apply_selected_guilds(keys.clone());
-                self.save_selected_guilds(keys);
+                self.save_selected_guilds_with_mount(keys, mount_name);
+            }
+            KeyCode::Char(c) if dialog.editing_mount => {
+                dialog.insert_mount_char(c);
+            }
+            KeyCode::Backspace if dialog.editing_mount => {
+                dialog.mount_backspace();
+            }
+            KeyCode::Left if dialog.editing_mount => {
+                dialog.mount_cursor_left();
+            }
+            KeyCode::Right if dialog.editing_mount => {
+                dialog.mount_cursor_right();
             }
             _ => {}
         }
@@ -449,15 +496,22 @@ impl BatApp {
         }
     }
 
-    fn save_selected_guilds(&mut self, keys: Vec<String>) {
+    fn save_selected_guilds_with_mount(&mut self, keys: Vec<String>, mount_name: String) {
         if !self.user_config_loaded {
             self.load_user_config();
         }
         let Some(manager) = self.config_manager.as_mut() else {
             return;
         };
+
+        // Save guilds
         if let Err(e) = manager.save_user_guilds(&keys) {
             eprintln!("failed to save user guilds: {e}");
+        }
+
+        // Save mount name
+        if let Err(e) = manager.save_user_setting("tzarakk_mount", &mount_name) {
+            eprintln!("failed to save tzarakk mount name: {e}");
         }
     }
 
@@ -509,6 +563,13 @@ impl BatApp {
             {
                 self.automation.set_var("rig", rig.clone());
             }
+
+            // Set tzarakk mount variable if configured
+            if let Some(mount) = settings.get("tzarakk_mount")
+                && !mount.is_empty()
+            {
+                self.automation.set_var("tzarakk_mount", mount.to_string());
+            }
         }
     }
 }
@@ -534,6 +595,9 @@ struct GuildDialog {
     definitions: Vec<crate::guilds::GuildDefinition>,
     selected: Vec<bool>,
     cursor: usize,
+    mount_name: String,
+    editing_mount: bool,
+    mount_cursor: usize,
 }
 
 struct SettingsDialog {
@@ -588,16 +652,24 @@ impl SettingsDialog {
 }
 
 impl GuildDialog {
-    fn new(definitions: Vec<crate::guilds::GuildDefinition>, selected: Vec<bool>) -> Self {
+    fn new(
+        definitions: Vec<crate::guilds::GuildDefinition>,
+        selected: Vec<bool>,
+        mount_name: String,
+    ) -> Self {
         let mut selected = selected;
         if selected.len() < definitions.len() {
             selected.resize(definitions.len(), false);
         }
         let cursor = 0;
+        let mount_cursor = mount_name.len();
         Self {
             definitions,
             selected,
             cursor,
+            mount_name,
+            editing_mount: false,
+            mount_cursor,
         }
     }
 
@@ -624,6 +696,51 @@ impl GuildDialog {
             .collect()
     }
 
+    fn is_tzarakk_selected(&self) -> bool {
+        self.definitions
+            .iter()
+            .zip(self.selected.iter())
+            .any(|(def, sel)| def.key == "tzarakk" && *sel)
+    }
+
+    fn toggle_edit_mount(&mut self) {
+        if self.is_tzarakk_selected() {
+            self.editing_mount = !self.editing_mount;
+        } else {
+            self.editing_mount = false;
+        }
+    }
+
+    fn insert_mount_char(&mut self, c: char) {
+        if self.editing_mount {
+            self.mount_name.insert(self.mount_cursor, c);
+            self.mount_cursor += 1;
+        }
+    }
+
+    fn mount_backspace(&mut self) {
+        if self.editing_mount && self.mount_cursor > 0 {
+            self.mount_cursor -= 1;
+            self.mount_name.remove(self.mount_cursor);
+        }
+    }
+
+    fn mount_cursor_left(&mut self) {
+        if self.editing_mount && self.mount_cursor > 0 {
+            self.mount_cursor -= 1;
+        }
+    }
+
+    fn mount_cursor_right(&mut self) {
+        if self.editing_mount && self.mount_cursor < self.mount_name.len() {
+            self.mount_cursor += 1;
+        }
+    }
+
+    fn mount_name(&self) -> String {
+        self.mount_name.clone()
+    }
+
     fn view_model(&self) -> crate::ui::GuildDialogViewModel {
         crate::ui::GuildDialogViewModel {
             items: self
@@ -636,6 +753,9 @@ impl GuildDialog {
                 })
                 .collect(),
             cursor: self.cursor,
+            mount_name: self.mount_name.clone(),
+            show_mount_input: self.is_tzarakk_selected(),
+            mount_input_cursor: self.mount_cursor,
         }
     }
 }
