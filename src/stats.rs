@@ -91,9 +91,9 @@ impl Stats {
         spans.push(Span::raw("  "));
         spans.extend(self.inline_stat_spans("Ep", self.ep, self.max_ep, self.diff_ep));
         spans.push(Span::raw("  "));
-        spans.push(self.inline_value("Exp", self.exp, self.diff_exp));
+        spans.extend(self.inline_value_spans("Exp", self.exp, self.diff_exp));
         spans.push(Span::raw("  "));
-        spans.push(self.inline_value("Money", self.money, self.diff_money));
+        spans.extend(self.inline_value_spans("Money", self.money, self.diff_money));
 
         Line::from(spans)
     }
@@ -159,13 +159,25 @@ impl Stats {
         spans
     }
 
-    fn inline_value(&self, label: &str, value: i32, diff: i32) -> Span<'static> {
-        let text = if diff == 0 {
-            format!("{label}: {value}")
-        } else {
-            format!("{label}: {value} ({diff:+})")
-        };
-        Span::raw(text)
+    fn inline_value_spans(&self, label: &str, value: i32, diff: i32) -> Vec<Span<'static>> {
+        let value_style = Style::default()
+            .fg(Color::White)
+            .add_modifier(Modifier::BOLD);
+        let mut spans = vec![
+            Span::raw(format!("{label}: ")),
+            Span::styled(value.to_string(), value_style),
+        ];
+        if diff != 0 {
+            let diff_color = if diff > 0 { Color::Green } else { Color::Red };
+            spans.push(Span::raw(" "));
+            spans.push(Span::raw("("));
+            spans.push(Span::styled(
+                format!("{diff:+}"),
+                Style::default().fg(diff_color),
+            ));
+            spans.push(Span::raw(")"));
+        }
+        spans
     }
 }
 
@@ -241,6 +253,49 @@ mod tests {
         stats.set_soul_companion(75, "resting".to_string());
 
         assert!(!line_text(&stats.render_inline()).contains("Soul:"));
+    }
+
+    #[test]
+    fn render_inline_exp_and_money_values_are_bold_white_with_colored_diffs() {
+        let mut stats = Stats::default();
+        stats.update_from_short_score([1, 100, 0, 2, 200, 0, 3, 300, 0, 88_888, 15, 77_777, -20]);
+        let line = stats.render_inline();
+
+        let exp_val = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "77777")
+            .expect("exp value span");
+        assert!(
+            exp_val.style.add_modifier.contains(Modifier::BOLD),
+            "exp value should be bold"
+        );
+        assert_eq!(exp_val.style.fg, Some(Color::White));
+
+        let exp_diff = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "-20")
+            .expect("exp diff span");
+        assert_eq!(exp_diff.style.fg, Some(Color::Red));
+
+        let money_val = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "88888")
+            .expect("money value span");
+        assert!(
+            money_val.style.add_modifier.contains(Modifier::BOLD),
+            "money value should be bold"
+        );
+        assert_eq!(money_val.style.fg, Some(Color::White));
+
+        let money_diff = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "+15")
+            .expect("money diff span");
+        assert_eq!(money_diff.style.fg, Some(Color::Green));
     }
 
     #[test]
