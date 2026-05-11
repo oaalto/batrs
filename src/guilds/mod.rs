@@ -2,11 +2,13 @@ mod animist;
 mod disciple;
 mod monk;
 mod reaver;
+mod tzarakk;
 
 pub use animist::AnimistGuild;
 pub use disciple::DiscipleGuild;
 pub use monk::MonkGuild;
 pub use reaver::ReaverGuild;
+pub use tzarakk::TzarakkGuild;
 
 use crate::automation::Automation;
 use crate::command::{Command, Data};
@@ -43,6 +45,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             key: "monk",
             name: "Monk",
         },
+        GuildDefinition {
+            key: "tzarakk",
+            name: "Tzarakk",
+        },
     ]
 }
 
@@ -69,6 +75,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "monk" {
             guilds.push(Box::new(MonkGuild::default()));
+        }
+        if key.as_str() == "tzarakk" {
+            guilds.push(Box::new(TzarakkGuild::default()));
         }
     }
 
@@ -144,6 +153,20 @@ mod tests {
         assert!(!default_guild_keys().contains(&"animist".to_string()));
 
         let guilds = build_guilds(&["animist".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn tzarakk_is_registered_but_not_default() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| definition.key == "tzarakk" && definition.name == "Tzarakk")
+        );
+        assert!(!default_guild_keys().contains(&"tzarakk".to_string()));
+
+        let guilds = build_guilds(&["tzarakk".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }

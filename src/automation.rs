@@ -47,6 +47,10 @@ impl Automation {
         self.vars.insert(key.to_string(), value);
     }
 
+    pub fn get_var(&self, key: &str) -> Option<&String> {
+        self.vars.get(key)
+    }
+
     pub fn add_waiter(&mut self, waiter: Waiter) {
         self.waiters.push(waiter);
     }
