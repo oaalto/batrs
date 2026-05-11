@@ -27,6 +27,9 @@ pub struct GuildDialogItem {
 pub struct GuildDialogViewModel {
     pub items: Vec<GuildDialogItem>,
     pub cursor: usize,
+    pub mount_name: String,
+    pub show_mount_input: bool,
+    pub mount_input_cursor: usize,
 }
 
 pub struct SettingsDialogItem {
@@ -134,9 +137,23 @@ fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
     frame.render_widget(&block, area);
     let inner = block.inner(area);
 
+    // Adjust constraints based on whether mount input is shown
+    let constraints = if dialog.show_mount_input {
+        vec![
+            Constraint::Min(1),      // guild list
+            Constraint::Length(3),   // mount name input
+            Constraint::Length(1),   // instructions
+        ]
+    } else {
+        vec![
+            Constraint::Min(1),      // guild list
+            Constraint::Length(1),   // instructions
+        ]
+    };
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(1)])
+        .constraints(constraints)
         .split(inner);
 
     let items = dialog
@@ -158,9 +175,34 @@ fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
     }
     frame.render_stateful_widget(list, chunks[0], &mut state);
 
-    let instructions = Paragraph::new("Up/Down: move  Space: toggle  Enter: save  Esc: cancel")
-        .style(dialog_style);
-    frame.render_widget(instructions, chunks[1]);
+    // Render mount name input if Tzarakk is selected
+    if dialog.show_mount_input {
+        let mount_block = Block::default()
+            .title("Mount Name (for Tzarakk)")
+            .borders(Borders::ALL)
+            .style(dialog_style);
+        let mount_input = Paragraph::new(dialog.mount_name.clone()).block(mount_block.clone());
+        frame.render_widget(mount_input, chunks[1]);
+
+        // Show cursor in mount name field
+        let mount_inner = mount_block.inner(chunks[1]);
+        if mount_inner.width > 0 && mount_inner.height > 0 {
+            let cursor_offset = dialog.mount_input_cursor.min(mount_inner.width as usize - 1) as u16;
+            let cursor_x = mount_inner.x.saturating_add(cursor_offset);
+            let cursor_y = mount_inner.y;
+            frame.set_cursor_position((cursor_x, cursor_y));
+        }
+
+        let instructions =
+            Paragraph::new("Up/Down: move  Space: toggle  Tab: edit mount  Enter: save  Esc: cancel")
+                .style(dialog_style);
+        frame.render_widget(instructions, chunks[2]);
+    } else {
+        let instructions =
+            Paragraph::new("Up/Down: move  Space: toggle  Enter: save  Esc: cancel")
+                .style(dialog_style);
+        frame.render_widget(instructions, chunks[1]);
+    }
 }
 
 fn render_settings_dialog(frame: &mut Frame<'_>, dialog: &SettingsDialogViewModel) {
