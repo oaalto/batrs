@@ -2,12 +2,14 @@ mod animist;
 mod disciple;
 mod monk;
 mod reaver;
+mod tiger;
 mod tzarakk;
 
 pub use animist::AnimistGuild;
 pub use disciple::DiscipleGuild;
 pub use monk::MonkGuild;
 pub use reaver::ReaverGuild;
+pub use tiger::TigerGuild;
 pub use tzarakk::TzarakkGuild;
 
 use crate::automation::Automation;
@@ -49,6 +51,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             key: "tzarakk",
             name: "Tzarakk",
         },
+        GuildDefinition {
+            key: "tiger",
+            name: "Tiger",
+        },
     ]
 }
 
@@ -74,6 +80,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "tzarakk" {
             guilds.push(Box::new(TzarakkGuild::default()));
+        }
+        if key.as_str() == "tiger" {
+            guilds.push(Box::new(TigerGuild::default()));
         }
     }
 
@@ -161,6 +170,19 @@ mod tests {
         );
 
         let guilds = build_guilds(&["tzarakk".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn tiger_is_registered_and_builds() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| definition.key == "tiger" && definition.name == "Tiger")
+        );
+
+        let guilds = build_guilds(&["tiger".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
