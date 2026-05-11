@@ -81,6 +81,41 @@ impl StyledLine {
             .collect();
     }
 
+    /// Inserts `suffix` into `plain_line` at `byte_idx` (UTF-8 boundary), and splices matching
+    /// graphemes into `styled_chars`. New graphemes copy style from the grapheme before the
+    /// insertion point (or the first grapheme if inserting at the front).
+    pub fn insert_plain_after_plain_byte_idx(&mut self, byte_idx: usize, suffix: &str) {
+        if suffix.is_empty() {
+            return;
+        }
+
+        let byte_idx = byte_idx.min(self.plain_line.len());
+        let grapheme_insert = plain_prefix_grapheme_count(&self.plain_line, byte_idx);
+
+        let style_template = if grapheme_insert > 0 {
+            self.styled_chars.get(grapheme_insert - 1)
+        } else {
+            self.styled_chars.first()
+        };
+        let (bold, color) = style_template
+            .map(|styled| (styled.bold, styled.color))
+            .unwrap_or((false, AnsiCode::DefaultColor));
+
+        let new_styled: Vec<StyledChar> = suffix
+            .graphemes(true)
+            .map(|grapheme| {
+                let mut next = StyledChar::new(grapheme.to_string());
+                next.bold = bold;
+                next.color = color;
+                next
+            })
+            .collect();
+
+        self.plain_line.insert_str(byte_idx, suffix);
+        self.styled_chars
+            .splice(grapheme_insert..grapheme_insert, new_styled);
+    }
+
     fn parse_line(line: &str) -> Vec<StyledChar> {
         let matches = parse_ansi::parse_bytes(line.as_bytes());
 
@@ -174,4 +209,9 @@ fn parse_ansi_code_block(block: &[u8]) -> Vec<AnsiCode> {
 
 fn remove_ansi_codes(line: &str) -> String {
     ANSI_REGEX.replace_all(line, "").to_string()
+}
+
+fn plain_prefix_grapheme_count(plain_line: &str, byte_end: usize) -> usize {
+    let end = byte_end.min(plain_line.len());
+    plain_line[..end].graphemes(true).count()
 }
