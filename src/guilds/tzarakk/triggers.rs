@@ -1,7 +1,7 @@
 use crate::ansi::{AnsiCode, StyledLine};
 use crate::automation::Action;
-use crate::guilds::tzarakk::{DISMOUNTED_FLAG, MOUNT_SUMMONED_FLAG, TZARAKK_MOUNT_VAR};
 use crate::guilds::TzarakkGuild;
+use crate::guilds::tzarakk::{DISMOUNTED_FLAG, MOUNT_SUMMONED_FLAG, TZARAKK_MOUNT_VAR};
 use crate::triggers::{Trigger, TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -160,7 +160,9 @@ impl TzarakkGuild {
                 .get_var(TZARAKK_MOUNT_VAR)
                 .cloned()
                 .unwrap_or_else(|| "Vedir".to_string());
-            output.actions.push(Action::Send(format!("@mount {}", mount)));
+            output
+                .actions
+                .push(Action::Send(format!("@mount {}", mount)));
         }
         output
     }
@@ -450,7 +452,8 @@ mod tests {
         let mut stats = Stats::default();
         let mut automation = Automation::new();
         let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("You manage to hit your foe with a powerful strike as you pass by.");
+        let mut line =
+            StyledLine::new("You manage to hit your foe with a powerful strike as you pass by.");
 
         TzarakkGuild::charge_result_trigger(&mut ctx, &mut line);
 
@@ -463,7 +466,9 @@ mod tests {
         let mut automation = Automation::new();
         automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
         let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("A bizarre mist starts to form itself rapidly, and within moments a dark morbid");
+        let mut line = StyledLine::new(
+            "A bizarre mist starts to form itself rapidly, and within moments a dark morbid",
+        );
 
         let output = TzarakkGuild::steed_summoned_trigger(&mut ctx, &mut line);
 

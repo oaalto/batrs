@@ -10,7 +10,10 @@ impl TzarakkGuild {
             ("ut".to_string(), Self::use_trample as Command),
             ("ur".to_string(), Self::use_rampage as Command),
             ("cs".to_string(), Self::use_charge as Command),
-            ("uht".to_string(), Self::use_create_hunting_trophy as Command),
+            (
+                "uht".to_string(),
+                Self::use_create_hunting_trophy as Command,
+            ),
             ("uhs".to_string(), Self::use_harvest_soul as Command),
             // Spells
             ("cpc".to_string(), Self::cast_preserve_corpse as Command),
@@ -27,24 +30,15 @@ impl TzarakkGuild {
     }
 
     // Skill handlers
-    pub fn use_trample(
-        data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+    pub fn use_trample(data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
         Some(use_skill("trample", data))
     }
 
-    pub fn use_rampage(
-        data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+    pub fn use_rampage(data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
         Some(use_skill("rampage", data))
     }
 
-    pub fn use_charge(
-        data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+    pub fn use_charge(data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
         Some(use_skill("charge", data))
     }
 
@@ -92,10 +86,7 @@ impl TzarakkGuild {
         Some("@dismount;use meditation".to_string())
     }
 
-    pub fn do_sleep(
-        _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+    pub fn do_sleep(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
         Some("@dismount;sleep".to_string())
     }
 
@@ -111,14 +102,20 @@ impl TzarakkGuild {
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@rip_action set get all from corpse;use harvest soul at corpse;drop zinc;drop mowgles".to_string())
+        Some(
+            "@rip_action set get all from corpse;use harvest soul at corpse;drop zinc;drop mowgles"
+                .to_string(),
+        )
     }
 
     pub fn set_hunt_mode(
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@rip_action set get all from corpse;tzarakk chaosfeed corpse;drop zinc;drop mowgles".to_string())
+        Some(
+            "@rip_action set get all from corpse;tzarakk chaosfeed corpse;drop zinc;drop mowgles"
+                .to_string(),
+        )
     }
 }
 
@@ -164,7 +161,10 @@ mod tests {
     #[test]
     fn create_hunting_trophy() {
         let result = TzarakkGuild::use_create_hunting_trophy(&data("uht", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@use create hunting trophy at corpse".to_string()));
+        assert_eq!(
+            result,
+            Some("@use create hunting trophy at corpse".to_string())
+        );
     }
 
     #[test]

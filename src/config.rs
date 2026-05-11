@@ -205,7 +205,8 @@ impl ConfigManager {
             "rig" => player.settings.rig = value.to_string(),
             "tzarakk_mount" => player.settings.tzarakk_mount = value.to_string(),
             _ => {
-                player.settings
+                player
+                    .settings
                     .extra
                     .insert(key.to_string(), value.to_string());
             }
