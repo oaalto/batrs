@@ -38,6 +38,8 @@ pub struct PlayerToml {
 pub struct SettingsTable {
     #[serde(default)]
     pub rig: String,
+    #[serde(default)]
+    pub tzarakk_mount: String,
     #[serde(flatten)]
     pub extra: HashMap<String, String>,
 }
@@ -80,10 +82,16 @@ struct SettingDefinition {
     default: &'static str,
 }
 
-const SETTINGS_DEFS: &[SettingDefinition] = &[SettingDefinition {
-    key: "rig",
-    default: "",
-}];
+const SETTINGS_DEFS: &[SettingDefinition] = &[
+    SettingDefinition {
+        key: "rig",
+        default: "",
+    },
+    SettingDefinition {
+        key: "tzarakk_mount",
+        default: "",
+    },
+];
 
 #[derive(Debug, Default)]
 pub struct ConfigManager {
@@ -179,6 +187,33 @@ impl ConfigManager {
         persist_player_to_path(path, player)
     }
 
+    pub fn save_user_setting(&mut self, key: &str, value: &str) -> io::Result<()> {
+        let Some(path) = self.user_config_path.as_ref() else {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "user config path not set",
+            ));
+        };
+        let Some(player) = self.player_config.as_mut() else {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "player config not loaded",
+            ));
+        };
+
+        match key {
+            "rig" => player.settings.rig = value.to_string(),
+            "tzarakk_mount" => player.settings.tzarakk_mount = value.to_string(),
+            _ => {
+                player.settings
+                    .extra
+                    .insert(key.to_string(), value.to_string());
+            }
+        }
+
+        persist_player_to_path(path, player)
+    }
+
     pub fn save_user_settings(&mut self, settings: &UserSettings) -> io::Result<()> {
         let Some(path) = self.user_config_path.as_ref() else {
             return Err(io::Error::new(
@@ -250,6 +285,10 @@ fn player_to_user_settings(player: &PlayerToml) -> UserSettings {
         key: "rig".to_string(),
         value: player.settings.rig.clone(),
     });
+    entries.push(SettingEntry {
+        key: "tzarakk_mount".to_string(),
+        value: player.settings.tzarakk_mount.clone(),
+    });
     let mut keys: Vec<String> = player.settings.extra.keys().cloned().collect();
     keys.sort();
     for key in keys {
@@ -265,15 +304,22 @@ fn player_to_user_settings(player: &PlayerToml) -> UserSettings {
 
 fn settings_table_from_entries(entries: &[SettingEntry]) -> SettingsTable {
     let mut rig = String::new();
+    let mut tzarakk_mount = String::new();
     let mut extra = HashMap::new();
     for entry in entries {
         if entry.key == "rig" {
             rig.clone_from(&entry.value);
+        } else if entry.key == "tzarakk_mount" {
+            tzarakk_mount.clone_from(&entry.value);
         } else {
             extra.insert(entry.key.clone(), entry.value.clone());
         }
     }
-    SettingsTable { rig, extra }
+    SettingsTable {
+        rig,
+        tzarakk_mount,
+        extra,
+    }
 }
 
 fn normalize_player_config(player: &mut PlayerToml) -> bool {
@@ -482,12 +528,44 @@ mod tests {
             guilds: Some(vec!["reaver".to_string(), "monk".to_string()]),
             settings: SettingsTable {
                 rig: "bag".to_string(),
+                tzarakk_mount: String::new(),
                 extra: HashMap::from([("note".to_string(), "hello".to_string())]),
             },
         };
         let text = toml::to_string_pretty(&original).unwrap();
         let parsed: PlayerToml = toml::from_str(&text).unwrap();
         assert_eq!(parsed, original);
+    }
+
+    #[test]
+    fn serde_roundtrip_tzarakk_mount() {
+        let original = PlayerToml {
+            guilds: Some(vec!["tzarakk".to_string()]),
+            settings: SettingsTable {
+                rig: "satchel".to_string(),
+                tzarakk_mount: "Vedir".to_string(),
+                extra: HashMap::new(),
+            },
+        };
+        let text = toml::to_string_pretty(&original).unwrap();
+        let parsed: PlayerToml = toml::from_str(&text).unwrap();
+        assert_eq!(parsed, original);
+        assert_eq!(parsed.settings.tzarakk_mount, "Vedir");
+    }
+
+    #[test]
+    fn player_to_user_settings_includes_tzarakk_mount() {
+        let player = PlayerToml {
+            guilds: None,
+            settings: SettingsTable {
+                rig: "bag".to_string(),
+                tzarakk_mount: "Orthos".to_string(),
+                extra: HashMap::new(),
+            },
+        };
+        let settings = player_to_user_settings(&player);
+        assert_eq!(settings.get("rig"), Some("bag"));
+        assert_eq!(settings.get("tzarakk_mount"), Some("Orthos"));
     }
 
     #[test]
