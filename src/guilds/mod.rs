@@ -1,6 +1,7 @@
 mod animist;
 mod disciple;
 mod monk;
+mod ranger;
 mod reaver;
 mod riftwalker;
 mod tiger;
@@ -9,6 +10,7 @@ mod tzarakk;
 pub use animist::AnimistGuild;
 pub use disciple::DiscipleGuild;
 pub use monk::MonkGuild;
+pub use ranger::RangerGuild;
 pub use reaver::ReaverGuild;
 pub use riftwalker::RiftwalkerGuild;
 pub use tiger::TigerGuild;
@@ -61,6 +63,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             key: "riftwalker",
             name: "Riftwalker",
         },
+        GuildDefinition {
+            key: "ranger",
+            name: "Ranger",
+        },
     ]
 }
 
@@ -92,6 +98,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "riftwalker" {
             guilds.push(Box::new(RiftwalkerGuild::default()));
+        }
+        if key.as_str() == "ranger" {
+            guilds.push(Box::new(RangerGuild::default()));
         }
     }
 
@@ -205,6 +214,19 @@ mod tests {
         );
 
         let guilds = build_guilds(&["riftwalker".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn ranger_is_registered_and_builds() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| definition.key == "ranger" && definition.name == "Ranger")
+        );
+
+        let guilds = build_guilds(&["ranger".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
