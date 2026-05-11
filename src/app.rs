@@ -6,7 +6,8 @@ mod telnet_buffer;
 
 use crate::ansi::StyledLine;
 use crate::automation::{Action, Automation};
-use crate::config::{ConfigManager, SettingEntry, UserSettings};
+use crate::config::{ConfigManager, GenericCommandsConfig, SettingEntry, UserSettings};
+use crate::generic_commands::{GenericCommandGroup, GenericCommands};
 use crate::guilds::{Guild, build_guilds, default_guild_keys, guild_definitions};
 use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
@@ -40,6 +41,8 @@ pub struct BatApp {
     user_config_loaded: bool,
     user_rig: Option<String>,
     guild_dialog: Option<GuildDialog>,
+    generic_commands: GenericCommands,
+    generic_commands_dialog: Option<GenericCommandsDialog>,
     settings_dialog: Option<SettingsDialog>,
     player_logger: Option<PlayerLogger>,
 }
@@ -74,6 +77,8 @@ impl BatApp {
             user_config_loaded: false,
             user_rig: None,
             guild_dialog: None,
+            generic_commands: GenericCommands::default(),
+            generic_commands_dialog: None,
             settings_dialog: None,
             player_logger: PlayerLogger::new().ok(),
         };
@@ -148,6 +153,10 @@ impl BatApp {
             self.handle_guild_dialog_event(event);
             return;
         }
+        if self.generic_commands_dialog.is_some() {
+            self.handle_generic_commands_dialog_event(event);
+            return;
+        }
         if self.settings_dialog.is_some() {
             self.handle_settings_dialog_event(event);
             return;
@@ -208,8 +217,14 @@ impl BatApp {
             clock: show_clock(),
             input_text,
             cursor_offset: self.input.cursor_offset(hide_input),
-            show_cursor: self.guild_dialog.is_none() && self.settings_dialog.is_none(),
+            show_cursor: self.guild_dialog.is_none()
+                && self.generic_commands_dialog.is_none()
+                && self.settings_dialog.is_none(),
             guild_dialog: self.guild_dialog.as_ref().map(|dialog| dialog.view_model()),
+            generic_commands_dialog: self
+                .generic_commands_dialog
+                .as_ref()
+                .map(|dialog| dialog.view_model()),
             settings_dialog: self
                 .settings_dialog
                 .as_ref()
@@ -228,13 +243,21 @@ impl BatApp {
 
             if input.starts_with('/') {
                 let mut ctx = command::CommandContext::new(self.automation.snapshot_flags(), false);
-                let outcome = command::process(&input, &mut ctx, &self.selected_guilds);
+                let outcome = command::process(
+                    &input,
+                    &mut ctx,
+                    &self.selected_guilds,
+                    &self.generic_commands,
+                );
                 if outcome.should_quit {
                     self.should_quit = true;
                     return;
                 }
                 if outcome.open_guilds_dialog {
                     self.open_guilds_dialog();
+                }
+                if outcome.open_generic_commands_dialog {
+                    self.open_generic_commands_dialog();
                 }
                 if outcome.open_settings_dialog {
                     self.open_settings_dialog();
@@ -267,6 +290,7 @@ impl BatApp {
             self.input.displayed_input(),
             &mut ctx,
             &self.selected_guilds,
+            &self.generic_commands,
         );
 
         if outcome.should_quit {
@@ -276,6 +300,9 @@ impl BatApp {
 
         if outcome.open_guilds_dialog {
             self.open_guilds_dialog();
+        }
+        if outcome.open_generic_commands_dialog {
+            self.open_generic_commands_dialog();
         }
         if outcome.open_settings_dialog {
             self.open_settings_dialog();
@@ -496,6 +523,74 @@ impl BatApp {
         }
     }
 
+    fn open_generic_commands_dialog(&mut self) {
+        if !self.session.is_logged_in() {
+            return;
+        }
+        if !self.user_config_loaded {
+            self.load_user_config();
+        }
+
+        // Load saved configuration
+        let config = self
+            .config_manager
+            .as_ref()
+            .map(|m| m.generic_commands_config())
+            .unwrap_or_default();
+
+        // Apply configuration to generic commands
+        self.generic_commands
+            .apply_config(&config.enabled_groups, &config.disabled_commands);
+
+        self.generic_commands_dialog = Some(GenericCommandsDialog::new(&self.generic_commands));
+    }
+
+    fn handle_generic_commands_dialog_event(&mut self, event: KeyEvent) {
+        let Some(dialog) = self.generic_commands_dialog.as_mut() else {
+            return;
+        };
+        match event.code {
+            KeyCode::Up => dialog.move_cursor(-1),
+            KeyCode::Down => dialog.move_cursor(1),
+            KeyCode::Char(' ') => dialog.toggle_selected(),
+            KeyCode::Esc => {
+                self.generic_commands_dialog = None;
+            }
+            KeyCode::Enter => {
+                let (enabled_groups, disabled_commands) = dialog.to_config();
+                self.generic_commands_dialog = None;
+                self.save_generic_commands(enabled_groups, disabled_commands);
+            }
+            _ => {}
+        }
+    }
+
+    fn save_generic_commands(
+        &mut self,
+        enabled_groups: Vec<String>,
+        disabled_commands: Vec<String>,
+    ) {
+        if !self.user_config_loaded {
+            self.load_user_config();
+        }
+        let Some(manager) = self.config_manager.as_mut() else {
+            return;
+        };
+
+        let config = GenericCommandsConfig {
+            enabled_groups,
+            disabled_commands,
+        };
+
+        // Update in-memory generic commands
+        self.generic_commands
+            .apply_config(&config.enabled_groups, &config.disabled_commands);
+
+        if let Err(e) = manager.save_generic_commands(&config) {
+            eprintln!("failed to save generic commands config: {e}");
+        }
+    }
+
     fn save_selected_guilds_with_mount(&mut self, keys: Vec<String>, mount_name: String) {
         if !self.user_config_loaded {
             self.load_user_config();
@@ -534,7 +629,7 @@ impl BatApp {
             eprintln!("logged in without a known player name; skipping user config");
             return;
         };
-        let (guild_keys, settings) = {
+        let (guild_keys, settings, generic_config) = {
             let Some(manager) = self.config_manager.as_mut() else {
                 return;
             };
@@ -549,7 +644,8 @@ impl BatApp {
                     std::process::exit(1);
                 }
             };
-            (manager.user_guilds(), settings)
+            let generic_config = manager.generic_commands_config();
+            (manager.user_guilds(), settings, generic_config)
         };
 
         if let Some(keys) = guild_keys {
@@ -571,6 +667,12 @@ impl BatApp {
                 self.automation.set_var("tzarakk_mount", mount.to_string());
             }
         }
+
+        // Apply generic commands configuration
+        self.generic_commands.apply_config(
+            &generic_config.enabled_groups,
+            &generic_config.disabled_commands,
+        );
     }
 }
 
@@ -646,6 +748,158 @@ impl SettingsDialog {
                     value: entry.value.clone(),
                 })
                 .collect(),
+            cursor: self.cursor,
+        }
+    }
+}
+
+struct GenericCommandsDialog {
+    /// Flattened list of items for navigation: (group_index, command_index)
+    /// where command_index is None for group rows
+    items: Vec<(usize, Option<usize>)>,
+    groups: Vec<GenericCommandGroup>,
+    cursor: usize,
+}
+
+impl GenericCommandsDialog {
+    fn new(generic: &GenericCommands) -> Self {
+        let mut items: Vec<(usize, Option<usize>)> = Vec::new();
+        let mut groups = Vec::new();
+
+        // Add "All" pseudo-item using usize::MAX as special marker
+        items.push((usize::MAX, None));
+
+        // Flatten groups and their commands
+        for (group_idx, group) in generic.groups.iter().enumerate() {
+            // Add group row
+            items.push((group_idx, None));
+            // Add command rows
+            for cmd_idx in 0..group.commands.len() {
+                items.push((group_idx, Some(cmd_idx)));
+            }
+            // Clone the group for internal state
+            groups.push(group.clone());
+        }
+
+        Self {
+            items,
+            groups,
+            cursor: 0,
+        }
+    }
+
+    fn move_cursor(&mut self, delta: i32) {
+        if self.items.is_empty() {
+            return;
+        }
+        let max = self.items.len().saturating_sub(1) as i32;
+        let next = (self.cursor as i32 + delta).clamp(0, max);
+        self.cursor = next as usize;
+    }
+
+    fn toggle_selected(&mut self) {
+        let Some((group_idx, cmd_idx)) = self.items.get(self.cursor).copied() else {
+            return;
+        };
+
+        if let Some(cmd_idx) = cmd_idx {
+            // Toggle individual command
+            if let Some(group) = self.groups.get_mut(group_idx)
+                && let Some(cmd) = group.commands.get_mut(cmd_idx)
+            {
+                cmd.enabled = !cmd.enabled;
+            }
+        } else if group_idx == usize::MAX {
+            // "All" pseudo-item - toggle all groups and commands
+            let all_enabled = self
+                .groups
+                .iter()
+                .all(|g| g.selection_state() == Some(true));
+            let new_state = !all_enabled;
+            for group in &mut self.groups {
+                for cmd in &mut group.commands {
+                    cmd.enabled = new_state;
+                }
+            }
+        } else {
+            // Group row - toggle all commands in this group
+            if let Some(group) = self.groups.get_mut(group_idx) {
+                let all_enabled = group.selection_state() == Some(true);
+                let new_state = !all_enabled;
+                for cmd in &mut group.commands {
+                    cmd.enabled = new_state;
+                }
+            }
+        }
+    }
+
+    fn to_config(&self) -> (Vec<String>, Vec<String>) {
+        // Groups that are fully enabled
+        let enabled_groups: Vec<String> = self
+            .groups
+            .iter()
+            .filter(|g| g.selection_state() == Some(true))
+            .map(|g| g.name.clone())
+            .collect();
+
+        // Individual disabled commands (when group is not fully disabled)
+        let disabled_commands: Vec<String> = self
+            .groups
+            .iter()
+            .flat_map(|g| {
+                g.commands
+                    .iter()
+                    .filter(|cmd| !cmd.enabled)
+                    .map(|cmd| cmd.alias.clone())
+            })
+            .collect();
+
+        (enabled_groups, disabled_commands)
+    }
+
+    fn view_model(&self) -> crate::ui::GenericCommandsDialogViewModel {
+        let view_items: Vec<crate::ui::GenericCommandViewModel> = self
+            .items
+            .iter()
+            .map(|(group_idx, cmd_idx)| {
+                if *group_idx == usize::MAX {
+                    // "All" pseudo-item
+                    let all_enabled = self
+                        .groups
+                        .iter()
+                        .all(|g| g.selection_state() == Some(true));
+                    crate::ui::GenericCommandViewModel {
+                        alias: "All Commands".to_string(),
+                        command: String::new(),
+                        selected: all_enabled,
+                        level: 0,
+                    }
+                } else if let Some(cmd_idx) = cmd_idx {
+                    // Command row
+                    let group = &self.groups[*group_idx];
+                    let cmd = &group.commands[*cmd_idx];
+                    crate::ui::GenericCommandViewModel {
+                        alias: cmd.alias.clone(),
+                        command: cmd.command.clone(),
+                        selected: cmd.enabled,
+                        level: 2,
+                    }
+                } else {
+                    // Group row
+                    let group = &self.groups[*group_idx];
+                    let state = group.selection_state();
+                    crate::ui::GenericCommandViewModel {
+                        alias: group.display_name.clone(),
+                        command: String::new(),
+                        selected: state.unwrap_or(false),
+                        level: 1,
+                    }
+                }
+            })
+            .collect();
+
+        crate::ui::GenericCommandsDialogViewModel {
+            items: view_items,
             cursor: self.cursor,
         }
     }

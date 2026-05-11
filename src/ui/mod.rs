@@ -16,6 +16,7 @@ pub struct ViewModel<'a> {
     pub cursor_offset: u16,
     pub show_cursor: bool,
     pub guild_dialog: Option<GuildDialogViewModel>,
+    pub generic_commands_dialog: Option<GenericCommandsDialogViewModel>,
     pub settings_dialog: Option<SettingsDialogViewModel>,
 }
 
@@ -39,6 +40,21 @@ pub struct SettingsDialogItem {
 
 pub struct SettingsDialogViewModel {
     pub items: Vec<SettingsDialogItem>,
+    pub cursor: usize,
+}
+
+/// View model for a generic command in the dialog
+pub struct GenericCommandViewModel {
+    pub alias: String,
+    pub command: String,
+    pub selected: bool,
+    /// Indentation level: 0 = "All", 1 = group, 2 = command
+    pub level: usize,
+}
+
+/// View model for the generic commands dialog
+pub struct GenericCommandsDialogViewModel {
+    pub items: Vec<GenericCommandViewModel>,
     pub cursor: usize,
 }
 
@@ -115,6 +131,9 @@ impl Renderer {
 
         if let Some(dialog) = &view.guild_dialog {
             render_guild_dialog(frame, dialog);
+        }
+        if let Some(dialog) = &view.generic_commands_dialog {
+            render_generic_commands_dialog(frame, dialog);
         }
         if let Some(dialog) = &view.settings_dialog {
             render_settings_dialog(frame, dialog);
@@ -246,6 +265,63 @@ fn render_settings_dialog(frame: &mut Frame<'_>, dialog: &SettingsDialogViewMode
     let instructions =
         Paragraph::new("Type: edit  Backspace: delete  Up/Down: move  Enter: save  Esc: cancel")
             .style(dialog_style);
+    frame.render_widget(instructions, chunks[1]);
+}
+
+fn render_generic_commands_dialog(frame: &mut Frame<'_>, dialog: &GenericCommandsDialogViewModel) {
+    let area = centered_rect(70, 70, frame.area());
+    frame.render_widget(Clear, area);
+
+    let dialog_style = Style::default().bg(Color::Black).fg(Color::White);
+    let background = Paragraph::new("").style(dialog_style);
+    frame.render_widget(background, area);
+
+    let block = Block::default()
+        .title("Generic Commands")
+        .borders(Borders::ALL)
+        .style(dialog_style);
+    frame.render_widget(&block, area);
+    let inner = block.inner(area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1), Constraint::Length(1)])
+        .split(inner);
+
+    let items = dialog
+        .items
+        .iter()
+        .map(|item| {
+            let indent = match item.level {
+                0 => "",
+                1 => "  ",
+                2 => "    ",
+                _ => "",
+            };
+            let marker = if item.selected { "[x]" } else { "[ ]" };
+            let text = if item.level == 0 {
+                format!("{indent}{marker} All Commands")
+            } else if item.level == 1 {
+                format!("{indent}{marker} {}", item.alias)
+            } else {
+                format!("{indent}{marker} {} → {}", item.alias, item.command)
+            };
+            ListItem::new(text)
+        })
+        .collect::<Vec<ListItem<'_>>>();
+
+    let list = List::new(items)
+        .highlight_symbol("> ")
+        .style(dialog_style)
+        .highlight_style(Style::default().bg(Color::DarkGray).fg(Color::White));
+    let mut state = ListState::default();
+    if !dialog.items.is_empty() {
+        state.select(Some(dialog.cursor.min(dialog.items.len() - 1)));
+    }
+    frame.render_stateful_widget(list, chunks[0], &mut state);
+
+    let instructions = Paragraph::new("Up/Down: move  Space: toggle  Enter: save  Esc: cancel")
+        .style(dialog_style);
     frame.render_widget(instructions, chunks[1]);
 }
 
