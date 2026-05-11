@@ -15,7 +15,10 @@ use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
 use crate::{command, triggers};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use dialogs::{GenericCommandsDialog, GuildDialog, SettingsDialog, apply_guild_dialog_keystroke};
+use dialogs::{
+    GenericCommandsDialog, GuildDialog, SettingsDialog, apply_guild_dialog_keystroke,
+    default_riftwalker_entity_labels,
+};
 use input_state::InputState;
 use libmudtelnet::events::TelnetEvents;
 use player_logger::PlayerLogger;
@@ -51,6 +54,27 @@ pub struct BatApp {
 }
 
 impl BatApp {
+    fn apply_riftwalker_entity_settings_to_automation(
+        automation: &mut Automation,
+        settings: &UserSettings,
+    ) {
+        const KEYS: [&str; 4] = [
+            "riftwalker_entity_fire",
+            "riftwalker_entity_air",
+            "riftwalker_entity_water",
+            "riftwalker_entity_earth",
+        ];
+        for key in KEYS {
+            let raw = settings.get(key).unwrap_or("");
+            let resolved = if raw.is_empty() {
+                "entity".to_string()
+            } else {
+                raw.to_string()
+            };
+            automation.set_var(key, resolved);
+        }
+    }
+
     pub fn new(event_receiver: Receiver<TelnetEvents>, command_sender: Sender<String>) -> Self {
         let config_manager = match ConfigManager::new() {
             Ok(mut manager) => {
@@ -407,6 +431,12 @@ impl BatApp {
         {
             self.automation.set_var("tzarakk_mount", mount.to_string());
         }
+
+        if let Some(manager) = self.config_manager.as_mut()
+            && let Ok(settings) = manager.user_settings()
+        {
+            Self::apply_riftwalker_entity_settings_to_automation(&mut self.automation, &settings);
+        }
     }
 
     fn open_guilds_dialog(&mut self) {
@@ -420,21 +450,45 @@ impl BatApp {
             .collect();
 
         // Load mount name from config
-        let mount_name = if self.user_config_loaded {
+        let (mount_name, riftwalker_entities) = if self.user_config_loaded {
             if let Some(manager) = self.config_manager.as_mut() {
                 if let Ok(settings) = manager.user_settings() {
-                    settings.get("tzarakk_mount").unwrap_or("").to_string()
+                    let mount = settings.get("tzarakk_mount").unwrap_or("").to_string();
+                    let riftwalker = [
+                        settings
+                            .get("riftwalker_entity_fire")
+                            .unwrap_or("")
+                            .to_string(),
+                        settings
+                            .get("riftwalker_entity_air")
+                            .unwrap_or("")
+                            .to_string(),
+                        settings
+                            .get("riftwalker_entity_water")
+                            .unwrap_or("")
+                            .to_string(),
+                        settings
+                            .get("riftwalker_entity_earth")
+                            .unwrap_or("")
+                            .to_string(),
+                    ];
+                    (mount, riftwalker)
                 } else {
-                    String::new()
+                    (String::new(), default_riftwalker_entity_labels())
                 }
             } else {
-                String::new()
+                (String::new(), default_riftwalker_entity_labels())
             }
         } else {
-            String::new()
+            (String::new(), default_riftwalker_entity_labels())
         };
 
-        self.guild_dialog = Some(GuildDialog::new(definitions, selected, mount_name));
+        self.guild_dialog = Some(GuildDialog::new(
+            definitions,
+            selected,
+            mount_name,
+            riftwalker_entities,
+        ));
     }
 
     fn open_settings_dialog(&mut self) {
@@ -470,9 +524,10 @@ impl BatApp {
             KeyCode::Enter => {
                 let keys = dialog.selected_keys();
                 let mount_name = dialog.mount_name();
+                let riftwalker_entities = dialog.riftwalker_entity_labels();
                 self.guild_dialog = None;
                 self.apply_selected_guilds(keys.clone());
-                self.save_selected_guilds_with_mount(keys, mount_name);
+                self.save_selected_guilds_with_auxiliary(keys, mount_name, riftwalker_entities);
             }
             _ => {
                 apply_guild_dialog_keystroke(dialog, event);
@@ -574,7 +629,12 @@ impl BatApp {
         }
     }
 
-    fn save_selected_guilds_with_mount(&mut self, keys: Vec<String>, mount_name: String) {
+    fn save_selected_guilds_with_auxiliary(
+        &mut self,
+        keys: Vec<String>,
+        mount_name: String,
+        riftwalker_entity_labels: [String; 4],
+    ) {
         if !self.user_config_loaded {
             self.load_user_config();
         }
@@ -590,6 +650,22 @@ impl BatApp {
         // Save mount name
         if let Err(e) = manager.save_user_setting("tzarakk_mount", &mount_name) {
             eprintln!("failed to save tzarakk mount name: {e}");
+        }
+
+        let riftwalker_keys = [
+            "riftwalker_entity_fire",
+            "riftwalker_entity_air",
+            "riftwalker_entity_water",
+            "riftwalker_entity_earth",
+        ];
+        for (label_key, raw) in riftwalker_keys.iter().zip(riftwalker_entity_labels.iter()) {
+            if let Err(err) = manager.save_user_setting(label_key, raw) {
+                eprintln!("failed to save {label_key}: {err}");
+            }
+        }
+
+        if let Ok(settings) = manager.user_settings() {
+            Self::apply_riftwalker_entity_settings_to_automation(&mut self.automation, &settings);
         }
     }
 
@@ -645,6 +721,8 @@ impl BatApp {
             {
                 self.automation.set_var("tzarakk_mount", mount.to_string());
             }
+
+            Self::apply_riftwalker_entity_settings_to_automation(&mut self.automation, &settings);
         }
 
         // Apply generic commands configuration

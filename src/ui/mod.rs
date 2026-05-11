@@ -25,12 +25,22 @@ pub struct GuildDialogItem {
     pub selected: bool,
 }
 
+pub struct RiftwalkerEntityRowVm {
+    pub title: &'static str,
+    pub value: String,
+    pub cursor: usize,
+    pub active_row: bool,
+}
+
 pub struct GuildDialogViewModel {
     pub items: Vec<GuildDialogItem>,
     pub cursor: usize,
     pub mount_name: String,
     pub show_mount_input: bool,
     pub mount_input_cursor: usize,
+    pub mount_input_focused: bool,
+    pub show_riftwalker_entity_inputs: bool,
+    pub riftwalker_rows: Vec<RiftwalkerEntityRowVm>,
 }
 
 pub struct SettingsDialogItem {
@@ -142,6 +152,8 @@ impl Renderer {
 }
 
 fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
+    use ratatui::style::Modifier;
+
     let area = centered_rect(60, 60, frame.area());
     frame.render_widget(Clear, area);
 
@@ -156,24 +168,21 @@ fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
     frame.render_widget(&block, area);
     let inner = block.inner(area);
 
-    // Adjust constraints based on whether mount input is shown
-    let constraints = if dialog.show_mount_input {
-        vec![
-            Constraint::Min(1),    // guild list
-            Constraint::Length(3), // mount name input
-            Constraint::Length(1), // instructions
-        ]
-    } else {
-        vec![
-            Constraint::Min(1),    // guild list
-            Constraint::Length(1), // instructions
-        ]
-    };
+    let mut constraints: Vec<Constraint> = vec![Constraint::Min(1)];
+    if dialog.show_mount_input {
+        constraints.push(Constraint::Length(3));
+    }
+    if dialog.show_riftwalker_entity_inputs {
+        constraints.push(Constraint::Length(8));
+    }
+    constraints.push(Constraint::Length(2));
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(constraints)
         .split(inner);
+
+    let mut chunk_index = 0usize;
 
     let items = dialog
         .items
@@ -192,20 +201,19 @@ fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
     if !dialog.items.is_empty() {
         state.select(Some(dialog.cursor.min(dialog.items.len() - 1)));
     }
-    frame.render_stateful_widget(list, chunks[0], &mut state);
+    frame.render_stateful_widget(list, chunks[chunk_index], &mut state);
+    chunk_index += 1;
 
-    // Render mount name input if Tzarakk is selected
     if dialog.show_mount_input {
         let mount_block = Block::default()
             .title("Mount Name (for Tzarakk)")
             .borders(Borders::ALL)
             .style(dialog_style);
         let mount_input = Paragraph::new(dialog.mount_name.clone()).block(mount_block.clone());
-        frame.render_widget(mount_input, chunks[1]);
+        frame.render_widget(mount_input, chunks[chunk_index]);
 
-        // Show cursor in mount name field
-        let mount_inner = mount_block.inner(chunks[1]);
-        if mount_inner.width > 0 && mount_inner.height > 0 {
+        let mount_inner = mount_block.inner(chunks[chunk_index]);
+        if dialog.mount_input_focused && mount_inner.width > 0 && mount_inner.height > 0 {
             let cursor_offset = dialog
                 .mount_input_cursor
                 .min(mount_inner.width as usize - 1) as u16;
@@ -213,17 +221,60 @@ fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
             let cursor_y = mount_inner.y;
             frame.set_cursor_position((cursor_x, cursor_y));
         }
-
-        let instructions = Paragraph::new(
-            "Up/Down: move  Space: toggle  Tab: mount focus  Type: mount name  Enter: save  Esc: cancel",
-        )
-        .style(dialog_style);
-        frame.render_widget(instructions, chunks[2]);
-    } else {
-        let instructions = Paragraph::new("Up/Down: move  Space: toggle  Enter: save  Esc: cancel")
-            .style(dialog_style);
-        frame.render_widget(instructions, chunks[1]);
+        chunk_index += 1;
     }
+
+    if dialog.show_riftwalker_entity_inputs {
+        let entities_block = Block::default()
+            .title("Riftwalker entities")
+            .borders(Borders::ALL)
+            .style(dialog_style);
+        let entity_area = chunks[chunk_index];
+        frame.render_widget(entities_block.clone(), entity_area);
+        let inner_entities = entities_block.inner(entity_area);
+        let row_rects = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+            ])
+            .split(inner_entities);
+
+        for (row_vm, row_chunk) in dialog.riftwalker_rows.iter().zip(row_rects.iter()) {
+            let label = format!("{:<5}: ", row_vm.title);
+            let row_style = if row_vm.active_row {
+                dialog_style.add_modifier(Modifier::REVERSED)
+            } else {
+                dialog_style
+            };
+            let paragraph = Paragraph::new(format!("{}{}", label, row_vm.value)).style(row_style);
+            frame.render_widget(paragraph, *row_chunk);
+
+            if row_vm.active_row && row_chunk.width > 0 {
+                let label_display_len: u16 = label.chars().count() as u16;
+                let value_width = row_chunk.width.saturating_sub(label_display_len);
+                let cx = (row_vm.cursor as u16).min(value_width.saturating_sub(1));
+                let cursor_x = row_chunk
+                    .x
+                    .saturating_add(label_display_len)
+                    .saturating_add(cx);
+                let cursor_y = row_chunk.y;
+                frame.set_cursor_position((cursor_x, cursor_y));
+            }
+        }
+        chunk_index += 1;
+    }
+
+    let help = concat!(
+        "Up/Down: move or row  Space: toggle guild  Tab / Shift+Tab: next field  ",
+        "Type: edit  Enter: save  Esc: cancel"
+    );
+    let instructions = Paragraph::new(help)
+        .wrap(Wrap { trim: true })
+        .style(dialog_style);
+    frame.render_widget(instructions, chunks[chunk_index]);
 }
 
 fn render_settings_dialog(frame: &mut Frame<'_>, dialog: &SettingsDialogViewModel) {

@@ -50,6 +50,14 @@ pub struct SettingsTable {
     pub rig: String,
     #[serde(default)]
     pub tzarakk_mount: String,
+    #[serde(default)]
+    pub riftwalker_entity_fire: String,
+    #[serde(default)]
+    pub riftwalker_entity_air: String,
+    #[serde(default)]
+    pub riftwalker_entity_water: String,
+    #[serde(default)]
+    pub riftwalker_entity_earth: String,
     #[serde(flatten)]
     pub extra: HashMap<String, String>,
 }
@@ -99,6 +107,22 @@ const SETTINGS_DEFS: &[SettingDefinition] = &[
     },
     SettingDefinition {
         key: "tzarakk_mount",
+        default: "",
+    },
+    SettingDefinition {
+        key: "riftwalker_entity_fire",
+        default: "",
+    },
+    SettingDefinition {
+        key: "riftwalker_entity_air",
+        default: "",
+    },
+    SettingDefinition {
+        key: "riftwalker_entity_water",
+        default: "",
+    },
+    SettingDefinition {
+        key: "riftwalker_entity_earth",
         default: "",
     },
 ];
@@ -214,6 +238,14 @@ impl ConfigManager {
         match key {
             "rig" => player.settings.rig = value.to_string(),
             "tzarakk_mount" => player.settings.tzarakk_mount = value.to_string(),
+            "riftwalker_entity_fire" => player.settings.riftwalker_entity_fire = value.to_string(),
+            "riftwalker_entity_air" => player.settings.riftwalker_entity_air = value.to_string(),
+            "riftwalker_entity_water" => {
+                player.settings.riftwalker_entity_water = value.to_string()
+            }
+            "riftwalker_entity_earth" => {
+                player.settings.riftwalker_entity_earth = value.to_string()
+            }
             _ => {
                 player
                     .settings
@@ -316,15 +348,32 @@ fn migrate_legacy_config(raw: &str) -> Result<PlayerToml, SettingsError> {
 }
 
 fn player_to_user_settings(player: &PlayerToml) -> UserSettings {
-    let mut entries = Vec::new();
-    entries.push(SettingEntry {
-        key: "rig".to_string(),
-        value: player.settings.rig.clone(),
-    });
-    entries.push(SettingEntry {
-        key: "tzarakk_mount".to_string(),
-        value: player.settings.tzarakk_mount.clone(),
-    });
+    let mut entries = vec![
+        SettingEntry {
+            key: "rig".to_string(),
+            value: player.settings.rig.clone(),
+        },
+        SettingEntry {
+            key: "tzarakk_mount".to_string(),
+            value: player.settings.tzarakk_mount.clone(),
+        },
+        SettingEntry {
+            key: "riftwalker_entity_fire".to_string(),
+            value: player.settings.riftwalker_entity_fire.clone(),
+        },
+        SettingEntry {
+            key: "riftwalker_entity_air".to_string(),
+            value: player.settings.riftwalker_entity_air.clone(),
+        },
+        SettingEntry {
+            key: "riftwalker_entity_water".to_string(),
+            value: player.settings.riftwalker_entity_water.clone(),
+        },
+        SettingEntry {
+            key: "riftwalker_entity_earth".to_string(),
+            value: player.settings.riftwalker_entity_earth.clone(),
+        },
+    ];
     let mut keys: Vec<String> = player.settings.extra.keys().cloned().collect();
     keys.sort();
     for key in keys {
@@ -341,12 +390,24 @@ fn player_to_user_settings(player: &PlayerToml) -> UserSettings {
 fn settings_table_from_entries(entries: &[SettingEntry]) -> SettingsTable {
     let mut rig = String::new();
     let mut tzarakk_mount = String::new();
+    let mut riftwalker_entity_fire = String::new();
+    let mut riftwalker_entity_air = String::new();
+    let mut riftwalker_entity_water = String::new();
+    let mut riftwalker_entity_earth = String::new();
     let mut extra = HashMap::new();
     for entry in entries {
         if entry.key == "rig" {
             rig.clone_from(&entry.value);
         } else if entry.key == "tzarakk_mount" {
             tzarakk_mount.clone_from(&entry.value);
+        } else if entry.key == "riftwalker_entity_fire" {
+            riftwalker_entity_fire.clone_from(&entry.value);
+        } else if entry.key == "riftwalker_entity_air" {
+            riftwalker_entity_air.clone_from(&entry.value);
+        } else if entry.key == "riftwalker_entity_water" {
+            riftwalker_entity_water.clone_from(&entry.value);
+        } else if entry.key == "riftwalker_entity_earth" {
+            riftwalker_entity_earth.clone_from(&entry.value);
         } else {
             extra.insert(entry.key.clone(), entry.value.clone());
         }
@@ -354,6 +415,10 @@ fn settings_table_from_entries(entries: &[SettingEntry]) -> SettingsTable {
     SettingsTable {
         rig,
         tzarakk_mount,
+        riftwalker_entity_fire,
+        riftwalker_entity_air,
+        riftwalker_entity_water,
+        riftwalker_entity_earth,
         extra,
     }
 }
@@ -565,6 +630,10 @@ mod tests {
             settings: SettingsTable {
                 rig: "bag".to_string(),
                 tzarakk_mount: String::new(),
+                riftwalker_entity_fire: String::new(),
+                riftwalker_entity_air: String::new(),
+                riftwalker_entity_water: String::new(),
+                riftwalker_entity_earth: String::new(),
                 extra: HashMap::from([("note".to_string(), "hello".to_string())]),
             },
             generic_commands: GenericCommandsConfig::default(),
@@ -581,6 +650,10 @@ mod tests {
             settings: SettingsTable {
                 rig: "satchel".to_string(),
                 tzarakk_mount: "Vedir".to_string(),
+                riftwalker_entity_fire: String::new(),
+                riftwalker_entity_air: String::new(),
+                riftwalker_entity_water: String::new(),
+                riftwalker_entity_earth: String::new(),
                 extra: HashMap::new(),
             },
             generic_commands: GenericCommandsConfig::default(),
@@ -598,6 +671,10 @@ mod tests {
             settings: SettingsTable {
                 rig: "bag".to_string(),
                 tzarakk_mount: "Orthos".to_string(),
+                riftwalker_entity_fire: String::new(),
+                riftwalker_entity_air: String::new(),
+                riftwalker_entity_water: String::new(),
+                riftwalker_entity_earth: String::new(),
                 extra: HashMap::new(),
             },
             generic_commands: GenericCommandsConfig::default(),
@@ -605,6 +682,26 @@ mod tests {
         let settings = player_to_user_settings(&player);
         assert_eq!(settings.get("rig"), Some("bag"));
         assert_eq!(settings.get("tzarakk_mount"), Some("Orthos"));
+    }
+
+    #[test]
+    fn serde_roundtrip_riftwalker_entity_labels() {
+        let original = PlayerToml {
+            guilds: Some(vec!["riftwalker".to_string()]),
+            settings: SettingsTable {
+                rig: String::new(),
+                tzarakk_mount: String::new(),
+                riftwalker_entity_fire: String::new(),
+                riftwalker_entity_air: "wisp".to_string(),
+                riftwalker_entity_water: String::new(),
+                riftwalker_entity_earth: "pillar".to_string(),
+                extra: HashMap::new(),
+            },
+            generic_commands: GenericCommandsConfig::default(),
+        };
+        let text = toml::to_string_pretty(&original).unwrap();
+        let parsed: PlayerToml = toml::from_str(&text).unwrap();
+        assert_eq!(parsed, original);
     }
 
     #[test]
