@@ -1,19 +1,21 @@
+mod dialogs;
 mod input_state;
 mod output_buffer;
 mod player_logger;
 mod session_state;
 mod telnet_buffer;
+mod util;
 
 use crate::ansi::StyledLine;
 use crate::automation::{Action, Automation};
 use crate::config::{ConfigManager, GenericCommandsConfig, SettingEntry, UserSettings};
-use crate::generic_commands::{GenericCommandGroup, GenericCommands};
+use crate::generic_commands::GenericCommands;
 use crate::guilds::{Guild, build_guilds, guild_definitions};
 use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
 use crate::{command, triggers};
-use chrono::{DateTime, Local, Timelike};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use dialogs::{GenericCommandsDialog, GuildDialog, SettingsDialog, apply_guild_dialog_keystroke};
 use input_state::InputState;
 use libmudtelnet::events::TelnetEvents;
 use player_logger::PlayerLogger;
@@ -21,6 +23,7 @@ use ratatui::Frame;
 use ratatui::text::Line;
 use std::sync::mpsc::{Receiver, Sender};
 use telnet_buffer::TelnetBuffer;
+use util::{filter_known_guilds, show_clock};
 
 use output_buffer::OutputBuffer;
 use session_state::{LoginState, SessionState};
@@ -135,6 +138,7 @@ impl BatApp {
 
         self.output.append_lines(output_lines);
     }
+
     pub fn read_input(&mut self) {
         while let Ok(event) = self.event_receiver.try_recv() {
             let lines = self.telnet_buffer.handle_event(&event);
@@ -470,49 +474,8 @@ impl BatApp {
                 self.save_selected_guilds_with_mount(keys, mount_name);
             }
             _ => {
-                Self::apply_guild_dialog_keystroke(dialog, event);
+                apply_guild_dialog_keystroke(dialog, event);
             }
-        }
-    }
-
-    fn apply_guild_dialog_keystroke(dialog: &mut GuildDialog, event: KeyEvent) {
-        let text_modifiers_ok = !event.modifiers.contains(KeyModifiers::CONTROL)
-            && !event.modifiers.contains(KeyModifiers::ALT);
-        match event.code {
-            KeyCode::Up if !dialog.editing_mount => {
-                dialog.move_cursor(-1);
-            }
-            KeyCode::Down if !dialog.editing_mount => {
-                dialog.move_cursor(1);
-            }
-            KeyCode::Char(' ') if !dialog.editing_mount => {
-                dialog.toggle_selected();
-            }
-            KeyCode::Tab | KeyCode::BackTab | KeyCode::Char('\t') => {
-                dialog.toggle_edit_mount();
-            }
-            KeyCode::Char(c)
-                if text_modifiers_ok
-                    && dialog.is_tzarakk_selected()
-                    && !dialog.editing_mount
-                    && !c.is_control() =>
-            {
-                dialog.enter_mount_edit_mode();
-                dialog.insert_mount_char(c);
-            }
-            KeyCode::Char(c) if dialog.editing_mount && text_modifiers_ok => {
-                dialog.insert_mount_char(c);
-            }
-            KeyCode::Backspace if dialog.editing_mount => {
-                dialog.mount_backspace();
-            }
-            KeyCode::Left if dialog.editing_mount => {
-                dialog.mount_cursor_left();
-            }
-            KeyCode::Right if dialog.editing_mount => {
-                dialog.mount_cursor_right();
-            }
-            _ => {}
         }
     }
 
@@ -635,10 +598,6 @@ impl BatApp {
         }
     }
 
-    // TODO: keep around scroll position when manual scrolling is added.
-}
-
-impl BatApp {
     fn load_user_config(&mut self) {
         if self.user_config_loaded {
             return;
@@ -692,417 +651,5 @@ impl BatApp {
             &generic_config.enabled_groups,
             &generic_config.disabled_commands,
         );
-    }
-}
-
-fn show_clock() -> String {
-    let local: DateTime<Local> = Local::now();
-    format!(
-        "{:02}:{:02}:{:02}",
-        local.hour(),
-        local.minute(),
-        local.second()
-    )
-}
-
-fn filter_known_guilds(keys: Vec<String>) -> Vec<String> {
-    let definitions = guild_definitions();
-    keys.into_iter()
-        .filter(|key| definitions.iter().any(|def| def.key == key))
-        .collect()
-}
-
-struct GuildDialog {
-    definitions: Vec<crate::guilds::GuildDefinition>,
-    selected: Vec<bool>,
-    cursor: usize,
-    mount_name: String,
-    editing_mount: bool,
-    mount_cursor: usize,
-}
-
-struct SettingsDialog {
-    entries: Vec<SettingEntry>,
-    cursor: usize,
-}
-
-impl SettingsDialog {
-    fn new(entries: Vec<SettingEntry>) -> Self {
-        let cursor = 0;
-        Self { entries, cursor }
-    }
-
-    fn move_cursor(&mut self, delta: i32) {
-        if self.entries.is_empty() {
-            return;
-        }
-        let max = self.entries.len().saturating_sub(1) as i32;
-        let next = (self.cursor as i32 + delta).clamp(0, max);
-        self.cursor = next as usize;
-    }
-
-    fn insert_char(&mut self, c: char) {
-        if let Some(entry) = self.entries.get_mut(self.cursor) {
-            entry.value.push(c);
-        }
-    }
-
-    fn backspace(&mut self) {
-        if let Some(entry) = self.entries.get_mut(self.cursor) {
-            entry.value.pop();
-        }
-    }
-
-    fn entries(&self) -> Vec<SettingEntry> {
-        self.entries.clone()
-    }
-
-    fn view_model(&self) -> crate::ui::SettingsDialogViewModel {
-        crate::ui::SettingsDialogViewModel {
-            items: self
-                .entries
-                .iter()
-                .map(|entry| crate::ui::SettingsDialogItem {
-                    key: entry.key.clone(),
-                    value: entry.value.clone(),
-                })
-                .collect(),
-            cursor: self.cursor,
-        }
-    }
-}
-
-struct GenericCommandsDialog {
-    /// Flattened list of items for navigation: (group_index, command_index)
-    /// where command_index is None for group rows
-    items: Vec<(usize, Option<usize>)>,
-    groups: Vec<GenericCommandGroup>,
-    cursor: usize,
-}
-
-impl GenericCommandsDialog {
-    fn new(generic: &GenericCommands) -> Self {
-        let mut items: Vec<(usize, Option<usize>)> = Vec::new();
-        let mut groups = Vec::new();
-
-        // Add "All" pseudo-item using usize::MAX as special marker
-        items.push((usize::MAX, None));
-
-        // Flatten groups and their commands
-        for (group_idx, group) in generic.groups.iter().enumerate() {
-            // Add group row
-            items.push((group_idx, None));
-            // Add command rows
-            for cmd_idx in 0..group.commands.len() {
-                items.push((group_idx, Some(cmd_idx)));
-            }
-            // Clone the group for internal state
-            groups.push(group.clone());
-        }
-
-        Self {
-            items,
-            groups,
-            cursor: 0,
-        }
-    }
-
-    fn move_cursor(&mut self, delta: i32) {
-        if self.items.is_empty() {
-            return;
-        }
-        let max = self.items.len().saturating_sub(1) as i32;
-        let next = (self.cursor as i32 + delta).clamp(0, max);
-        self.cursor = next as usize;
-    }
-
-    fn toggle_selected(&mut self) {
-        let Some((group_idx, cmd_idx)) = self.items.get(self.cursor).copied() else {
-            return;
-        };
-
-        if let Some(cmd_idx) = cmd_idx {
-            // Toggle individual command
-            if let Some(group) = self.groups.get_mut(group_idx)
-                && let Some(cmd) = group.commands.get_mut(cmd_idx)
-            {
-                cmd.enabled = !cmd.enabled;
-            }
-        } else if group_idx == usize::MAX {
-            // "All" pseudo-item - toggle all groups and commands
-            let all_enabled = self
-                .groups
-                .iter()
-                .all(|g| g.selection_state() == Some(true));
-            let new_state = !all_enabled;
-            for group in &mut self.groups {
-                for cmd in &mut group.commands {
-                    cmd.enabled = new_state;
-                }
-            }
-        } else {
-            // Group row - toggle all commands in this group
-            if let Some(group) = self.groups.get_mut(group_idx) {
-                let all_enabled = group.selection_state() == Some(true);
-                let new_state = !all_enabled;
-                for cmd in &mut group.commands {
-                    cmd.enabled = new_state;
-                }
-            }
-        }
-    }
-
-    fn to_config(&self) -> (Vec<String>, Vec<String>) {
-        // Groups that are fully enabled
-        let enabled_groups: Vec<String> = self
-            .groups
-            .iter()
-            .filter(|g| g.selection_state() == Some(true))
-            .map(|g| g.name.clone())
-            .collect();
-
-        // Individual disabled commands (when group is not fully disabled)
-        let disabled_commands: Vec<String> = self
-            .groups
-            .iter()
-            .flat_map(|g| {
-                g.commands
-                    .iter()
-                    .filter(|cmd| !cmd.enabled)
-                    .map(|cmd| cmd.alias.clone())
-            })
-            .collect();
-
-        (enabled_groups, disabled_commands)
-    }
-
-    fn view_model(&self) -> crate::ui::GenericCommandsDialogViewModel {
-        let view_items: Vec<crate::ui::GenericCommandViewModel> = self
-            .items
-            .iter()
-            .map(|(group_idx, cmd_idx)| {
-                if *group_idx == usize::MAX {
-                    // "All" pseudo-item
-                    let all_enabled = self
-                        .groups
-                        .iter()
-                        .all(|g| g.selection_state() == Some(true));
-                    crate::ui::GenericCommandViewModel {
-                        alias: "All Commands".to_string(),
-                        command: String::new(),
-                        selected: all_enabled,
-                        level: 0,
-                    }
-                } else if let Some(cmd_idx) = cmd_idx {
-                    // Command row
-                    let group = &self.groups[*group_idx];
-                    let cmd = &group.commands[*cmd_idx];
-                    crate::ui::GenericCommandViewModel {
-                        alias: cmd.alias.clone(),
-                        command: cmd.command.clone(),
-                        selected: cmd.enabled,
-                        level: 2,
-                    }
-                } else {
-                    // Group row
-                    let group = &self.groups[*group_idx];
-                    let state = group.selection_state();
-                    crate::ui::GenericCommandViewModel {
-                        alias: group.display_name.clone(),
-                        command: String::new(),
-                        selected: state.unwrap_or(false),
-                        level: 1,
-                    }
-                }
-            })
-            .collect();
-
-        crate::ui::GenericCommandsDialogViewModel {
-            items: view_items,
-            cursor: self.cursor,
-        }
-    }
-}
-
-impl GuildDialog {
-    fn new(
-        definitions: Vec<crate::guilds::GuildDefinition>,
-        selected: Vec<bool>,
-        mount_name: String,
-    ) -> Self {
-        let mut selected = selected;
-        if selected.len() < definitions.len() {
-            selected.resize(definitions.len(), false);
-        }
-        let cursor = 0;
-        let mount_cursor = mount_name.len();
-        Self {
-            definitions,
-            selected,
-            cursor,
-            mount_name,
-            editing_mount: false,
-            mount_cursor,
-        }
-    }
-
-    fn move_cursor(&mut self, delta: i32) {
-        if self.definitions.is_empty() {
-            return;
-        }
-        let max = self.definitions.len().saturating_sub(1) as i32;
-        let next = (self.cursor as i32 + delta).clamp(0, max);
-        self.cursor = next as usize;
-    }
-
-    fn toggle_selected(&mut self) {
-        if let Some(selected) = self.selected.get_mut(self.cursor) {
-            *selected = !*selected;
-        }
-    }
-
-    fn selected_keys(&self) -> Vec<String> {
-        self.definitions
-            .iter()
-            .zip(self.selected.iter())
-            .filter_map(|(def, selected)| selected.then_some(def.key.to_string()))
-            .collect()
-    }
-
-    fn is_tzarakk_selected(&self) -> bool {
-        self.definitions
-            .iter()
-            .zip(self.selected.iter())
-            .any(|(def, sel)| def.key == "tzarakk" && *sel)
-    }
-
-    fn toggle_edit_mount(&mut self) {
-        if self.is_tzarakk_selected() {
-            self.editing_mount = !self.editing_mount;
-        } else {
-            self.editing_mount = false;
-        }
-    }
-
-    fn enter_mount_edit_mode(&mut self) {
-        if self.is_tzarakk_selected() {
-            self.editing_mount = true;
-        }
-    }
-
-    fn insert_mount_char(&mut self, c: char) {
-        if self.editing_mount {
-            self.mount_name.insert(self.mount_cursor, c);
-            self.mount_cursor += 1;
-        }
-    }
-
-    fn mount_backspace(&mut self) {
-        if self.editing_mount && self.mount_cursor > 0 {
-            self.mount_cursor -= 1;
-            self.mount_name.remove(self.mount_cursor);
-        }
-    }
-
-    fn mount_cursor_left(&mut self) {
-        if self.editing_mount && self.mount_cursor > 0 {
-            self.mount_cursor -= 1;
-        }
-    }
-
-    fn mount_cursor_right(&mut self) {
-        if self.editing_mount && self.mount_cursor < self.mount_name.len() {
-            self.mount_cursor += 1;
-        }
-    }
-
-    fn mount_name(&self) -> String {
-        self.mount_name.clone()
-    }
-
-    fn view_model(&self) -> crate::ui::GuildDialogViewModel {
-        crate::ui::GuildDialogViewModel {
-            items: self
-                .definitions
-                .iter()
-                .zip(self.selected.iter())
-                .map(|(def, selected)| crate::ui::GuildDialogItem {
-                    name: def.name.to_string(),
-                    selected: *selected,
-                })
-                .collect(),
-            cursor: self.cursor,
-            mount_name: self.mount_name.clone(),
-            show_mount_input: self.is_tzarakk_selected(),
-            mount_input_cursor: self.mount_cursor,
-        }
-    }
-}
-
-#[cfg(test)]
-mod guild_dialog_keystroke_tests {
-    use super::{BatApp, GuildDialog};
-    use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-
-    fn key_char(c: char) -> KeyEvent {
-        KeyEvent::new_with_kind(KeyCode::Char(c), KeyModifiers::empty(), KeyEventKind::Press)
-    }
-
-    fn dialog_tzarakk_only() -> GuildDialog {
-        let definitions = super::guild_definitions();
-        let selected = definitions
-            .iter()
-            .map(|definition| definition.key == "tzarakk")
-            .collect();
-        GuildDialog::new(definitions, selected, String::new())
-    }
-
-    #[test]
-    fn typing_mount_name_without_tab_when_tzarakk_selected_inserts_text() {
-        let mut dialog = dialog_tzarakk_only();
-        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('V'));
-        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('e'));
-        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('d'));
-        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('i'));
-        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('r'));
-        assert_eq!(dialog.mount_name(), "Vedir");
-    }
-
-    #[test]
-    fn printable_keys_ignored_for_mount_when_tzarakk_not_selected() {
-        let definitions = super::guild_definitions();
-        let count = definitions.len();
-        let mut dialog = GuildDialog::new(definitions, vec![false; count], String::new());
-        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('x'));
-        assert_eq!(dialog.mount_name(), "");
-    }
-
-    #[test]
-    fn ctrl_letter_does_not_insert_into_mount_when_not_editing() {
-        let mut dialog = dialog_tzarakk_only();
-        BatApp::apply_guild_dialog_keystroke(
-            &mut dialog,
-            KeyEvent::new_with_kind(
-                KeyCode::Char('v'),
-                KeyModifiers::CONTROL,
-                KeyEventKind::Press,
-            ),
-        );
-        assert_eq!(dialog.mount_name(), "");
-    }
-
-    #[test]
-    fn tab_char_toggle_mount_edit_when_tzarakk_selected() {
-        let mut dialog = dialog_tzarakk_only();
-        BatApp::apply_guild_dialog_keystroke(
-            &mut dialog,
-            KeyEvent::new_with_kind(
-                KeyCode::Char('\t'),
-                KeyModifiers::empty(),
-                KeyEventKind::Press,
-            ),
-        );
-        BatApp::apply_guild_dialog_keystroke(&mut dialog, key_char('Z'));
-        assert_eq!(dialog.mount_name(), "Z");
     }
 }
