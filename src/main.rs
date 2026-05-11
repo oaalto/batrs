@@ -26,6 +26,7 @@ mod app;
 mod automation;
 mod command;
 mod config;
+mod generic_commands;
 mod guilds;
 mod stats;
 mod triggers;
