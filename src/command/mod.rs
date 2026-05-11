@@ -1,3 +1,4 @@
+mod generic;
 mod guilds;
 mod quit;
 mod rig;
@@ -21,6 +22,10 @@ lazy_static! {
             CommandDef::new(guilds::run as Command, true),
         ),
         (
+            "/generic".to_string(),
+            CommandDef::new(generic::run as Command, true),
+        ),
+        (
             "/rig".to_string(),
             CommandDef::new(rig::run as Command, true),
         ),
@@ -31,9 +36,15 @@ lazy_static! {
     ]);
 }
 
-pub fn process(cmd: &str, ctx: &mut CommandContext, guilds: &[Box<dyn Guild>]) -> CommandOutcome {
+pub fn process(
+    cmd: &str,
+    ctx: &mut CommandContext,
+    guilds: &[Box<dyn Guild>],
+    generic: &crate::generic_commands::GenericCommands,
+) -> CommandOutcome {
     let data = Data::new(cmd);
     let guild_cmds: HashMap<String, Command> = guilds.iter().flat_map(|g| g.commands()).collect();
+    let generic_cmds = generic.commands();
 
     let send = if let Some(cmd) = COMMANDS.get(&data.cmd) {
         if cmd.requires_login && !ctx.logged_in {
@@ -42,6 +53,9 @@ pub fn process(cmd: &str, ctx: &mut CommandContext, guilds: &[Box<dyn Guild>]) -
             (cmd.handler)(&data, ctx)
         }
     } else if let Some(cmd) = guild_cmds.get(&data.cmd) {
+        cmd(&data, ctx)
+    } else if let Some(cmd) = generic_cmds.get(&data.cmd) {
+        // Generic commands checked AFTER guild commands
         cmd(&data, ctx)
     } else {
         Some(cmd.to_string())
@@ -73,6 +87,7 @@ pub struct CommandContext {
     pub automation_flags: HashMap<String, bool>,
     pub output_lines: Vec<StyledLine>,
     pub open_guilds_dialog: bool,
+    pub open_generic_commands_dialog: bool,
     pub open_settings_dialog: bool,
     pub logged_in: bool,
     pub set_rig: Option<String>,
@@ -86,6 +101,7 @@ impl CommandContext {
             automation_flags,
             output_lines: Vec::new(),
             open_guilds_dialog: false,
+            open_generic_commands_dialog: false,
             open_settings_dialog: false,
             logged_in,
             set_rig: None,
@@ -108,6 +124,10 @@ impl CommandContext {
         self.open_guilds_dialog = true;
     }
 
+    pub fn open_generic_commands_dialog(&mut self) {
+        self.open_generic_commands_dialog = true;
+    }
+
     pub fn open_settings_dialog(&mut self) {
         self.open_settings_dialog = true;
     }
@@ -123,7 +143,7 @@ pub struct Data {
 }
 
 impl Data {
-    fn new(line: &str) -> Self {
+    pub fn new(line: &str) -> Self {
         let index = line.find(' ').unwrap_or(line.len());
 
         Self {
@@ -139,6 +159,7 @@ pub struct CommandOutcome {
     pub automation_actions: Vec<Action>,
     pub output_lines: Vec<StyledLine>,
     pub open_guilds_dialog: bool,
+    pub open_generic_commands_dialog: bool,
     pub open_settings_dialog: bool,
     pub set_rig: Option<String>,
 }
@@ -151,6 +172,7 @@ impl CommandOutcome {
             automation_actions: mem::take(&mut ctx.automation_actions),
             output_lines: mem::take(&mut ctx.output_lines),
             open_guilds_dialog: ctx.open_guilds_dialog,
+            open_generic_commands_dialog: ctx.open_generic_commands_dialog,
             open_settings_dialog: ctx.open_settings_dialog,
             set_rig: ctx.set_rig.take(),
         }
@@ -160,6 +182,7 @@ impl CommandOutcome {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::generic_commands::GenericCommands;
     use crate::guilds::Guild;
     use std::collections::HashMap;
 
@@ -194,7 +217,8 @@ mod tests {
     #[test]
     fn process_handles_builtin_quit() {
         let mut ctx = CommandContext::new(HashMap::new(), false);
-        let outcome = process("/quit", &mut ctx, &[]);
+        let generic = GenericCommands::default();
+        let outcome = process("/quit", &mut ctx, &[], &generic);
 
         assert!(outcome.should_quit);
         assert!(outcome.send.is_none());
@@ -203,12 +227,13 @@ mod tests {
     #[test]
     fn process_respects_login_requirements() {
         let mut ctx = CommandContext::new(HashMap::new(), false);
-        let outcome = process("/guilds", &mut ctx, &[]);
+        let generic = GenericCommands::default();
+        let outcome = process("/guilds", &mut ctx, &[], &generic);
 
         assert!(!outcome.open_guilds_dialog);
 
         let mut ctx = CommandContext::new(HashMap::new(), true);
-        let outcome = process("/guilds", &mut ctx, &[]);
+        let outcome = process("/guilds", &mut ctx, &[], &generic);
 
         assert!(outcome.open_guilds_dialog);
     }
@@ -217,15 +242,31 @@ mod tests {
     fn process_runs_guild_commands() {
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
         let mut ctx = CommandContext::new(HashMap::new(), true);
-        let outcome = process("ping world", &mut ctx, &guilds);
+        let generic = GenericCommands::default();
+        let outcome = process("ping world", &mut ctx, &guilds, &generic);
 
+        assert_eq!(outcome.send, Some("pong world".to_string()));
+    }
+
+    #[test]
+    fn process_runs_generic_commands_after_guild() {
+        // Test that guild commands take priority over generic commands
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
+        let mut ctx = CommandContext::new(HashMap::new(), true);
+
+        // Create a generic command that would conflict with "ping" if it existed
+        let generic = GenericCommands::default();
+        let outcome = process("ping world", &mut ctx, &guilds, &generic);
+
+        // Guild command should win
         assert_eq!(outcome.send, Some("pong world".to_string()));
     }
 
     #[test]
     fn process_echoes_unknown_commands() {
         let mut ctx = CommandContext::new(HashMap::new(), true);
-        let outcome = process("some raw text", &mut ctx, &[]);
+        let generic = GenericCommands::default();
+        let outcome = process("some raw text", &mut ctx, &[], &generic);
 
         assert_eq!(outcome.send, Some("some raw text".to_string()));
     }
