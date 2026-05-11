@@ -1,6 +1,6 @@
 /load alias.tf
-;;/load batmud-tf-trigs/odefu.tf
-;;/load batmud-tf-trigs/fueryon.tf
+;;/load batmud-tf-trigs/done_odefu.tf
+;;/load batmud-tf-trigs/done_fueryon.tf
 /load batmud-tf-trigs/color_helpers.tf
 /load batmud-tf-trigs/status_line.tf
 /load batmud-tf-trigs/spellnames.tf

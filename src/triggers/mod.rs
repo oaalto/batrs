@@ -23,6 +23,8 @@ pub struct TriggerContext<'a> {
     pub stats: &'a mut Stats,
     pub automation: &'a mut Automation,
     pub rig: Option<&'a str>,
+    /// Logged-in character name; used for soul-companion combat lines and similar.
+    pub player_name: Option<&'a str>,
 }
 
 pub type Trigger = fn(ctx: &mut TriggerContext<'_>, styled_line: &mut StyledLine) -> TriggerOutput;

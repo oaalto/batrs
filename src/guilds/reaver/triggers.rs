@@ -271,6 +271,7 @@ mod tests {
             stats: &mut stats,
             automation: &mut automation,
             rig: None,
+            player_name: None,
         };
         let mut line = StyledLine::new("You speak the ancient Ruun 'kael'");
 
@@ -297,6 +298,7 @@ mod tests {
             stats: &mut stats,
             automation: &mut automation,
             rig: None,
+            player_name: None,
         };
         let mut line =
             StyledLine::new("You feel you have released 42 amount of destructive energy.");

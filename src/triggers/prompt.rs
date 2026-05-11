@@ -33,6 +33,7 @@ mod tests {
             stats: &mut stats,
             automation: &mut automation,
             rig: None,
+            player_name: None,
         };
         let mut line = StyledLine::new("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >");
 
@@ -53,6 +54,7 @@ mod tests {
             stats: &mut stats,
             automation: &mut automation,
             rig: None,
+            player_name: None,
         };
         let mut line = StyledLine::new("not a prompt");
 

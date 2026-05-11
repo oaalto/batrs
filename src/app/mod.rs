@@ -119,6 +119,7 @@ impl BatApp {
                     stats: &mut self.stats,
                     automation: &mut self.automation,
                     rig: self.user_rig.as_deref(),
+                    player_name: self.session.login_name(),
                 };
                 let result = triggers::process(&mut ctx, &self.selected_guilds, &mut styled_line);
                 self.apply_automation_actions(result.actions);

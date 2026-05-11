@@ -34,6 +34,7 @@ mod tests {
             stats: &mut stats,
             automation: &mut automation,
             rig: None,
+            player_name: None,
         };
         let line_text = "H:571/802 [+20] S:635/635 [] E:311/311 [] $:2786 [] exp:21657 []";
         let mut line = StyledLine::new(line_text);

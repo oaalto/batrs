@@ -3,6 +3,7 @@ use crate::automation::Action;
 use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
+use std::sync::{Arc, Mutex};
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Clone, Copy)]
@@ -337,6 +338,164 @@ fn push_rule(
         actions,
     });
     *order += 1;
+}
+
+static COMPANION_RULES_CACHE: Mutex<Option<(String, Arc<Vec<Rule>>)>> = Mutex::new(None);
+
+fn companion_rules_arc(name: &str) -> Arc<Vec<Rule>> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Arc::new(Vec::new());
+    }
+    let mut guard = COMPANION_RULES_CACHE.lock().unwrap();
+    if guard
+        .as_ref()
+        .is_some_and(|(stored, _)| stored.as_str() == trimmed)
+    {
+        return Arc::clone(&guard.as_ref().unwrap().1);
+    }
+    let built = Arc::new(build_companion_rules(trimmed));
+    *guard = Some((trimmed.to_string(), Arc::clone(&built)));
+    built
+}
+
+/// Soul-companion combat lines from TinyFugue `fueryon.tf` / `odefu.tf`, with the character name
+/// taken from the application instead of hardcoded Fueryon/Odefu.
+fn build_companion_rules(name: &str) -> Vec<Rule> {
+    let escaped = regex::escape(name);
+    const PRIORITY: i32 = 1000;
+    let mut rules = Vec::new();
+    let mut order = 0usize;
+
+    // "{name} hits <other> …" — attacker is the player character (green), count is group 2.
+    push_rule(
+        &mut rules,
+        &mut order,
+        RuleMatcher::Regex(
+            Regex::new(&format!(
+                r"^{} hits (.+) (?:once|twice|thrice|\d+ times) (.+)\.$",
+                escaped
+            ))
+            .unwrap(),
+        ),
+        PRIORITY,
+        None,
+        vec![tf_hilite("Cgreen", HiliteTarget::Whole)],
+    );
+    push_rule(
+        &mut rules,
+        &mut order,
+        RuleMatcher::Regex(Regex::new(&format!(r"^{} hits (.+) (once) (.+)\.$", escaped)).unwrap()),
+        PRIORITY,
+        None,
+        vec![tf_hilite("Cblue", HiliteTarget::Group(2))],
+    );
+    push_rule(
+        &mut rules,
+        &mut order,
+        RuleMatcher::Regex(
+            Regex::new(&format!(r"^{} hits (.+) (twice) (.+)\.$", escaped)).unwrap(),
+        ),
+        PRIORITY,
+        None,
+        vec![tf_hilite("Cmagenta", HiliteTarget::Group(2))],
+    );
+    push_rule(
+        &mut rules,
+        &mut order,
+        RuleMatcher::Regex(
+            Regex::new(&format!(r"^{} hits (.+) (thrice) (.+)\.$", escaped)).unwrap(),
+        ),
+        PRIORITY,
+        None,
+        vec![tf_hilite("BCred", HiliteTarget::Group(2))],
+    );
+    push_rule(
+        &mut rules,
+        &mut order,
+        RuleMatcher::Regex(
+            Regex::new(&format!(r"^{} hits (.+) (\d+ times) (.+)\.$", escaped)).unwrap(),
+        ),
+        PRIORITY,
+        None,
+        vec![tf_hilite("Cred", HiliteTarget::Group(2))],
+    );
+
+    // "<other> hits {name} …" — player is the target (magenta), count is group 2.
+    push_rule(
+        &mut rules,
+        &mut order,
+        RuleMatcher::Regex(
+            Regex::new(&format!(
+                r"^(.+) hits {} (?:once|twice|thrice|\d+ times) (.+)\.$",
+                escaped
+            ))
+            .unwrap(),
+        ),
+        PRIORITY,
+        None,
+        vec![tf_hilite("Cmagenta", HiliteTarget::Whole)],
+    );
+    push_rule(
+        &mut rules,
+        &mut order,
+        RuleMatcher::Regex(Regex::new(&format!(r"^(.+) hits {} (once) (.+)\.$", escaped)).unwrap()),
+        PRIORITY,
+        None,
+        vec![tf_hilite("Cblue", HiliteTarget::Group(2))],
+    );
+    push_rule(
+        &mut rules,
+        &mut order,
+        RuleMatcher::Regex(
+            Regex::new(&format!(r"^(.+) hits {} (twice) (.+)\.$", escaped)).unwrap(),
+        ),
+        PRIORITY,
+        None,
+        vec![tf_hilite("BCmagenta", HiliteTarget::Group(2))],
+    );
+    push_rule(
+        &mut rules,
+        &mut order,
+        RuleMatcher::Regex(
+            Regex::new(&format!(r"^(.+) hits {} (thrice) (.+)\.$", escaped)).unwrap(),
+        ),
+        PRIORITY,
+        None,
+        vec![tf_hilite("BCred", HiliteTarget::Group(2))],
+    );
+    push_rule(
+        &mut rules,
+        &mut order,
+        RuleMatcher::Regex(
+            Regex::new(&format!(r"^(.+) hits {} (\d+ times) (.+)\.$", escaped)).unwrap(),
+        ),
+        PRIORITY,
+        None,
+        vec![tf_hilite("Cred", HiliteTarget::Group(2))],
+    );
+
+    push_rule(
+        &mut rules,
+        &mut order,
+        RuleMatcher::Regex(
+            Regex::new(&format!(
+                r"^A blue-glowing soul companion \[{}\]\.?$",
+                escaped
+            ))
+            .unwrap(),
+        ),
+        PRIORITY,
+        None,
+        vec![tf_hilite("Cblue", HiliteTarget::Whole)],
+    );
+
+    rules.sort_by(|a, b| {
+        b.priority
+            .cmp(&a.priority)
+            .then_with(|| a.order.cmp(&b.order))
+    });
+    rules
 }
 
 lazy_static! {
@@ -929,7 +1088,12 @@ pub fn trigger(ctx: &mut TriggerContext<'_>, styled_line: &mut StyledLine) -> Tr
         ctx.automation.set_var("rig", rig.to_string());
     }
 
-    for rule in RULES.iter() {
+    let companion_rules = ctx
+        .player_name
+        .map(companion_rules_arc)
+        .unwrap_or_else(|| Arc::new(Vec::new()));
+
+    for rule in RULES.iter().chain(companion_rules.iter()) {
         let Some(match_data) = rule.matcher.match_line(&plain_line) else {
             continue;
         };
@@ -952,14 +1116,20 @@ mod tests {
     use super::*;
     use crate::automation::Automation;
     use crate::stats::Stats;
+    use unicode_segmentation::UnicodeSegmentation;
 
-    fn run_trigger(line: &str, rig: Option<&str>) -> (TriggerOutput, StyledLine, Automation) {
+    fn run_trigger(
+        line: &str,
+        rig: Option<&str>,
+        player_name: Option<&str>,
+    ) -> (TriggerOutput, StyledLine, Automation) {
         let mut stats = Stats::default();
         let mut automation = Automation::new();
         let mut ctx = TriggerContext {
             stats: &mut stats,
             automation: &mut automation,
             rig,
+            player_name,
         };
         let mut styled_line = StyledLine::new(line);
         let output = trigger(&mut ctx, &mut styled_line);
@@ -969,7 +1139,7 @@ mod tests {
 
     #[test]
     fn battle_round_sets_actions_and_flag() {
-        let (output, _line, _automation) = run_trigger("*** Round 1 ***", None);
+        let (output, _line, _automation) = run_trigger("*** Round 1 ***", None, None);
         let mut saw_scan_all = false;
         let mut saw_sc = false;
         let mut saw_flag = false;
@@ -990,8 +1160,11 @@ mod tests {
 
     #[test]
     fn stunned_lines_echo_local_notice() {
-        let (output, _line, _automation) =
-            run_trigger("You get hit, and your eyes lose focus slightly.", None);
+        let (output, _line, _automation) = run_trigger(
+            "You get hit, and your eyes lose focus slightly.",
+            None,
+            None,
+        );
 
         assert_eq!(output.lines.len(), 1);
         assert_eq!(output.lines[0].plain_line, "STUNNED!");
@@ -1005,6 +1178,7 @@ mod tests {
         let (output, _line, _automation) = run_trigger(
             "You discover a glowing ball of concentrated zinium <<radiating>>",
             Some("pack"),
+            None,
         );
         let saw_send = output.actions.iter().any(|action| {
             matches!(
@@ -1019,7 +1193,7 @@ mod tests {
     #[test]
     fn money_summary_allows_missing_coin_types() {
         let (output, _line, _automation) =
-            run_trigger("It contains 2 anipium and 1 platinum coins.", None);
+            run_trigger("It contains 2 anipium and 1 platinum coins.", None, None);
 
         let lines: Vec<&str> = output
             .lines
@@ -1030,5 +1204,54 @@ mod tests {
             lines,
             vec!["Platinum 1 = 10", "Anipium 2 = 100", "Total = 110"]
         );
+    }
+
+    #[test]
+    fn soul_companion_announcement_matches_bracketed_player_name() {
+        let text = "A blue-glowing soul companion [Nynn].";
+        let (_output, styled, _automation) = run_trigger(text, None, Some("Nynn"));
+        for styled_char in &styled.styled_chars {
+            assert_eq!(styled_char.color, AnsiCode::Blue, "whole line blue");
+        }
+    }
+
+    #[test]
+    fn soul_companion_announcement_requires_application_player_name() {
+        let text = "A blue-glowing soul companion [Nynn].";
+        let (_output, styled, _automation) = run_trigger(text, None, Some("Other"));
+        assert_eq!(
+            styled.styled_chars[0].color,
+            AnsiCode::DefaultColor,
+            "wrong name: no highlight"
+        );
+    }
+
+    #[test]
+    fn avatar_hits_other_highlights_once_in_blue() {
+        let text = "Nynn hits orc once with force.";
+        let (_output, styled, _automation) = run_trigger(text, None, Some("Nynn"));
+        let once_byte = text.find("once").expect("once in line");
+        let idx = styled
+            .plain_line
+            .get(..once_byte)
+            .map(|s| s.graphemes(true).count())
+            .unwrap_or(0);
+        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Blue);
+        assert_eq!(styled.styled_chars[idx + 1].color, AnsiCode::Blue);
+        assert_eq!(styled.styled_chars[idx + 2].color, AnsiCode::Blue);
+        assert_eq!(styled.styled_chars[idx + 3].color, AnsiCode::Blue);
+    }
+
+    #[test]
+    fn other_hits_avatar_whole_line_magenta_and_twice_highlighted() {
+        let text = "Orc hits Nynn twice as hard.";
+        let (_output, styled, _automation) = run_trigger(text, None, Some("Nynn"));
+        assert!(
+            styled
+                .styled_chars
+                .iter()
+                .all(|c| c.color == AnsiCode::Magenta)
+        );
+        assert!(styled.styled_chars.iter().any(|c| c.bold));
     }
 }

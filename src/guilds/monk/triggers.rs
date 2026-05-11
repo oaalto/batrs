@@ -426,6 +426,7 @@ mod tests {
             stats,
             automation,
             rig: None,
+            player_name: None,
         }
     }
 
