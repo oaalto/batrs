@@ -60,8 +60,10 @@ impl Stats {
 
     pub fn update_from_prompt(&mut self, stats: [i32; 7]) {
         let soul_companion = self.soul_companion.clone();
+        let money = self.money;
         *self = Self::new(stats);
         self.soul_companion = soul_companion;
+        self.money = money;
     }
 
     pub fn update_from_short_score(&mut self, stats: [i32; 13]) {
@@ -282,6 +284,57 @@ mod tests {
         assert_eq!(
             line_text(&stats.render_soul_inline()),
             "Soul: 90% following"
+        );
+    }
+
+    #[test]
+    fn prompt_updates_preserve_money_from_short_score() {
+        let mut stats = Stats::default();
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 2786, 10, 21657, 0]);
+
+        stats.update_from_prompt([10, 20, 30, 40, 50, 60, 70]);
+
+        let line = line_text(&stats.render_inline());
+        assert!(
+            line.contains("Money: 2786"),
+            "expected money from short score after prompt; got {line:?}"
+        );
+        assert!(
+            !line.contains("Money: 0"),
+            "prompt must not reset money to zero; got {line:?}"
+        );
+    }
+
+    #[test]
+    fn prompt_updates_preserve_money_with_zero_diff() {
+        let mut stats = Stats::default();
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 500, 0, 8, 0]);
+
+        stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
+
+        let line = line_text(&stats.render_inline());
+        assert!(
+            line.contains("Money: 500"),
+            "expected money from short score after prompt; got {line:?}"
+        );
+        assert!(
+            !line.contains("Money: 500 (+"),
+            "diff should stay cleared when zero"
+        );
+    }
+
+    #[test]
+    fn prompt_clears_money_diff_like_other_diffs() {
+        let mut stats = Stats::default();
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 100, -5, 8, 0]);
+
+        stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
+
+        let line = line_text(&stats.render_inline());
+        assert!(line.contains("Money: 100"));
+        assert!(
+            !line.contains("-5"),
+            "money delta from short score should not persist after prompt-only line; got {line:?}"
         );
     }
 
