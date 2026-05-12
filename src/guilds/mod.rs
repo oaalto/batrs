@@ -9,6 +9,7 @@ mod folklorist;
 pub mod grouping;
 mod grouping_catalog;
 mod kharim;
+mod liberator;
 mod monk;
 mod nergal;
 mod psionicist;
@@ -31,6 +32,7 @@ pub use curate::CurateGuild;
 pub use disciple::DiscipleGuild;
 pub use folklorist::FolkloristGuild;
 pub use kharim::KharimGuild;
+pub use liberator::LiberatorGuild;
 pub use monk::MonkGuild;
 pub use nergal::NergalGuild;
 pub use psionicist::PsionicistGuild;
@@ -124,6 +126,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             name: "Kharim",
         },
         GuildDefinition {
+            key: "liberator",
+            name: "Liberator",
+        },
+        GuildDefinition {
             key: "curate",
             name: "Curate",
         },
@@ -202,6 +208,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "kharim" {
             guilds.push(Box::new(KharimGuild::default()));
+        }
+        if key.as_str() == "liberator" {
+            guilds.push(Box::new(LiberatorGuild::default()));
         }
         if key.as_str() == "curate" {
             guilds.push(Box::new(CurateGuild::default()));
@@ -498,6 +507,19 @@ mod tests {
         );
 
         let guilds = build_guilds(&["kharim".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn liberator_is_registered_and_builds() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| definition.key == "liberator" && definition.name == "Liberator")
+        );
+
+        let guilds = build_guilds(&["liberator".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
