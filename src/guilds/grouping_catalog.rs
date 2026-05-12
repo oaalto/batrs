@@ -38,7 +38,7 @@ pub(crate) static THEMATIC_GUILD_KEYWORDS: [&[&str]; 5] = [
         "templar",
     ],
     &[
-        "aelena", "curate", "nergal", "reaver", "seminary", "tiger", "triad", "tzarakk",
+        "aelena", "curate", "nergal", "reaver", "seminary", "spider", "tiger", "triad", "tzarakk",
     ],
     &["archers", "barbarian", "beastmaster", "ranger", "crimson"],
 ];

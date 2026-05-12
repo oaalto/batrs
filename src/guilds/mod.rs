@@ -15,6 +15,7 @@ mod reaver;
 mod riftwalker;
 mod sabres;
 mod seminary;
+mod spider;
 mod tiger;
 mod tzarakk;
 
@@ -33,6 +34,7 @@ pub use reaver::ReaverGuild;
 pub use riftwalker::RiftwalkerGuild;
 pub use sabres::SabresGuild;
 pub use seminary::SeminaryGuild;
+pub use spider::SpiderGuild;
 pub use tiger::TigerGuild;
 pub use tzarakk::TzarakkGuild;
 
@@ -123,6 +125,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             key: "seminary",
             name: "Seminary",
         },
+        GuildDefinition {
+            key: "spider",
+            name: "Spider",
+        },
     ]
 }
 
@@ -184,6 +190,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "seminary" {
             guilds.push(Box::new(SeminaryGuild::default()));
+        }
+        if key.as_str() == "spider" {
+            guilds.push(Box::new(SpiderGuild::default()));
         }
     }
 
@@ -412,6 +421,19 @@ mod tests {
         );
 
         let guilds = build_guilds(&["seminary".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn spider_is_registered_and_builds() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| definition.key == "spider" && definition.name == "Spider")
+        );
+
+        let guilds = build_guilds(&["spider".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }

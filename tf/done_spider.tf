@@ -124,4 +124,3 @@
 /def -aCgreen -mregexp -t"You twist your blade inside (.+)'s belly!"
 /def -aCgreen -mregexp -t"(.+) cringes from pain as your venomed blade bites into (.+) flesh!"
 /def -aCgreen -mregexp -t"(.+) suffers as poison from your blade flows into (.+) system!"
-
