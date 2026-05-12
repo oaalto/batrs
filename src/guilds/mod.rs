@@ -7,6 +7,7 @@ mod disciple;
 pub mod grouping;
 mod grouping_catalog;
 mod monk;
+mod psionicist;
 mod ranger;
 mod reaver;
 mod riftwalker;
@@ -20,6 +21,7 @@ pub use channellers::ChannellersGuild;
 pub use curate::CurateGuild;
 pub use disciple::DiscipleGuild;
 pub use monk::MonkGuild;
+pub use psionicist::PsionicistGuild;
 pub use ranger::RangerGuild;
 pub use reaver::ReaverGuild;
 pub use riftwalker::RiftwalkerGuild;
@@ -93,6 +95,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             key: "curate",
             name: "Curate",
         },
+        GuildDefinition {
+            key: "psionicist",
+            name: "Psionicist",
+        },
     ]
 }
 
@@ -139,6 +145,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "curate" {
             guilds.push(Box::new(CurateGuild::default()));
+        }
+        if key.as_str() == "psionicist" {
+            guilds.push(Box::new(PsionicistGuild::default()));
         }
     }
 
@@ -304,6 +313,17 @@ mod tests {
         );
 
         let guilds = build_guilds(&["curate".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn psionicist_is_registered_and_builds() {
+        assert!(guild_definitions().iter().any(|definition| {
+            definition.key == "psionicist" && definition.name == "Psionicist"
+        }));
+
+        let guilds = build_guilds(&["psionicist".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
