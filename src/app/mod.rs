@@ -130,6 +130,7 @@ impl BatApp {
             }
             if !was_logged_in && self.session.is_logged_in() {
                 self.load_user_config();
+                self.stats.set_recovery_bracket_defaults_for_login();
             }
             if let Some(player_name) = self.session.login_name()
                 && let Some(logger) = self.player_logger.as_mut()

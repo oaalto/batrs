@@ -19,6 +19,10 @@ pub struct Stats {
     diff_money: i32,
     soul_companion: Option<SoulCompanionStatus>,
     pub(crate) nergal_minions: [Option<NergalMinion>; 3],
+    /// Green `c` in the recovery bracket: on after short rest completes, off while resting.
+    recovery_bracket_camping: bool,
+    /// Yellow `m`: on after meditation harmony line, off when meditation starts.
+    recovery_bracket_meditation: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -75,18 +79,39 @@ impl Stats {
         let soul_companion = self.soul_companion.clone();
         let nergal_minions = self.nergal_minions.clone();
         let money = self.money;
+        let recovery_bracket_camping = self.recovery_bracket_camping;
+        let recovery_bracket_meditation = self.recovery_bracket_meditation;
         *self = Self::new(stats);
         self.soul_companion = soul_companion;
         self.nergal_minions = nergal_minions;
         self.money = money;
+        self.recovery_bracket_camping = recovery_bracket_camping;
+        self.recovery_bracket_meditation = recovery_bracket_meditation;
     }
 
     pub fn update_from_short_score(&mut self, stats: [i32; 13]) {
         let soul_companion = self.soul_companion.clone();
         let nergal_minions = self.nergal_minions.clone();
+        let recovery_bracket_camping = self.recovery_bracket_camping;
+        let recovery_bracket_meditation = self.recovery_bracket_meditation;
         *self = Self::new_from_sc(stats);
         self.soul_companion = soul_companion;
         self.nergal_minions = nergal_minions;
+        self.recovery_bracket_camping = recovery_bracket_camping;
+        self.recovery_bracket_meditation = recovery_bracket_meditation;
+    }
+
+    pub fn set_recovery_bracket_defaults_for_login(&mut self) {
+        self.recovery_bracket_camping = true;
+        self.recovery_bracket_meditation = true;
+    }
+
+    pub(crate) fn set_recovery_bracket_camping(&mut self, active: bool) {
+        self.recovery_bracket_camping = active;
+    }
+
+    pub(crate) fn set_recovery_bracket_meditation(&mut self, active: bool) {
+        self.recovery_bracket_meditation = active;
     }
 
     pub fn set_soul_companion(&mut self, percent: i32, description: String) {
@@ -200,6 +225,14 @@ impl Stats {
         spans.extend(self.inline_value_spans("$", self.money, self.diff_money));
         spans.push(Span::raw("  "));
         spans.extend(self.inline_value_spans("Exp", self.exp, self.diff_exp));
+        spans.push(Span::raw("  ["));
+        if self.recovery_bracket_camping {
+            spans.push(Span::styled("c", Style::default().fg(Color::Green)));
+        }
+        if self.recovery_bracket_meditation {
+            spans.push(Span::styled("m", Style::default().fg(Color::Yellow)));
+        }
+        spans.push(Span::raw("]"));
 
         Line::from(spans)
     }
@@ -406,6 +439,64 @@ mod tests {
             .find(|s| s.content.as_ref() == "+15")
             .expect("money diff span");
         assert_eq!(money_diff.style.fg, Some(Color::Green));
+    }
+
+    #[test]
+    fn render_inline_recovery_bracket_suffix() {
+        let mut stats = Stats::default();
+        stats.update_from_short_score([905, 905, 0, 143, 143, 0, 474, 474, 0, 0, 0, 87_333, 0]);
+        assert!(line_text(&stats.render_inline()).ends_with("  []"));
+
+        stats.set_recovery_bracket_camping(true);
+        stats.set_recovery_bracket_meditation(false);
+        assert!(line_text(&stats.render_inline()).ends_with("  [c]"));
+
+        stats.set_recovery_bracket_meditation(true);
+        let line = line_text(&stats.render_inline());
+        assert!(line.ends_with("  [cm]"), "got {line:?}");
+
+        let rendered = stats.render_inline();
+        let camping = rendered
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "c")
+            .expect("c span");
+        assert_eq!(camping.style.fg, Some(Color::Green));
+        let meditation = rendered
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "m")
+            .expect("m span");
+        assert_eq!(meditation.style.fg, Some(Color::Yellow));
+    }
+
+    #[test]
+    fn set_recovery_bracket_defaults_for_login_enables_both() {
+        let mut stats = Stats::default();
+        stats.set_recovery_bracket_camping(false);
+        stats.set_recovery_bracket_meditation(false);
+        stats.set_recovery_bracket_defaults_for_login();
+        stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
+        assert!(line_text(&stats.render_inline()).ends_with("  [cm]"));
+    }
+
+    #[test]
+    fn prompt_updates_preserve_recovery_bracket_flags() {
+        let mut stats = Stats::default();
+        stats.set_recovery_bracket_camping(false);
+        stats.set_recovery_bracket_meditation(true);
+        stats.update_from_prompt([10, 20, 30, 40, 50, 60, 70]);
+        let line = line_text(&stats.render_inline());
+        assert!(line.ends_with("  [m]"), "got {line:?}");
+    }
+
+    #[test]
+    fn short_score_updates_preserve_recovery_bracket_flags() {
+        let mut stats = Stats::default();
+        stats.set_recovery_bracket_camping(true);
+        stats.set_recovery_bracket_meditation(false);
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
+        assert!(line_text(&stats.render_inline()).ends_with("  [c]"));
     }
 
     #[test]

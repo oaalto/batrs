@@ -6,13 +6,18 @@ use lazy_static::lazy_static;
 
 mod common;
 mod prompt;
+mod recovery_bracket;
 mod short_score;
 mod spell_vocal_data;
 mod spell_vocals;
 
 lazy_static! {
     static ref COMMON_TRIGGERS: Vec<Trigger> = vec![common::trigger];
-    static ref CORE_TRIGGERS: Vec<Trigger> = vec![prompt::trigger, short_score::trigger];
+    static ref CORE_TRIGGERS: Vec<Trigger> = vec![
+        prompt::trigger,
+        short_score::trigger,
+        recovery_bracket::trigger,
+    ];
 }
 
 #[derive(Default)]
