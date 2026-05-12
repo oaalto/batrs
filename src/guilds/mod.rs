@@ -1,5 +1,6 @@
 mod aelena;
 mod animist;
+mod barbarian;
 mod disciple;
 pub mod grouping;
 mod grouping_catalog;
@@ -12,6 +13,7 @@ mod tzarakk;
 
 pub use aelena::AelenaGuild;
 pub use animist::AnimistGuild;
+pub use barbarian::BarbarianGuild;
 pub use disciple::DiscipleGuild;
 pub use monk::MonkGuild;
 pub use ranger::RangerGuild;
@@ -75,6 +77,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             key: "aelena",
             name: "Aelena",
         },
+        GuildDefinition {
+            key: "barbarian",
+            name: "Barbarian",
+        },
     ]
 }
 
@@ -112,6 +118,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "aelena" {
             guilds.push(Box::new(AelenaGuild::default()));
+        }
+        if key.as_str() == "barbarian" {
+            guilds.push(Box::new(BarbarianGuild::default()));
         }
     }
 
@@ -240,6 +249,19 @@ mod tests {
         );
 
         let guilds = build_guilds(&["aelena".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn barbarian_is_registered_and_builds() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| definition.key == "barbarian" && definition.name == "Barbarian")
+        );
+
+        let guilds = build_guilds(&["barbarian".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
