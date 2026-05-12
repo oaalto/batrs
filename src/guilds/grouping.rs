@@ -250,4 +250,15 @@ mod tests {
                 .any(|&ix| defs[ix].key == "disciple")
         );
     }
+
+    #[test]
+    fn multi_playable_contains_kharim_when_implemented() {
+        let defs = guild_definitions();
+        assert!(
+            guild_grouping()
+                .multi_playable_indices
+                .iter()
+                .any(|&ix| defs[ix].key == "kharim")
+        );
+    }
 }
