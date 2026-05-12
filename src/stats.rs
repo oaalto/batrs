@@ -19,7 +19,7 @@ pub struct Stats {
     diff_money: i32,
     soul_companion: Option<SoulCompanionStatus>,
     pub(crate) nergal_minions: [Option<NergalMinion>; 3],
-    /// Green `c` in the recovery bracket: on after short rest completes, off while resting.
+    /// Green `c` in the recovery bracket: on when the MUD hints you may want to camp; off while resting (lie-down line).
     recovery_bracket_camping: bool,
     /// Yellow `m`: on after meditation harmony line, off when meditation starts.
     recovery_bracket_meditation: bool,
