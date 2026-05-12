@@ -3,6 +3,7 @@
 //! Logical lines omit the leading `@`; [`client_send_line`] adds at most one `@` for the whole line.
 
 pub mod catalog;
+pub mod floating_disc;
 
 use crate::command::Data;
 

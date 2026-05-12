@@ -2,6 +2,7 @@ mod aelena;
 mod animist;
 mod barbarian;
 mod channellers;
+mod civmage;
 mod curate;
 mod disciple;
 pub mod grouping;
@@ -21,6 +22,7 @@ pub use aelena::AelenaGuild;
 pub use animist::AnimistGuild;
 pub use barbarian::BarbarianGuild;
 pub use channellers::ChannellersGuild;
+pub use civmage::CivmageGuild;
 pub use curate::CurateGuild;
 pub use disciple::DiscipleGuild;
 pub use monk::MonkGuild;
@@ -102,6 +104,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             name: "Channeller",
         },
         GuildDefinition {
+            key: "civmage",
+            name: "Civmage",
+        },
+        GuildDefinition {
             key: "curate",
             name: "Curate",
         },
@@ -163,6 +169,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "channellers" {
             guilds.push(Box::new(ChannellersGuild::default()));
+        }
+        if key.as_str() == "civmage" {
+            guilds.push(Box::new(CivmageGuild::default()));
         }
         if key.as_str() == "curate" {
             guilds.push(Box::new(CurateGuild::default()));
@@ -340,6 +349,19 @@ mod tests {
         }));
 
         let guilds = build_guilds(&["channellers".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn civmage_is_registered_and_builds() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| { definition.key == "civmage" && definition.name == "Civmage" })
+        );
+
+        let guilds = build_guilds(&["civmage".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
