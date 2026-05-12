@@ -17,6 +17,7 @@ mod sabres;
 mod seminary;
 mod spider;
 mod tiger;
+mod triad;
 mod tzarakk;
 
 pub use aelena::AelenaGuild;
@@ -36,6 +37,7 @@ pub use sabres::SabresGuild;
 pub use seminary::SeminaryGuild;
 pub use spider::SpiderGuild;
 pub use tiger::TigerGuild;
+pub use triad::TriadGuild;
 pub use tzarakk::TzarakkGuild;
 
 use crate::automation::Automation;
@@ -129,6 +131,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             key: "spider",
             name: "Spider",
         },
+        GuildDefinition {
+            key: "triad",
+            name: "Triad",
+        },
     ]
 }
 
@@ -193,6 +199,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "spider" {
             guilds.push(Box::new(SpiderGuild::default()));
+        }
+        if key.as_str() == "triad" {
+            guilds.push(Box::new(TriadGuild::default()));
         }
     }
 
@@ -434,6 +443,19 @@ mod tests {
         );
 
         let guilds = build_guilds(&["spider".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn triad_is_registered_and_builds() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| definition.key == "triad" && definition.name == "Triad")
+        );
+
+        let guilds = build_guilds(&["triad".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }

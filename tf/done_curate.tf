@@ -18,7 +18,7 @@
 /def cast_mobile_cannon = \
 	/send cast 'mobile cannon' %{*}
 
-/alias cmc /cast_mobile_cannon %{*}
+/alias cmcan /cast_mobile_cannon %{*}
 
 ;; Dark meditation
 /def use_dark_meditation = \

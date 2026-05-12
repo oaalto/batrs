@@ -9,7 +9,7 @@ impl CurateGuild {
         HashMap::from([
             ("ch".to_string(), Self::cast_hemorrhage as Command),
             ("ca".to_string(), Self::cast_aneurysm as Command),
-            ("cmc".to_string(), Self::cast_mobile_cannon as Command),
+            ("cmcan".to_string(), Self::cast_mobile_cannon as Command),
             ("dmed".to_string(), Self::use_dark_meditation as Command),
         ])
     }
@@ -96,13 +96,13 @@ mod tests {
 
     #[test]
     fn mobile_cannon_without_target() {
-        let result = CurateGuild::cast_mobile_cannon(&data("cmc", ""), &mut empty_ctx());
+        let result = CurateGuild::cast_mobile_cannon(&data("cmcan", ""), &mut empty_ctx());
         assert_eq!(result, Some("@cast 'mobile cannon'".to_string()));
     }
 
     #[test]
     fn mobile_cannon_with_target() {
-        let result = CurateGuild::cast_mobile_cannon(&data("cmc", "orc"), &mut empty_ctx());
+        let result = CurateGuild::cast_mobile_cannon(&data("cmcan", "orc"), &mut empty_ctx());
         assert_eq!(
             result,
             Some("@target orc;cast 'mobile cannon' orc".to_string())
