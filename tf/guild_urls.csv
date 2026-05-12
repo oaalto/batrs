@@ -1,4 +1,5 @@
 type,keyword,display_name,url
+documentation,batrs_canonical_keyword_tables,Grouping keywords used by batrs are duplicated in Rust at src/guilds/grouping_catalog.rs — this CSV is a human-maintained snapshot and is not loaded at runtime.,
 background,civilized,Civilized background,https://www.bat.org/help/guilds?str=background&guild=civilized&s=1
 guild,alchemists,Guild of Alchemy,https://www.bat.org/help/guilds?str=guild&guild=alchemists&s=1
 guild,civilized_fighters,The Civilized Fighters,https://www.bat.org/help/guilds?str=guild&guild=civilized_fighters&s=1

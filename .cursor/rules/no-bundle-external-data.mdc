@@ -1,0 +1,20 @@
+---
+description: Do not bundle or runtime-load repository data files; config files the app writes are the exception.
+alwaysApply: true
+---
+
+# External data vs configuration
+
+## Do not
+
+- Embed repository files into the binary (`include_str!`, `include_bytes!`, codegen from checked-in blobs) for game/domain data shipped with the crate.
+- Open or read arbitrary project files from disk at runtime (for example CSV, JSON, or assets under `tf/`) unless that path is explicitly a **configuration file locations that this application reads and writes** (for example batrs player files under `$HOME/.batrs`).
+
+## Do instead
+
+- Keep canonical domain lists and tables as **Rust source** (arrays, enums, structs) beside the logic that consumes them.
+- Maintain optional human-readable mirrors (spreadsheet-export CSV, docs) in-repo only as documentation; duplicate structure in Rust after intentional edits.
+
+## Allowed configuration I/O
+
+- Reading and persisting batrs/player settings and profile data paths used by [`ConfigManager`](src/config.rs) and similar code is expected.

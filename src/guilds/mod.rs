@@ -1,6 +1,7 @@
 mod animist;
 mod disciple;
 pub mod grouping;
+mod grouping_catalog;
 mod monk;
 mod ranger;
 mod reaver;
