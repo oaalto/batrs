@@ -1,0 +1,57 @@
+site_name: Batrs manual
+site_description: Documentation for the batrs BatMUD terminal client
+
+theme:
+  name: material
+  features:
+    - navigation.expand
+    - navigation.sections
+    - content.code.copy
+
+markdown_extensions:
+  - tables
+  - admonition
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - Manual:
+      - UI: manual/ui.md
+      - Commands: manual/commands.md
+      - Player settings: manual/player-settings.md
+  - Guilds:
+      - Overview: guilds/index.md
+      - Animist: guilds/animist.md
+      - Reaver: guilds/reaver.md
+      - Disciple: guilds/disciple.md
+      - Monk: guilds/monk.md
+      - Tzarakk: guilds/tzarakk.md
+      - Tiger: guilds/tiger.md
+      - Riftwalker: guilds/riftwalker.md
+      - Ranger: guilds/ranger.md
+      - Sabres: guilds/sabres.md
+      - Aelena: guilds/aelena.md
+      - Barbarian: guilds/barbarian.md
+      - Channeller: guilds/channellers.md
+      - Inner Circle: guilds/inner_circle.md
+      - Mage: guilds/mage.md
+      - Mage Acid: guilds/mage_acid.md
+      - Mage Asphyxiation: guilds/mage_asphyxiation.md
+      - Mage Cold: guilds/mage_cold.md
+      - Mage Electricity: guilds/mage_electricity.md
+      - Mage Fire: guilds/mage_fire.md
+      - Mage Magical: guilds/mage_magical.md
+      - Mage Poison: guilds/mage_poison.md
+      - Civmage: guilds/civmage.md
+      - Folklorist: guilds/folklorist.md
+      - Kharim: guilds/kharim.md
+      - Liberator: guilds/liberator.md
+      - Curate: guilds/curate.md
+      - Psionicist: guilds/psionicist.md
+      - Nergal: guilds/nergal.md
+      - Seminary: guilds/seminary.md
+      - Spider: guilds/spider.md
+      - Triad: guilds/triad.md
+
+plugins:
+  - search
