@@ -1,4 +1,4 @@
-//! Inner Circle of Sorcery — TinyFugue parity with `tf/inner_circle.tf`.
+//! Inner Circle of Sorcery — TinyFugue parity with `tf/done_inner_circle.tf`.
 //!
 //! `tf/mage_inner_circle.tf` is not present in this repository; add or symlink it locally if needed.
 
