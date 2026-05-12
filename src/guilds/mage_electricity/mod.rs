@@ -1,5 +1,4 @@
-//! Mage electricity sub-guild (TinyFugue parity: `tf/done_mage_lightning.tf`;
-//! spell list: `tf/mage_electricity.txt`).
+//! Mage electricity sub-guild (lightning school; extended spell list in Rust).
 
 mod commands;
 

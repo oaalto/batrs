@@ -1,4 +1,4 @@
-//! Mage asphyxiation sub-guild (`tf/mage_asphyxiation.txt`).
+//! Mage asphyxiation sub-guild.
 
 mod commands;
 

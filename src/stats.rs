@@ -104,7 +104,7 @@ impl Stats {
         self.nergal_minions.iter().any(|slot| slot.is_some())
     }
 
-    /// Match TinyFugue `save_minion_stats`: update slot with same name, else first empty;
+    /// Slot update rules mirroring legacy `save_minion_stats`: update slot with same name, else first empty;
     /// no-op if all three occupied and name is new.
     pub fn upsert_nergal_minion(&mut self, minion: NergalMinion) {
         let name = minion.name.clone();

@@ -1,4 +1,4 @@
-//! Slash commands from TinyFugue `tf/done_liberator.tf`.
+//! Slash commands for Liberator.
 
 use crate::abilities;
 use crate::command;
@@ -229,7 +229,7 @@ mod tests {
     }
 
     #[test]
-    fn lib_autoselect_matches_tf() {
+    fn lib_autoselect_matches_expected() {
         let out = LiberatorGuild::lib_autoselect(&data("lib_autoselect", ""), &mut empty_ctx());
         assert_eq!(
             out,

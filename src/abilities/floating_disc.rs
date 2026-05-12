@@ -1,5 +1,5 @@
 //! Command lines for casting **floating disc** and moving items on **my disc**
-//! (TinyFugue patterns in e.g. `tf/magical.tf`, `tf/done_civmage.tf`).
+//! (patterns for magical and civil spell output).
 
 use super::client_send_line;
 
@@ -33,7 +33,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn sends_match_tinyfugue_aliases() {
+    fn sends_match_expected_aliases() {
         assert_eq!(send_cast_floating_disc(), "@cast floating disc");
         assert_eq!(send_get_all_from_disc(), "@get all from my disc");
         assert_eq!(

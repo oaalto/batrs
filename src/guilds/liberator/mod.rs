@@ -1,4 +1,4 @@
-//! Liberator guild (TinyFugue parity: `tf/done_liberator.tf`).
+//! Liberator guild.
 
 mod commands;
 mod triggers;

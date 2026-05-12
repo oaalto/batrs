@@ -34,7 +34,7 @@ mod tests {
     }
 
     #[test]
-    fn drain_room_matches_tinyfugue_line() {
+    fn drain_room_matches_expected_line() {
         let result = ChannellersGuild::cast_drain_room(&data("cdr", ""), &mut empty_ctx());
         assert_eq!(result, Some("@cast drain room".to_string()));
     }

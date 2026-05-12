@@ -1,4 +1,4 @@
-//! Line highlights from TinyFugue `tf/done_kharim.tf` trigger definitions.
+//! Line highlights for Kharim guild output.
 
 use crate::ansi::{AnsiCode, StyledLine};
 use crate::guilds::KharimGuild;

@@ -1,4 +1,4 @@
-//! Line highlights from TinyFugue `tf/done_liberator.tf` trigger definitions.
+//! Line highlights for Liberator guild output.
 
 use crate::ansi::{AnsiCode, StyledLine};
 use crate::guilds::LiberatorGuild;

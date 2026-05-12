@@ -1,4 +1,4 @@
-//! Sect cultivation and mantra lines shared by Tiger and Monk (TinyFugue `done_sects.tf`).
+//! Sect cultivation and mantra lines shared by Tiger and Monk.
 
 use crate::ansi::{AnsiCode, StyledLine};
 use crate::triggers::{TriggerContext, TriggerOutput};

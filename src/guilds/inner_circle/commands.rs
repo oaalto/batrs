@@ -1,4 +1,4 @@
-//! Slash commands from `tf/done_inner_circle.tf` (`/cbi`, `/cfw`, `/csp`, `/caoa`).
+//! Slash commands for Inner Circle (`/cbi`, `/cfw`, `/csp`, `/caoa`).
 
 use std::collections::HashMap;
 

@@ -1,4 +1,4 @@
-//! Mage poison sub-guild — spells from `tf/mage_poison.txt` (no TinyFugue script in-repo).
+//! Mage poison sub-guild.
 
 mod commands;
 

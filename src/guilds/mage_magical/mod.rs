@@ -1,5 +1,4 @@
-//! Mage magical sub-guild (TinyFugue parity: `tf/done_mage_magical.tf`; spell list:
-//! `tf/mage_magical.txt`). Knowledge of magic lore uses shared analysis line coloring.
+//! Mage magical sub-guild. Knowledge of magic lore uses shared analysis line coloring.
 
 mod commands;
 mod triggers;

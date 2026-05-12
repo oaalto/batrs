@@ -74,7 +74,7 @@ lazy_static! {
         r"^(.+)'s demon feels easier to control than usual\.$",
     ).unwrap();
 
-    /// TinyFugue parity: `\(.+)s spider demon` intentionally matches `'s'` without apostrophe.
+    /// Intentional regex quirk: `\(.+)s spider demon` matches `'s'` without an apostrophe.
     static ref DEMON_POWER_BRIGHTRED: Regex = Regex::new(
         r"^(.+)s spider demon draws power from you\.$",
     ).unwrap();

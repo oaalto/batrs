@@ -1,5 +1,5 @@
-//! Guild **keyword** lists mirrored from spreadsheet export `tf/guild_urls.csv` at the repo root.
-//! batrs does not load that file: keep these slices in sync when the CSV snapshot changes (keywords only — URLs omitted here).
+//! Guild **keyword** lists for thematic grouping in the UX.
+//! batrs loads these from Rust only; keep the slices aligned when guild keywords change.
 
 /// Row order aligns with [`super::THEMES_UX_ORDER`]: civilized, magical, good_religious, evil_religious, nomad.
 pub(crate) static THEMATIC_GUILD_KEYWORDS: [&[&str]; 5] = [

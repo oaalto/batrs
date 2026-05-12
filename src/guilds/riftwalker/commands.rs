@@ -322,7 +322,7 @@ impl RiftwalkerGuild {
 
     pub fn cmd_fix(_data: &command::Data, ctx: &mut command::CommandContext) -> Option<String> {
         ctx.push_output_line(StyledLine::new(
-            "Riftwalker: TinyFugue borg/hook toggles do not apply in Batrs.",
+            "Riftwalker: external borg/hook toggles from third-party scripts do not apply in Batrs.",
         ));
         None
     }

@@ -1,4 +1,4 @@
-//! Mage acid sub-guild (TinyFugue parity: `tf/done_mage_acid.tf`; spells: `tf/mage_acid.txt`).
+//! Mage acid sub-guild.
 
 mod commands;
 

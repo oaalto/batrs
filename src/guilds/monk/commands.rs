@@ -293,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn default_skill_values_match_active_tf_settings() {
+    fn default_skill_values_match_active_profile() {
         assert_eq!(ARMOUR_SKILL_3, ARMOUR_SKILL_1);
         assert_eq!(AREA_SKILL_3, AREA_SKILL_1);
         assert_eq!(AVOID_SKILL_3, AVOID_SKILL_1);

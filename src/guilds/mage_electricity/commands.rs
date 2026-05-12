@@ -1,5 +1,4 @@
-//! Slash commands from TinyFugue `tf/done_mage_lightning.tf` plus spells in
-//! `tf/mage_electricity.txt` not in the TF script.
+//! Slash commands for Mage Electricity (lightning school; extended beyond the minimal core set).
 
 use crate::abilities;
 use crate::command;

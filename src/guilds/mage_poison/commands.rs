@@ -1,4 +1,4 @@
-//! Slash commands for Mage Poison — spell names from `tf/mage_poison.txt`.
+//! Slash commands for Mage Poison.
 //!
 //! Aliases diverge from Folklorist (`cpb`, `cvs`, `cts`) and Mage Magical (`csgsp`)
 //! where spell names overlap, so multi-guild configs keep distinct shortcuts.

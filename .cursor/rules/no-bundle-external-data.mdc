@@ -8,7 +8,7 @@ alwaysApply: true
 ## Do not
 
 - Embed repository files into the binary (`include_str!`, `include_bytes!`, codegen from checked-in blobs) for game/domain data shipped with the crate.
-- Open or read arbitrary project files from disk at runtime (for example CSV, JSON, or assets under `tf/`) unless that path is explicitly a **configuration file locations that this application reads and writes** (for example batrs player files under `$HOME/.batrs`).
+- Open or read arbitrary project files from disk at runtime (for example CSV, JSON, or other bundled assets in the repository tree) unless that path is explicitly a **configuration file locations that this application reads and writes** (for example batrs player files under `$HOME/.batrs`).
 
 ## Do instead
 

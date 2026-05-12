@@ -1,5 +1,4 @@
-//! Slash commands from TinyFugue `tf/done_mage_magical.tf` plus spells in
-//! `tf/mage_magical.txt` not in the TF script.
+//! Slash commands for Mage Magical, including spells beyond the minimal core set.
 
 use crate::command;
 use crate::command::Command;

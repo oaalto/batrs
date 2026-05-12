@@ -1,11 +1,11 @@
 ---
-description: Mark TinyFugue scripts as done once implemented in the application
+description: Mark tf trigger scripts as done once implemented in the application
 globs: "**/*.tf"
 alwaysApply: false
 ---
 
-# TinyFugue Implementation Tracking
+# tf script implementation tracking
 
-- **Rename implemented scripts:** When a TinyFugue `.tf` file has been implemented in the application, rename it with the `done_` prefix.
+- **Rename implemented scripts:** When a `.tf` trigger file's behavior has been implemented in the application, rename it with the `done_` prefix.
 - **Example:** Rename `trigger.tf` to `done_trigger.tf` after its behavior has been implemented.
 - **Do not mark partial work done:** Only add `done_` after the corresponding application behavior is complete.

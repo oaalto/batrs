@@ -1,5 +1,4 @@
 //! Guild membership groups derived from canonical keyword lists in [`super::grouping_catalog`].
-//! Human-readable spreadsheet mirror: `tf/guild_urls.csv` (not loaded by batrs).
 //! Thematic buckets are mutually exclusive for saved preferences; `background_multi` guilds overlap every thematic drill.
 
 use std::sync::OnceLock;

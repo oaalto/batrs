@@ -1,4 +1,4 @@
-//! Canonical `use` / `cast` command lines and TinyFugue send wrapping.
+//! Canonical `use` / `cast` command lines and client send wrapping.
 //!
 //! Logical lines omit the leading `@`; [`client_send_line`] adds at most one `@` for the whole line.
 

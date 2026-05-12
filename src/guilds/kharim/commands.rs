@@ -381,7 +381,7 @@ mod tests {
     }
 
     #[test]
-    fn rip_action_matches_tf() {
+    fn rip_action_matches_expected() {
         let out = KharimGuild::rip_action(&data("kharim_rip", ""), &mut empty_ctx());
         assert_eq!(
             out,

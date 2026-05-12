@@ -1,4 +1,4 @@
-//! Mage fire sub-guild (TinyFugue parity: `tf/done_mage_fire.tf`; full spell list: `tf/mage_fire.txt`).
+//! Mage fire sub-guild (full spell list in Rust).
 
 mod commands;
 

@@ -1,4 +1,4 @@
-//! Mage guild (Brotherhood of Sorcery; skills/spells: `tf/mage.txt`).
+//! Mage guild (Brotherhood of Sorcery; core skills and spells).
 
 mod commands;
 mod triggers;

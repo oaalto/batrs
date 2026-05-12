@@ -1,4 +1,4 @@
-//! Mage cold sub-guild — spells from `tf/mage_cold.txt` (no TinyFugue script in-repo).
+//! Mage cold sub-guild.
 
 mod commands;
 

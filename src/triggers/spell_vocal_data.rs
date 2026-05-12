@@ -1,6 +1,6 @@
 //! Static spell vocal → spell name groups.
 //!
-//! Source was merged from the former `tf/spell_vocals.csv`; regenerate by scripting if BAT updates spells.
+//! Update this table when BatMUD changes spell chant lines.
 
 pub static VOCAL_SPELL_GROUPS: &[(&str, &[&str])] = &[
     (

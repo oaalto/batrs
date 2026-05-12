@@ -1,4 +1,4 @@
-//! Folklorist guild (TinyFugue parity: `tf/done_folklorist.tf`).
+//! Folklorist guild.
 
 mod commands;
 mod triggers;
@@ -8,7 +8,7 @@ use crate::guilds::Guild;
 use crate::triggers::Trigger;
 use std::collections::HashMap;
 
-/// Folklorist shortcuts mirrored from TinyFugue `tf/done_folklorist.tf`.
+/// Folklorist shortcuts aligned with common BatMUD Folklorist automation.
 ///
 /// **Alias overlap:** `cpb`, `upl`, and `chb` are also used by Psionicist, Tiger, and Seminary.
 /// [`crate::command::process`] keeps the handler from the **first** selected guild in the player list.

@@ -1,4 +1,4 @@
-//! Mage asphyxiation sub-guild — spells from `tf/mage_asphyxiation.txt` (no TinyFugue script in-repo).
+//! Slash commands for Mage Asphyxiation.
 
 use crate::abilities;
 use crate::command;

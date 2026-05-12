@@ -1,4 +1,4 @@
-//! Slash commands for Mage Cold — spell names from `tf/mage_cold.txt`.
+//! Slash commands for Mage Cold.
 
 use crate::abilities;
 use crate::command;

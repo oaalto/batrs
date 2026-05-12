@@ -1,13 +1,13 @@
 ---
-description: Treat .tf files as TinyFugue scripts rather than Terraform
+description: Treat .tf files as MUD trigger scripts rather than Terraform
 globs: "**/*.tf"
 alwaysApply: false
 ---
 
-# TinyFugue Scripts
+# tf trigger scripts (MUD)
 
-- **File type:** Files with the `.tf` extension are TinyFugue script files, not Terraform.
+- **File type:** Files with the `.tf` extension here are MUD client trigger scripts, not Terraform.
 - **Preserve script semantics:** Do not apply Terraform formatting, linting, naming, or module conventions to these files.
-- **Reference docs:** TinyFugue command and topic references are available at:
+- **Reference docs:** Command and topic references for the tf language are available at:
   - http://flaprider.dyndns.org/~hair/tf/commands/index.html
   - http://flaprider.dyndns.org/~hair/tf/topics/index.html

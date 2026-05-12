@@ -359,7 +359,7 @@ fn companion_rules_arc(name: &str) -> Arc<Vec<Rule>> {
     built
 }
 
-/// Soul-companion combat lines from TinyFugue `fueryon.tf` / `odefu.tf`, with the character name
+/// Soul-companion combat lines for Fueryon/Odefu-style companions, with the character name
 /// taken from the application instead of hardcoded Fueryon/Odefu.
 fn build_companion_rules(name: &str) -> Vec<Rule> {
     let escaped = regex::escape(name);
@@ -1070,7 +1070,7 @@ lazy_static! {
             vec![tf_hilite("Cred", HiliteTarget::Whole)],
         );
 
-        // tf/done_misc.tf — boon/race highlights, lich drain / dig grave (generic)
+        // boon/race highlights, lich drain / dig grave (generic)
         for (pattern, color) in [
             ("You leech some of your foes energy.", "BCgreen"),
             (

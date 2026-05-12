@@ -1,4 +1,4 @@
-//! Kharim guild (TinyFugue parity: `tf/done_kharim.tf`).
+//! Kharim guild.
 
 mod commands;
 mod triggers;
@@ -8,7 +8,7 @@ use crate::guilds::Guild;
 use crate::triggers::Trigger;
 use std::collections::HashMap;
 
-/// Kharim shortcuts mirrored from TinyFugue `tf/done_kharim.tf`.
+/// Kharim shortcuts aligned with common BatMUD Kharim automation.
 #[derive(Default)]
 pub struct KharimGuild {}
 

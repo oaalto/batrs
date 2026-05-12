@@ -17,7 +17,7 @@ struct QuotedVocalRule {
 }
 
 lazy_static! {
-    /// Tiger spells share `'(Haii!)'`; disambiguate using line context (TinyFugue done_spellnames.tf).
+    /// Tiger spells share `'(Haii!)'`; disambiguate using surrounding line context.
     static ref CONTEXTUAL_RULES: Vec<ContextualRule> = vec![
         ContextualRule {
             regex: Regex::new(r"(?i)large\s+circle\s+to\s+the\s+air.*?'\(Haii!\)'").unwrap(),

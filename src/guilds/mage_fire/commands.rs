@@ -1,4 +1,4 @@
-//! Slash commands from TinyFugue `tf/done_mage_fire.tf` plus spells in `tf/mage_fire.txt` not in the TF script.
+//! Slash commands for Mage Fire, including spells beyond the minimal core set.
 
 use crate::abilities;
 use crate::command;

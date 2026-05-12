@@ -1,4 +1,4 @@
-//! Slash commands from TinyFugue `tf/done_mage_acid.tf` (parity with `tf/mage_acid.txt` spells).
+//! Slash commands for Mage Acid.
 
 use crate::abilities;
 use crate::command;

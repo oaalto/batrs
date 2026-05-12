@@ -108,10 +108,10 @@ impl GenericCommands {
             "ctw" => cast_teleport_without_error,
             "cr" => cast_relocate,
             "chw" => cast_heavy_weight,
-            // common_skills (tf/done_nomad.tf)
+            // common_skills
             "ufb" => use_fire_building,
             "camp" => use_camping,
-            // misc (tf/done_misc.tf)
+            // misc
             "lich_rip" => rip_lich,
             "normal_rip" | "dig_rip" => rip_dig_grave,
             _ => unknown_command,
@@ -138,7 +138,7 @@ impl GenericCommands {
         }
     }
 
-    // Predefined command groups based on .tf files
+    // Predefined command groups
 
     fn cure_spells_group() -> GenericCommandGroup {
         GenericCommandGroup::new(
@@ -192,7 +192,7 @@ impl GenericCommands {
     fn misc_group() -> GenericCommandGroup {
         GenericCommandGroup::new(
             "misc",
-            "Misc (tf/done_misc.tf)",
+            "Misc",
             vec![
                 GenericCommand::new(
                     "lich_rip",
@@ -471,7 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn rip_lich_matches_tf() {
+    fn rip_lich_matches_expected() {
         let data = Data::new("lich_rip");
         let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let result = rip_lich(&data, &mut ctx);
@@ -482,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    fn rip_dig_grave_matches_tf() {
+    fn rip_dig_grave_matches_expected() {
         let data = Data::new("normal_rip");
         let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let expected =

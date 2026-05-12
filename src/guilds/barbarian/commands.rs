@@ -38,7 +38,7 @@ mod tests {
     }
 
     #[test]
-    fn barb_rip_matches_tinyfugue_line() {
+    fn barb_rip_matches_expected_line() {
         let result = BarbarianGuild::barb_rip(&data("barb_rip", ""), &mut empty_ctx());
         assert_eq!(
             result,

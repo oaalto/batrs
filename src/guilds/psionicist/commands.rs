@@ -167,7 +167,7 @@ mod tests {
     }
 
     #[test]
-    fn force_shield_branches_match_tinyfugue() {
+    fn force_shield_branches_match_expected() {
         assert_eq!(
             PsionicistGuild::cast_force_shield(
                 &data("cfs", "self"),
