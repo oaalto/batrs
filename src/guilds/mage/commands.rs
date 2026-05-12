@@ -34,7 +34,7 @@ impl MageGuild {
             ("mid".to_string(), Self::cast_identify as Command),
             ("inv".to_string(), Self::cast_invisibility as Command),
             ("lit".to_string(), Self::cast_light as Command),
-            ("mm".to_string(), Self::cast_magic_missile as Command),
+            ("cmm".to_string(), Self::cast_magic_missile as Command),
             ("mnabar".to_string(), Self::cast_mana_barrier as Command),
             ("mimg".to_string(), Self::cast_mirror_image as Command),
             ("moon".to_string(), Self::cast_moon_sense as Command),
@@ -205,11 +205,11 @@ mod tests {
     #[test]
     fn magic_missile_cast_spell() {
         assert_eq!(
-            MageGuild::cast_magic_missile(&data("mm", ""), &mut empty_ctx()),
+            MageGuild::cast_magic_missile(&data("cmm", ""), &mut empty_ctx()),
             Some("@cast 'magic missile'".to_string())
         );
         assert_eq!(
-            MageGuild::cast_magic_missile(&data("mm", "orc"), &mut empty_ctx()),
+            MageGuild::cast_magic_missile(&data("cmm", "orc"), &mut empty_ctx()),
             Some("@target orc;cast 'magic missile' orc".to_string())
         );
     }
