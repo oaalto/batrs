@@ -21,6 +21,7 @@ use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_util::codec::{BytesCodec, FramedRead};
 
+mod abilities;
 mod ansi;
 mod app;
 mod automation;

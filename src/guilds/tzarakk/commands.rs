@@ -1,3 +1,4 @@
+use crate::abilities;
 use crate::command;
 use crate::command::Command;
 use crate::guilds::{TzarakkGuild, use_skill};
@@ -46,14 +47,16 @@ impl TzarakkGuild {
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@use create hunting trophy at corpse".to_string())
+        Some(abilities::client_send_line(
+            "use 'create hunting trophy' at corpse",
+        ))
     }
 
     pub fn use_harvest_soul(
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@use harvest soul at corpse".to_string())
+        Some(abilities::client_send_line("use 'harvest soul' at corpse"))
     }
 
     // Spell handlers
@@ -61,21 +64,23 @@ impl TzarakkGuild {
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@cast preserve corpse at corpse".to_string())
+        Some(abilities::client_send_line(
+            "cast 'preserve corpse' at corpse",
+        ))
     }
 
     pub fn cast_steed_of_tzarakk(
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@cast steed of tzarakk".to_string())
+        Some(abilities::client_send_line("cast 'steed of tzarakk'"))
     }
 
     pub fn cast_banish_mount(
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@cast banish mount".to_string())
+        Some(abilities::client_send_line("cast 'banish mount'"))
     }
 
     // Utility handlers
@@ -83,11 +88,11 @@ impl TzarakkGuild {
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@dismount;use meditation".to_string())
+        Some(abilities::compound_send(&["dismount", "use 'meditation'"]))
     }
 
     pub fn do_sleep(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some("@dismount;sleep".to_string())
+        Some(abilities::compound_send(&["dismount", "sleep"]))
     }
 
     // Mode handlers
@@ -103,7 +108,7 @@ impl TzarakkGuild {
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
         Some(
-            "@rip_action set get all from corpse;use harvest soul at corpse;drop zinc;drop mowgles"
+            "@rip_action set get all from corpse;use 'harvest soul' at corpse;drop zinc;drop mowgles"
                 .to_string(),
         )
     }
@@ -163,38 +168,41 @@ mod tests {
         let result = TzarakkGuild::use_create_hunting_trophy(&data("uht", ""), &mut empty_ctx());
         assert_eq!(
             result,
-            Some("@use create hunting trophy at corpse".to_string())
+            Some("@use 'create hunting trophy' at corpse".to_string())
         );
     }
 
     #[test]
     fn harvest_soul() {
         let result = TzarakkGuild::use_harvest_soul(&data("uhs", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@use harvest soul at corpse".to_string()));
+        assert_eq!(result, Some("@use 'harvest soul' at corpse".to_string()));
     }
 
     #[test]
     fn preserve_corpse() {
         let result = TzarakkGuild::cast_preserve_corpse(&data("cpc", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@cast preserve corpse at corpse".to_string()));
+        assert_eq!(
+            result,
+            Some("@cast 'preserve corpse' at corpse".to_string())
+        );
     }
 
     #[test]
     fn steed_of_tzarakk() {
         let result = TzarakkGuild::cast_steed_of_tzarakk(&data("cst", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@cast steed of tzarakk".to_string()));
+        assert_eq!(result, Some("@cast 'steed of tzarakk'".to_string()));
     }
 
     #[test]
     fn banish_mount() {
         let result = TzarakkGuild::cast_banish_mount(&data("cban", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@cast banish mount".to_string()));
+        assert_eq!(result, Some("@cast 'banish mount'".to_string()));
     }
 
     #[test]
     fn meditation_includes_dismount() {
         let result = TzarakkGuild::use_meditation(&data("med", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@dismount;use meditation".to_string()));
+        assert_eq!(result, Some("@dismount;use 'meditation'".to_string()));
     }
 
     #[test]
@@ -212,7 +220,7 @@ mod tests {
     #[test]
     fn heal_mode_sets_correct_rip_action() {
         let result = TzarakkGuild::set_heal_mode(&data("heal_mode", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@rip_action set get all from corpse;use harvest soul at corpse;drop zinc;drop mowgles".to_string()));
+        assert_eq!(result, Some("@rip_action set get all from corpse;use 'harvest soul' at corpse;drop zinc;drop mowgles".to_string()));
     }
 
     #[test]

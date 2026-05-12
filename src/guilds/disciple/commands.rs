@@ -1,3 +1,4 @@
+use crate::abilities;
 use crate::command;
 use crate::command::Command;
 use crate::guilds::{DiscipleGuild, use_skill};
@@ -17,9 +18,12 @@ impl DiscipleGuild {
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
         if data.args.is_empty() {
-            Some("@use 'chaotic spawn'".to_string())
+            Some(abilities::client_send_line("use 'chaotic spawn'"))
         } else {
-            Some(format!("@use 'chaotic spawn' {}", data.args))
+            Some(abilities::client_send_line(&format!(
+                "use 'chaotic spawn' {}",
+                data.args
+            )))
         }
     }
 
@@ -37,10 +41,10 @@ impl DiscipleGuild {
         if data.args.is_empty() {
             None
         } else {
-            Some(format!(
-                "@target {};use kiss of death at {}",
+            Some(abilities::client_send_line(&format!(
+                "target {};use 'kiss of death' at {}",
                 data.args, data.args
-            ))
+            )))
         }
     }
 }

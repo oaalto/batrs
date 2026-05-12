@@ -1,3 +1,4 @@
+use crate::abilities::{self, catalog::names};
 use crate::command::{Command, CommandContext, Data};
 use std::collections::HashMap;
 
@@ -140,10 +141,10 @@ impl GenericCommands {
             "cure_spells",
             "Cure Spells",
             vec![
-                GenericCommand::new("clw", "@cast 'cure light wounds' {args}"),
-                GenericCommand::new("csw", "@cast 'cure serious wounds' {args}"),
-                GenericCommand::new("clwf", "@repeat inf cast 'cure light wounds' {args}"),
-                GenericCommand::new("cswf", "@repeat inf cast 'cure serious wounds' {args}"),
+                GenericCommand::new("clw", "cast 'cure light wounds' {args}"),
+                GenericCommand::new("csw", "cast 'cure serious wounds' {args}"),
+                GenericCommand::new("clwf", "repeat inf cast 'cure light wounds' {args}"),
+                GenericCommand::new("cswf", "repeat inf cast 'cure serious wounds' {args}"),
             ],
         )
     }
@@ -153,9 +154,9 @@ impl GenericCommands {
             "common_spells",
             "Common Spells",
             vec![
-                GenericCommand::new("cww", "@cast 'water walking' {args}"),
-                GenericCommand::new("cinv", "@cast 'invisibility' {args}"),
-                GenericCommand::new("cinf", "@cast 'infravision' {args}"),
+                GenericCommand::new("cww", "cast 'water walking' {args}"),
+                GenericCommand::new("cinv", "cast 'invisibility' {args}"),
+                GenericCommand::new("cinf", "cast 'infravision' {args}"),
             ],
         )
     }
@@ -165,10 +166,10 @@ impl GenericCommands {
             "navigator",
             "Navigator",
             vec![
-                GenericCommand::new("ctwe", "@cast 'teleport with error'"),
-                GenericCommand::new("ctw", "@cast 'teleport without error'"),
-                GenericCommand::new("cr", "@cast 'relocate' {args}"),
-                GenericCommand::new("chw", "@cast 'heavy weight' {args}"),
+                GenericCommand::new("ctwe", "cast 'teleport with error'"),
+                GenericCommand::new("ctw", "cast 'teleport without error'"),
+                GenericCommand::new("cr", "cast 'relocate' {args}"),
+                GenericCommand::new("chw", "cast 'heavy weight' {args}"),
             ],
         )
     }
@@ -178,8 +179,8 @@ impl GenericCommands {
             "common_skills",
             "Common Skills",
             vec![
-                GenericCommand::new("ufb", "@use fire building"),
-                GenericCommand::new("camp", "@use camping"),
+                GenericCommand::new("ufb", &abilities::targeted_use(names::FIRE_BUILDING, "")),
+                GenericCommand::new("camp", &abilities::targeted_use(names::CAMPING, "")),
             ],
         )
     }
@@ -189,92 +190,123 @@ impl GenericCommands {
 
 fn cast_cure_light_wounds(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
     if data.args.is_empty() {
-        Some("@cast 'cure light wounds' me".to_string())
+        Some(abilities::client_send_line("cast 'cure light wounds' me"))
     } else {
-        Some(format!("@cast 'cure light wounds' {}", data.args))
+        Some(abilities::client_send_line(&format!(
+            "cast 'cure light wounds' {}",
+            data.args
+        )))
     }
 }
 
 fn cast_cure_serious_wounds(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
     if data.args.is_empty() {
-        Some("@cast 'cure serious wounds' me".to_string())
+        Some(abilities::client_send_line("cast 'cure serious wounds' me"))
     } else {
-        Some(format!("@cast 'cure serious wounds' {}", data.args))
+        Some(abilities::client_send_line(&format!(
+            "cast 'cure serious wounds' {}",
+            data.args
+        )))
     }
 }
 
 fn cast_cure_light_wounds_full(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
     if data.args.is_empty() {
-        Some("@repeat inf cast 'cure light wounds' me".to_string())
-    } else {
-        Some(format!(
-            "@repeat inf cast 'cure light wounds' {}",
-            data.args
+        Some(abilities::client_send_line(
+            "repeat inf cast 'cure light wounds' me",
         ))
+    } else {
+        Some(abilities::client_send_line(&format!(
+            "repeat inf cast 'cure light wounds' {}",
+            data.args
+        )))
     }
 }
 
 fn cast_cure_serious_wounds_full(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
     if data.args.is_empty() {
-        Some("@repeat inf cast 'cure serious wounds' me".to_string())
-    } else {
-        Some(format!(
-            "@repeat inf cast 'cure serious wounds' {}",
-            data.args
+        Some(abilities::client_send_line(
+            "repeat inf cast 'cure serious wounds' me",
         ))
+    } else {
+        Some(abilities::client_send_line(&format!(
+            "repeat inf cast 'cure serious wounds' {}",
+            data.args
+        )))
     }
 }
 
 fn cast_water_walking(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
     if data.args.is_empty() {
-        Some("@cast 'water walking' me".to_string())
+        Some(abilities::client_send_line("cast 'water walking' me"))
     } else {
-        Some(format!("@cast 'water walking' {}", data.args))
+        Some(abilities::client_send_line(&format!(
+            "cast 'water walking' {}",
+            data.args
+        )))
     }
 }
 
 fn cast_invisibility(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
     if data.args.is_empty() {
-        Some("@cast 'invisibility' me".to_string())
+        Some(abilities::client_send_line("cast 'invisibility' me"))
     } else {
-        Some(format!("@cast 'invisibility' {}", data.args))
+        Some(abilities::client_send_line(&format!(
+            "cast 'invisibility' {}",
+            data.args
+        )))
     }
 }
 
 fn cast_infravision(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
     if data.args.is_empty() {
-        Some("@cast 'infravision' me".to_string())
+        Some(abilities::client_send_line("cast 'infravision' me"))
     } else {
-        Some(format!("@cast 'infravision' {}", data.args))
+        Some(abilities::client_send_line(&format!(
+            "cast 'infravision' {}",
+            data.args
+        )))
     }
 }
 
 fn cast_teleport_with_error(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    Some("@cast 'teleport with error'".to_string())
+    Some(abilities::client_send_line("cast 'teleport with error'"))
 }
 
 fn cast_teleport_without_error(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    Some("@cast 'teleport without error'".to_string())
+    Some(abilities::client_send_line("cast 'teleport without error'"))
 }
 
 fn cast_relocate(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    Some(format!("@cast 'relocate' {}", data.args))
+    Some(abilities::client_send_line(&format!(
+        "cast 'relocate' {}",
+        data.args
+    )))
 }
 
 fn cast_heavy_weight(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
     if data.args.is_empty() {
-        Some("@cast 'heavy weight' me".to_string())
+        Some(abilities::client_send_line("cast 'heavy weight' me"))
     } else {
-        Some(format!("@cast 'heavy weight' {}", data.args))
+        Some(abilities::client_send_line(&format!(
+            "cast 'heavy weight' {}",
+            data.args
+        )))
     }
 }
 
 fn use_fire_building(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    Some("@use fire building".to_string())
+    Some(abilities::client_send_line(&abilities::targeted_use(
+        names::FIRE_BUILDING,
+        "",
+    )))
 }
 
 fn use_camping(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    Some("@use camping".to_string())
+    Some(abilities::client_send_line(&abilities::targeted_use(
+        names::CAMPING,
+        "",
+    )))
 }
 
 fn unknown_command(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
@@ -389,7 +421,7 @@ mod tests {
         let data = Data::new("ufb");
         let mut ctx = CommandContext::new(HashMap::new(), true);
         let result = use_fire_building(&data, &mut ctx);
-        assert_eq!(result, Some("@use fire building".to_string()));
+        assert_eq!(result, Some("@use 'fire building'".to_string()));
     }
 
     #[test]
@@ -397,6 +429,6 @@ mod tests {
         let data = Data::new("camp");
         let mut ctx = CommandContext::new(HashMap::new(), true);
         let result = use_camping(&data, &mut ctx);
-        assert_eq!(result, Some("@use camping".to_string()));
+        assert_eq!(result, Some("@use 'camping'".to_string()));
     }
 }

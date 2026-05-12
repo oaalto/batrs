@@ -1,3 +1,4 @@
+use crate::abilities;
 use crate::ansi::StyledLine;
 use crate::command;
 use crate::command::Command;
@@ -18,12 +19,12 @@ impl RangerGuild {
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
         if data.args.is_empty() {
-            Some("use 'bladed fury'".to_string())
+            Some(abilities::client_send_line("use 'bladed fury'"))
         } else {
-            Some(format!(
-                "@target {};use 'bladed fury' {}",
-                data.args, data.args
-            ))
+            Some(abilities::client_send_line(&abilities::targeted_use(
+                "bladed fury",
+                &data.args,
+            )))
         }
     }
 
@@ -32,10 +33,10 @@ impl RangerGuild {
             ctx.push_output_line(StyledLine::new("No target!"));
             None
         } else {
-            Some(format!(
-                "@target {};use 'bladed fury' {};@k {}",
+            Some(abilities::client_send_line(&format!(
+                "target {};use 'bladed fury' {};@k {}",
                 data.args, data.args, data.args
-            ))
+            )))
         }
     }
 
@@ -43,7 +44,7 @@ impl RangerGuild {
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("use torch creation".to_string())
+        Some(abilities::client_send_line("use 'torch creation'"))
     }
 }
 
@@ -66,7 +67,7 @@ mod tests {
     #[test]
     fn bladed_fury_without_target() {
         let result = RangerGuild::use_bladed_fury(&data("ubf", ""), &mut empty_ctx());
-        assert_eq!(result, Some("use 'bladed fury'".to_string()));
+        assert_eq!(result, Some("@use 'bladed fury'".to_string()));
     }
 
     #[test]
@@ -99,6 +100,6 @@ mod tests {
     #[test]
     fn torch_creation() {
         let result = RangerGuild::use_torch_creation(&data("utc", ""), &mut empty_ctx());
-        assert_eq!(result, Some("use torch creation".to_string()));
+        assert_eq!(result, Some("@use 'torch creation'".to_string()));
     }
 }

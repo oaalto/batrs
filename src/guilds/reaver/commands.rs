@@ -1,8 +1,9 @@
+use crate::abilities;
 use crate::ansi::StyledLine;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
-use crate::guilds::{ReaverGuild, cast_spell, use_skill};
+use crate::guilds::{ReaverGuild, use_skill};
 use std::collections::HashMap;
 
 impl ReaverGuild {
@@ -42,11 +43,32 @@ impl ReaverGuild {
         ])
     }
 
-    pub fn reaver_threaten(data: &command::Data) -> String {
+    pub fn reaver_threaten_logical(data: &command::Data) -> String {
         if !data.args.is_empty() {
-            return format!("@reaver threaten {}", &data.args);
+            format!("reaver threaten {}", &data.args)
+        } else {
+            String::default()
         }
-        String::default()
+    }
+
+    fn compound_threaten_use(data: &command::Data, skill: &str) -> String {
+        let threaten = Self::reaver_threaten_logical(data);
+        let use_part = abilities::targeted_use(skill, &data.args);
+        if threaten.is_empty() {
+            abilities::client_send_line(&use_part)
+        } else {
+            abilities::client_send_line(&format!("{threaten};{use_part}"))
+        }
+    }
+
+    fn compound_threaten_cast(data: &command::Data, spell: &str) -> String {
+        let threaten = Self::reaver_threaten_logical(data);
+        let cast_part = abilities::targeted_cast(spell, &data.args);
+        if threaten.is_empty() {
+            abilities::client_send_line(&cast_part)
+        } else {
+            abilities::client_send_line(&format!("{threaten};{cast_part}"))
+        }
     }
 
     pub fn command_reaver_threaten(
@@ -56,7 +78,10 @@ impl ReaverGuild {
         if data.args.is_empty() {
             None
         } else {
-            Some(format!("@reaver threaten {}", &data.args))
+            Some(abilities::client_send_line(&format!(
+                "reaver threaten {}",
+                &data.args
+            )))
         }
     }
 
@@ -66,44 +91,28 @@ impl ReaverGuild {
         data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(format!(
-            "{};{}",
-            Self::reaver_threaten(data),
-            use_skill("scythe swipe", data)
-        ))
+        Some(Self::compound_threaten_use(data, "scythe swipe"))
     }
 
     pub fn use_rampant_cutting(
         data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(format!(
-            "{};{}",
-            Self::reaver_threaten(data),
-            use_skill("rampant cutting", data)
-        ))
+        Some(Self::compound_threaten_use(data, "rampant cutting"))
     }
 
     pub fn use_reaver_strike(
         data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(format!(
-            "{};{}",
-            Self::reaver_threaten(data),
-            use_skill("reaver strike", data)
-        ))
+        Some(Self::compound_threaten_use(data, "reaver strike"))
     }
 
     pub fn use_blood_harvest(
         data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(format!(
-            "{};{}",
-            Self::reaver_threaten(data),
-            use_skill("blood harvest", data)
-        ))
+        Some(Self::compound_threaten_use(data, "blood harvest"))
     }
 
     pub fn use_reave_shield(
@@ -131,33 +140,21 @@ impl ReaverGuild {
         data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(format!(
-            "{};{}",
-            Self::reaver_threaten(data),
-            use_skill("true reaving", data)
-        ))
+        Some(Self::compound_threaten_use(data, "true reaving"))
     }
 
     pub fn use_corrosive_cut(
         data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(format!(
-            "{};{}",
-            Self::reaver_threaten(data),
-            use_skill("corrosive cut", data)
-        ))
+        Some(Self::compound_threaten_use(data, "corrosive cut"))
     }
 
     pub fn use_breath_of_doom(
         data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(format!(
-            "{};{}",
-            Self::reaver_threaten(data),
-            use_skill("breath of doom", data)
-        ))
+        Some(Self::compound_threaten_use(data, "breath of doom"))
     }
 
     pub fn use_prayer_to_destruction(
@@ -165,7 +162,10 @@ impl ReaverGuild {
         ctx: &mut command::CommandContext,
     ) -> Option<String> {
         if !data.args.is_empty() {
-            return Some(format!("@use prayer to destruction at {}", &data.args));
+            return Some(abilities::client_send_line(&format!(
+                "use 'prayer to destruction' at {}",
+                &data.args
+            )));
         }
         ctx.push_output_line(StyledLine::new("No target!"));
         None
@@ -177,55 +177,35 @@ impl ReaverGuild {
         data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(format!(
-            "{};{}",
-            Self::reaver_threaten(data),
-            cast_spell("word of spite", data)
-        ))
+        Some(Self::compound_threaten_cast(data, "word of spite"))
     }
 
     pub fn cast_word_of_blasting(
         data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(format!(
-            "{};{}",
-            Self::reaver_threaten(data),
-            cast_spell("word of blasting", data)
-        ))
+        Some(Self::compound_threaten_cast(data, "word of blasting"))
     }
 
     pub fn cast_word_of_destruction(
         data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(format!(
-            "{};{}",
-            Self::reaver_threaten(data),
-            cast_spell("word of destruction", data)
-        ))
+        Some(Self::compound_threaten_cast(data, "word of destruction"))
     }
 
     pub fn cast_word_of_slaughter(
         data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(format!(
-            "{};{}",
-            Self::reaver_threaten(data),
-            cast_spell("word of slaughter", data)
-        ))
+        Some(Self::compound_threaten_cast(data, "word of slaughter"))
     }
 
     pub fn cast_word_of_genocide(
         data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(format!(
-            "{};{}",
-            Self::reaver_threaten(data),
-            cast_spell("word of genocide", data)
-        ))
+        Some(Self::compound_threaten_cast(data, "word of genocide"))
     }
 
     pub fn cast_word_of_attrition(
@@ -235,7 +215,10 @@ impl ReaverGuild {
         if data.args.is_empty() {
             None
         } else {
-            Some(format!("@cast word of attrition at {}", &data.args))
+            Some(abilities::client_send_line(&format!(
+                "cast 'word of attrition' at {}",
+                &data.args
+            )))
         }
     }
 
@@ -244,11 +227,15 @@ impl ReaverGuild {
         ctx: &mut command::CommandContext,
     ) -> Option<String> {
         if ctx.flag("prayer_done") {
-            return Some("@cast shattered feast at amount 100".to_string());
+            return Some(abilities::client_send_line(
+                "cast 'shattered feast' at amount 100",
+            ));
         }
 
         set_prayer_flag(ctx, "cast_shattered_feast");
-        Some("@use prayer to destruction at spell".to_string())
+        Some(abilities::client_send_line(
+            "use 'prayer to destruction' at spell",
+        ))
     }
 
     pub fn cast_black_hole(
@@ -256,11 +243,13 @@ impl ReaverGuild {
         ctx: &mut command::CommandContext,
     ) -> Option<String> {
         if ctx.flag("prayer_done") {
-            return Some("@cast black hole".to_string());
+            return Some(abilities::client_send_line("cast 'black hole'"));
         }
 
         set_prayer_flag(ctx, "cast_black_hole");
-        Some("@use prayer to destruction at spell".to_string())
+        Some(abilities::client_send_line(
+            "use 'prayer to destruction' at spell",
+        ))
     }
 
     pub fn cast_blood_seeker(
@@ -268,18 +257,22 @@ impl ReaverGuild {
         ctx: &mut command::CommandContext,
     ) -> Option<String> {
         if ctx.flag("prayer_done") {
-            return Some("@cast blood seeker at amount 100".to_string());
+            return Some(abilities::client_send_line(
+                "cast 'blood seeker' at amount 100",
+            ));
         }
 
         set_prayer_flag(ctx, "cast_blood_seeker");
-        Some("@use prayer to destruction at spell".to_string())
+        Some(abilities::client_send_line(
+            "use 'prayer to destruction' at spell",
+        ))
     }
 
     pub fn cast_reaping_of_bile(
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@cast reaping of bile".to_string())
+        Some(abilities::client_send_line("cast 'reaping of bile'"))
     }
 
     pub fn cast_call_armour(
@@ -290,7 +283,10 @@ impl ReaverGuild {
             None
         } else {
             if ctx.flag("prayer_done") {
-                return Some(format!("@cast call armour at amount {}", &data.args));
+                return Some(abilities::client_send_line(&format!(
+                    "cast 'call armour' at amount {}",
+                    &data.args
+                )));
             }
 
             ctx.push_action(Action::SetVar(
@@ -298,7 +294,9 @@ impl ReaverGuild {
                 data.args.clone(),
             ));
             set_prayer_flag(ctx, "cast_call_armour");
-            Some("@use prayer to destruction at spell".to_string())
+            Some(abilities::client_send_line(
+                "use 'prayer to destruction' at spell",
+            ))
         }
     }
 
@@ -310,7 +308,10 @@ impl ReaverGuild {
             None
         } else {
             if ctx.flag("prayer_done") {
-                return Some(format!("@cast spirit drain at {} amount 100", &data.args));
+                return Some(abilities::client_send_line(&format!(
+                    "cast 'spirit drain' at {} amount 100",
+                    &data.args
+                )));
             }
 
             ctx.push_action(Action::SetVar(
@@ -318,7 +319,9 @@ impl ReaverGuild {
                 data.args.clone(),
             ));
             set_prayer_flag(ctx, "cast_spirit_drain");
-            Some("@use prayer to destruction at spell".to_string())
+            Some(abilities::client_send_line(
+                "use 'prayer to destruction' at spell",
+            ))
         }
     }
 }

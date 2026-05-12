@@ -1,3 +1,4 @@
+use crate::abilities;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
@@ -23,28 +24,28 @@ impl AnimistGuild {
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@use ceremony".to_string())
+        Some(abilities::client_send_line("use 'ceremony'"))
     }
 
     pub fn cast_separate_soul(
         _data: &command::Data,
         ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        cast_after_ceremony(ctx, SEPARATING_SOUL_FLAG, "@cast separate soul")
+        cast_after_ceremony(ctx, SEPARATING_SOUL_FLAG, "cast 'separate soul'")
     }
 
     pub fn cast_join_soul(
         _data: &command::Data,
         ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        cast_after_ceremony(ctx, JOINING_SOUL_FLAG, "@cast join soul")
+        cast_after_ceremony(ctx, JOINING_SOUL_FLAG, "cast 'join soul'")
     }
 
     pub fn cast_conjure_mount(
         _data: &command::Data,
         ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        cast_after_ceremony(ctx, CONJURING_MOUNT_FLAG, "@cast conjure animal soul")
+        cast_after_ceremony(ctx, CONJURING_MOUNT_FLAG, "cast 'conjure animal soul'")
     }
 
     pub fn cast_dismiss_mount(
@@ -54,7 +55,7 @@ impl AnimistGuild {
         cast_after_ceremony(
             ctx,
             DISMISSING_MOUNT_FLAG,
-            "@cast animal soul link at dismiss",
+            "cast 'animal soul link' at dismiss",
         )
     }
 }
@@ -65,14 +66,14 @@ fn cast_after_ceremony(
     command: &str,
 ) -> Option<String> {
     if ctx.flag(CEREMONY_DONE_FLAG) {
-        return Some(command.to_string());
+        return Some(abilities::client_send_line(command));
     }
 
     for action in clear_pending_actions() {
         ctx.push_action(action);
     }
     ctx.push_action(Action::SetFlag(pending_flag.to_string(), true));
-    Some("@use ceremony".to_string())
+    Some(abilities::client_send_line("use 'ceremony'"))
 }
 
 #[cfg(test)]
@@ -100,7 +101,7 @@ mod tests {
 
         assert_eq!(
             AnimistGuild::use_ceremony(&data("cere"), &mut ctx),
-            Some("@use ceremony".to_string())
+            Some("@use 'ceremony'".to_string())
         );
     }
 
@@ -110,7 +111,7 @@ mod tests {
 
         assert_eq!(
             AnimistGuild::cast_separate_soul(&data("csoul"), &mut ctx),
-            Some("@cast separate soul".to_string())
+            Some("@cast 'separate soul'".to_string())
         );
         assert!(ctx.automation_actions.is_empty());
     }
@@ -121,7 +122,7 @@ mod tests {
 
         assert_eq!(
             AnimistGuild::cast_conjure_mount(&data("csum"), &mut ctx),
-            Some("@use ceremony".to_string())
+            Some("@use 'ceremony'".to_string())
         );
         assert_eq!(ctx.automation_actions.len(), PENDING_FLAGS.len() + 1);
         assert!(matches!(

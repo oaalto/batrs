@@ -110,22 +110,11 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
 }
 
 pub fn use_skill(skill_name: &str, data: &Data) -> String {
-    if data.args.is_empty() {
-        format!("@use '{skill_name}'")
-    } else {
-        format!("@target {};use '{}' {}", &data.args, skill_name, &data.args)
-    }
+    crate::abilities::use_skill(skill_name, data)
 }
 
 pub fn cast_spell(spell_name: &str, data: &Data) -> String {
-    if data.args.is_empty() {
-        format!("@cast '{spell_name}'")
-    } else {
-        format!(
-            "@target {};cast '{}' {}",
-            &data.args, spell_name, &data.args
-        )
-    }
+    crate::abilities::cast_spell(spell_name, data)
 }
 
 #[cfg(test)]

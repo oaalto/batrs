@@ -43,7 +43,12 @@ pub fn process(
     generic: &crate::generic_commands::GenericCommands,
 ) -> CommandOutcome {
     let data = Data::new(cmd);
-    let guild_cmds: HashMap<String, Command> = guilds.iter().flat_map(|g| g.commands()).collect();
+    let mut guild_cmds: HashMap<String, Command> = HashMap::new();
+    for g in guilds {
+        for (key, handler) in g.commands() {
+            guild_cmds.entry(key).or_insert(handler);
+        }
+    }
     let generic_cmds = generic.commands();
 
     let send = if let Some(cmd) = COMMANDS.get(&data.cmd) {

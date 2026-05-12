@@ -36,7 +36,9 @@ impl MonkGuild {
                 .push(Action::SetFlag(KATA_DONE_FLAG.to_string(), true));
             output.actions.push(Action::IfFlag {
                 flag: DOING_MEDITATION_FLAG.to_string(),
-                actions: vec![Action::Send("@use meditation".to_string())],
+                actions: vec![Action::Send(crate::abilities::client_send_line(
+                    "use 'meditation'",
+                ))],
             });
         }
 
@@ -441,7 +443,7 @@ mod tests {
         let output = MonkGuild::state_trigger(&mut ctx, &mut line);
         let sends = ctx.automation.apply_actions(output.actions);
 
-        assert_eq!(sends, vec!["@use meditation"]);
+        assert_eq!(sends, vec!["@use 'meditation'"]);
         assert!(ctx.automation.flag_is_set(KATA_DONE_FLAG));
     }
 

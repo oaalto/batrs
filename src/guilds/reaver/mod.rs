@@ -1,6 +1,7 @@
 mod commands;
 mod triggers;
 
+use crate::abilities;
 use crate::automation::{Action, Automation, Waiter};
 use crate::command::Command;
 use crate::guilds::Guild;
@@ -30,39 +31,43 @@ impl Guild for ReaverGuild {
                 Action::IfFlag {
                     flag: "cast_shattered_feast".to_string(),
                     actions: vec![
-                        Action::Send("@cast shattered feast at amount 100".to_string()),
+                        Action::Send(abilities::client_send_line(
+                            "cast 'shattered feast' at amount 100",
+                        )),
                         Action::ClearFlag("cast_shattered_feast".to_string()),
                     ],
                 },
                 Action::IfFlag {
                     flag: "cast_blood_seeker".to_string(),
                     actions: vec![
-                        Action::Send("@cast blood seeker at amount 100".to_string()),
+                        Action::Send(abilities::client_send_line(
+                            "cast 'blood seeker' at amount 100",
+                        )),
                         Action::ClearFlag("cast_blood_seeker".to_string()),
                     ],
                 },
                 Action::IfFlag {
                     flag: "cast_call_armour".to_string(),
                     actions: vec![
-                        Action::Send(
-                            "@cast call armour at amount {call_armour_amount}".to_string(),
-                        ),
+                        Action::Send(abilities::client_send_line(
+                            "cast 'call armour' at amount {call_armour_amount}",
+                        )),
                         Action::ClearFlag("cast_call_armour".to_string()),
                     ],
                 },
                 Action::IfFlag {
                     flag: "cast_spirit_drain".to_string(),
                     actions: vec![
-                        Action::Send(
-                            "@cast spirit drain at {spirit_drain_target} amount 100".to_string(),
-                        ),
+                        Action::Send(abilities::client_send_line(
+                            "cast 'spirit drain' at {spirit_drain_target} amount 100",
+                        )),
                         Action::ClearFlag("cast_spirit_drain".to_string()),
                     ],
                 },
                 Action::IfFlag {
                     flag: "cast_black_hole".to_string(),
                     actions: vec![
-                        Action::Send("@cast black hole".to_string()),
+                        Action::Send(abilities::client_send_line("cast 'black hole'")),
                         Action::ClearFlag("cast_black_hole".to_string()),
                     ],
                 },

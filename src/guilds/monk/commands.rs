@@ -1,3 +1,4 @@
+use crate::abilities;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
@@ -37,10 +38,10 @@ impl MonkGuild {
         if data.args.is_empty() {
             None
         } else {
-            Some(format!(
-                "@target {};use kiai-cry at {}",
+            Some(abilities::client_send_line(&format!(
+                "target {};use kiai-cry at {}",
                 data.args, data.args
-            ))
+            )))
         }
     }
 
@@ -65,7 +66,7 @@ impl MonkGuild {
         ctx: &mut command::CommandContext,
     ) -> Option<String> {
         reset_current_skills(ctx);
-        Some("@use skulking".to_string())
+        Some(abilities::client_send_line("use 'skulking'"))
     }
 
     pub fn use_iron_palm(
@@ -78,7 +79,7 @@ impl MonkGuild {
 
     pub fn use_kata(_data: &command::Data, ctx: &mut command::CommandContext) -> Option<String> {
         reset_current_skills(ctx);
-        Some("@use kata".to_string())
+        Some(abilities::client_send_line("use 'kata'"))
     }
 
     pub fn use_meditation(
@@ -87,10 +88,10 @@ impl MonkGuild {
     ) -> Option<String> {
         reset_current_skills(ctx);
         if ctx.flag(KATA_DONE_FLAG) {
-            Some("@use meditation".to_string())
+            Some(abilities::client_send_line("use 'meditation'"))
         } else {
             ctx.push_action(Action::SetFlag(DOING_MEDITATION_FLAG.to_string(), true));
-            Some("@use kata".to_string())
+            Some(abilities::client_send_line("use 'kata'"))
         }
     }
 
@@ -100,9 +101,12 @@ impl MonkGuild {
     ) -> Option<String> {
         reset_current_skills(ctx);
         if data.args.is_empty() {
-            Some("@use mind over body".to_string())
+            Some(abilities::client_send_line("use 'mind over body'"))
         } else {
-            Some(format!("@use mind over body at {}", data.args))
+            Some(abilities::client_send_line(&format!(
+                "use 'mind over body' at {}",
+                data.args
+            )))
         }
     }
 
@@ -212,9 +216,9 @@ fn default_skill_vars() -> [(&'static str, &'static str); 4] {
 fn send_current_skill(ctx: &mut command::CommandContext, var: &str, target: &str) {
     let skill_template = format!("{{{var}}}");
     let command = if target.is_empty() {
-        format!("@use '{skill_template}'")
+        abilities::client_send_line(&format!("use '{skill_template}'"))
     } else {
-        format!("@target {target};@use '{skill_template}' {target}")
+        abilities::client_send_line(&format!("target {target};use '{skill_template}' {target}"))
     };
     ctx.push_action(Action::Send(command));
 }
@@ -251,7 +255,7 @@ mod tests {
         let mut ctx = ctx_with_flag(false);
         let result = MonkGuild::use_meditation(&data("med", ""), &mut ctx);
 
-        assert_eq!(result, Some("@use kata".to_string()));
+        assert_eq!(result, Some("@use 'kata'".to_string()));
         assert!(ctx.automation_actions.iter().any(|action| matches!(
             action,
             Action::SetFlag(flag, true) if flag == DOING_MEDITATION_FLAG
@@ -263,7 +267,7 @@ mod tests {
         let mut ctx = ctx_with_flag(true);
         let result = MonkGuild::use_meditation(&data("med", ""), &mut ctx);
 
-        assert_eq!(result, Some("@use meditation".to_string()));
+        assert_eq!(result, Some("@use 'meditation'".to_string()));
     }
 
     #[test]
@@ -280,7 +284,7 @@ mod tests {
         assert!(matches!(
             &ctx.automation_actions[1],
             Action::Send(command)
-                if command == "@target troll;@use '{monk_current_disrupt_skill}' troll"
+                if command == "@target troll;use '{monk_current_disrupt_skill}' troll"
         ));
     }
 

@@ -1,6 +1,7 @@
 mod commands;
 mod triggers;
 
+use crate::abilities;
 use crate::automation::{Action, Automation, Waiter};
 use crate::command::Command;
 use crate::guilds::Guild;
@@ -50,10 +51,10 @@ impl Guild for AnimistGuild {
             consume: false,
             actions: vec![
                 Action::SetFlag(CEREMONY_DONE_FLAG.to_string(), true),
-                queued_cast(SEPARATING_SOUL_FLAG, "@cast separate soul"),
-                queued_cast(JOINING_SOUL_FLAG, "@cast join soul"),
-                queued_cast(CONJURING_MOUNT_FLAG, "@cast conjure animal soul"),
-                queued_cast(DISMISSING_MOUNT_FLAG, "@cast animal soul link at dismiss"),
+                queued_cast(SEPARATING_SOUL_FLAG, "cast 'separate soul'"),
+                queued_cast(JOINING_SOUL_FLAG, "cast 'join soul'"),
+                queued_cast(CONJURING_MOUNT_FLAG, "cast 'conjure animal soul'"),
+                queued_cast(DISMISSING_MOUNT_FLAG, "cast 'animal soul link' at dismiss"),
             ],
         });
     }
@@ -73,11 +74,11 @@ pub fn clear_pending_actions() -> Vec<Action> {
         .collect()
 }
 
-fn queued_cast(flag: &str, command: &str) -> Action {
+fn queued_cast(flag: &str, logical_command: &str) -> Action {
     Action::IfFlag {
         flag: flag.to_string(),
         actions: vec![
-            Action::Send(command.to_string()),
+            Action::Send(abilities::client_send_line(logical_command)),
             Action::SetFlag(flag.to_string(), false),
         ],
     }
@@ -102,7 +103,7 @@ mod tests {
 
         assert_eq!(
             automation.process_line("You perform the ceremony."),
-            vec!["@cast join soul"]
+            vec!["@cast 'join soul'"]
         );
         assert!(
             automation

@@ -1,3 +1,4 @@
+use crate::abilities;
 use crate::ansi::StyledLine;
 use crate::automation::Action;
 use crate::command;
@@ -103,12 +104,14 @@ impl RiftwalkerGuild {
     ) -> Option<String> {
         let args = data.args.trim();
         if args.is_empty() {
-            ctx.push_action(Action::Send(format!(
-                "@gem entities {{{}}}",
+            ctx.push_action(Action::Send(abilities::client_send_line(&format!(
+                "gem entities {{{}}}",
                 RIFTWALKER_ELEMENT_VAR
-            )));
+            ))));
         } else {
-            ctx.push_action(Action::Send(format!("@gem entities {args}")));
+            ctx.push_action(Action::Send(abilities::client_send_line(&format!(
+                "gem entities {args}"
+            ))));
         }
         None
     }
@@ -118,7 +121,9 @@ impl RiftwalkerGuild {
         ctx: &mut command::CommandContext,
     ) -> Option<String> {
         let args = data.args.trim();
-        ctx.push_action(Action::Send(format!("@cast summon rift entity at {args}")));
+        ctx.push_action(Action::Send(abilities::client_send_line(&format!(
+            "cast 'summon rift entity' at {args}"
+        ))));
         apply_element_from_free_text(ctx, args);
         ctx.push_action(Action::SetFlag(
             RIFTWALKER_HAS_ENTITY_FLAG.to_string(),
@@ -135,14 +140,14 @@ impl RiftwalkerGuild {
             RIFTWALKER_HAS_ENTITY_FLAG.to_string(),
             false,
         ));
-        Some("@cast dismiss rift entity".to_string())
+        Some(abilities::client_send_line("cast 'dismiss rift entity'"))
     }
 
     pub fn cmd_beckon_entity(
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@cast beckon rift entity".to_string())
+        Some(abilities::client_send_line("cast 'beckon rift entity'"))
     }
 
     pub fn cmd_entity_control(
@@ -150,12 +155,14 @@ impl RiftwalkerGuild {
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
         if data.args.trim().is_empty() {
-            Some("@cast establish entity control".to_string())
-        } else {
-            Some(format!(
-                "@cast establish entity control at {}",
-                data.args.trim()
+            Some(abilities::client_send_line(
+                "cast 'establish entity control'",
             ))
+        } else {
+            Some(abilities::client_send_line(&format!(
+                "cast 'establish entity control' at {}",
+                data.args.trim()
+            )))
         }
     }
 
@@ -163,14 +170,16 @@ impl RiftwalkerGuild {
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@cast establish entity control at 10".to_string())
+        Some(abilities::client_send_line(
+            "cast 'establish entity control' at 10",
+        ))
     }
 
     pub fn cmd_entity_regen(
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@cast regenerate rift entity".to_string())
+        Some(abilities::client_send_line("cast 'regenerate rift entity'"))
     }
 
     pub fn cmd_transform_entity(
@@ -180,17 +189,17 @@ impl RiftwalkerGuild {
         let args = data.args.trim();
         match args.split_once(char::is_whitespace) {
             Some((target_at, rest)) => {
-                ctx.push_action(Action::Send(format!(
-                    "@cast transform rift entity at {target_at}"
-                )));
+                ctx.push_action(Action::Send(abilities::client_send_line(&format!(
+                    "cast 'transform rift entity' at {target_at}"
+                ))));
                 let src = rest.trim();
                 apply_element_from_free_text(ctx, if src.is_empty() { target_at } else { src });
                 None
             }
             None if !args.is_empty() => {
-                ctx.push_action(Action::Send(format!(
-                    "@cast transform rift entity at {args}"
-                )));
+                ctx.push_action(Action::Send(abilities::client_send_line(&format!(
+                    "cast 'transform rift entity' at {args}"
+                ))));
                 apply_element_from_free_text(ctx, args);
                 None
             }
@@ -253,7 +262,9 @@ impl RiftwalkerGuild {
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
         if data.args.trim().is_empty() {
-            Some("@cast force absorption at entity".to_string())
+            Some(abilities::client_send_line(
+                "cast 'force absorption' at entity",
+            ))
         } else {
             Some(cast_spell("force absorption", data))
         }
@@ -263,14 +274,14 @@ impl RiftwalkerGuild {
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@cast mirror image at entity".to_string())
+        Some(abilities::client_send_line("cast 'mirror image' at entity"))
     }
 
     pub fn cmd_cast_absorbing_meld(
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@cast 'Absorbing meld'".to_string())
+        Some(abilities::client_send_line("cast 'Absorbing meld'"))
     }
 
     pub fn cmd_cast_iron_will(
@@ -278,7 +289,7 @@ impl RiftwalkerGuild {
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
         if data.args.trim().is_empty() {
-            Some("@cast iron will at entity".to_string())
+            Some(abilities::client_send_line("cast 'iron will' at entity"))
         } else {
             Some(cast_spell("iron will", data))
         }
@@ -288,14 +299,17 @@ impl RiftwalkerGuild {
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@zz;@gem cmd use stop".to_string())
+        Some(abilities::compound_send(&["zz", "gem cmd use stop"]))
     }
 
     pub fn cmd_gem_wield(
         data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(format!("@gem cmd wield {}", data.args.trim()))
+        Some(abilities::client_send_line(&format!(
+            "gem cmd wield {}",
+            data.args.trim()
+        )))
     }
 
     pub fn cmd_diag(_data: &command::Data, ctx: &mut command::CommandContext) -> Option<String> {
@@ -345,14 +359,17 @@ fn apply_element_from_free_text(ctx: &mut command::CommandContext, blob: &str) {
 fn push_target_gem_chain(ctx: &mut command::CommandContext, tail: &str) {
     let trimmed = tail.trim();
     if !trimmed.is_empty() {
-        ctx.push_action(Action::Send(format!(
-            "@target {trimmed};@gem cmd target {trimmed}"
-        )));
+        ctx.push_action(Action::Send(abilities::client_send_line(&format!(
+            "target {trimmed};gem cmd target {trimmed}"
+        ))));
     }
     let gem = if trimmed.is_empty() {
-        format!("@gem cmd use '{{{}}}'", RIFTWALKER_SKILL_VAR)
+        abilities::client_send_line(&format!("gem cmd use '{{{}}}'", RIFTWALKER_SKILL_VAR))
     } else {
-        format!("@gem cmd use '{{{}}}' {trimmed}", RIFTWALKER_SKILL_VAR)
+        abilities::client_send_line(&format!(
+            "gem cmd use '{{{}}}' {}",
+            RIFTWALKER_SKILL_VAR, trimmed
+        ))
     };
     ctx.push_action(Action::Send(gem));
 }
@@ -360,20 +377,19 @@ fn push_target_gem_chain(ctx: &mut command::CommandContext, tail: &str) {
 fn push_opening_battle(ctx: &mut command::CommandContext, tail: &str, spell: &str) {
     let trimmed = tail.trim();
     if !trimmed.is_empty() {
-        ctx.push_action(Action::Send(format!(
-            "@target {trimmed};@gem cmd target {trimmed}"
-        )));
+        ctx.push_action(Action::Send(abilities::client_send_line(&format!(
+            "target {trimmed};gem cmd target {trimmed}"
+        ))));
     }
-    let cast_send = if trimmed.is_empty() {
-        format!("@cast '{spell}'")
-    } else {
-        format!("@cast '{spell}' {trimmed}")
-    };
+    let cast_send = abilities::cast_quoted_with_suffix(spell, trimmed);
     ctx.push_action(Action::Send(cast_send));
     let gem_send = if trimmed.is_empty() {
-        format!("@gem cmd use '{{{}}}'", RIFTWALKER_SKILL_VAR)
+        abilities::client_send_line(&format!("gem cmd use '{{{}}}'", RIFTWALKER_SKILL_VAR))
     } else {
-        format!("@gem cmd use '{{{}}}' {trimmed}", RIFTWALKER_SKILL_VAR)
+        abilities::client_send_line(&format!(
+            "gem cmd use '{{{}}}' {}",
+            RIFTWALKER_SKILL_VAR, trimmed
+        ))
     };
     ctx.push_action(Action::Send(gem_send));
 }
@@ -396,7 +412,7 @@ mod tests {
             },
             &mut ctx,
         );
-        assert_eq!(outcome, Some("@cast dismiss rift entity".to_string()));
+        assert_eq!(outcome, Some("@cast 'dismiss rift entity'".to_string()));
         assert!(matches!(
             ctx.automation_actions.as_slice(),
             [Action::SetFlag(flag, false)] if flag == RIFTWALKER_HAS_ENTITY_FLAG
@@ -419,7 +435,7 @@ mod tests {
         assert_eq!(
             sends,
             vec![
-                "@target troll;@gem cmd target troll".to_string(),
+                "@target troll;gem cmd target troll".to_string(),
                 "@cast 'spark birth' troll".to_string(),
                 format!("@gem cmd use '{}' troll", FIRE_SKILL),
             ]

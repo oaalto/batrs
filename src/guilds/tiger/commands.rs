@@ -1,3 +1,4 @@
+use crate::abilities;
 use crate::ansi::StyledLine;
 use crate::command;
 use crate::command::Command;
@@ -30,10 +31,10 @@ impl TigerGuild {
             ctx.push_output_line(StyledLine::new("No target!"));
             None
         } else {
-            Some(format!(
-                "@target {};use dim mak at {}",
+            Some(abilities::client_send_line(&format!(
+                "target {};use 'dim mak' at {}",
                 data.args, data.args
-            ))
+            )))
         }
     }
 
@@ -42,9 +43,9 @@ impl TigerGuild {
         ctx: &mut command::CommandContext,
     ) -> Option<String> {
         if ctx.flag(MOUNT_SUMMONED_FLAG) {
-            Some("@dismount;@use meditation".to_string())
+            Some(abilities::compound_send(&["dismount", "use 'meditation'"]))
         } else {
-            Some("@use meditation".to_string())
+            Some(abilities::client_send_line("use 'meditation'"))
         }
     }
 
@@ -56,10 +57,10 @@ impl TigerGuild {
             ctx.push_output_line(StyledLine::new("No target!"));
             None
         } else {
-            Some(format!(
-                "@target {};use pick locks at {}",
+            Some(abilities::client_send_line(&format!(
+                "target {};use 'pick locks' at {}",
                 data.args, data.args
-            ))
+            )))
         }
     }
 
@@ -74,11 +75,11 @@ impl TigerGuild {
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some("@cast flame fists".to_string())
+        Some(abilities::client_send_line("cast 'flame fists'"))
     }
 
     pub fn use_sneak(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some("use sneak".to_string())
+        Some(abilities::client_send_line("use 'sneak'"))
     }
 }
 
@@ -129,19 +130,19 @@ mod tests {
     #[test]
     fn dim_mak_with_target() {
         let result = TigerGuild::use_dim_mak(&data("dm", "orc"), &mut empty_ctx());
-        assert_eq!(result, Some("@target orc;use dim mak at orc".to_string()));
+        assert_eq!(result, Some("@target orc;use 'dim mak' at orc".to_string()));
     }
 
     #[test]
     fn meditation_without_mount() {
         let result = TigerGuild::use_meditation(&data("med", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@use meditation".to_string()));
+        assert_eq!(result, Some("@use 'meditation'".to_string()));
     }
 
     #[test]
     fn meditation_with_mount_summoned_prefixes_dismount() {
         let result = TigerGuild::use_meditation(&data("med", ""), &mut ctx_with_mount_summoned());
-        assert_eq!(result, Some("@dismount;@use meditation".to_string()));
+        assert_eq!(result, Some("@dismount;use 'meditation'".to_string()));
     }
 
     #[test]
@@ -157,7 +158,7 @@ mod tests {
         let result = TigerGuild::use_pick_locks(&data("upl", "chest"), &mut empty_ctx());
         assert_eq!(
             result,
-            Some("@target chest;use pick locks at chest".to_string())
+            Some("@target chest;use 'pick locks' at chest".to_string())
         );
     }
 
@@ -179,12 +180,12 @@ mod tests {
     #[test]
     fn flame_fists() {
         let result = TigerGuild::cast_flame_fists(&data("cff", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@cast flame fists".to_string()));
+        assert_eq!(result, Some("@cast 'flame fists'".to_string()));
     }
 
     #[test]
     fn sneak() {
         let result = TigerGuild::use_sneak(&data("usn", ""), &mut empty_ctx());
-        assert_eq!(result, Some("use sneak".to_string()));
+        assert_eq!(result, Some("@use 'sneak'".to_string()));
     }
 }
