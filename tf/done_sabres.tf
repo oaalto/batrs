@@ -23,11 +23,9 @@
 /def -p1000 -F -aCred -msimple -t"Your attack is skillfully avoided by your enemy, an elegant move!"
 /def -p1000 -F -aBCgreen -msimple -t"Your superb skill allows you to execute your technique faster!"
 
-;; Gloveknock stuff below
-/set sabre_weapon=sabre
-
+;; Gloveknock: set sabre_weapon to your main-hand weapon keyword (e.g. /set sabre_weapon=ivory sabre)
 /def use_gloveknock = \
-	/send @remove %{saber_weapon} from right hand;target %{*};use gloveknock at %{*} 
+	/send @remove %{sabre_weapon} from right hand;target %{*};use gloveknock at %{*} 
 
 /alias ug /use_gloveknock %{*}
 

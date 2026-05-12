@@ -217,7 +217,7 @@ mod tests {
     }
 
     fn empty_ctx() -> CommandContext {
-        CommandContext::new(HashMap::new(), true)
+        CommandContext::new(HashMap::new(), true, String::new())
     }
 
     #[test]

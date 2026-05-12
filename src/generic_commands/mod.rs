@@ -387,7 +387,7 @@ mod tests {
     #[test]
     fn cast_cure_light_wounds_with_target() {
         let data = Data::new("clw orc");
-        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let result = cast_cure_light_wounds(&data, &mut ctx);
         assert_eq!(result, Some("@cast 'cure light wounds' orc".to_string()));
     }
@@ -395,7 +395,7 @@ mod tests {
     #[test]
     fn cast_cure_light_wounds_without_target() {
         let data = Data::new("clw");
-        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let result = cast_cure_light_wounds(&data, &mut ctx);
         assert_eq!(result, Some("@cast 'cure light wounds' me".to_string()));
     }
@@ -403,7 +403,7 @@ mod tests {
     #[test]
     fn cast_teleport_without_error_no_args() {
         let data = Data::new("ctwe");
-        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let result = cast_teleport_with_error(&data, &mut ctx);
         assert_eq!(result, Some("@cast 'teleport with error'".to_string()));
     }
@@ -411,7 +411,7 @@ mod tests {
     #[test]
     fn cast_relocate_uses_args() {
         let data = Data::new("cr orthos");
-        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let result = cast_relocate(&data, &mut ctx);
         assert_eq!(result, Some("@cast 'relocate' orthos".to_string()));
     }
@@ -419,7 +419,7 @@ mod tests {
     #[test]
     fn use_fire_building_fixed_output() {
         let data = Data::new("ufb");
-        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let result = use_fire_building(&data, &mut ctx);
         assert_eq!(result, Some("@use 'fire building'".to_string()));
     }
@@ -427,7 +427,7 @@ mod tests {
     #[test]
     fn use_camping_fixed_output() {
         let data = Data::new("camp");
-        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let result = use_camping(&data, &mut ctx);
         assert_eq!(result, Some("@use 'camping'".to_string()));
     }

@@ -54,6 +54,8 @@ pub struct SettingsTable {
     #[serde(default)]
     pub tzarakk_mount: String,
     #[serde(default)]
+    pub sabre_weapon: String,
+    #[serde(default)]
     pub riftwalker_entity_fire: String,
     #[serde(default)]
     pub riftwalker_entity_air: String,
@@ -110,6 +112,10 @@ const SETTINGS_DEFS: &[SettingDefinition] = &[
     },
     SettingDefinition {
         key: "tzarakk_mount",
+        default: "",
+    },
+    SettingDefinition {
+        key: "sabre_weapon",
         default: "",
     },
     SettingDefinition {
@@ -253,6 +259,7 @@ impl ConfigManager {
         match key {
             "rig" => player.settings.rig = value.to_string(),
             "tzarakk_mount" => player.settings.tzarakk_mount = value.to_string(),
+            "sabre_weapon" => player.settings.sabre_weapon = value.to_string(),
             "riftwalker_entity_fire" => player.settings.riftwalker_entity_fire = value.to_string(),
             "riftwalker_entity_air" => player.settings.riftwalker_entity_air = value.to_string(),
             "riftwalker_entity_water" => {
@@ -374,6 +381,10 @@ fn player_to_user_settings(player: &PlayerToml) -> UserSettings {
             value: player.settings.tzarakk_mount.clone(),
         },
         SettingEntry {
+            key: "sabre_weapon".to_string(),
+            value: player.settings.sabre_weapon.clone(),
+        },
+        SettingEntry {
             key: "riftwalker_entity_fire".to_string(),
             value: player.settings.riftwalker_entity_fire.clone(),
         },
@@ -406,6 +417,7 @@ fn player_to_user_settings(player: &PlayerToml) -> UserSettings {
 fn settings_table_from_entries(entries: &[SettingEntry]) -> SettingsTable {
     let mut rig = String::new();
     let mut tzarakk_mount = String::new();
+    let mut sabre_weapon = String::new();
     let mut riftwalker_entity_fire = String::new();
     let mut riftwalker_entity_air = String::new();
     let mut riftwalker_entity_water = String::new();
@@ -416,6 +428,8 @@ fn settings_table_from_entries(entries: &[SettingEntry]) -> SettingsTable {
             rig.clone_from(&entry.value);
         } else if entry.key == "tzarakk_mount" {
             tzarakk_mount.clone_from(&entry.value);
+        } else if entry.key == "sabre_weapon" {
+            sabre_weapon.clone_from(&entry.value);
         } else if entry.key == "riftwalker_entity_fire" {
             riftwalker_entity_fire.clone_from(&entry.value);
         } else if entry.key == "riftwalker_entity_air" {
@@ -431,6 +445,7 @@ fn settings_table_from_entries(entries: &[SettingEntry]) -> SettingsTable {
     SettingsTable {
         rig,
         tzarakk_mount,
+        sabre_weapon,
         riftwalker_entity_fire,
         riftwalker_entity_air,
         riftwalker_entity_water,
@@ -648,6 +663,7 @@ mod tests {
             settings: SettingsTable {
                 rig: "bag".to_string(),
                 tzarakk_mount: String::new(),
+                sabre_weapon: String::new(),
                 riftwalker_entity_fire: String::new(),
                 riftwalker_entity_air: String::new(),
                 riftwalker_entity_water: String::new(),
@@ -669,6 +685,7 @@ mod tests {
             settings: SettingsTable {
                 rig: "satchel".to_string(),
                 tzarakk_mount: "Vedir".to_string(),
+                sabre_weapon: String::new(),
                 riftwalker_entity_fire: String::new(),
                 riftwalker_entity_air: String::new(),
                 riftwalker_entity_water: String::new(),
@@ -691,6 +708,7 @@ mod tests {
             settings: SettingsTable {
                 rig: "bag".to_string(),
                 tzarakk_mount: "Orthos".to_string(),
+                sabre_weapon: String::new(),
                 riftwalker_entity_fire: String::new(),
                 riftwalker_entity_air: String::new(),
                 riftwalker_entity_water: String::new(),
@@ -705,6 +723,50 @@ mod tests {
     }
 
     #[test]
+    fn serde_roundtrip_sabre_weapon() {
+        let original = PlayerToml {
+            guilds: Some(vec!["sabres".to_string()]),
+            guild_primary_background: None,
+            settings: SettingsTable {
+                rig: String::new(),
+                tzarakk_mount: String::new(),
+                sabre_weapon: "ivory sabre".to_string(),
+                riftwalker_entity_fire: String::new(),
+                riftwalker_entity_air: String::new(),
+                riftwalker_entity_water: String::new(),
+                riftwalker_entity_earth: String::new(),
+                extra: HashMap::new(),
+            },
+            generic_commands: GenericCommandsConfig::default(),
+        };
+        let text = toml::to_string_pretty(&original).unwrap();
+        let parsed: PlayerToml = toml::from_str(&text).unwrap();
+        assert_eq!(parsed, original);
+        assert_eq!(parsed.settings.sabre_weapon, "ivory sabre");
+    }
+
+    #[test]
+    fn player_to_user_settings_includes_sabre_weapon() {
+        let player = PlayerToml {
+            guilds: None,
+            guild_primary_background: None,
+            settings: SettingsTable {
+                rig: "bag".to_string(),
+                tzarakk_mount: String::new(),
+                sabre_weapon: "sabre".to_string(),
+                riftwalker_entity_fire: String::new(),
+                riftwalker_entity_air: String::new(),
+                riftwalker_entity_water: String::new(),
+                riftwalker_entity_earth: String::new(),
+                extra: HashMap::new(),
+            },
+            generic_commands: GenericCommandsConfig::default(),
+        };
+        let settings = player_to_user_settings(&player);
+        assert_eq!(settings.get("sabre_weapon"), Some("sabre"));
+    }
+
+    #[test]
     fn serde_roundtrip_riftwalker_entity_labels() {
         let original = PlayerToml {
             guilds: Some(vec!["riftwalker".to_string()]),
@@ -712,6 +774,7 @@ mod tests {
             settings: SettingsTable {
                 rig: String::new(),
                 tzarakk_mount: String::new(),
+                sabre_weapon: String::new(),
                 riftwalker_entity_fire: String::new(),
                 riftwalker_entity_air: "wisp".to_string(),
                 riftwalker_entity_water: String::new(),

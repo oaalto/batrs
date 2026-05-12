@@ -92,6 +92,7 @@ mod tests {
         command::CommandContext::new(
             HashMap::from([(CEREMONY_DONE_FLAG.to_string(), ceremony_done)]),
             true,
+            String::new(),
         )
     }
 

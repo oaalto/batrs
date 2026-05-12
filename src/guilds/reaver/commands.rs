@@ -355,7 +355,7 @@ mod tests {
             cmd: "upd".to_string(),
             args: "".to_string(),
         };
-        let mut ctx = command::CommandContext::new(HashMap::new(), true);
+        let mut ctx = command::CommandContext::new(HashMap::new(), true, String::new());
 
         let result = ReaverGuild::use_prayer_to_destruction(&data, &mut ctx);
 

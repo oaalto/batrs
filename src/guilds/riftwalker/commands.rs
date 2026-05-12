@@ -404,7 +404,7 @@ mod tests {
 
     #[test]
     fn dismiss_queues_flag_then_sends_on_separate_application() {
-        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let outcome = RiftwalkerGuild::cmd_dismiss_entity(
             &Data {
                 cmd: "cdis".to_string(),
@@ -421,7 +421,7 @@ mod tests {
 
     #[test]
     fn opening_battle_with_target_splits_cast_and_skill() {
-        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let mut automation = Automation::new();
         automation.set_var(RIFTWALKER_SKILL_VAR, FIRE_SKILL.to_string());
         RiftwalkerGuild::cmd_start_spark_birth(

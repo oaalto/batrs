@@ -23,7 +23,7 @@ mod tests {
             cmd: "/rig".to_string(),
             args: "bag".to_string(),
         };
-        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
 
         let result = run(&data, &mut ctx);
 

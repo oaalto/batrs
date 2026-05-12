@@ -166,7 +166,7 @@ mod tests {
         assert_eq!(
             NergalGuild::cast_enthralling_parasite(
                 &data,
-                &mut command::CommandContext::new(HashMap::new(), true)
+                &mut command::CommandContext::new(HashMap::new(), true, String::new())
             )
             .as_deref(),
             Some("@cast 'enthralling parasite' goblin")
@@ -182,7 +182,7 @@ mod tests {
         assert!(
             NergalGuild::cast_end_enthrallment(
                 &data,
-                &mut command::CommandContext::new(Default::default(), true)
+                &mut command::CommandContext::new(Default::default(), true, String::new())
             )
             .is_none()
         );
@@ -196,7 +196,7 @@ mod tests {
         };
         let out = NergalGuild::cast_end_enthrallment(
             &data,
-            &mut command::CommandContext::new(Default::default(), true),
+            &mut command::CommandContext::new(Default::default(), true, String::new()),
         )
         .unwrap();
         assert_eq!(out, "@cast end enthrallment at host1");
@@ -211,7 +211,7 @@ mod tests {
         assert!(
             NergalGuild::cast_nourish_enthralled(
                 &data,
-                &mut command::CommandContext::new(Default::default(), true)
+                &mut command::CommandContext::new(Default::default(), true, String::new())
             )
             .is_none()
         );
@@ -225,7 +225,7 @@ mod tests {
         };
         let out = NergalGuild::cast_nourish_enthralled(
             &data,
-            &mut command::CommandContext::new(Default::default(), true),
+            &mut command::CommandContext::new(Default::default(), true, String::new()),
         )
         .unwrap();
         assert_eq!(out, "@cast nourish enthralled at host consume minor vitae");
@@ -239,7 +239,7 @@ mod tests {
         };
         let out = NergalGuild::cast_harvest_vitae(
             &data,
-            &mut command::CommandContext::new(Default::default(), true),
+            &mut command::CommandContext::new(Default::default(), true, String::new()),
         )
         .unwrap();
         assert_eq!(out, "@target orc;cast 'harvest vitae' orc");
@@ -254,7 +254,7 @@ mod tests {
         assert!(
             NergalGuild::use_stab(
                 &data,
-                &mut command::CommandContext::new(Default::default(), true)
+                &mut command::CommandContext::new(Default::default(), true, String::new())
             )
             .is_none()
         );

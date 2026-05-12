@@ -238,7 +238,11 @@ mod tests {
     }
 
     fn ctx_with_flag(flag: bool) -> command::CommandContext {
-        command::CommandContext::new(HashMap::from([(KATA_DONE_FLAG.to_string(), flag)]), true)
+        command::CommandContext::new(
+            HashMap::from([(KATA_DONE_FLAG.to_string(), flag)]),
+            true,
+            String::new(),
+        )
     }
 
     #[test]

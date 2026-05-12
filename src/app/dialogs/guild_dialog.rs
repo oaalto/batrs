@@ -12,6 +12,7 @@ pub(crate) enum GuildDialogFocus {
     #[default]
     GuildList,
     MountName,
+    SabreWeapon,
     RiftwalkerEntities,
 }
 
@@ -49,6 +50,8 @@ pub(crate) struct GuildDialog {
     guild_cursor: usize,
     mount_name: String,
     mount_cursor: usize,
+    sabre_weapon: String,
+    sabre_weapon_cursor: usize,
     focus: GuildDialogFocus,
     riftwalker_labels: [String; 4],
     riftwalker_row: usize,
@@ -61,6 +64,7 @@ impl GuildDialog {
         selected: Vec<bool>,
         active_primary_keyword: &str,
         mount_name: String,
+        sabre_weapon: String,
         riftwalker_labels: [String; 4],
     ) -> Self {
         let active_primary =
@@ -81,6 +85,7 @@ impl GuildDialog {
         );
 
         let mount_cursor = mount_name.len();
+        let sabre_weapon_cursor = sabre_weapon.len();
         let riftwalker_cursors =
             std::array::from_fn(|index| riftwalker_labels[index].chars().count());
         Self {
@@ -94,6 +99,8 @@ impl GuildDialog {
             guild_cursor: 0,
             mount_name,
             mount_cursor,
+            sabre_weapon,
+            sabre_weapon_cursor,
             focus: GuildDialogFocus::GuildList,
             riftwalker_labels,
             riftwalker_row: 0,
@@ -203,6 +210,10 @@ impl GuildDialog {
         self.mount_name.clone()
     }
 
+    pub(crate) fn sabre_weapon(&self) -> String {
+        self.sabre_weapon.clone()
+    }
+
     pub(crate) fn riftwalker_entity_labels(&self) -> [String; 4] {
         [
             self.riftwalker_labels[0].clone(),
@@ -299,6 +310,17 @@ impl GuildDialog {
         self.selected.get(position).is_some_and(|value| *value)
     }
 
+    pub(crate) fn is_sabres_selected(&self) -> bool {
+        let Some(position) = self
+            .definitions
+            .iter()
+            .position(|definition| definition.key == "sabres")
+        else {
+            return false;
+        };
+        self.selected.get(position).is_some_and(|value| *value)
+    }
+
     pub(crate) fn is_riftwalker_selected(&self) -> bool {
         let Some(position) = self
             .definitions
@@ -312,6 +334,9 @@ impl GuildDialog {
 
     fn adjust_focus_targets(&mut self) {
         if self.focus == GuildDialogFocus::MountName && !self.is_tzarakk_selected() {
+            self.focus = self.first_aux_focus_after_mount();
+        }
+        if self.focus == GuildDialogFocus::SabreWeapon && !self.is_sabres_selected() {
             self.focus = if self.is_riftwalker_selected() {
                 GuildDialogFocus::RiftwalkerEntities
             } else {
@@ -320,6 +345,16 @@ impl GuildDialog {
         }
         if self.focus == GuildDialogFocus::RiftwalkerEntities && !self.is_riftwalker_selected() {
             self.focus = GuildDialogFocus::GuildList;
+        }
+    }
+
+    fn first_aux_focus_after_mount(&self) -> GuildDialogFocus {
+        if self.is_sabres_selected() {
+            GuildDialogFocus::SabreWeapon
+        } else if self.is_riftwalker_selected() {
+            GuildDialogFocus::RiftwalkerEntities
+        } else {
+            GuildDialogFocus::GuildList
         }
     }
 
@@ -333,12 +368,24 @@ impl GuildDialog {
             GuildDialogFocus::GuildList => {
                 if self.is_tzarakk_selected() {
                     self.focus = GuildDialogFocus::MountName;
+                } else if self.is_sabres_selected() {
+                    self.focus = GuildDialogFocus::SabreWeapon;
                 } else if self.is_riftwalker_selected() {
                     self.focus = GuildDialogFocus::RiftwalkerEntities;
                     self.riftwalker_row = 0;
                 }
             }
             GuildDialogFocus::MountName => {
+                if self.is_sabres_selected() {
+                    self.focus = GuildDialogFocus::SabreWeapon;
+                } else if self.is_riftwalker_selected() {
+                    self.focus = GuildDialogFocus::RiftwalkerEntities;
+                    self.riftwalker_row = 0;
+                } else {
+                    self.focus = GuildDialogFocus::GuildList;
+                }
+            }
+            GuildDialogFocus::SabreWeapon => {
                 if self.is_riftwalker_selected() {
                     self.focus = GuildDialogFocus::RiftwalkerEntities;
                     self.riftwalker_row = 0;
@@ -359,6 +406,8 @@ impl GuildDialog {
                 if self.is_riftwalker_selected() {
                     self.focus = GuildDialogFocus::RiftwalkerEntities;
                     self.riftwalker_row = 3;
+                } else if self.is_sabres_selected() {
+                    self.focus = GuildDialogFocus::SabreWeapon;
                 } else if self.is_tzarakk_selected() {
                     self.focus = GuildDialogFocus::MountName;
                 }
@@ -366,8 +415,17 @@ impl GuildDialog {
             GuildDialogFocus::MountName => {
                 self.focus = GuildDialogFocus::GuildList;
             }
-            GuildDialogFocus::RiftwalkerEntities => {
+            GuildDialogFocus::SabreWeapon => {
                 if self.is_tzarakk_selected() {
+                    self.focus = GuildDialogFocus::MountName;
+                } else {
+                    self.focus = GuildDialogFocus::GuildList;
+                }
+            }
+            GuildDialogFocus::RiftwalkerEntities => {
+                if self.is_sabres_selected() {
+                    self.focus = GuildDialogFocus::SabreWeapon;
+                } else if self.is_tzarakk_selected() {
                     self.focus = GuildDialogFocus::MountName;
                 } else {
                     self.focus = GuildDialogFocus::GuildList;
@@ -397,6 +455,31 @@ impl GuildDialog {
     fn mount_cursor_right(&mut self) {
         if self.mount_cursor < self.mount_name.len() {
             self.mount_cursor += 1;
+        }
+    }
+
+    fn insert_sabre_weapon_char(&mut self, character: char) {
+        self.sabre_weapon
+            .insert(self.sabre_weapon_cursor, character);
+        self.sabre_weapon_cursor += 1;
+    }
+
+    fn sabre_weapon_backspace(&mut self) {
+        if self.sabre_weapon_cursor > 0 {
+            self.sabre_weapon_cursor -= 1;
+            self.sabre_weapon.remove(self.sabre_weapon_cursor);
+        }
+    }
+
+    fn sabre_weapon_cursor_left(&mut self) {
+        if self.sabre_weapon_cursor > 0 {
+            self.sabre_weapon_cursor -= 1;
+        }
+    }
+
+    fn sabre_weapon_cursor_right(&mut self) {
+        if self.sabre_weapon_cursor < self.sabre_weapon.len() {
+            self.sabre_weapon_cursor += 1;
         }
     }
 
@@ -487,6 +570,10 @@ impl GuildDialog {
             show_mount_input: self.is_tzarakk_selected(),
             mount_input_cursor: self.mount_cursor,
             mount_input_focused: self.focus == GuildDialogFocus::MountName,
+            sabre_weapon: self.sabre_weapon.clone(),
+            show_sabre_weapon_input: self.is_sabres_selected(),
+            sabre_weapon_input_cursor: self.sabre_weapon_cursor,
+            sabre_weapon_input_focused: self.focus == GuildDialogFocus::SabreWeapon,
             show_riftwalker_entity_inputs: self.is_riftwalker_selected(),
             riftwalker_rows: riftwalker_entity_rows,
         }
@@ -591,6 +678,16 @@ pub(crate) fn apply_guild_dialog_keystroke(dialog: &mut GuildDialog, event: KeyE
                 dialog.focus = GuildDialogFocus::MountName;
                 dialog.insert_mount_char(character);
             }
+            KeyCode::Char(character)
+                if textual_mod_ok
+                    && matches!(dialog.mode, GuildDialogBrowseMode::DrillGuild)
+                    && dialog.is_sabres_selected()
+                    && !dialog.is_tzarakk_selected()
+                    && !character.is_control() =>
+            {
+                dialog.focus = GuildDialogFocus::SabreWeapon;
+                dialog.insert_sabre_weapon_char(character);
+            }
             _ => {}
         },
         GuildDialogFocus::MountName => match event.code {
@@ -600,6 +697,15 @@ pub(crate) fn apply_guild_dialog_keystroke(dialog: &mut GuildDialog, event: KeyE
             KeyCode::Backspace => dialog.mount_backspace(),
             KeyCode::Left => dialog.mount_cursor_left(),
             KeyCode::Right => dialog.mount_cursor_right(),
+            _ => {}
+        },
+        GuildDialogFocus::SabreWeapon => match event.code {
+            KeyCode::Char(character) if textual_mod_ok && !character.is_control() => {
+                dialog.insert_sabre_weapon_char(character);
+            }
+            KeyCode::Backspace => dialog.sabre_weapon_backspace(),
+            KeyCode::Left => dialog.sabre_weapon_cursor_left(),
+            KeyCode::Right => dialog.sabre_weapon_cursor_right(),
             _ => {}
         },
         GuildDialogFocus::RiftwalkerEntities => match event.code {
@@ -665,6 +771,7 @@ mod guild_dialog_keystroke_tests {
             selected,
             evil_keyword(),
             String::new(),
+            String::new(),
             super::default_riftwalker_entity_labels(),
         );
         dialog.open_drill_from_browse_cursor();
@@ -681,6 +788,7 @@ mod guild_dialog_keystroke_tests {
             definitions,
             vec![false; count],
             DEFAULT_GUILD_PRIMARY_KEYWORD,
+            String::new(),
             String::new(),
             super::default_riftwalker_entity_labels(),
         );
@@ -699,6 +807,7 @@ mod guild_dialog_keystroke_tests {
             definitions,
             selected,
             evil_keyword(),
+            String::new(),
             String::new(),
             super::default_riftwalker_entity_labels(),
         );
@@ -722,6 +831,7 @@ mod guild_dialog_keystroke_tests {
             definitions,
             selected,
             magical_keyword(),
+            String::new(),
             String::new(),
             super::default_riftwalker_entity_labels(),
         );
@@ -758,6 +868,7 @@ mod guild_dialog_keystroke_tests {
             definitions,
             selected,
             evil_keyword(),
+            String::new(),
             String::new(),
             super::default_riftwalker_entity_labels(),
         );

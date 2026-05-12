@@ -96,13 +96,14 @@ mod tests {
     }
 
     fn empty_ctx() -> command::CommandContext {
-        command::CommandContext::new(HashMap::new(), true)
+        command::CommandContext::new(HashMap::new(), true, String::new())
     }
 
     fn ctx_with_mount_summoned() -> command::CommandContext {
         command::CommandContext::new(
             HashMap::from([(MOUNT_SUMMONED_FLAG.to_string(), true)]),
             true,
+            String::new(),
         )
     }
 

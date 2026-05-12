@@ -55,6 +55,10 @@ pub struct GuildDialogViewModel {
     pub show_mount_input: bool,
     pub mount_input_cursor: usize,
     pub mount_input_focused: bool,
+    pub sabre_weapon: String,
+    pub show_sabre_weapon_input: bool,
+    pub sabre_weapon_input_cursor: usize,
+    pub sabre_weapon_input_focused: bool,
     pub show_riftwalker_entity_inputs: bool,
     pub riftwalker_rows: Vec<RiftwalkerEntityRowVm>,
 }
@@ -200,6 +204,9 @@ fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
     if dialog.show_mount_input {
         constraints.push(Constraint::Length(3));
     }
+    if dialog.show_sabre_weapon_input {
+        constraints.push(Constraint::Length(3));
+    }
     if dialog.show_riftwalker_entity_inputs {
         constraints.push(Constraint::Length(8));
     }
@@ -307,6 +314,26 @@ fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
                 .min(mount_inner.width as usize - 1) as u16;
             let cursor_x = mount_inner.x.saturating_add(cursor_offset);
             let cursor_y = mount_inner.y;
+            frame.set_cursor_position((cursor_x, cursor_y));
+        }
+        chunk_index += 1;
+    }
+
+    if dialog.show_sabre_weapon_input {
+        let sabre_block = Block::default()
+            .title("Main-hand weapon (Sabres)")
+            .borders(Borders::ALL)
+            .style(dialog_style);
+        let sabre_input = Paragraph::new(dialog.sabre_weapon.clone()).block(sabre_block.clone());
+        frame.render_widget(sabre_input, chunks[chunk_index]);
+
+        let sabre_inner = sabre_block.inner(chunks[chunk_index]);
+        if dialog.sabre_weapon_input_focused && sabre_inner.width > 0 && sabre_inner.height > 0 {
+            let cursor_offset = dialog
+                .sabre_weapon_input_cursor
+                .min(sabre_inner.width as usize - 1) as u16;
+            let cursor_x = sabre_inner.x.saturating_add(cursor_offset);
+            let cursor_y = sabre_inner.y;
             frame.set_cursor_position((cursor_x, cursor_y));
         }
         chunk_index += 1;

@@ -131,13 +131,14 @@ mod tests {
     }
 
     fn empty_ctx() -> CommandContext {
-        CommandContext::new(HashMap::new(), true)
+        CommandContext::new(HashMap::new(), true, String::new())
     }
 
     fn ctx_with_entity_flag(has: bool) -> CommandContext {
         CommandContext::new(
             HashMap::from([(RIFTWALKER_HAS_ENTITY_FLAG.to_string(), has)]),
             true,
+            String::new(),
         )
     }
 

@@ -12,6 +12,7 @@ mod psionicist;
 mod ranger;
 mod reaver;
 mod riftwalker;
+mod sabres;
 mod tiger;
 mod tzarakk;
 
@@ -27,6 +28,7 @@ pub use psionicist::PsionicistGuild;
 pub use ranger::RangerGuild;
 pub use reaver::ReaverGuild;
 pub use riftwalker::RiftwalkerGuild;
+pub use sabres::SabresGuild;
 pub use tiger::TigerGuild;
 pub use tzarakk::TzarakkGuild;
 
@@ -80,6 +82,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
         GuildDefinition {
             key: "ranger",
             name: "Ranger",
+        },
+        GuildDefinition {
+            key: "sabres",
+            name: "Sabres",
         },
         GuildDefinition {
             key: "aelena",
@@ -139,6 +145,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "ranger" {
             guilds.push(Box::new(RangerGuild::default()));
+        }
+        if key.as_str() == "sabres" {
+            guilds.push(Box::new(SabresGuild::default()));
         }
         if key.as_str() == "aelena" {
             guilds.push(Box::new(AelenaGuild::default()));
@@ -272,6 +281,19 @@ mod tests {
         );
 
         let guilds = build_guilds(&["ranger".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn sabres_is_registered_and_builds() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| definition.key == "sabres" && definition.name == "Sabres")
+        );
+
+        let guilds = build_guilds(&["sabres".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }

@@ -96,10 +96,16 @@ pub struct CommandContext {
     pub open_settings_dialog: bool,
     pub logged_in: bool,
     pub set_rig: Option<String>,
+    /// Main-hand weapon for Sabres (`/guilds` / `sabre_weapon` in player settings); may be empty.
+    pub sabre_weapon: String,
 }
 
 impl CommandContext {
-    pub fn new(automation_flags: HashMap<String, bool>, logged_in: bool) -> Self {
+    pub fn new(
+        automation_flags: HashMap<String, bool>,
+        logged_in: bool,
+        sabre_weapon: String,
+    ) -> Self {
         Self {
             should_quit: false,
             automation_actions: Vec::new(),
@@ -110,6 +116,7 @@ impl CommandContext {
             open_settings_dialog: false,
             logged_in,
             set_rig: None,
+            sabre_weapon,
         }
     }
 
@@ -221,7 +228,7 @@ mod tests {
 
     #[test]
     fn process_handles_builtin_quit() {
-        let mut ctx = CommandContext::new(HashMap::new(), false);
+        let mut ctx = CommandContext::new(HashMap::new(), false, String::new());
         let generic = GenericCommands::default();
         let outcome = process("/quit", &mut ctx, &[], &generic);
 
@@ -231,13 +238,13 @@ mod tests {
 
     #[test]
     fn process_respects_login_requirements() {
-        let mut ctx = CommandContext::new(HashMap::new(), false);
+        let mut ctx = CommandContext::new(HashMap::new(), false, String::new());
         let generic = GenericCommands::default();
         let outcome = process("/guilds", &mut ctx, &[], &generic);
 
         assert!(!outcome.open_guilds_dialog);
 
-        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let outcome = process("/guilds", &mut ctx, &[], &generic);
 
         assert!(outcome.open_guilds_dialog);
@@ -246,7 +253,7 @@ mod tests {
     #[test]
     fn process_runs_guild_commands() {
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
-        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let generic = GenericCommands::default();
         let outcome = process("ping world", &mut ctx, &guilds, &generic);
 
@@ -257,7 +264,7 @@ mod tests {
     fn process_runs_generic_commands_after_guild() {
         // Test that guild commands take priority over generic commands
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
-        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
 
         // Create a generic command that would conflict with "ping" if it existed
         let generic = GenericCommands::default();
@@ -269,7 +276,7 @@ mod tests {
 
     #[test]
     fn process_echoes_unknown_commands() {
-        let mut ctx = CommandContext::new(HashMap::new(), true);
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let generic = GenericCommands::default();
         let outcome = process("some raw text", &mut ctx, &[], &generic);
 

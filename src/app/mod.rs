@@ -275,6 +275,19 @@ impl BatApp {
         Renderer::render(frame, &view);
     }
 
+    fn sabre_weapon_for_commands(&mut self) -> String {
+        if !self.user_config_loaded {
+            return String::new();
+        }
+        let Some(manager) = self.config_manager.as_mut() else {
+            return String::new();
+        };
+        match manager.user_settings() {
+            Ok(settings) => settings.get("sabre_weapon").unwrap_or("").to_string(),
+            Err(_) => String::new(),
+        }
+    }
+
     fn submit_input(&mut self) {
         if !self.session.is_logged_in() {
             let input = self.input.take_displayed_input();
@@ -283,7 +296,11 @@ impl BatApp {
             }
 
             if input.starts_with('/') {
-                let mut ctx = command::CommandContext::new(self.automation.snapshot_flags(), false);
+                let mut ctx = command::CommandContext::new(
+                    self.automation.snapshot_flags(),
+                    false,
+                    String::new(),
+                );
                 let outcome = command::process(
                     &input,
                     &mut ctx,
@@ -326,7 +343,9 @@ impl BatApp {
             return;
         }
 
-        let mut ctx = command::CommandContext::new(self.automation.snapshot_flags(), true);
+        let sabre_weapon = self.sabre_weapon_for_commands();
+        let mut ctx =
+            command::CommandContext::new(self.automation.snapshot_flags(), true, sabre_weapon);
         let outcome = command::process(
             self.input.displayed_input(),
             &mut ctx,
@@ -418,6 +437,11 @@ impl BatApp {
         };
         if let Err(e) = manager.save_user_settings(&settings) {
             eprintln!("failed to save user settings: {e}");
+            return;
+        }
+        if let Ok(updated) = manager.user_settings() {
+            let weapon = updated.get("sabre_weapon").unwrap_or("").to_string();
+            self.automation.set_var("sabre_weapon", weapon);
         }
     }
 
@@ -442,6 +466,13 @@ impl BatApp {
             && !mount.is_empty()
         {
             self.automation.set_var("tzarakk_mount", mount.to_string());
+        }
+
+        if let Some(manager) = self.config_manager.as_mut()
+            && let Ok(settings) = manager.user_settings()
+        {
+            let weapon = settings.get("sabre_weapon").unwrap_or("").to_string();
+            self.automation.set_var("sabre_weapon", weapon);
         }
 
         if let Some(manager) = self.config_manager.as_mut()
@@ -477,11 +508,12 @@ impl BatApp {
             })
             .collect();
 
-        // Load mount name from config
-        let (mount_name, riftwalker_entities) = if self.user_config_loaded {
+        // Load mount name and Sabres weapon from config
+        let (mount_name, sabre_weapon, riftwalker_entities) = if self.user_config_loaded {
             if let Some(manager) = self.config_manager.as_mut() {
                 if let Ok(settings) = manager.user_settings() {
                     let mount = settings.get("tzarakk_mount").unwrap_or("").to_string();
+                    let sabre = settings.get("sabre_weapon").unwrap_or("").to_string();
                     let riftwalker = [
                         settings
                             .get("riftwalker_entity_fire")
@@ -500,15 +532,27 @@ impl BatApp {
                             .unwrap_or("")
                             .to_string(),
                     ];
-                    (mount, riftwalker)
+                    (mount, sabre, riftwalker)
                 } else {
-                    (String::new(), default_riftwalker_entity_labels())
+                    (
+                        String::new(),
+                        String::new(),
+                        default_riftwalker_entity_labels(),
+                    )
                 }
             } else {
-                (String::new(), default_riftwalker_entity_labels())
+                (
+                    String::new(),
+                    String::new(),
+                    default_riftwalker_entity_labels(),
+                )
             }
         } else {
-            (String::new(), default_riftwalker_entity_labels())
+            (
+                String::new(),
+                String::new(),
+                default_riftwalker_entity_labels(),
+            )
         };
 
         self.guild_dialog = Some(GuildDialog::new(
@@ -516,6 +560,7 @@ impl BatApp {
             selected,
             primary_kw.as_str(),
             mount_name,
+            sabre_weapon,
             riftwalker_entities,
         ));
     }
@@ -562,6 +607,7 @@ impl BatApp {
                 let guild_primary_keyword = dialog.active_primary_keyword().to_string();
                 let keys = dialog.selected_keys();
                 let mount_name = dialog.mount_name();
+                let sabre_weapon = dialog.sabre_weapon();
                 let riftwalker_entities = dialog.riftwalker_entity_labels();
                 self.guild_dialog = None;
                 self.apply_selected_guilds(keys.clone());
@@ -569,6 +615,7 @@ impl BatApp {
                     keys,
                     &guild_primary_keyword,
                     mount_name,
+                    sabre_weapon,
                     riftwalker_entities,
                 );
             }
@@ -677,6 +724,7 @@ impl BatApp {
         keys: Vec<String>,
         guild_primary_keyword: &str,
         mount_name: String,
+        sabre_weapon: String,
         riftwalker_entity_labels: [String; 4],
     ) {
         if !self.user_config_loaded {
@@ -694,6 +742,10 @@ impl BatApp {
         // Save mount name
         if let Err(e) = manager.save_user_setting("tzarakk_mount", &mount_name) {
             eprintln!("failed to save tzarakk mount name: {e}");
+        }
+
+        if let Err(e) = manager.save_user_setting("sabre_weapon", &sabre_weapon) {
+            eprintln!("failed to save sabre_weapon: {e}");
         }
 
         let riftwalker_keys = [
@@ -765,6 +817,9 @@ impl BatApp {
             {
                 self.automation.set_var("tzarakk_mount", mount.to_string());
             }
+
+            let weapon = settings.get("sabre_weapon").unwrap_or("").to_string();
+            self.automation.set_var("sabre_weapon", weapon);
 
             Self::apply_riftwalker_entity_settings_to_automation(&mut self.automation, &settings);
         }
