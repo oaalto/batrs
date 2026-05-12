@@ -5,6 +5,7 @@ mod channellers;
 mod civmage;
 mod curate;
 mod disciple;
+mod folklorist;
 pub mod grouping;
 mod grouping_catalog;
 mod monk;
@@ -27,6 +28,7 @@ pub use channellers::ChannellersGuild;
 pub use civmage::CivmageGuild;
 pub use curate::CurateGuild;
 pub use disciple::DiscipleGuild;
+pub use folklorist::FolkloristGuild;
 pub use monk::MonkGuild;
 pub use nergal::NergalGuild;
 pub use psionicist::PsionicistGuild;
@@ -112,6 +114,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             name: "Civmage",
         },
         GuildDefinition {
+            key: "folklorist",
+            name: "Folklorist",
+        },
+        GuildDefinition {
             key: "curate",
             name: "Curate",
         },
@@ -184,6 +190,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "civmage" {
             guilds.push(Box::new(CivmageGuild::default()));
+        }
+        if key.as_str() == "folklorist" {
+            guilds.push(Box::new(FolkloristGuild::default()));
         }
         if key.as_str() == "curate" {
             guilds.push(Box::new(CurateGuild::default()));
@@ -456,6 +465,17 @@ mod tests {
         );
 
         let guilds = build_guilds(&["triad".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn folklorist_is_registered_and_builds() {
+        assert!(guild_definitions().iter().any(|definition| {
+            definition.key == "folklorist" && definition.name == "Folklorist"
+        }));
+
+        let guilds = build_guilds(&["folklorist".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
