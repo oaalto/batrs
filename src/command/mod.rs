@@ -1,7 +1,6 @@
 mod generic;
 mod guilds;
 mod quit;
-mod rig;
 mod settings;
 
 use crate::ansi::StyledLine;
@@ -24,10 +23,6 @@ lazy_static! {
         (
             "/generic".to_string(),
             CommandDef::new(generic::run as Command, true),
-        ),
-        (
-            "/rig".to_string(),
-            CommandDef::new(rig::run as Command, true),
         ),
         (
             "/settings".to_string(),
@@ -95,7 +90,6 @@ pub struct CommandContext {
     pub open_generic_commands_dialog: bool,
     pub open_settings_dialog: bool,
     pub logged_in: bool,
-    pub set_rig: Option<String>,
     /// Main-hand weapon for Sabres (`/guilds` / `sabre_weapon` in player settings); may be empty.
     pub sabre_weapon: String,
 }
@@ -115,7 +109,6 @@ impl CommandContext {
             open_generic_commands_dialog: false,
             open_settings_dialog: false,
             logged_in,
-            set_rig: None,
             sabre_weapon,
         }
     }
@@ -143,10 +136,6 @@ impl CommandContext {
     pub fn open_settings_dialog(&mut self) {
         self.open_settings_dialog = true;
     }
-
-    pub fn set_rig(&mut self, rig: String) {
-        self.set_rig = Some(rig);
-    }
 }
 
 pub struct Data {
@@ -173,7 +162,6 @@ pub struct CommandOutcome {
     pub open_guilds_dialog: bool,
     pub open_generic_commands_dialog: bool,
     pub open_settings_dialog: bool,
-    pub set_rig: Option<String>,
 }
 
 impl CommandOutcome {
@@ -186,7 +174,6 @@ impl CommandOutcome {
             open_guilds_dialog: ctx.open_guilds_dialog,
             open_generic_commands_dialog: ctx.open_generic_commands_dialog,
             open_settings_dialog: ctx.open_settings_dialog,
-            set_rig: ctx.set_rig.take(),
         }
     }
 }

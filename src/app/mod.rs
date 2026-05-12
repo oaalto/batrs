@@ -8,7 +8,7 @@ mod util;
 
 use crate::ansi::StyledLine;
 use crate::automation::{Action, Automation};
-use crate::config::{ConfigManager, GenericCommandsConfig, SettingEntry, UserSettings};
+use crate::config::{ConfigManager, GenericCommandsConfig, UserSettings};
 use crate::generic_commands::GenericCommands;
 use crate::guilds::{
     Guild, build_guilds,
@@ -321,9 +321,6 @@ impl BatApp {
                 if outcome.open_settings_dialog {
                     self.open_settings_dialog();
                 }
-                if let Some(rig) = outcome.set_rig {
-                    self.update_user_rig(rig);
-                }
                 if !outcome.output_lines.is_empty() {
                     self.output.append_lines(outcome.output_lines);
                 }
@@ -370,9 +367,6 @@ impl BatApp {
         }
 
         self.apply_automation_actions(outcome.automation_actions);
-        if let Some(rig) = outcome.set_rig {
-            self.update_user_rig(rig);
-        }
         if !outcome.output_lines.is_empty() {
             self.output.append_lines(outcome.output_lines);
         }
@@ -395,38 +389,6 @@ impl BatApp {
         for cmd in self.automation.apply_actions(actions) {
             self.send_command(cmd);
         }
-    }
-
-    fn update_user_rig(&mut self, rig: String) {
-        if !self.user_config_loaded {
-            self.load_user_config();
-        }
-        let entries = if let Some(manager) = self.config_manager.as_mut() {
-            match manager.user_settings() {
-                Ok(settings) => {
-                    let mut entries = settings.entries;
-                    if let Some(entry) = entries.iter_mut().find(|entry| entry.key == "rig") {
-                        entry.value = rig.clone();
-                    } else {
-                        entries.push(SettingEntry {
-                            key: "rig".to_string(),
-                            value: rig.clone(),
-                        });
-                    }
-                    entries
-                }
-                Err(e) => {
-                    eprintln!("invalid settings config: {e}");
-                    std::process::exit(1);
-                }
-            }
-        } else {
-            vec![SettingEntry {
-                key: "rig".to_string(),
-                value: rig.clone(),
-            }]
-        };
-        self.apply_user_settings(UserSettings { entries });
     }
 
     fn apply_user_settings(&mut self, settings: UserSettings) {
