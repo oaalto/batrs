@@ -13,6 +13,7 @@ mod ranger;
 mod reaver;
 mod riftwalker;
 mod sabres;
+mod seminary;
 mod tiger;
 mod tzarakk;
 
@@ -29,6 +30,7 @@ pub use ranger::RangerGuild;
 pub use reaver::ReaverGuild;
 pub use riftwalker::RiftwalkerGuild;
 pub use sabres::SabresGuild;
+pub use seminary::SeminaryGuild;
 pub use tiger::TigerGuild;
 pub use tzarakk::TzarakkGuild;
 
@@ -111,6 +113,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             key: "nergal",
             name: "Nergal",
         },
+        GuildDefinition {
+            key: "seminary",
+            name: "Seminary",
+        },
     ]
 }
 
@@ -166,6 +172,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "nergal" {
             guilds.push(Box::new(NergalGuild::default()));
+        }
+        if key.as_str() == "seminary" {
+            guilds.push(Box::new(SeminaryGuild::default()));
         }
     }
 
@@ -368,6 +377,19 @@ mod tests {
         );
 
         let guilds = build_guilds(&["nergal".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn seminary_is_registered_and_builds() {
+        assert!(
+            guild_definitions().iter().any(|definition| {
+                definition.key == "seminary" && definition.name == "Seminary"
+            })
+        );
+
+        let guilds = build_guilds(&["seminary".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
