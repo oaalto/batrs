@@ -10,6 +10,8 @@ pub mod grouping;
 mod grouping_catalog;
 mod kharim;
 mod liberator;
+mod mage;
+mod magic_lore_analysis;
 mod monk;
 mod nergal;
 mod psionicist;
@@ -33,6 +35,7 @@ pub use disciple::DiscipleGuild;
 pub use folklorist::FolkloristGuild;
 pub use kharim::KharimGuild;
 pub use liberator::LiberatorGuild;
+pub use mage::MageGuild;
 pub use monk::MonkGuild;
 pub use nergal::NergalGuild;
 pub use psionicist::PsionicistGuild;
@@ -112,6 +115,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
         GuildDefinition {
             key: "channellers",
             name: "Channeller",
+        },
+        GuildDefinition {
+            key: "mage",
+            name: "Mage",
         },
         GuildDefinition {
             key: "civmage",
@@ -199,6 +206,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "channellers" {
             guilds.push(Box::new(ChannellersGuild::default()));
+        }
+        if key.as_str() == "mage" {
+            guilds.push(Box::new(MageGuild::default()));
         }
         if key.as_str() == "civmage" {
             guilds.push(Box::new(CivmageGuild::default()));
@@ -407,6 +417,19 @@ mod tests {
         );
 
         let guilds = build_guilds(&["civmage".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn mage_is_registered_and_builds() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| definition.key == "mage" && definition.name == "Mage")
+        );
+
+        let guilds = build_guilds(&["mage".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
