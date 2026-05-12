@@ -20,41 +20,41 @@ impl MageGuild {
     pub fn get_commands(&self) -> HashMap<String, Command> {
         HashMap::from([
             ("cere".to_string(), Self::use_ceremony as Command),
-            ("cstaff".to_string(), Self::use_create_staff as Command),
-            ("mad".to_string(), Self::cast_aura_detection as Command),
-            ("cht".to_string(), Self::cast_chill_touch as Command),
-            ("crfood".to_string(), Self::cast_create_food as Command),
-            ("dark".to_string(), Self::cast_darkness as Command),
-            ("disr".to_string(), Self::cast_disruption as Command),
-            ("fla".to_string(), Self::cast_flame_arrow as Command),
-            ("flt".to_string(), Self::cast_floating as Command),
-            ("fltl".to_string(), Self::cast_floating_letters as Command),
-            ("frcabs".to_string(), Self::cast_force_absorption as Command),
-            ("hself".to_string(), Self::cast_heal_self as Command),
-            ("mid".to_string(), Self::cast_identify as Command),
-            ("inv".to_string(), Self::cast_invisibility as Command),
-            ("lit".to_string(), Self::cast_light as Command),
+            ("ucs".to_string(), Self::use_create_staff as Command),
+            ("cad".to_string(), Self::cast_aura_detection as Command),
+            ("cct".to_string(), Self::cast_chill_touch as Command),
+            ("ccf".to_string(), Self::cast_create_food as Command),
+            ("cd".to_string(), Self::cast_darkness as Command),
+            ("cdi".to_string(), Self::cast_disruption as Command),
+            ("cfa".to_string(), Self::cast_flame_arrow as Command),
+            ("cfab".to_string(), Self::cast_force_absorption as Command),
+            ("cf".to_string(), Self::cast_floating as Command),
+            ("cfl".to_string(), Self::cast_floating_letters as Command),
+            ("chs".to_string(), Self::cast_heal_self as Command),
+            ("ci".to_string(), Self::cast_identify as Command),
+            ("cinv".to_string(), Self::cast_invisibility as Command),
+            ("cl".to_string(), Self::cast_light as Command),
             ("cmm".to_string(), Self::cast_magic_missile as Command),
-            ("mnabar".to_string(), Self::cast_mana_barrier as Command),
-            ("mimg".to_string(), Self::cast_mirror_image as Command),
-            ("moon".to_string(), Self::cast_moon_sense as Command),
-            ("pburst".to_string(), Self::cast_prismatic_burst as Command),
-            ("reloc".to_string(), Self::cast_relocate as Command),
-            ("sinvis".to_string(), Self::cast_see_invisible as Command),
-            ("smag".to_string(), Self::cast_see_magic as Command),
-            ("sgrasp".to_string(), Self::cast_shocking_grasp as Command),
+            ("cmb".to_string(), Self::cast_mana_barrier as Command),
+            ("cmi".to_string(), Self::cast_mirror_image as Command),
+            ("cms".to_string(), Self::cast_moon_sense as Command),
+            ("cpb".to_string(), Self::cast_prismatic_burst as Command),
+            ("cr".to_string(), Self::cast_relocate as Command),
+            ("csi".to_string(), Self::cast_see_invisible as Command),
+            ("csm".to_string(), Self::cast_see_magic as Command),
+            ("csg".to_string(), Self::cast_shocking_grasp as Command),
             (
-                "tporterr".to_string(),
+                "ctwe".to_string(),
                 Self::cast_teleport_with_error as Command,
             ),
             (
-                "tportne".to_string(),
+                "ctw".to_string(),
                 Self::cast_teleport_without_error as Command,
             ),
-            ("thorn".to_string(), Self::cast_thorn_spray as Command),
-            ("cvacb".to_string(), Self::cast_vacuumbolt as Command),
-            ("wwalk".to_string(), Self::cast_water_walking as Command),
-            ("wor".to_string(), Self::cast_word_of_recall as Command),
+            ("cts".to_string(), Self::cast_thorn_spray as Command),
+            ("cv".to_string(), Self::cast_vacuumbolt as Command),
+            ("cww".to_string(), Self::cast_water_walking as Command),
+            ("cwor".to_string(), Self::cast_word_of_recall as Command),
         ])
     }
 
@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn create_staff_without_target() {
         assert_eq!(
-            MageGuild::use_create_staff(&data("cstaff", ""), &mut empty_ctx()),
+            MageGuild::use_create_staff(&data("ucs", ""), &mut empty_ctx()),
             Some("@use 'create staff'".to_string())
         );
     }
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn create_staff_with_target() {
         assert_eq!(
-            MageGuild::use_create_staff(&data("cstaff", "branch"), &mut empty_ctx()),
+            MageGuild::use_create_staff(&data("ucs", "branch"), &mut empty_ctx()),
             Some("@target branch;use 'create staff' branch".to_string())
         );
     }
@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn identify_defaults_to_me() {
         assert_eq!(
-            MageGuild::cast_identify(&data("mid", ""), &mut empty_ctx()),
+            MageGuild::cast_identify(&data("ci", ""), &mut empty_ctx()),
             Some("@cast identify at me".to_string())
         );
     }
@@ -181,7 +181,7 @@ mod tests {
     #[test]
     fn identify_with_target() {
         assert_eq!(
-            MageGuild::cast_identify(&data("mid", "sword"), &mut empty_ctx()),
+            MageGuild::cast_identify(&data("ci", "sword"), &mut empty_ctx()),
             Some("@cast identify at sword".to_string())
         );
     }
@@ -189,7 +189,7 @@ mod tests {
     #[test]
     fn mirror_image_defaults_to_me() {
         assert_eq!(
-            MageGuild::cast_mirror_image(&data("mimg", ""), &mut empty_ctx()),
+            MageGuild::cast_mirror_image(&data("cmi", ""), &mut empty_ctx()),
             Some("@cast mirror image at me".to_string())
         );
     }
@@ -197,7 +197,7 @@ mod tests {
     #[test]
     fn mirror_image_with_target() {
         assert_eq!(
-            MageGuild::cast_mirror_image(&data("mimg", "ally"), &mut empty_ctx()),
+            MageGuild::cast_mirror_image(&data("cmi", "ally"), &mut empty_ctx()),
             Some("@cast mirror image at ally".to_string())
         );
     }
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn word_of_recall_cast_spell() {
         assert_eq!(
-            MageGuild::cast_word_of_recall(&data("wor", ""), &mut empty_ctx()),
+            MageGuild::cast_word_of_recall(&data("cwor", ""), &mut empty_ctx()),
             Some("@cast 'word of recall'".to_string())
         );
     }
@@ -225,11 +225,11 @@ mod tests {
     #[test]
     fn vacuumbolt_cast_spell() {
         assert_eq!(
-            MageGuild::cast_vacuumbolt(&data("cvacb", ""), &mut empty_ctx()),
+            MageGuild::cast_vacuumbolt(&data("cv", ""), &mut empty_ctx()),
             Some("@cast 'vacuumbolt'".to_string())
         );
         assert_eq!(
-            MageGuild::cast_vacuumbolt(&data("cvacb", "orc"), &mut empty_ctx()),
+            MageGuild::cast_vacuumbolt(&data("cv", "orc"), &mut empty_ctx()),
             Some("@target orc;cast 'vacuumbolt' orc".to_string())
         );
     }
