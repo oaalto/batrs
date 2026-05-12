@@ -52,7 +52,7 @@ impl MageGuild {
                 Self::cast_teleport_without_error as Command,
             ),
             ("thorn".to_string(), Self::cast_thorn_spray as Command),
-            ("vac".to_string(), Self::cast_vacuumbolt as Command),
+            ("cvacb".to_string(), Self::cast_vacuumbolt as Command),
             ("wwalk".to_string(), Self::cast_water_walking as Command),
             ("wor".to_string(), Self::cast_word_of_recall as Command),
         ])
@@ -219,6 +219,18 @@ mod tests {
         assert_eq!(
             MageGuild::cast_word_of_recall(&data("wor", ""), &mut empty_ctx()),
             Some("@cast 'word of recall'".to_string())
+        );
+    }
+
+    #[test]
+    fn vacuumbolt_cast_spell() {
+        assert_eq!(
+            MageGuild::cast_vacuumbolt(&data("cvacb", ""), &mut empty_ctx()),
+            Some("@cast 'vacuumbolt'".to_string())
+        );
+        assert_eq!(
+            MageGuild::cast_vacuumbolt(&data("cvacb", "orc"), &mut empty_ctx()),
+            Some("@target orc;cast 'vacuumbolt' orc".to_string())
         );
     }
 }
