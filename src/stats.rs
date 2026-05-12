@@ -197,9 +197,9 @@ impl Stats {
         spans.push(Span::raw("  "));
         spans.extend(self.inline_stat_spans("Ep", self.ep, self.max_ep, self.diff_ep));
         spans.push(Span::raw("  "));
-        spans.extend(self.inline_value_spans("Exp", self.exp, self.diff_exp));
+        spans.extend(self.inline_value_spans("$", self.money, self.diff_money));
         spans.push(Span::raw("  "));
-        spans.extend(self.inline_value_spans("Money", self.money, self.diff_money));
+        spans.extend(self.inline_value_spans("Exp", self.exp, self.diff_exp));
 
         Line::from(spans)
     }
@@ -461,11 +461,11 @@ mod tests {
 
         let line = line_text(&stats.render_inline());
         assert!(
-            line.contains("Money: 2786"),
+            line.contains("$: 2786"),
             "expected money from short score after prompt; got {line:?}"
         );
         assert!(
-            !line.contains("Money: 0"),
+            !line.contains("$: 0"),
             "prompt must not reset money to zero; got {line:?}"
         );
     }
@@ -479,11 +479,11 @@ mod tests {
 
         let line = line_text(&stats.render_inline());
         assert!(
-            line.contains("Money: 500"),
+            line.contains("$: 500"),
             "expected money from short score after prompt; got {line:?}"
         );
         assert!(
-            !line.contains("Money: 500 (+"),
+            !line.contains("$: 500 (+"),
             "diff should stay cleared when zero"
         );
     }
@@ -496,7 +496,7 @@ mod tests {
         stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
 
         let line = line_text(&stats.render_inline());
-        assert!(line.contains("Money: 100"));
+        assert!(line.contains("$: 100"));
         assert!(
             !line.contains("-5"),
             "money delta from short score should not persist after prompt-only line; got {line:?}"
