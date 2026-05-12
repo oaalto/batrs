@@ -12,6 +12,7 @@ mod kharim;
 mod liberator;
 mod mage;
 mod mage_acid;
+mod mage_fire;
 mod magic_lore_analysis;
 mod monk;
 mod nergal;
@@ -38,6 +39,7 @@ pub use kharim::KharimGuild;
 pub use liberator::LiberatorGuild;
 pub use mage::MageGuild;
 pub use mage_acid::MageAcidGuild;
+pub use mage_fire::MageFireGuild;
 pub use monk::MonkGuild;
 pub use nergal::NergalGuild;
 pub use psionicist::PsionicistGuild;
@@ -125,6 +127,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
         GuildDefinition {
             key: "mage_acid",
             name: "Mage Acid",
+        },
+        GuildDefinition {
+            key: "mage_fire",
+            name: "Mage Fire",
         },
         GuildDefinition {
             key: "civmage",
@@ -218,6 +224,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "mage_acid" {
             guilds.push(Box::new(MageAcidGuild::default()));
+        }
+        if key.as_str() == "mage_fire" {
+            guilds.push(Box::new(MageFireGuild::default()));
         }
         if key.as_str() == "civmage" {
             guilds.push(Box::new(CivmageGuild::default()));
@@ -452,6 +461,19 @@ mod tests {
         );
 
         let guilds = build_guilds(&["mage_acid".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn mage_fire_is_registered_and_builds() {
+        assert!(
+            guild_definitions().iter().any(|definition| {
+                definition.key == "mage_fire" && definition.name == "Mage Fire"
+            })
+        );
+
+        let guilds = build_guilds(&["mage_fire".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
