@@ -1,3 +1,4 @@
+mod aelena;
 mod animist;
 mod disciple;
 pub mod grouping;
@@ -9,6 +10,7 @@ mod riftwalker;
 mod tiger;
 mod tzarakk;
 
+pub use aelena::AelenaGuild;
 pub use animist::AnimistGuild;
 pub use disciple::DiscipleGuild;
 pub use monk::MonkGuild;
@@ -69,6 +71,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             key: "ranger",
             name: "Ranger",
         },
+        GuildDefinition {
+            key: "aelena",
+            name: "Aelena",
+        },
     ]
 }
 
@@ -103,6 +109,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "ranger" {
             guilds.push(Box::new(RangerGuild::default()));
+        }
+        if key.as_str() == "aelena" {
+            guilds.push(Box::new(AelenaGuild::default()));
         }
     }
 
@@ -218,6 +227,19 @@ mod tests {
         );
 
         let guilds = build_guilds(&["ranger".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn aelena_is_registered_and_builds() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| definition.key == "aelena" && definition.name == "Aelena")
+        );
+
+        let guilds = build_guilds(&["aelena".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
