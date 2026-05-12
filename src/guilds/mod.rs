@@ -8,6 +8,7 @@ mod disciple;
 mod folklorist;
 pub mod grouping;
 mod grouping_catalog;
+mod inner_circle;
 mod kharim;
 mod liberator;
 mod mage;
@@ -40,6 +41,7 @@ pub use civmage::CivmageGuild;
 pub use curate::CurateGuild;
 pub use disciple::DiscipleGuild;
 pub use folklorist::FolkloristGuild;
+pub use inner_circle::InnerCircleGuild;
 pub use kharim::KharimGuild;
 pub use liberator::LiberatorGuild;
 pub use mage::MageGuild;
@@ -129,6 +131,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
         GuildDefinition {
             key: "channellers",
             name: "Channeller",
+        },
+        GuildDefinition {
+            key: "inner_circle",
+            name: "Inner Circle",
         },
         GuildDefinition {
             key: "mage",
@@ -248,6 +254,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "channellers" {
             guilds.push(Box::new(ChannellersGuild::default()));
+        }
+        if key.as_str() == "inner_circle" {
+            guilds.push(Box::new(InnerCircleGuild::default()));
         }
         if key.as_str() == "mage" {
             guilds.push(Box::new(MageGuild::default()));
@@ -467,6 +476,17 @@ mod tests {
         }));
 
         let guilds = build_guilds(&["channellers".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn inner_circle_is_registered_and_builds() {
+        assert!(guild_definitions().iter().any(
+            |definition| definition.key == "inner_circle" && definition.name == "Inner Circle"
+        ));
+
+        let guilds = build_guilds(&["inner_circle".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
