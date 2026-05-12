@@ -2,6 +2,7 @@ mod aelena;
 mod animist;
 mod barbarian;
 mod channellers;
+mod curate;
 mod disciple;
 pub mod grouping;
 mod grouping_catalog;
@@ -16,6 +17,7 @@ pub use aelena::AelenaGuild;
 pub use animist::AnimistGuild;
 pub use barbarian::BarbarianGuild;
 pub use channellers::ChannellersGuild;
+pub use curate::CurateGuild;
 pub use disciple::DiscipleGuild;
 pub use monk::MonkGuild;
 pub use ranger::RangerGuild;
@@ -87,6 +89,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             key: "channellers",
             name: "Channeller",
         },
+        GuildDefinition {
+            key: "curate",
+            name: "Curate",
+        },
     ]
 }
 
@@ -130,6 +136,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "channellers" {
             guilds.push(Box::new(ChannellersGuild::default()));
+        }
+        if key.as_str() == "curate" {
+            guilds.push(Box::new(CurateGuild::default()));
         }
     }
 
@@ -282,6 +291,19 @@ mod tests {
         }));
 
         let guilds = build_guilds(&["channellers".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn curate_is_registered_and_builds() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| definition.key == "curate" && definition.name == "Curate")
+        );
+
+        let guilds = build_guilds(&["curate".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
