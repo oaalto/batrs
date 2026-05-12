@@ -442,6 +442,8 @@ impl BatApp {
         if let Ok(updated) = manager.user_settings() {
             let weapon = updated.get("sabre_weapon").unwrap_or("").to_string();
             self.automation.set_var("sabre_weapon", weapon);
+            self.automation
+                .set_flag("is_lich", updated.is_lich_enabled());
         }
     }
 
@@ -479,6 +481,13 @@ impl BatApp {
             && let Ok(settings) = manager.user_settings()
         {
             Self::apply_riftwalker_entity_settings_to_automation(&mut self.automation, &settings);
+        }
+
+        if let Some(manager) = self.config_manager.as_mut()
+            && let Ok(settings) = manager.user_settings()
+        {
+            self.automation
+                .set_flag("is_lich", settings.is_lich_enabled());
         }
     }
 
@@ -822,6 +831,9 @@ impl BatApp {
             self.automation.set_var("sabre_weapon", weapon);
 
             Self::apply_riftwalker_entity_settings_to_automation(&mut self.automation, &settings);
+
+            self.automation
+                .set_flag("is_lich", settings.is_lich_enabled());
         }
 
         // Apply generic commands configuration

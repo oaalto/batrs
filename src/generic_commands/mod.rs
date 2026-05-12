@@ -72,6 +72,7 @@ impl GenericCommands {
                 Self::common_spells_group(),
                 Self::navigator_group(),
                 Self::common_skills_group(),
+                Self::misc_group(),
             ],
         }
     }
@@ -110,6 +111,9 @@ impl GenericCommands {
             // common_skills (tf/done_nomad.tf)
             "ufb" => use_fire_building,
             "camp" => use_camping,
+            // misc (tf/done_misc.tf)
+            "lich_rip" => rip_lich,
+            "normal_rip" | "dig_rip" => rip_dig_grave,
             _ => unknown_command,
         }
     }
@@ -181,6 +185,27 @@ impl GenericCommands {
             vec![
                 GenericCommand::new("ufb", &abilities::targeted_use(names::FIRE_BUILDING, "")),
                 GenericCommand::new("camp", &abilities::targeted_use(names::CAMPING, "")),
+            ],
+        )
+    }
+
+    fn misc_group() -> GenericCommandGroup {
+        GenericCommandGroup::new(
+            "misc",
+            "Misc (tf/done_misc.tf)",
+            vec![
+                GenericCommand::new(
+                    "lich_rip",
+                    "rip_action set get all from corpse;drop zinc;drop mowgles",
+                ),
+                GenericCommand::new(
+                    "normal_rip",
+                    "rip_action set get all from corpse;dig grave;drop zinc;drop mowgles",
+                ),
+                GenericCommand::new(
+                    "dig_rip",
+                    "rip_action set get all from corpse;dig grave;drop zinc;drop mowgles",
+                ),
             ],
         )
     }
@@ -309,6 +334,18 @@ fn use_camping(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
     )))
 }
 
+fn rip_lich(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
+    Some(abilities::client_send_line(
+        "rip_action set get all from corpse;drop zinc;drop mowgles",
+    ))
+}
+
+fn rip_dig_grave(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
+    Some(abilities::client_send_line(
+        "rip_action set get all from corpse;dig grave;drop zinc;drop mowgles",
+    ))
+}
+
 fn unknown_command(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
     None
 }
@@ -320,11 +357,12 @@ mod tests {
     #[test]
     fn default_has_predefined_groups() {
         let generic = GenericCommands::default();
-        assert_eq!(generic.groups.len(), 4);
+        assert_eq!(generic.groups.len(), 5);
         assert!(generic.groups.iter().any(|g| g.name == "cure_spells"));
         assert!(generic.groups.iter().any(|g| g.name == "common_spells"));
         assert!(generic.groups.iter().any(|g| g.name == "navigator"));
         assert!(generic.groups.iter().any(|g| g.name == "common_skills"));
+        assert!(generic.groups.iter().any(|g| g.name == "misc"));
     }
 
     #[test]
@@ -430,5 +468,27 @@ mod tests {
         let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let result = use_camping(&data, &mut ctx);
         assert_eq!(result, Some("@use 'camping'".to_string()));
+    }
+
+    #[test]
+    fn rip_lich_matches_tf() {
+        let data = Data::new("lich_rip");
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
+        let result = rip_lich(&data, &mut ctx);
+        assert_eq!(
+            result,
+            Some("@rip_action set get all from corpse;drop zinc;drop mowgles".to_string())
+        );
+    }
+
+    #[test]
+    fn rip_dig_grave_matches_tf() {
+        let data = Data::new("normal_rip");
+        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
+        let expected =
+            "@rip_action set get all from corpse;dig grave;drop zinc;drop mowgles".to_string();
+        assert_eq!(rip_dig_grave(&data, &mut ctx), Some(expected.clone()));
+        let data_alias = Data::new("dig_rip");
+        assert_eq!(rip_dig_grave(&data_alias, &mut ctx), Some(expected));
     }
 }

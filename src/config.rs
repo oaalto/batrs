@@ -23,6 +23,18 @@ impl UserSettings {
             .find(|entry| entry.key == key)
             .map(|entry| entry.value.as_str())
     }
+
+    /// [`PlayerToml`] `[settings]` key `is_lich` (often under `extra`); enables misc lich triggers when truthy.
+    pub fn is_lich_enabled(&self) -> bool {
+        self.get("is_lich").is_some_and(is_truthy_setting_value)
+    }
+}
+
+fn is_truthy_setting_value(value: &str) -> bool {
+    matches!(
+        value.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes"
+    )
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
@@ -764,6 +776,29 @@ mod tests {
         };
         let settings = player_to_user_settings(&player);
         assert_eq!(settings.get("sabre_weapon"), Some("sabre"));
+    }
+
+    #[test]
+    fn user_settings_is_lich_enabled() {
+        let mut entries = vec![SettingEntry {
+            key: "is_lich".to_string(),
+            value: "1".to_string(),
+        }];
+        assert!(
+            UserSettings {
+                entries: entries.clone()
+            }
+            .is_lich_enabled()
+        );
+        entries[0].value = "yes".to_string();
+        assert!(
+            UserSettings {
+                entries: entries.clone()
+            }
+            .is_lich_enabled()
+        );
+        entries[0].value = "".to_string();
+        assert!(!UserSettings { entries }.is_lich_enabled());
     }
 
     #[test]

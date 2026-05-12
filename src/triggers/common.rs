@@ -1070,6 +1070,60 @@ lazy_static! {
             vec![tf_hilite("Cred", HiliteTarget::Whole)],
         );
 
+        // tf/done_misc.tf — boon/race highlights, lich drain / dig grave (generic)
+        for (pattern, color) in [
+            ("You leech some of your foes energy.", "BCgreen"),
+            (
+                "You realize a more effective way to use your horns!",
+                "BCyellow",
+            ),
+            (
+                "Your wings glow as they absorb more magic!",
+                "BCyellow",
+            ),
+            ("Whee, your neat fur is dry again!", "Cgreen"),
+            (
+                "You gain insight to warhorse philosophy!",
+                "BCyellow",
+            ),
+            (
+                "You learn more about the praying mantis tactics!",
+                "BCyellow",
+            ),
+            ("The water BURNS your skin.", "BCred"),
+            (
+                "You feel exhausted, being here in the dark.",
+                "BCred",
+            ),
+        ] {
+            push_rule(
+                &mut rules,
+                &mut order,
+                RuleMatcher::Simple(pattern),
+                10,
+                None,
+                vec![tf_hilite(color, HiliteTarget::Whole)],
+            );
+        }
+
+        push_rule(
+            &mut rules,
+            &mut order,
+            RuleMatcher::Simple("You are not in combat right now."),
+            1000,
+            Some(RuleCondition::FlagSet("is_lich")),
+            vec![RuleAction::Send("@lich drain")],
+        );
+
+        push_rule(
+            &mut rules,
+            &mut order,
+            RuleMatcher::Simple("The consumed life force fills your being with ecstacy!"),
+            10,
+            None,
+            vec![RuleAction::Send("@dig grave")],
+        );
+
         rules.sort_by(|a, b| {
             b.priority
                 .cmp(&a.priority)
@@ -1123,8 +1177,18 @@ mod tests {
         rig: Option<&str>,
         player_name: Option<&str>,
     ) -> (TriggerOutput, StyledLine, Automation) {
+        run_trigger_with_setup(line, rig, player_name, |_| {})
+    }
+
+    fn run_trigger_with_setup(
+        line: &str,
+        rig: Option<&str>,
+        player_name: Option<&str>,
+        setup: impl FnOnce(&mut Automation),
+    ) -> (TriggerOutput, StyledLine, Automation) {
         let mut stats = Stats::default();
         let mut automation = Automation::new();
+        setup(&mut automation);
         let mut ctx = TriggerContext {
             stats: &mut stats,
             automation: &mut automation,
@@ -1240,6 +1304,57 @@ mod tests {
         assert_eq!(styled.styled_chars[idx + 1].color, AnsiCode::Blue);
         assert_eq!(styled.styled_chars[idx + 2].color, AnsiCode::Blue);
         assert_eq!(styled.styled_chars[idx + 3].color, AnsiCode::Blue);
+    }
+
+    #[test]
+    fn misc_leech_line_hilite_green_bold() {
+        let (_output, styled, _) = run_trigger("You leech some of your foes energy.", None, None);
+        assert!(
+            styled
+                .styled_chars
+                .iter()
+                .all(|c| { c.color == AnsiCode::Green && c.bold })
+        );
+    }
+
+    #[test]
+    fn lich_not_in_combat_sends_drain_when_is_lich() {
+        let (output, _, _) =
+            run_trigger_with_setup("You are not in combat right now.", None, None, |auto| {
+                auto.set_flag("is_lich", true);
+            });
+        assert!(
+            output
+                .actions
+                .iter()
+                .any(|a| matches!(a, Action::Send(cmd) if cmd == "@lich drain"))
+        );
+    }
+
+    #[test]
+    fn lich_not_in_combat_skips_drain_without_flag() {
+        let (output, _, _) = run_trigger("You are not in combat right now.", None, None);
+        assert!(
+            !output
+                .actions
+                .iter()
+                .any(|a| matches!(a, Action::Send(cmd) if cmd == "@lich drain"))
+        );
+    }
+
+    #[test]
+    fn consumed_life_force_sends_dig_grave() {
+        let (output, _, _) = run_trigger(
+            "The consumed life force fills your being with ecstacy!",
+            None,
+            None,
+        );
+        assert!(
+            output
+                .actions
+                .iter()
+                .any(|a| matches!(a, Action::Send(cmd) if cmd == "@dig grave"))
+        );
     }
 
     #[test]
