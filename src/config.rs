@@ -30,6 +30,9 @@ pub struct PlayerToml {
     /// When omitted from file, guild keys are not loaded from this player profile (selection stays empty until configured).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub guilds: Option<Vec<String>>,
+    /// Thematic background keyword among the five civilization-style buckets (`civilized`, `magical`, …). Drives mutually exclusive thematic guild prefs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guild_primary_background: Option<String>,
     #[serde(default)]
     pub settings: SettingsTable,
     #[serde(default)]
@@ -204,7 +207,11 @@ impl ConfigManager {
         Ok(player_to_user_settings(player))
     }
 
-    pub fn save_user_guilds(&mut self, guilds: &[String]) -> io::Result<()> {
+    pub fn save_user_guilds(
+        &mut self,
+        guilds: &[String],
+        primary_thematic_keyword: &str,
+    ) -> io::Result<()> {
         let Some(path) = self.user_config_path.as_ref() else {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
@@ -218,7 +225,15 @@ impl ConfigManager {
             ));
         };
         player.guilds = Some(guilds.to_vec());
+        player.guild_primary_background = Some(primary_thematic_keyword.to_string());
         persist_player_to_path(path, player)
+    }
+
+    pub fn user_guild_primary_background(&self) -> Option<&str> {
+        self.player_config
+            .as_ref()?
+            .guild_primary_background
+            .as_deref()
     }
 
     pub fn save_user_setting(&mut self, key: &str, value: &str) -> io::Result<()> {
@@ -342,6 +357,7 @@ fn migrate_legacy_config(raw: &str) -> Result<PlayerToml, SettingsError> {
     let (entries, _) = normalize_settings_entries(entry_vec);
     Ok(PlayerToml {
         guilds,
+        guild_primary_background: None,
         settings: settings_table_from_entries(&entries),
         generic_commands: GenericCommandsConfig::default(),
     })
@@ -425,11 +441,12 @@ fn settings_table_from_entries(entries: &[SettingEntry]) -> SettingsTable {
 
 fn normalize_player_config(player: &mut PlayerToml) -> bool {
     let entries = player_to_user_settings(player).entries;
-    let (normalized, changed) = normalize_settings_entries(entries);
-    if changed {
+    let (normalized, settings_changed) = normalize_settings_entries(entries);
+    let guild_changed = crate::guilds::grouping::normalize_player_guild_toml(player);
+    if settings_changed {
         player.settings = settings_table_from_entries(&normalized);
     }
-    changed
+    settings_changed || guild_changed
 }
 
 fn normalize_settings_entries(entries: Vec<SettingEntry>) -> (Vec<SettingEntry>, bool) {
@@ -627,6 +644,7 @@ mod tests {
     fn serde_roundtrip_player_toml() {
         let original = PlayerToml {
             guilds: Some(vec!["reaver".to_string(), "monk".to_string()]),
+            guild_primary_background: None,
             settings: SettingsTable {
                 rig: "bag".to_string(),
                 tzarakk_mount: String::new(),
@@ -647,6 +665,7 @@ mod tests {
     fn serde_roundtrip_tzarakk_mount() {
         let original = PlayerToml {
             guilds: Some(vec!["tzarakk".to_string()]),
+            guild_primary_background: None,
             settings: SettingsTable {
                 rig: "satchel".to_string(),
                 tzarakk_mount: "Vedir".to_string(),
@@ -668,6 +687,7 @@ mod tests {
     fn player_to_user_settings_includes_tzarakk_mount() {
         let player = PlayerToml {
             guilds: None,
+            guild_primary_background: None,
             settings: SettingsTable {
                 rig: "bag".to_string(),
                 tzarakk_mount: "Orthos".to_string(),
@@ -688,6 +708,7 @@ mod tests {
     fn serde_roundtrip_riftwalker_entity_labels() {
         let original = PlayerToml {
             guilds: Some(vec!["riftwalker".to_string()]),
+            guild_primary_background: None,
             settings: SettingsTable {
                 rig: String::new(),
                 tzarakk_mount: String::new(),

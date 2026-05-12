@@ -10,7 +10,11 @@ use crate::ansi::StyledLine;
 use crate::automation::{Action, Automation};
 use crate::config::{ConfigManager, GenericCommandsConfig, SettingEntry, UserSettings};
 use crate::generic_commands::GenericCommands;
-use crate::guilds::{Guild, build_guilds, guild_definitions};
+use crate::guilds::{
+    Guild, build_guilds,
+    grouping::{DEFAULT_GUILD_PRIMARY_KEYWORD, thematic_index_for_keyword},
+    guild_definitions,
+};
 use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
 use crate::{command, triggers};
@@ -443,10 +447,26 @@ impl BatApp {
         if !self.session.is_logged_in() {
             return;
         }
+
+        let primary_kw = self
+            .config_manager
+            .as_ref()
+            .and_then(|manager| {
+                manager
+                    .user_guild_primary_background()
+                    .filter(|candidate| thematic_index_for_keyword(candidate).is_some())
+                    .map(ToString::to_string)
+            })
+            .unwrap_or_else(|| DEFAULT_GUILD_PRIMARY_KEYWORD.to_string());
+
         let definitions = guild_definitions();
         let selected = definitions
             .iter()
-            .map(|def| self.selected_guild_keys.iter().any(|key| key == def.key))
+            .map(|definition| {
+                self.selected_guild_keys
+                    .iter()
+                    .any(|key| key == definition.key)
+            })
             .collect();
 
         // Load mount name from config
@@ -486,6 +506,7 @@ impl BatApp {
         self.guild_dialog = Some(GuildDialog::new(
             definitions,
             selected,
+            primary_kw.as_str(),
             mount_name,
             riftwalker_entities,
         ));
@@ -519,15 +540,29 @@ impl BatApp {
         };
         match event.code {
             KeyCode::Esc => {
-                self.guild_dialog = None;
+                if dialog.is_browsing_backgrounds() {
+                    self.guild_dialog = None;
+                } else {
+                    dialog.back_to_browse();
+                }
             }
             KeyCode::Enter => {
+                if dialog.is_browsing_backgrounds() {
+                    dialog.open_drill_from_browse_cursor();
+                    return;
+                }
+                let guild_primary_keyword = dialog.active_primary_keyword().to_string();
                 let keys = dialog.selected_keys();
                 let mount_name = dialog.mount_name();
                 let riftwalker_entities = dialog.riftwalker_entity_labels();
                 self.guild_dialog = None;
                 self.apply_selected_guilds(keys.clone());
-                self.save_selected_guilds_with_auxiliary(keys, mount_name, riftwalker_entities);
+                self.save_selected_guilds_with_auxiliary(
+                    keys,
+                    &guild_primary_keyword,
+                    mount_name,
+                    riftwalker_entities,
+                );
             }
             _ => {
                 apply_guild_dialog_keystroke(dialog, event);
@@ -632,6 +667,7 @@ impl BatApp {
     fn save_selected_guilds_with_auxiliary(
         &mut self,
         keys: Vec<String>,
+        guild_primary_keyword: &str,
         mount_name: String,
         riftwalker_entity_labels: [String; 4],
     ) {
@@ -643,7 +679,7 @@ impl BatApp {
         };
 
         // Save guilds
-        if let Err(e) = manager.save_user_guilds(&keys) {
+        if let Err(e) = manager.save_user_guilds(&keys, guild_primary_keyword) {
             eprintln!("failed to save user guilds: {e}");
         }
 

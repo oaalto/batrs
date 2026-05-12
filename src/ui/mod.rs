@@ -1,5 +1,6 @@
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::Stylize;
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Text};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
@@ -20,11 +21,6 @@ pub struct ViewModel<'a> {
     pub settings_dialog: Option<SettingsDialogViewModel>,
 }
 
-pub struct GuildDialogItem {
-    pub name: String,
-    pub selected: bool,
-}
-
 pub struct RiftwalkerEntityRowVm {
     pub title: &'static str,
     pub value: String,
@@ -32,9 +28,29 @@ pub struct RiftwalkerEntityRowVm {
     pub active_row: bool,
 }
 
+#[derive(Clone, Debug)]
+pub enum GuildDialogPresentation {
+    BrowseRows {
+        labels: Vec<String>,
+        cursor: usize,
+        /// Thematic-only index 0–4 matching the five civilization-style backgrounds.
+        active_primary_index: usize,
+    },
+    GuildDrill {
+        subtitle: String,
+        lines: Vec<GuildDrillLineVm>,
+        cursor: usize,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub enum GuildDrillLineVm {
+    Banner(String),
+    Guild { title: String, selected: bool },
+}
+
 pub struct GuildDialogViewModel {
-    pub items: Vec<GuildDialogItem>,
-    pub cursor: usize,
+    pub presentation: GuildDialogPresentation,
     pub mount_name: String,
     pub show_mount_input: bool,
     pub mount_input_cursor: usize,
@@ -161,14 +177,29 @@ fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
     let background = Paragraph::new("").style(dialog_style);
     frame.render_widget(background, area);
 
-    let block = Block::default()
+    let title = Block::default()
         .title("Guilds")
         .borders(Borders::ALL)
         .style(dialog_style);
-    frame.render_widget(&block, area);
-    let inner = block.inner(area);
+    frame.render_widget(&title, area);
+    let inner = title.inner(area);
+
+    let instructions_text: &'static str = match &dialog.presentation {
+        GuildDialogPresentation::BrowseRows { .. } => concat!(
+            "Up/Down: move  ",
+            "Space: set thematic primary (first five backgrounds)  ",
+            "Enter: open group  Esc: cancel"
+        ),
+        GuildDialogPresentation::GuildDrill { .. } => concat!(
+            "Up/Down: move  ",
+            "Space: toggle guild  ",
+            "Tab / Shift+Tab: next field  Type: edit  ",
+            "Enter: save  Esc: back to backgrounds"
+        ),
+    };
 
     let mut constraints: Vec<Constraint> = vec![Constraint::Min(1)];
+
     if dialog.show_mount_input {
         constraints.push(Constraint::Length(3));
     }
@@ -184,25 +215,85 @@ fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
 
     let mut chunk_index = 0usize;
 
-    let items = dialog
-        .items
-        .iter()
-        .map(|item| {
-            let marker = if item.selected { "✓" } else { " " };
-            ListItem::new(format!("{marker} {}", item.name))
-        })
-        .collect::<Vec<ListItem<'_>>>();
+    match &dialog.presentation {
+        GuildDialogPresentation::BrowseRows {
+            labels,
+            cursor,
+            active_primary_index,
+        } => {
+            let thematic_row_count = labels.len().saturating_sub(1);
+            let browse_items = labels
+                .iter()
+                .enumerate()
+                .map(|(row_index, row_label)| {
+                    let thematic_primary_row =
+                        row_index < thematic_row_count && row_index == *active_primary_index;
+                    ListItem::new(format!(
+                        "{}{}",
+                        if thematic_primary_row { "*" } else { " " },
+                        row_label
+                    ))
+                })
+                .collect::<Vec<ListItem<'_>>>();
+            let browse_list = List::new(browse_items)
+                .highlight_symbol("> ")
+                .style(dialog_style)
+                .highlight_style(dialog_style);
+            let mut browse_state = ListState::default();
+            if !labels.is_empty() {
+                browse_state.select(Some((*cursor).min(labels.len().saturating_sub(1))));
+            }
+            frame.render_stateful_widget(browse_list, chunks[chunk_index], &mut browse_state);
+            chunk_index += 1;
+        }
+        GuildDialogPresentation::GuildDrill {
+            subtitle,
+            lines,
+            cursor,
+        } => {
+            let pane_area = chunks[chunk_index];
+            let list_area = if subtitle.is_empty() {
+                pane_area
+            } else {
+                let split = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([Constraint::Length(1), Constraint::Min(0)])
+                    .split(pane_area);
+                frame.render_widget(
+                    Paragraph::new(subtitle.as_str()).style(dialog_style),
+                    split[0],
+                );
+                split[1]
+            };
 
-    let list = List::new(items)
-        .highlight_symbol("> ")
-        .style(dialog_style)
-        .highlight_style(dialog_style);
-    let mut state = ListState::default();
-    if !dialog.items.is_empty() {
-        state.select(Some(dialog.cursor.min(dialog.items.len() - 1)));
+            let drill_items = lines
+                .iter()
+                .map(|line_variant| match line_variant {
+                    GuildDrillLineVm::Banner(message) => {
+                        ListItem::new(Line::from(message.as_str()).dim())
+                    }
+                    GuildDrillLineVm::Guild {
+                        title: title_text,
+                        selected,
+                    } => {
+                        let marker = if *selected { "✓" } else { " " };
+                        ListItem::new(format!("{marker} {title_text}"))
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            let drill_widget = List::new(drill_items)
+                .highlight_symbol("> ")
+                .style(dialog_style)
+                .highlight_style(dialog_style);
+            let mut drill_state = ListState::default();
+            if !lines.is_empty() {
+                drill_state.select(Some((*cursor).min(lines.len().saturating_sub(1))));
+            }
+            frame.render_stateful_widget(drill_widget, list_area, &mut drill_state);
+            chunk_index += 1;
+        }
     }
-    frame.render_stateful_widget(list, chunks[chunk_index], &mut state);
-    chunk_index += 1;
 
     if dialog.show_mount_input {
         let mount_block = Block::default()
@@ -267,11 +358,7 @@ fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
         chunk_index += 1;
     }
 
-    let help = concat!(
-        "Up/Down: move or row  Space: toggle guild  Tab / Shift+Tab: next field  ",
-        "Type: edit  Enter: save  Esc: cancel"
-    );
-    let instructions = Paragraph::new(help)
+    let instructions = Paragraph::new(instructions_text)
         .wrap(Wrap { trim: true })
         .style(dialog_style);
     frame.render_widget(instructions, chunks[chunk_index]);
