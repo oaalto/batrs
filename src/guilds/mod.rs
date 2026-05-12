@@ -17,6 +17,7 @@ mod mage_cold;
 mod mage_electricity;
 mod mage_fire;
 mod mage_magical;
+mod mage_poison;
 mod magic_lore_analysis;
 mod monk;
 mod nergal;
@@ -48,6 +49,7 @@ pub use mage_cold::MageColdGuild;
 pub use mage_electricity::MageElectricityGuild;
 pub use mage_fire::MageFireGuild;
 pub use mage_magical::MageMagicalGuild;
+pub use mage_poison::MagePoisonGuild;
 pub use monk::MonkGuild;
 pub use nergal::NergalGuild;
 pub use psionicist::PsionicistGuild;
@@ -157,6 +159,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             name: "Mage Magical",
         },
         GuildDefinition {
+            key: "mage_poison",
+            name: "Mage Poison",
+        },
+        GuildDefinition {
             key: "civmage",
             name: "Civmage",
         },
@@ -263,6 +269,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "mage_magical" {
             guilds.push(Box::new(MageMagicalGuild::default()));
+        }
+        if key.as_str() == "mage_poison" {
+            guilds.push(Box::new(MagePoisonGuild::default()));
         }
         if key.as_str() == "civmage" {
             guilds.push(Box::new(CivmageGuild::default()));
@@ -556,6 +565,17 @@ mod tests {
         }));
 
         let guilds = build_guilds(&["mage_magical".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn mage_poison_is_registered_and_builds() {
+        assert!(guild_definitions().iter().any(|definition| {
+            definition.key == "mage_poison" && definition.name == "Mage Poison"
+        }));
+
+        let guilds = build_guilds(&["mage_poison".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }
