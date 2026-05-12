@@ -8,6 +8,7 @@ use crate::guilds::monk::{
     CURRENT_AVOID_SKILL_VAR, CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_1, DISRUPT_SKILL_2,
     DISRUPT_SKILL_3, DOING_MEDITATION_FLAG, KATA_DONE_FLAG,
 };
+use crate::guilds::sects_triggers;
 use crate::triggers::{Trigger, TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -20,7 +21,11 @@ struct MonkRule {
 
 impl MonkGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
-        vec![Self::state_trigger, Self::skill_result_trigger]
+        vec![
+            Self::state_trigger,
+            Self::skill_result_trigger,
+            sects_triggers::sect_cultivation_hilite_trigger,
+        ]
     }
 
     pub fn state_trigger(

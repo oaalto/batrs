@@ -27,6 +27,7 @@ mod ranger;
 mod reaver;
 mod riftwalker;
 mod sabres;
+mod sects_triggers;
 mod seminary;
 mod spider;
 mod tiger;

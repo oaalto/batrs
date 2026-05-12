@@ -1,5 +1,6 @@
 use crate::ansi::{AnsiCode, StyledLine};
 use crate::guilds::TigerGuild;
+use crate::guilds::sects_triggers;
 use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -18,7 +19,11 @@ lazy_static! {
 
 impl TigerGuild {
     pub fn get_triggers(&self) -> Vec<crate::triggers::Trigger> {
-        vec![Self::red_hilites_trigger, Self::green_hilites_trigger]
+        vec![
+            Self::red_hilites_trigger,
+            Self::green_hilites_trigger,
+            sects_triggers::sect_cultivation_hilite_trigger,
+        ]
     }
 
     pub fn red_hilites_trigger(
