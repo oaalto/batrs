@@ -7,6 +7,7 @@ mod disciple;
 pub mod grouping;
 mod grouping_catalog;
 mod monk;
+mod nergal;
 mod psionicist;
 mod ranger;
 mod reaver;
@@ -21,6 +22,7 @@ pub use channellers::ChannellersGuild;
 pub use curate::CurateGuild;
 pub use disciple::DiscipleGuild;
 pub use monk::MonkGuild;
+pub use nergal::NergalGuild;
 pub use psionicist::PsionicistGuild;
 pub use ranger::RangerGuild;
 pub use reaver::ReaverGuild;
@@ -99,6 +101,10 @@ pub fn guild_definitions() -> Vec<GuildDefinition> {
             key: "psionicist",
             name: "Psionicist",
         },
+        GuildDefinition {
+            key: "nergal",
+            name: "Nergal",
+        },
     ]
 }
 
@@ -148,6 +154,9 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
         }
         if key.as_str() == "psionicist" {
             guilds.push(Box::new(PsionicistGuild::default()));
+        }
+        if key.as_str() == "nergal" {
+            guilds.push(Box::new(NergalGuild::default()));
         }
     }
 
@@ -324,6 +333,19 @@ mod tests {
         }));
 
         let guilds = build_guilds(&["psionicist".to_string()]);
+
+        assert_eq!(guilds.len(), 1);
+    }
+
+    #[test]
+    fn nergal_is_registered_and_builds() {
+        assert!(
+            guild_definitions()
+                .iter()
+                .any(|definition| definition.key == "nergal" && definition.name == "Nergal")
+        );
+
+        let guilds = build_guilds(&["nergal".to_string()]);
 
         assert_eq!(guilds.len(), 1);
     }

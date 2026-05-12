@@ -1,5 +1,6 @@
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
+use unicode_width::UnicodeWidthStr;
 
 #[derive(Default, Debug, Clone)]
 pub struct Stats {
@@ -17,9 +18,21 @@ pub struct Stats {
     money: i32,
     diff_money: i32,
     soul_companion: Option<SoulCompanionStatus>,
+    pub(crate) nergal_minions: [Option<NergalMinion>; 3],
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct NergalMinion {
+    pub name: String,
+    pub hp: i32,
+    pub max_hp: i32,
+    pub sp: i32,
+    pub max_sp: i32,
+    pub ep: i32,
+    pub max_ep: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SoulCompanionStatus {
     percent: i32,
     description: String,
@@ -60,16 +73,20 @@ impl Stats {
 
     pub fn update_from_prompt(&mut self, stats: [i32; 7]) {
         let soul_companion = self.soul_companion.clone();
+        let nergal_minions = self.nergal_minions.clone();
         let money = self.money;
         *self = Self::new(stats);
         self.soul_companion = soul_companion;
+        self.nergal_minions = nergal_minions;
         self.money = money;
     }
 
     pub fn update_from_short_score(&mut self, stats: [i32; 13]) {
         let soul_companion = self.soul_companion.clone();
+        let nergal_minions = self.nergal_minions.clone();
         *self = Self::new_from_sc(stats);
         self.soul_companion = soul_companion;
+        self.nergal_minions = nergal_minions;
     }
 
     pub fn set_soul_companion(&mut self, percent: i32, description: String) {
@@ -81,6 +98,95 @@ impl Stats {
 
     pub fn has_soul_companion_status(&self) -> bool {
         self.soul_companion.is_some()
+    }
+
+    pub fn has_nergal_minions(&self) -> bool {
+        self.nergal_minions.iter().any(|slot| slot.is_some())
+    }
+
+    /// Match TinyFugue `save_minion_stats`: update slot with same name, else first empty;
+    /// no-op if all three occupied and name is new.
+    pub fn upsert_nergal_minion(&mut self, minion: NergalMinion) {
+        let name = minion.name.clone();
+        for slot in &mut self.nergal_minions {
+            if let Some(existing) = slot
+                && existing.name == name
+            {
+                *slot = Some(minion);
+                return;
+            }
+        }
+        for slot in &mut self.nergal_minions {
+            if slot.is_none() {
+                *slot = Some(minion);
+                return;
+            }
+        }
+    }
+
+    pub fn clear_nergal_minions(&mut self) {
+        self.nergal_minions = [None, None, None];
+    }
+
+    /// Pack minion status into full terminal rows; each minion stays on one line (may wrap to next row).
+    pub fn render_nergal_minion_lines(&self, width: u16) -> Vec<Line<'static>> {
+        let mut pieces: Vec<Vec<Span<'static>>> = Vec::new();
+        for slot in &self.nergal_minions {
+            let Some(minion) = slot else {
+                continue;
+            };
+            pieces.push(self.minion_stat_spans(minion));
+        }
+
+        if pieces.is_empty() {
+            return Vec::new();
+        }
+
+        if width == 0 {
+            return pieces.into_iter().map(Line::from).collect();
+        }
+
+        let effective_width = width as usize;
+
+        let piece_widths: Vec<usize> = pieces
+            .iter()
+            .map(|spans| spans_display_width(spans))
+            .collect();
+
+        let mut lines: Vec<Vec<Span<'static>>> = Vec::new();
+        let mut current_row: Vec<Span<'static>> = Vec::new();
+        let mut current_width: usize = 0;
+
+        for (idx, spans) in pieces.into_iter().enumerate() {
+            let piece_w = piece_widths[idx];
+            let gap = if current_row.is_empty() { 0 } else { 2 };
+            if !current_row.is_empty() && current_width + gap + piece_w > effective_width {
+                lines.push(std::mem::take(&mut current_row));
+                current_width = 0;
+            }
+            if !current_row.is_empty() {
+                current_row.push(Span::raw("  "));
+                current_width += 2;
+            }
+            current_width += piece_w;
+            current_row.extend(spans);
+        }
+
+        if !current_row.is_empty() {
+            lines.push(current_row);
+        }
+
+        lines.into_iter().map(Line::from).collect()
+    }
+
+    fn minion_stat_spans(&self, minion: &NergalMinion) -> Vec<Span<'static>> {
+        let mut out = vec![Span::raw(format!("{}: ", minion.name))];
+        out.extend(self.inline_stat_spans("Hp", minion.hp, minion.max_hp, 0));
+        out.push(Span::raw(" "));
+        out.extend(self.inline_stat_spans("Sp", minion.sp, minion.max_sp, 0));
+        out.push(Span::raw(" "));
+        out.extend(self.inline_stat_spans("Ep", minion.ep, minion.max_ep, 0));
+        out
     }
 
     pub fn render_inline(&self) -> Line<'static> {
@@ -210,6 +316,10 @@ fn soul_description_spans(description: &str) -> Vec<Span<'static>> {
     }
 
     spans
+}
+
+fn spans_display_width(spans: &[Span<'_>]) -> usize {
+    spans.iter().map(|span| span.content.width()).sum()
 }
 
 fn progress_color(value: f32) -> Color {
@@ -401,5 +511,135 @@ mod tests {
         stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
 
         assert_eq!(line_text(&stats.render_soul_inline()), "Soul: 45% nearby");
+    }
+
+    fn sample_minion_a() -> NergalMinion {
+        NergalMinion {
+            name: "X".to_string(),
+            hp: 1,
+            max_hp: 10,
+            sp: 2,
+            max_sp: 20,
+            ep: 3,
+            max_ep: 30,
+        }
+    }
+
+    fn sample_minion_b() -> NergalMinion {
+        NergalMinion {
+            name: "Y".to_string(),
+            hp: 4,
+            max_hp: 40,
+            sp: 5,
+            max_sp: 50,
+            ep: 6,
+            max_ep: 60,
+        }
+    }
+
+    #[test]
+    fn nergal_minion_lines_split_when_row_narrow() {
+        let mut stats = Stats::default();
+        stats.upsert_nergal_minion(sample_minion_a());
+        stats.upsert_nergal_minion(sample_minion_b());
+
+        let lines_wide = stats.render_nergal_minion_lines(200);
+        assert_eq!(
+            lines_wide.len(),
+            1,
+            "wide terminal should keep both minions on one row"
+        );
+
+        let lines_narrow = stats.render_nergal_minion_lines(40);
+        assert_eq!(
+            lines_narrow.len(),
+            2,
+            "narrow terminal should move the second minion to the next row"
+        );
+    }
+
+    #[test]
+    fn nergal_minion_lines_one_per_row_when_width_zero() {
+        let mut stats = Stats::default();
+        stats.upsert_nergal_minion(sample_minion_a());
+        stats.upsert_nergal_minion(sample_minion_b());
+
+        let lines = stats.render_nergal_minion_lines(0);
+        assert_eq!(lines.len(), 2);
+    }
+
+    #[test]
+    fn prompt_updates_preserve_nergal_minions() {
+        let mut stats = Stats::default();
+        stats.upsert_nergal_minion(sample_minion_a());
+
+        stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
+
+        assert!(stats.has_nergal_minions());
+        assert_eq!(
+            stats.nergal_minions[0].as_ref().map(|m| m.name.as_str()),
+            Some("X")
+        );
+    }
+
+    #[test]
+    fn short_score_updates_preserve_nergal_minions() {
+        let mut stats = Stats::default();
+        stats.upsert_nergal_minion(sample_minion_b());
+
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
+
+        assert_eq!(
+            stats.nergal_minions[0].as_ref().map(|m| m.name.as_str()),
+            Some("Y")
+        );
+    }
+
+    #[test]
+    fn upsert_nergal_minion_no_new_slot_when_three_full_and_name_unknown() {
+        let mut stats = Stats::default();
+        stats.upsert_nergal_minion(NergalMinion {
+            name: "a".into(),
+            hp: 1,
+            max_hp: 1,
+            sp: 1,
+            max_sp: 1,
+            ep: 1,
+            max_ep: 1,
+        });
+        stats.upsert_nergal_minion(NergalMinion {
+            name: "b".into(),
+            hp: 1,
+            max_hp: 1,
+            sp: 1,
+            max_sp: 1,
+            ep: 1,
+            max_ep: 1,
+        });
+        stats.upsert_nergal_minion(NergalMinion {
+            name: "c".into(),
+            hp: 1,
+            max_hp: 1,
+            sp: 1,
+            max_sp: 1,
+            ep: 1,
+            max_ep: 1,
+        });
+        stats.upsert_nergal_minion(NergalMinion {
+            name: "d".into(),
+            hp: 9,
+            max_hp: 9,
+            sp: 9,
+            max_sp: 9,
+            ep: 9,
+            max_ep: 9,
+        });
+
+        assert!(
+            !stats
+                .nergal_minions
+                .iter()
+                .any(|slot| { slot.as_ref().is_some_and(|creature| creature.name == "d") })
+        );
     }
 }

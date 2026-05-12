@@ -220,8 +220,22 @@ impl BatApp {
             .iter()
             .any(|key| key.as_str() == "animist")
             || self.stats.has_soul_companion_status();
-        let show_soul_stats = show_stats && soul_supported;
-        let reserved_rows = if show_soul_stats { 3 } else { 2 };
+        let nergal_supported = self
+            .selected_guild_keys
+            .iter()
+            .any(|key| key.as_str() == "nergal")
+            || self.stats.has_nergal_minions();
+
+        let mut secondary_status_lines: Vec<Line<'static>> = Vec::new();
+        if show_stats && soul_supported {
+            secondary_status_lines.push(self.stats.render_soul_inline());
+        }
+        if show_stats && nergal_supported {
+            secondary_status_lines
+                .extend(self.stats.render_nergal_minion_lines(frame.area().width));
+        }
+
+        let reserved_rows = 2 + secondary_status_lines.len() as u16;
         let output_area_height = frame.area().height.saturating_sub(reserved_rows);
         let output_area_width = frame.area().width;
         let visible_height = output_area_height.saturating_sub(1) as usize;
@@ -233,11 +247,6 @@ impl BatApp {
         } else {
             Line::from("")
         };
-        let soul_stats_line = if show_soul_stats {
-            self.stats.render_soul_inline()
-        } else {
-            Line::from("")
-        };
         let hide_input = self.session.login_state() == LoginState::Password;
         let input_text = format!("> {}", self.input.displayed_text(hide_input));
         let view = ViewModel {
@@ -245,8 +254,7 @@ impl BatApp {
             scroll_offset,
             show_stats,
             stats_line,
-            show_soul_stats,
-            soul_stats_line,
+            secondary_status_lines,
             clock: show_clock(),
             input_text,
             cursor_offset: self.input.cursor_offset(hide_input),

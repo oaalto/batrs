@@ -10,8 +10,8 @@ pub struct ViewModel<'a> {
     pub scroll_offset: u16,
     pub show_stats: bool,
     pub stats_line: Line<'static>,
-    pub show_soul_stats: bool,
-    pub soul_stats_line: Line<'static>,
+    /// Soul companion (Animist) and Nergal minion HUD rows below the main stats line.
+    pub secondary_status_lines: Vec<Line<'static>>,
     pub clock: String,
     pub input_text: String,
     pub cursor_offset: u16,
@@ -89,7 +89,7 @@ pub struct Renderer;
 impl Renderer {
     pub fn render(frame: &mut Frame<'_>, view: &ViewModel<'_>) {
         let mut constraints = vec![Constraint::Min(1), Constraint::Length(1)];
-        if view.show_soul_stats {
+        for _ in &view.secondary_status_lines {
             constraints.push(Constraint::Length(1));
         }
         constraints.push(Constraint::Length(1));
@@ -101,12 +101,8 @@ impl Renderer {
 
         let output_area = root[0];
         let stats_area = root[1];
-        let soul_stats_area = view.show_soul_stats.then_some(root[2]);
-        let input_area = if view.show_soul_stats {
-            root[3]
-        } else {
-            root[2]
-        };
+        let secondary_count = view.secondary_status_lines.len();
+        let input_area = root[1 + secondary_count + 1];
 
         let output =
             Paragraph::new(Text::from(view.output_lines.clone())).scroll((view.scroll_offset, 0));
@@ -128,9 +124,10 @@ impl Renderer {
             frame.render_widget(clock_widget, stats_area);
         }
 
-        if let Some(soul_stats_area) = soul_stats_area {
-            let soul_stats_widget = Paragraph::new(view.soul_stats_line.clone());
-            frame.render_widget(soul_stats_widget, soul_stats_area);
+        for index in 0..secondary_count {
+            let line = view.secondary_status_lines[index].clone();
+            let row_area = root[2 + index];
+            frame.render_widget(Paragraph::new(line), row_area);
         }
 
         let input_chunks = Layout::default()
