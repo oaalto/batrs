@@ -224,6 +224,16 @@ impl BatApp {
             KeyCode::PageUp => self.scrollback.page_up(),
             KeyCode::PageDown => self.scrollback.page_down(),
             KeyCode::Backspace => self.input.backspace(),
+            KeyCode::Home => self.input.move_cursor_to_start(),
+            KeyCode::End => self.input.move_cursor_to_end(),
+            KeyCode::Left if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.input.move_cursor_word_left();
+            }
+            KeyCode::Left => self.input.move_cursor_left(),
+            KeyCode::Right if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.input.move_cursor_word_right();
+            }
+            KeyCode::Right => self.input.move_cursor_right(),
             KeyCode::Up if self.session.is_logged_in() => {
                 self.input.move_history(-1);
             }

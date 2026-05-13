@@ -5,6 +5,7 @@ use unicode_segmentation::UnicodeSegmentation;
 pub struct InputState {
     current_typed_input: String,
     displayed_input: String,
+    cursor_position: usize,
     history: Vec<String>,
     cur_history_pos: usize,
 }
@@ -15,17 +16,84 @@ impl InputState {
     }
 
     pub fn insert_char(&mut self, c: char) {
-        self.displayed_input.push(c);
-        self.current_typed_input.clone_from(&self.displayed_input);
-        self.cur_history_pos = self.history.len();
+        self.displayed_input.insert(self.cursor_position, c);
+        self.cursor_position += c.len_utf8();
+        self.sync_current_typed_input();
     }
 
     pub fn backspace(&mut self) {
-        if let Some((index, _)) = self.displayed_input.grapheme_indices(true).next_back() {
-            self.displayed_input.truncate(index);
-            self.current_typed_input.clone_from(&self.displayed_input);
-            self.cur_history_pos = self.history.len();
+        if self.cursor_position == 0 {
+            return;
         }
+
+        let Some((index, _)) = self.displayed_input[..self.cursor_position]
+            .grapheme_indices(true)
+            .next_back()
+        else {
+            return;
+        };
+
+        self.displayed_input.drain(index..self.cursor_position);
+        self.cursor_position = index;
+        self.sync_current_typed_input();
+    }
+
+    pub fn move_cursor_left(&mut self) {
+        if let Some((index, _)) = self.displayed_input[..self.cursor_position]
+            .grapheme_indices(true)
+            .next_back()
+        {
+            self.cursor_position = index;
+        }
+    }
+
+    pub fn move_cursor_right(&mut self) {
+        if self.cursor_position >= self.displayed_input.len() {
+            return;
+        }
+
+        let remainder = &self.displayed_input[self.cursor_position..];
+        if let Some((offset, grapheme)) = remainder.grapheme_indices(true).next() {
+            self.cursor_position += offset + grapheme.len();
+        }
+    }
+
+    pub fn move_cursor_word_left(&mut self) {
+        if self.cursor_position == 0 {
+            return;
+        }
+
+        self.cursor_position = self.displayed_input[..self.cursor_position]
+            .unicode_word_indices()
+            .map(|(index, _)| index)
+            .next_back()
+            .unwrap_or(0);
+    }
+
+    pub fn move_cursor_word_right(&mut self) {
+        let Some((index, _)) = self
+            .displayed_input
+            .unicode_word_indices()
+            .find(|(index, _)| *index > self.cursor_position)
+        else {
+            self.cursor_position = self.displayed_input.len();
+            return;
+        };
+
+        self.cursor_position = index;
+    }
+
+    pub fn move_cursor_to_start(&mut self) {
+        self.cursor_position = 0;
+    }
+
+    pub fn move_cursor_to_end(&mut self) {
+        self.cursor_position = self.displayed_input.len();
+    }
+
+    fn sync_current_typed_input(&mut self) {
+        self.current_typed_input.clone_from(&self.displayed_input);
+        self.cur_history_pos = self.history.len();
     }
 
     pub fn move_history(&mut self, direction: i32) {
@@ -46,6 +114,7 @@ impl InputState {
             } else if self.cur_history_pos == self.history.len() {
                 self.displayed_input.clone_from(&self.current_typed_input);
             }
+            self.cursor_position = self.displayed_input.len();
         }
     }
 
@@ -61,7 +130,10 @@ impl InputState {
         if hide_input {
             1
         } else {
-            self.displayed_input.graphemes(true).count() as u16 + 1
+            self.displayed_input[..self.cursor_position]
+                .graphemes(true)
+                .count() as u16
+                + 1
         }
     }
 
@@ -70,6 +142,7 @@ impl InputState {
     }
 
     pub fn take_displayed_input(&mut self) -> String {
+        self.cursor_position = 0;
         mem::take(&mut self.displayed_input)
     }
 
@@ -81,6 +154,7 @@ impl InputState {
     pub fn clear_all(&mut self) {
         self.displayed_input.clear();
         self.current_typed_input.clear();
+        self.cursor_position = 0;
     }
 
     pub fn clear_current_typed_input(&mut self) {
@@ -109,6 +183,10 @@ mod tests {
 
         state.move_history(1);
         assert_eq!(state.displayed_input(), "bye");
+        assert_eq!(state.cursor_offset(false), 4);
+
+        state.insert_char('!');
+        assert_eq!(state.displayed_input(), "bye!");
     }
 
     #[test]
@@ -119,6 +197,97 @@ mod tests {
         state.backspace();
 
         assert_eq!(state.displayed_input(), "h");
+    }
+
+    #[test]
+    fn cursor_left_and_right_move_one_grapheme() {
+        let mut state = InputState::new();
+        state.insert_char('a');
+        state.insert_char('é');
+        state.insert_char('b');
+
+        state.move_cursor_left();
+        assert_eq!(state.cursor_offset(false), 3);
+
+        state.move_cursor_left();
+        assert_eq!(state.cursor_offset(false), 2);
+
+        state.move_cursor_right();
+        assert_eq!(state.cursor_offset(false), 3);
+    }
+
+    #[test]
+    fn insert_and_backspace_work_in_middle_of_input() {
+        let mut state = InputState::new();
+        state.insert_char('h');
+        state.insert_char('i');
+        state.move_cursor_left();
+        state.insert_char('!');
+
+        assert_eq!(state.displayed_input(), "h!i");
+        assert_eq!(state.cursor_offset(false), 3);
+
+        state.backspace();
+        assert_eq!(state.displayed_input(), "hi");
+        assert_eq!(state.cursor_offset(false), 2);
+    }
+
+    #[test]
+    fn word_left_jumps_to_previous_word_start() {
+        let mut state = InputState::new();
+        for character in "look, north now".chars() {
+            state.insert_char(character);
+        }
+
+        state.move_cursor_word_left();
+        assert_eq!(state.cursor_offset(false), 13);
+
+        state.move_cursor_word_left();
+        assert_eq!(state.cursor_offset(false), 7);
+
+        state.move_cursor_word_left();
+        assert_eq!(state.cursor_offset(false), 1);
+    }
+
+    #[test]
+    fn word_right_jumps_to_next_word_start_or_input_end() {
+        let mut state = InputState::new();
+        for character in "look, north now".chars() {
+            state.insert_char(character);
+        }
+        state.move_cursor_word_left();
+        state.move_cursor_word_left();
+        state.move_cursor_word_left();
+
+        state.move_cursor_word_right();
+        assert_eq!(state.cursor_offset(false), 7);
+
+        state.move_cursor_word_right();
+        assert_eq!(state.cursor_offset(false), 13);
+
+        state.move_cursor_word_right();
+        assert_eq!(state.cursor_offset(false), 16);
+    }
+
+    #[test]
+    fn home_and_end_move_to_input_boundaries() {
+        let mut state = InputState::new();
+        for character in "héllo".chars() {
+            state.insert_char(character);
+        }
+        state.move_cursor_left();
+
+        state.move_cursor_to_start();
+        assert_eq!(state.cursor_offset(false), 1);
+
+        state.insert_char('>');
+        assert_eq!(state.displayed_input(), ">héllo");
+
+        state.move_cursor_to_end();
+        assert_eq!(state.cursor_offset(false), 7);
+
+        state.insert_char('<');
+        assert_eq!(state.displayed_input(), ">héllo<");
     }
 
     #[test]
