@@ -269,7 +269,7 @@ impl BatApp {
             Line::from("")
         };
         let hide_input = self.session.login_state() == LoginState::Password;
-        let input_text = format!("> {}", self.input.displayed_text(hide_input));
+        let input_text = format!(">{}", self.input.displayed_text(hide_input));
         let view = ViewModel {
             output_lines,
             scroll_offset,

@@ -59,9 +59,9 @@ impl InputState {
 
     pub fn cursor_offset(&self, hide_input: bool) -> u16 {
         if hide_input {
-            2
+            1
         } else {
-            self.displayed_input.graphemes(true).count() as u16 + 2
+            self.displayed_input.graphemes(true).count() as u16 + 1
         }
     }
 
@@ -119,5 +119,24 @@ mod tests {
         state.backspace();
 
         assert_eq!(state.displayed_input(), "h");
+    }
+
+    #[test]
+    fn cursor_offset_starts_after_prompt() {
+        let mut state = InputState::new();
+
+        assert_eq!(state.cursor_offset(false), 1);
+
+        state.insert_char('h');
+        state.insert_char('i');
+
+        assert_eq!(state.cursor_offset(false), 3);
+    }
+
+    #[test]
+    fn hidden_input_cursor_offset_starts_after_prompt() {
+        let state = InputState::new();
+
+        assert_eq!(state.cursor_offset(true), 1);
     }
 }
