@@ -612,7 +612,7 @@ fn closest_toggle_relative(rows: &[DrillRow], from: usize, delta: i32) -> Option
                 closest_toggle_forward(rows, from, false)
             }
         }
-        std::cmp::Ordering::Greater => closest_toggle_forward(rows, from.saturating_add(1), false),
+        std::cmp::Ordering::Greater => closest_toggle_forward(rows, from, false),
         std::cmp::Ordering::Less => from
             .checked_sub(1)
             .and_then(|previous_row| closest_toggle_backward(rows, previous_row))
@@ -731,7 +731,12 @@ mod guild_dialog_keystroke_tests {
     use super::{GuildDialog, GuildDialogFocus, apply_guild_dialog_keystroke};
     use crate::guilds::grouping::{DEFAULT_GUILD_PRIMARY_KEYWORD, THEMES_UX_ORDER};
     use crate::guilds::guild_definitions;
+    use crate::ui::{GuildDialogPresentation, GuildDrillLineVm};
     use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+
+    fn key_code(code: KeyCode) -> KeyEvent {
+        KeyEvent::new_with_kind(code, KeyModifiers::empty(), KeyEventKind::Press)
+    }
 
     fn key_character(symbol: char) -> KeyEvent {
         KeyEvent::new_with_kind(
@@ -757,6 +762,63 @@ mod guild_dialog_keystroke_tests {
             .find(|(keyword, _)| *keyword == "magical")
             .map(|pair| pair.0)
             .expect("magical")
+    }
+
+    fn drill_cursor_and_guild_rows(dialog: &GuildDialog) -> (usize, Vec<usize>) {
+        match dialog.view_model().presentation {
+            GuildDialogPresentation::GuildDrill { lines, cursor, .. } => {
+                let guild_rows = lines
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(row_index, line)| {
+                        matches!(line, GuildDrillLineVm::Guild { .. }).then_some(row_index)
+                    })
+                    .collect();
+                (cursor, guild_rows)
+            }
+            GuildDialogPresentation::BrowseRows { .. } => panic!("expected guild drill view"),
+        }
+    }
+
+    #[test]
+    fn down_moves_one_guild_at_a_time_and_reaches_final_drill_row() {
+        let definitions = guild_definitions();
+        let count = definitions.len();
+        let mut dialog = GuildDialog::new(
+            definitions,
+            vec![false; count],
+            magical_keyword(),
+            String::new(),
+            String::new(),
+            super::default_riftwalker_entity_labels(),
+        );
+
+        dialog.browse_cursor = THEMES_UX_ORDER
+            .iter()
+            .position(|(canonical, _)| *canonical == "magical")
+            .expect("magical");
+        dialog.open_drill_from_browse_cursor();
+
+        let (initial_cursor, guild_rows) = drill_cursor_and_guild_rows(&dialog);
+        assert!(
+            guild_rows.len() >= 3,
+            "regression test requires at least three guild rows"
+        );
+        assert_eq!(initial_cursor, guild_rows[0]);
+
+        apply_guild_dialog_keystroke(&mut dialog, key_code(KeyCode::Down));
+        assert_eq!(drill_cursor_and_guild_rows(&dialog).0, guild_rows[1]);
+
+        for expected_row in guild_rows.iter().skip(2) {
+            apply_guild_dialog_keystroke(&mut dialog, key_code(KeyCode::Down));
+            assert_eq!(drill_cursor_and_guild_rows(&dialog).0, *expected_row);
+        }
+
+        apply_guild_dialog_keystroke(&mut dialog, key_code(KeyCode::Down));
+        assert_eq!(
+            drill_cursor_and_guild_rows(&dialog).0,
+            *guild_rows.last().expect("guild row")
+        );
     }
 
     #[test]
