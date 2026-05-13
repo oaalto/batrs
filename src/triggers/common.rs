@@ -804,6 +804,7 @@ lazy_static! {
         for pattern in [
             r"You boom in sinister voice '(.+)'",
             r"You utter the magic words '(.+)'",
+            r"You raise your hands, gaze up and chant '(.+)'",
             r"You fill up your cheeks with air and exhale '(.+)'",
             r"You slowly cut your arm with your finger-nail and darkly whisper '(.+)'",
         ] {
@@ -820,7 +821,7 @@ lazy_static! {
         push_rule(
             &mut rules,
             &mut order,
-            RuleMatcher::Regex(Regex::new(r"[A|An] (.+) hits you.").unwrap()),
+            RuleMatcher::Regex(Regex::new(r"^(?:A|An) (.+) hits you\.$").unwrap()),
             10,
             None,
             vec![tf_hilite("BCred", HiliteTarget::Whole)],
@@ -1385,6 +1386,42 @@ mod tests {
                 .actions
                 .iter()
                 .any(|a| matches!(a, Action::Send(cmd) if cmd == "@dig grave"))
+        );
+    }
+
+    #[test]
+    fn raise_hands_chant_highlights_spell_vocal() {
+        let text = "You raise your hands, gaze up and chant 'Avee Avee Aveallis'";
+        let (_output, styled, _) = run_trigger(text, None, None);
+        let vocal_start = text.find("Avee Avee Aveallis").expect("vocal in line");
+        let idx = text
+            .get(..vocal_start)
+            .map(|s| s.graphemes(true).count())
+            .unwrap_or(0);
+
+        for styled_char in &styled.styled_chars[idx..idx + "Avee Avee Aveallis".len()] {
+            assert_eq!(styled_char.color, AnsiCode::White);
+            assert!(styled_char.bold);
+        }
+        assert!(!styled.styled_chars[0].bold);
+    }
+
+    #[test]
+    fn article_hits_you_highlights_only_matching_full_line() {
+        let (_output, styled, _) = run_trigger("An orc hits you.", None, None);
+        assert!(
+            styled
+                .styled_chars
+                .iter()
+                .all(|c| c.color == AnsiCode::Red && c.bold)
+        );
+
+        let (_output, non_match, _) = run_trigger("n orc hits you.", None, None);
+        assert!(
+            non_match
+                .styled_chars
+                .iter()
+                .all(|c| c.color == AnsiCode::DefaultColor && !c.bold)
         );
     }
 
