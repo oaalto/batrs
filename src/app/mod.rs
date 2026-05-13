@@ -3,6 +3,7 @@ mod input_state;
 mod output_buffer;
 mod player_logger;
 mod raw_logger;
+mod scrollback;
 mod session_state;
 mod telnet_buffer;
 mod util;
@@ -35,6 +36,7 @@ use telnet_buffer::TelnetBuffer;
 use util::{filter_known_guilds, show_clock};
 
 use output_buffer::OutputBuffer;
+use scrollback::Scrollback;
 use session_state::{LoginState, SessionState};
 
 pub enum AppEvent {
@@ -63,6 +65,7 @@ pub struct BatApp {
     settings_dialog: Option<SettingsDialog>,
     player_logger: Option<PlayerLogger>,
     raw_logger: Option<RawLogger>,
+    scrollback: Scrollback,
 }
 
 impl BatApp {
@@ -121,6 +124,7 @@ impl BatApp {
             settings_dialog: None,
             player_logger: PlayerLogger::new().ok(),
             raw_logger: RawLogger::new().ok(),
+            scrollback: Scrollback::new(),
         };
 
         app.apply_selected_guilds(app.selected_guild_keys.clone());
@@ -217,6 +221,8 @@ impl BatApp {
         }
         match event.code {
             KeyCode::Enter => self.submit_input(),
+            KeyCode::PageUp => self.scrollback.page_up(),
+            KeyCode::PageDown => self.scrollback.page_down(),
             KeyCode::Backspace => self.input.backspace(),
             KeyCode::Up if self.session.is_logged_in() => {
                 self.input.move_history(-1);
@@ -261,8 +267,9 @@ impl BatApp {
         let output_area_width = frame.area().width;
         let visible_height = output_area_height as usize;
         let output_lines: Vec<Line<'_>> = self.output.wrapped_lines(output_area_width);
-        let scroll_offset = output_lines.len().saturating_sub(visible_height);
-        let scroll_offset = scroll_offset.min(u16::MAX as usize) as u16;
+        self.scrollback
+            .update_viewport(output_lines.len(), visible_height);
+        let scroll_offset = self.scrollback.offset();
         let stats_line = if show_stats {
             self.stats.render_inline()
         } else {
@@ -347,8 +354,10 @@ impl BatApp {
                 if !outcome.output_lines.is_empty() {
                     self.output.append_lines(outcome.output_lines);
                 }
-                if let Some(s) = outcome.send {
-                    self.send_command(s);
+                if let Some(s) = outcome.send
+                    && self.send_command(s)
+                {
+                    self.scrollback.follow_latest();
                 }
             } else {
                 if self.session.login_state() == LoginState::Name {
@@ -357,7 +366,9 @@ impl BatApp {
                 if self.session.login_state() == LoginState::Choice {
                     self.session.set_last_login_input(input.clone());
                 }
-                self.send_command(input);
+                if self.send_command(input) {
+                    self.scrollback.follow_latest();
+                }
             }
 
             self.input.clear_current_typed_input();
@@ -392,13 +403,17 @@ impl BatApp {
             self.toggle_raw_logs();
         }
 
-        self.apply_automation_actions(outcome.automation_actions);
+        if self.apply_automation_actions(outcome.automation_actions) {
+            self.scrollback.follow_latest();
+        }
         if !outcome.output_lines.is_empty() {
             self.output.append_lines(outcome.output_lines);
         }
 
-        if let Some(s) = outcome.send {
-            self.send_command(s);
+        if let Some(s) = outcome.send
+            && self.send_command(s)
+        {
+            self.scrollback.follow_latest();
         }
 
         let input = self.input.take_displayed_input();
@@ -411,10 +426,12 @@ impl BatApp {
         }
     }
 
-    fn apply_automation_actions(&mut self, actions: Vec<Action>) {
+    fn apply_automation_actions(&mut self, actions: Vec<Action>) -> bool {
+        let mut sent_command = false;
         for cmd in self.automation.apply_actions(actions) {
-            self.send_command(cmd);
+            sent_command |= self.send_command(cmd);
         }
+        sent_command
     }
 
     fn apply_user_settings(&mut self, settings: UserSettings) {
@@ -763,9 +780,13 @@ impl BatApp {
         }
     }
 
-    fn send_command(&mut self, command: String) {
-        if let Err(e) = self.command_sender.send(command) {
-            eprintln!("failed to send data: {e}");
+    fn send_command(&mut self, command: String) -> bool {
+        match self.command_sender.send(command) {
+            Ok(()) => true,
+            Err(e) => {
+                eprintln!("failed to send data: {e}");
+                false
+            }
         }
     }
 
