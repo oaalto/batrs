@@ -1,3 +1,4 @@
+use crate::ansi::palette;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use unicode_width::UnicodeWidthStr;
@@ -227,10 +228,10 @@ impl Stats {
         spans.extend(self.inline_value_spans("Exp", self.exp, self.diff_exp));
         spans.push(Span::raw("  ["));
         if self.recovery_bracket_camping {
-            spans.push(Span::styled("c", Style::default().fg(Color::Green)));
+            spans.push(Span::styled("c", Style::default().fg(palette::GREEN)));
         }
         if self.recovery_bracket_meditation {
-            spans.push(Span::styled("m", Style::default().fg(Color::Yellow)));
+            spans.push(Span::styled("m", Style::default().fg(palette::YELLOW)));
         }
         spans.push(Span::raw("]"));
 
@@ -243,7 +244,7 @@ impl Stats {
         };
 
         let mut spans = vec![
-            Span::raw("Soul: "),
+            Span::styled("Soul: ", bold_white_style()),
             Span::styled(
                 format!("{}%", soul_companion.percent),
                 Style::default().fg(progress_color(soul_companion.percent as f32 / 100.0)),
@@ -279,16 +280,15 @@ impl Stats {
                 Style::default().fg(progress_color(progress)),
             ),
             Span::raw("/"),
-            Span::styled(
-                max_value.to_string(),
-                Style::default()
-                    .fg(Color::White)
-                    .add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(max_value.to_string(), bold_white_style()),
         ];
 
         if let Some(diff_text) = diff_value {
-            let diff_color = if diff > 0 { Color::Green } else { Color::Red };
+            let diff_color = if diff > 0 {
+                palette::GREEN
+            } else {
+                palette::RED
+            };
             spans.push(Span::raw(" "));
             spans.push(Span::raw("("));
             spans.push(Span::styled(diff_text, Style::default().fg(diff_color)));
@@ -299,15 +299,16 @@ impl Stats {
     }
 
     fn inline_value_spans(&self, label: &str, value: i32, diff: i32) -> Vec<Span<'static>> {
-        let value_style = Style::default()
-            .fg(Color::White)
-            .add_modifier(Modifier::BOLD);
         let mut spans = vec![
             Span::raw(format!("{label}: ")),
-            Span::styled(value.to_string(), value_style),
+            Span::styled(value.to_string(), bold_white_style()),
         ];
         if diff != 0 {
-            let diff_color = if diff > 0 { Color::Green } else { Color::Red };
+            let diff_color = if diff > 0 {
+                palette::GREEN
+            } else {
+                palette::RED
+            };
             spans.push(Span::raw(" "));
             spans.push(Span::raw("("));
             spans.push(Span::styled(
@@ -331,7 +332,11 @@ fn soul_description_spans(description: &str) -> Vec<Span<'static>> {
             if !plain.is_empty() {
                 spans.push(Span::raw(std::mem::take(&mut plain)));
             }
-            let color = if ch == '+' { Color::Green } else { Color::Red };
+            let color = if ch == '+' {
+                palette::GREEN
+            } else {
+                palette::RED
+            };
             let mut run = ch.to_string();
             while chars.peek() == Some(&ch) {
                 if let Some(c) = chars.next() {
@@ -355,27 +360,33 @@ fn spans_display_width(spans: &[Span<'_>]) -> usize {
     spans.iter().map(|span| span.content.width()).sum()
 }
 
+fn bold_white_style() -> Style {
+    Style::default()
+        .fg(palette::BOLD_WHITE)
+        .add_modifier(Modifier::BOLD)
+}
+
 fn progress_color(value: f32) -> Color {
     if value < 0.1 {
-        Color::Rgb(128, 0, 0)
+        palette::DARK_RED
     } else if value < 0.2 {
-        Color::Red
+        palette::RED
     } else if value < 0.3 {
-        Color::LightRed
+        palette::BOLD_RED
     } else if value < 0.4 {
-        Color::Yellow
+        palette::YELLOW
     } else if value < 0.5 {
-        Color::LightYellow
+        palette::BOLD_YELLOW
     } else if value < 0.6 {
-        Color::Rgb(0, 0, 128)
+        palette::DARK_BLUE
     } else if value < 0.7 {
-        Color::Blue
+        palette::BLUE
     } else if value < 0.8 {
-        Color::LightBlue
+        palette::BOLD_BLUE
     } else if value < 0.9 {
-        Color::Rgb(0, 128, 0)
+        palette::DARK_GREEN
     } else {
-        Color::Green
+        palette::GREEN
     }
 }
 
@@ -413,14 +424,14 @@ mod tests {
             exp_val.style.add_modifier.contains(Modifier::BOLD),
             "exp value should be bold"
         );
-        assert_eq!(exp_val.style.fg, Some(Color::White));
+        assert_eq!(exp_val.style.fg, Some(palette::BOLD_WHITE));
 
         let exp_diff = line
             .spans
             .iter()
             .find(|s| s.content.as_ref() == "-20")
             .expect("exp diff span");
-        assert_eq!(exp_diff.style.fg, Some(Color::Red));
+        assert_eq!(exp_diff.style.fg, Some(palette::RED));
 
         let money_val = line
             .spans
@@ -431,14 +442,22 @@ mod tests {
             money_val.style.add_modifier.contains(Modifier::BOLD),
             "money value should be bold"
         );
-        assert_eq!(money_val.style.fg, Some(Color::White));
+        assert_eq!(money_val.style.fg, Some(palette::BOLD_WHITE));
+
+        let hp_max = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "100")
+            .expect("hp max span");
+        assert!(hp_max.style.add_modifier.contains(Modifier::BOLD));
+        assert_eq!(hp_max.style.fg, Some(palette::BOLD_WHITE));
 
         let money_diff = line
             .spans
             .iter()
             .find(|s| s.content.as_ref() == "+15")
             .expect("money diff span");
-        assert_eq!(money_diff.style.fg, Some(Color::Green));
+        assert_eq!(money_diff.style.fg, Some(palette::GREEN));
     }
 
     #[test]
@@ -461,13 +480,13 @@ mod tests {
             .iter()
             .find(|s| s.content.as_ref() == "c")
             .expect("c span");
-        assert_eq!(camping.style.fg, Some(Color::Green));
+        assert_eq!(camping.style.fg, Some(palette::GREEN));
         let meditation = rendered
             .spans
             .iter()
             .find(|s| s.content.as_ref() == "m")
             .expect("m span");
-        assert_eq!(meditation.style.fg, Some(Color::Yellow));
+        assert_eq!(meditation.style.fg, Some(palette::YELLOW));
     }
 
     #[test]
@@ -505,6 +524,15 @@ mod tests {
         stats.set_soul_companion(75, "resting".to_string());
 
         assert_eq!(line_text(&stats.render_soul_inline()), "Soul: 75% resting");
+
+        let line = stats.render_soul_inline();
+        let label = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "Soul: ")
+            .expect("soul label span");
+        assert!(label.style.add_modifier.contains(Modifier::BOLD));
+        assert_eq!(label.style.fg, Some(palette::BOLD_WHITE));
     }
 
     #[test]
@@ -520,14 +548,14 @@ mod tests {
             .iter()
             .find(|s| s.content.as_ref() == "-")
             .expect("minus span");
-        assert_eq!(minus.style.fg, Some(Color::Red));
+        assert_eq!(minus.style.fg, Some(palette::RED));
 
         let plus = line
             .spans
             .iter()
             .find(|s| s.content.as_ref() == "+")
             .expect("plus span");
-        assert_eq!(plus.style.fg, Some(Color::Green));
+        assert_eq!(plus.style.fg, Some(palette::GREEN));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
@@ -19,16 +19,14 @@ enum RuleCondition {
 enum RuleAction {
     Hilite {
         target: HiliteTarget,
-        color: AnsiCode,
-        bold: bool,
+        style: TextStyle,
     },
     MoneySummary {
         list_index: usize,
     },
     Echo {
         text: &'static str,
-        color: AnsiCode,
-        bold: bool,
+        style: TextStyle,
     },
     Send(&'static str),
     SetFlag {
@@ -122,18 +120,16 @@ fn apply_rule_action(
     match action {
         RuleAction::Hilite {
             target: HiliteTarget::Whole,
-            color,
-            bold,
+            style,
         } => {
-            styled_line.set_line_color(*color, *bold);
+            styled_line.set_line_style(*style);
         }
         RuleAction::Hilite {
             target: HiliteTarget::Group(index),
-            color,
-            bold,
+            style,
         } => {
             if let MatchData::Regex(captures) = match_data {
-                apply_capture_hilite(styled_line, captures, *index, *color, *bold);
+                apply_capture_hilite(styled_line, captures, *index, *style);
             }
         }
         RuleAction::MoneySummary { list_index } => {
@@ -143,9 +139,9 @@ fn apply_rule_action(
                 push_money_summary(m.as_str(), output_lines);
             }
         }
-        RuleAction::Echo { text, color, bold } => {
+        RuleAction::Echo { text, style } => {
             let mut line = StyledLine::new(text);
-            line.set_line_color(*color, *bold);
+            line.set_line_style(*style);
             output_lines.push(line);
         }
         RuleAction::Send(template) => {
@@ -161,8 +157,7 @@ fn apply_capture_hilite(
     styled_line: &mut StyledLine,
     captures: &Captures<'_>,
     index: usize,
-    color: AnsiCode,
-    bold: bool,
+    style: TextStyle,
 ) {
     let Some(m) = captures.get(index) else {
         return;
@@ -175,8 +170,8 @@ fn apply_capture_hilite(
     let end = end.min(len);
 
     for i in start..end {
-        styled_line.styled_chars[i].color = color;
-        styled_line.styled_chars[i].bold = bold;
+        styled_line.styled_chars[i].color = style.color;
+        styled_line.styled_chars[i].bold = style.bold;
     }
 }
 
@@ -187,38 +182,33 @@ fn byte_to_grapheme_index(text: &str, byte_index: usize) -> usize {
 }
 
 fn tf_hilite(code: &str, target: HiliteTarget) -> RuleAction {
-    let (color, bold) = tf_color(code).unwrap_or((AnsiCode::White, false));
-    RuleAction::Hilite {
-        target,
-        color,
-        bold,
-    }
+    let style = tf_style(code);
+    RuleAction::Hilite { target, style }
 }
 
 fn tf_echo(code: &str, text: &'static str) -> RuleAction {
-    let (color, bold) = tf_color(code).unwrap_or((AnsiCode::White, false));
-    RuleAction::Echo { text, color, bold }
+    let style = tf_style(code);
+    RuleAction::Echo { text, style }
 }
 
-fn tf_color(code: &str) -> Option<(AnsiCode, bool)> {
-    let (bold, rest) = if let Some(stripped) = code.strip_prefix('B') {
-        (true, stripped)
-    } else {
-        (false, code)
-    };
-
-    let color = match rest {
-        "Cred" => AnsiCode::Red,
-        "Cgreen" => AnsiCode::Green,
-        "Cyellow" => AnsiCode::Yellow,
-        "Cblue" => AnsiCode::Blue,
-        "Cmagenta" => AnsiCode::Magenta,
-        "Ccyan" => AnsiCode::Cyan,
-        "Cwhite" => AnsiCode::White,
-        _ => return None,
-    };
-
-    Some((color, bold))
+fn tf_style(code: &str) -> TextStyle {
+    match code {
+        "Cred" => TextStyle::RED,
+        "Cgreen" => TextStyle::GREEN,
+        "Cyellow" => TextStyle::YELLOW,
+        "Cblue" => TextStyle::BLUE,
+        "Cmagenta" => TextStyle::MAGENTA,
+        "Ccyan" => TextStyle::CYAN,
+        "Cwhite" => TextStyle::WHITE,
+        "BCred" => TextStyle::BRIGHT_RED,
+        "BCgreen" => TextStyle::BRIGHT_GREEN,
+        "BCyellow" => TextStyle::BRIGHT_YELLOW,
+        "BCblue" => TextStyle::BRIGHT_BLUE,
+        "BCmagenta" => TextStyle::BRIGHT_MAGENTA,
+        "BCcyan" => TextStyle::BRIGHT_CYAN,
+        "BCwhite" => TextStyle::BRIGHT_WHITE,
+        _ => TextStyle::WHITE,
+    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -1168,6 +1158,7 @@ pub fn trigger(ctx: &mut TriggerContext<'_>, styled_line: &mut StyledLine) -> Tr
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::Automation;
     use crate::stats::Stats;
     use unicode_segmentation::UnicodeSegmentation;

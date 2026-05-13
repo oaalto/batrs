@@ -1,7 +1,8 @@
+use crate::ansi::palette;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::Style;
 use ratatui::style::Stylize;
-use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Text};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
 
@@ -174,7 +175,7 @@ fn render_guild_dialog(frame: &mut Frame<'_>, dialog: &GuildDialogViewModel) {
     let area = centered_rect(60, 60, frame.area());
     frame.render_widget(Clear, area);
 
-    let dialog_style = Style::default().bg(Color::Black).fg(Color::White);
+    let dialog_style = Style::default().bg(palette::SURFACE).fg(palette::TEXT);
     let background = Paragraph::new("").style(dialog_style);
     frame.render_widget(background, area);
 
@@ -392,7 +393,7 @@ fn render_settings_dialog(frame: &mut Frame<'_>, dialog: &SettingsDialogViewMode
     let area = centered_rect(60, 60, frame.area());
     frame.render_widget(Clear, area);
 
-    let dialog_style = Style::default().bg(Color::Black);
+    let dialog_style = Style::default().bg(palette::SURFACE);
     let background = Paragraph::new("").style(dialog_style);
     frame.render_widget(background, area);
 
@@ -434,7 +435,7 @@ fn render_generic_commands_dialog(frame: &mut Frame<'_>, dialog: &GenericCommand
     let area = centered_rect(70, 70, frame.area());
     frame.render_widget(Clear, area);
 
-    let dialog_style = Style::default().bg(Color::Black).fg(Color::White);
+    let dialog_style = Style::default().bg(palette::SURFACE).fg(palette::TEXT);
     let background = Paragraph::new("").style(dialog_style);
     frame.render_widget(background, area);
 
@@ -475,7 +476,7 @@ fn render_generic_commands_dialog(frame: &mut Frame<'_>, dialog: &GenericCommand
     let list = List::new(items)
         .highlight_symbol("> ")
         .style(dialog_style)
-        .highlight_style(Style::default().bg(Color::DarkGray).fg(Color::White));
+        .highlight_style(Style::default().bg(palette::SELECTION).fg(palette::TEXT));
     let mut state = ListState::default();
     if !dialog.items.is_empty() {
         state.select(Some(dialog.cursor.min(dialog.items.len() - 1)));
