@@ -3,11 +3,11 @@
 While you are **logged in**, the client looks at what you typed **before** sending it to the game. It may open a dialog, run a small automatic sequence, or turn your shortcut into the real game command.
 
 !!! warning "Slash only for client commands"
-    Commands that start with **`/`** are for the client (`/quit`, `/guilds`, …). **Guild and generic shortcuts do not use a leading slash** (`ucs`, `clw`, …). If you type `/ucs`, the game will usually see that whole line instead of your Disciple shortcut.
+    Commands that start with **`/`** are for the client (`/help`, `/quit`, `/guilds`, …). **Guild and generic shortcuts do not use a leading slash** (`ucs`, `clw`, …). If you type `/ucs`, the game will usually see that whole line instead of your Disciple shortcut.
 
 ## Order of handling
 
-1. **Client `/` commands** — `/quit`, `/guilds`, `/generic`, `/settings`
+1. **Client `/` commands** — `/help`, `/quit`, `/guilds`, `/generic`, `/settings`, `/raw_logs`
 2. **Guild shortcuts** — depend on which guilds you enabled; if two guilds use the same shortcut, the **first** one in your list wins
 3. **Generic shortcuts** — cures, navigator, etc., unless you turned them off in settings
 
@@ -31,10 +31,12 @@ flowchart LR
 
 | Command | Needs login | What it does |
 |---------|-------------|----------------|
+| `/help` | no | Shows client slash commands |
 | `/quit` | no | Closes the client |
 | `/guilds` | yes | Opens the guild picker |
 | `/generic` | yes | Opens generic shortcut groups |
 | `/settings` | yes | Opens the settings editor |
+| `/raw_logs` | no | Toggles raw log capture |
 
 ## Generic shortcut groups
 

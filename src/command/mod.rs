@@ -1,5 +1,6 @@
 mod generic;
 mod guilds;
+mod help;
 mod quit;
 mod raw_logs;
 mod settings;
@@ -13,6 +14,10 @@ use std::mem;
 
 lazy_static! {
     static ref COMMANDS: HashMap<String, CommandDef> = HashMap::from([
+        (
+            "/help".to_string(),
+            CommandDef::new(help::run as Command, false),
+        ),
         (
             "/quit".to_string(),
             CommandDef::new(quit::run as Command, false),
@@ -244,6 +249,26 @@ mod tests {
 
         assert!(outcome.toggle_raw_logs);
         assert!(outcome.send.is_none());
+    }
+
+    #[test]
+    fn process_handles_builtin_help() {
+        let mut ctx = CommandContext::new(HashMap::new(), false, String::new());
+        let generic = GenericCommands::default();
+        let outcome = process("/help", &mut ctx, &[], &generic);
+        let lines: Vec<&str> = outcome
+            .output_lines
+            .iter()
+            .map(|line| line.plain_line.as_str())
+            .collect();
+
+        assert!(outcome.send.is_none());
+        assert!(lines.contains(&"/help - Shows client slash commands."));
+        assert!(lines.contains(&"/quit - Closes the client."));
+        assert!(lines.contains(&"/guilds - Opens the guild picker."));
+        assert!(lines.contains(&"/generic - Opens generic shortcut groups."));
+        assert!(lines.contains(&"/settings - Opens the settings editor."));
+        assert!(lines.contains(&"/raw_logs - Toggles raw log capture."));
     }
 
     #[test]
