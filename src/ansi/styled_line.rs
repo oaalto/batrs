@@ -1,5 +1,5 @@
 use crate::ansi::styled_text_block::StyledChar;
-use crate::ansi::{AnsiCode, ansi_colors};
+use crate::ansi::{AnsiCode, TextStyle, palette};
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
 use ratatui::style::{Modifier, Style};
@@ -8,6 +8,9 @@ use regex::Regex;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
 use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
+
+const TAB_STOP_WIDTH: usize = 8;
 
 #[derive(Debug)]
 pub struct StyledLine {
@@ -24,9 +27,12 @@ struct MatchedAnsiBlock {
 
 impl StyledLine {
     pub fn new(line: &str) -> Self {
+        let styled_chars = Self::parse_line(line);
+        let plain_line = plain_line_from_chars(&styled_chars);
+
         Self {
-            styled_chars: Self::parse_line(line),
-            plain_line: remove_ansi_codes(line),
+            styled_chars,
+            plain_line,
             gag: false,
         }
     }
@@ -54,10 +60,14 @@ impl StyledLine {
     }
 
     pub fn set_block_color(&mut self, part: &str, color: AnsiCode, bold: bool) {
+        self.set_block_style(part, TextStyle::new(color, bold));
+    }
+
+    pub fn set_block_style(&mut self, part: &str, style: TextStyle) {
         if let Some(range) = self.get_range_for(part) {
             range.into_iter().for_each(|index| {
-                self.styled_chars[index].color = color;
-                self.styled_chars[index].bold = bold;
+                self.styled_chars[index].color = style.color;
+                self.styled_chars[index].bold = style.bold;
             });
         }
     }
@@ -70,12 +80,16 @@ impl StyledLine {
     }
 
     pub fn set_line_color(&mut self, color: AnsiCode, bold: bool) {
+        self.set_line_style(TextStyle::new(color, bold));
+    }
+
+    pub fn set_line_style(&mut self, style: TextStyle) {
         self.styled_chars = self
             .plain_line
             .graphemes(true)
             .map(|c| StyledChar {
-                bold,
-                color,
+                bold: style.bold,
+                color: style.color,
                 character: c.to_string(),
             })
             .collect();
@@ -97,16 +111,16 @@ impl StyledLine {
         } else {
             self.styled_chars.first()
         };
-        let (bold, color) = style_template
-            .map(|styled| (styled.bold, styled.color))
-            .unwrap_or((false, AnsiCode::DefaultColor));
+        let style = style_template
+            .map(|styled| TextStyle::new(styled.color, styled.bold))
+            .unwrap_or(TextStyle::DEFAULT);
 
         let new_styled: Vec<StyledChar> = suffix
             .graphemes(true)
             .map(|grapheme| {
                 let mut next = StyledChar::new(grapheme.to_string());
-                next.bold = bold;
-                next.color = color;
+                next.bold = style.bold;
+                next.color = style.color;
                 next
             })
             .collect();
@@ -127,36 +141,54 @@ impl StyledLine {
             })
             .collect();
 
-        let find_block = |i| matched_ansi_blocks.iter().rfind(|b| b.end <= i);
+        let mut block_index = 0;
+        let mut current_style = StyledChar::new(String::new());
+        let mut styled_chars = Vec::new();
+        let mut column = 0;
 
-        let is_inside_ansi_block = |i| {
-            matched_ansi_blocks
-                .iter()
-                .any(|b| b.start <= i && b.end > i)
-        };
+        for (byte_index, grapheme) in line.grapheme_indices(true) {
+            while let Some(block) = matched_ansi_blocks.get(block_index)
+                && block.end <= byte_index
+            {
+                current_style.process_ansi_codes(&block.codes);
+                block_index += 1;
+            }
 
-        line.graphemes(true)
-            .map(|c| StyledChar::new(c.to_string()))
-            .enumerate()
-            .filter_map(|(i, mut styled_char)| {
-                if is_inside_ansi_block(i) {
-                    return None;
-                }
+            if matched_ansi_blocks
+                .get(block_index)
+                .is_some_and(|block| block.start <= byte_index && byte_index < block.end)
+            {
+                continue;
+            }
 
-                if let Some(block) = find_block(i) {
-                    styled_char.process_ansi_codes(&block.codes);
-                }
+            if grapheme == "\t" {
+                let spaces = TAB_STOP_WIDTH - (column % TAB_STOP_WIDTH);
+                styled_chars.extend((0..spaces).map(|_| {
+                    let mut styled_char = StyledChar::new(" ".to_string());
+                    styled_char.color = current_style.color;
+                    styled_char.bold = current_style.bold;
+                    styled_char
+                }));
+                column += spaces;
+                continue;
+            }
 
-                Some(styled_char)
-            })
-            .collect()
+            let mut styled_char = StyledChar::new(grapheme.to_string());
+            styled_char.color = current_style.color;
+            styled_char.bold = current_style.bold;
+            column += UnicodeWidthStr::width(grapheme);
+            styled_chars.push(styled_char);
+        }
+
+        styled_chars
     }
 
     fn line_from_chars(chars: &[StyledChar]) -> Line<'_> {
         let spans: Vec<Span<'_>> = chars
             .iter()
             .map(|c| {
-                let mut style = Style::default().fg(ansi_colors::get_color(c.color, c.bold));
+                let mut style =
+                    Style::default().fg(palette::get_color(TextStyle::new(c.color, c.bold)));
                 if c.bold {
                     style = style.add_modifier(Modifier::BOLD);
                 }
@@ -181,8 +213,6 @@ impl Display for StyledLine {
 }
 
 lazy_static! {
-    pub static ref ANSI_REGEX: Regex =
-        Regex::new(r"\x1b\[([\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e])").unwrap();
     pub static ref ANSI_CODE_REGEX: Regex = Regex::new(r"\u{1b}\[(.*)m").unwrap();
 }
 
@@ -207,11 +237,50 @@ fn parse_ansi_code_block(block: &[u8]) -> Vec<AnsiCode> {
     Vec::new()
 }
 
-fn remove_ansi_codes(line: &str) -> String {
-    ANSI_REGEX.replace_all(line, "").to_string()
+fn plain_line_from_chars(chars: &[StyledChar]) -> String {
+    chars
+        .iter()
+        .map(|styled_char| styled_char.character.as_str())
+        .collect()
 }
 
 fn plain_prefix_grapheme_count(plain_line: &str, byte_end: usize) -> usize {
     let end = byte_end.min(plain_line.len());
     plain_line[..end].graphemes(true).count()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ansi::AnsiCode;
+
+    #[test]
+    fn leading_tab_expands_to_spaces() {
+        let line = StyledLine::new("\tHellish bandolier contains:");
+
+        assert_eq!(line.plain_line, "        Hellish bandolier contains:");
+        assert_eq!(line.styled_chars.len(), line.plain_line.chars().count());
+        assert!(line.styled_chars.iter().all(|c| c.character != "\t"));
+
+        let wrapped = line.to_wrapped_lines(80);
+        assert!(
+            wrapped[0]
+                .spans
+                .iter()
+                .all(|span| !span.content.contains('\t'))
+        );
+    }
+
+    #[test]
+    fn styled_tab_expands_with_active_style() {
+        let line = StyledLine::new("\x1b[32mA\tB");
+
+        assert_eq!(line.plain_line, "A       B");
+        assert_eq!(line.styled_chars.len(), 9);
+        assert!(
+            line.styled_chars[0..8]
+                .iter()
+                .all(|c| c.color == AnsiCode::Green)
+        );
+    }
 }
