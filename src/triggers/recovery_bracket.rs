@@ -95,11 +95,7 @@ mod tests {
 
     #[test]
     fn each_camping_hint_line_turns_camping_on() {
-        for msg in [
-            FEEL_TIRED,
-            STRETCH_CONSIDER_CAMPING,
-            FEEL_LIKE_CAMPING,
-        ] {
+        for msg in [FEEL_TIRED, STRETCH_CONSIDER_CAMPING, FEEL_LIKE_CAMPING] {
             let mut stats = Stats::default();
             {
                 let mut automation = Automation::new();

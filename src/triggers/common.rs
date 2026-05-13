@@ -333,20 +333,30 @@ fn push_rule(
 static COMPANION_RULES_CACHE: Mutex<Option<(String, Arc<Vec<Rule>>)>> = Mutex::new(None);
 
 fn companion_rules_arc(name: &str) -> Arc<Vec<Rule>> {
-    let trimmed = name.trim();
-    if trimmed.is_empty() {
+    let Some(name) = companion_rule_name(name) else {
         return Arc::new(Vec::new());
-    }
+    };
+
     let mut guard = COMPANION_RULES_CACHE.lock().unwrap();
     if guard
         .as_ref()
-        .is_some_and(|(stored, _)| stored.as_str() == trimmed)
+        .is_some_and(|(stored, _)| stored.as_str() == name)
     {
         return Arc::clone(&guard.as_ref().unwrap().1);
     }
-    let built = Arc::new(build_companion_rules(trimmed));
-    *guard = Some((trimmed.to_string(), Arc::clone(&built)));
+    let built = Arc::new(build_companion_rules(&name));
+    *guard = Some((name, Arc::clone(&built)));
     built
+}
+
+fn companion_rule_name(name: &str) -> Option<String> {
+    let trimmed = name.trim();
+    let mut chars = trimmed.chars();
+    let first = chars.next()?;
+
+    let mut normalized = first.to_uppercase().collect::<String>();
+    normalized.push_str(&chars.as_str().to_lowercase());
+    Some(normalized)
 }
 
 /// Soul-companion combat lines for Fueryon/Odefu-style companions, with the character name
@@ -1295,6 +1305,36 @@ mod tests {
         assert_eq!(styled.styled_chars[idx + 1].color, AnsiCode::Blue);
         assert_eq!(styled.styled_chars[idx + 2].color, AnsiCode::Blue);
         assert_eq!(styled.styled_chars[idx + 3].color, AnsiCode::Blue);
+    }
+
+    #[test]
+    fn avatar_hits_other_uses_capitalized_player_name_for_digit_count() {
+        let text = "Odefu hits Man 4 times causing a nasty laceration.";
+        let (_output, styled, _automation) = run_trigger(text, None, Some("odefu"));
+        let count_byte = text.find("4 times").expect("count in line");
+        let idx = styled
+            .plain_line
+            .get(..count_byte)
+            .map(|s| s.graphemes(true).count())
+            .unwrap_or(0);
+
+        assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
+        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Red);
+    }
+
+    #[test]
+    fn avatar_hits_other_uses_capitalized_player_name_for_twice() {
+        let text = "Odefu hits Man twice inducing a nasty lesion.";
+        let (_output, styled, _automation) = run_trigger(text, None, Some("odefu"));
+        let twice_byte = text.find("twice").expect("twice in line");
+        let idx = styled
+            .plain_line
+            .get(..twice_byte)
+            .map(|s| s.graphemes(true).count())
+            .unwrap_or(0);
+
+        assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
+        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Magenta);
     }
 
     #[test]
