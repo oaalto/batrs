@@ -368,25 +368,25 @@ fn bold_white_style() -> Style {
 
 fn progress_color(value: f32) -> Color {
     if value < 0.1 {
-        palette::DARK_RED
+        Color::Rgb(139, 0, 0)
     } else if value < 0.2 {
-        palette::RED
+        Color::Rgb(255, 48, 48)
     } else if value < 0.3 {
-        palette::BOLD_RED
+        Color::Rgb(255, 79, 109)
     } else if value < 0.4 {
-        palette::YELLOW
+        Color::Rgb(255, 79, 216)
     } else if value < 0.5 {
-        palette::BOLD_YELLOW
+        Color::Rgb(214, 92, 255)
     } else if value < 0.6 {
-        palette::DARK_BLUE
+        Color::Rgb(255, 176, 0)
     } else if value < 0.7 {
-        palette::BLUE
+        Color::Rgb(255, 215, 0)
     } else if value < 0.8 {
-        palette::BOLD_BLUE
+        Color::Rgb(255, 241, 118)
     } else if value < 0.9 {
-        palette::DARK_GREEN
+        Color::Rgb(184, 243, 90)
     } else {
-        palette::GREEN
+        Color::Rgb(48, 209, 88)
     }
 }
 

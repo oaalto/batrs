@@ -4,10 +4,6 @@ use ratatui::style::Color;
 pub const BLACK: Color = Color::Black;
 pub const DARK_GRAY: Color = Color::DarkGray;
 
-pub const DARK_RED: Color = Color::Rgb(128, 0, 0);
-pub const DARK_GREEN: Color = Color::Rgb(0, 128, 0);
-pub const DARK_BLUE: Color = Color::Rgb(64, 64, 220);
-
 pub const RED: Color = Color::Rgb(187, 0, 0);
 pub const GREEN: Color = Color::Rgb(0, 187, 0);
 pub const YELLOW: Color = Color::Rgb(187, 187, 0);
