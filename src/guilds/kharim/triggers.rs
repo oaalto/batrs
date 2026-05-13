@@ -1,6 +1,6 @@
 //! Line highlights for Kharim guild output.
 
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::guilds::KharimGuild;
 use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
@@ -28,20 +28,20 @@ impl KharimGuild {
 
         match plain {
             "Chaotic force closes the bleeding wound in your body." => {
-                styled_line.set_line_color(AnsiCode::Green, true);
+                styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
             }
             "Your blood circulation normalizes."
             | "Your thirst for blood is growing insatiable." => {
-                styled_line.set_line_color(AnsiCode::Yellow, true);
+                styled_line.set_line_style(TextStyle::BRIGHT_YELLOW);
             }
             "The flames surrounding your chaos blade subside." => {
-                styled_line.set_line_color(AnsiCode::Yellow, false);
+                styled_line.set_line_style(TextStyle::YELLOW);
             }
             _ => {
                 if CHAOS_AURA.is_match(plain) {
-                    styled_line.set_line_color(AnsiCode::Green, false);
+                    styled_line.set_line_style(TextStyle::GREEN);
                 } else if FOUL_INTENTIONS.is_match(plain) || ATTACK_FUTILE.is_match(plain) {
-                    styled_line.set_line_color(AnsiCode::Red, false);
+                    styled_line.set_line_style(TextStyle::RED);
                 }
             }
         }
@@ -53,6 +53,7 @@ impl KharimGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::Automation;
     use crate::stats::Stats;
 

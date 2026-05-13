@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::AnimistGuild;
 use crate::triggers::{Trigger, TriggerContext, TriggerOutput};
@@ -50,7 +50,7 @@ impl AnimistGuild {
         if styled_line.plain_line
             == "You feel slightly better at fighting with your soul companion."
         {
-            styled_line.set_line_color(AnsiCode::Blue, false);
+            styled_line.set_line_style(TextStyle::BLUE);
         }
         TriggerOutput::default()
     }
@@ -69,6 +69,7 @@ lazy_static! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::Automation;
     use crate::stats::Stats;
 

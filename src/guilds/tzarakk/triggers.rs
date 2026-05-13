@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::TzarakkGuild;
 use crate::guilds::tzarakk::{DISMOUNTED_FLAG, MOUNT_SUMMONED_FLAG, TZARAKK_MOUNT_VAR};
@@ -117,7 +117,7 @@ impl TzarakkGuild {
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
             output
                 .actions
                 .push(Action::SetFlag(DISMOUNTED_FLAG.to_string(), true));
@@ -154,7 +154,7 @@ impl TzarakkGuild {
         if ctx.automation.flag_is_set(DISMOUNTED_FLAG)
             && MOUNT_DEATH_REGEX.is_match(&styled_line.plain_line)
         {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
             let mount = ctx
                 .automation
                 .get_var(TZARAKK_MOUNT_VAR)
@@ -207,9 +207,9 @@ impl TzarakkGuild {
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Red, false);
+            styled_line.set_line_style(TextStyle::RED);
         } else if CHARGE_HIT_REGEX.is_match(&styled_line.plain_line) {
-            styled_line.set_line_color(AnsiCode::Blue, false);
+            styled_line.set_line_style(TextStyle::BLUE);
         }
         TriggerOutput::default()
     }
@@ -253,6 +253,7 @@ impl TzarakkGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
 
     fn ctx<'a>(stats: &'a mut Stats, automation: &'a mut Automation) -> TriggerContext<'a> {
         TriggerContext {

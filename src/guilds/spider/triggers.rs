@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::guilds::SpiderGuild;
 use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
@@ -22,23 +22,23 @@ impl SpiderGuild {
         let line = styled_line.plain_line.trim_end_matches('\r').trim();
 
         if line == HEAVY_WEIGHT_EXPIRY {
-            styled_line.set_line_color(AnsiCode::Magenta, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_MAGENTA);
             output.lines.push(heavy_weight_banner());
             return output;
         }
 
         if line == QUEEN_SMILES_HELPS {
-            styled_line.set_line_color(AnsiCode::Green, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
             return output;
         }
 
         if DEMON_HELP_YELLOW.is_match(line) {
-            styled_line.set_line_color(AnsiCode::Yellow, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_YELLOW);
             return output;
         }
 
         if DEMON_POWER_BRIGHTRED.is_match(line) {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
             return output;
         }
 
@@ -50,12 +50,12 @@ impl SpiderGuild {
             || VENOM_CRINGE_GREEN.is_match(line)
             || POISON_FLOW_GREEN.is_match(line)
         {
-            styled_line.set_line_color(AnsiCode::Green, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
             return output;
         }
 
         if line == LOSING_BODY_CONTROL || line == STAB_BLOCKED || FAIL_STAB_RED.is_match(line) {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
             return output;
         }
 
@@ -65,7 +65,7 @@ impl SpiderGuild {
 
 fn heavy_weight_banner() -> StyledLine {
     let mut banner = StyledLine::new("HEAVY WEIGHT OFF!");
-    banner.set_line_color(AnsiCode::Magenta, true);
+    banner.set_line_style(TextStyle::BRIGHT_MAGENTA);
     banner
 }
 
@@ -111,6 +111,7 @@ lazy_static! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::Automation;
     use crate::stats::Stats;
 

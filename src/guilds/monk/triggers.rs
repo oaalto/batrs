@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::MonkGuild;
 use crate::guilds::monk::commands::reset_current_skill_actions;
@@ -15,7 +15,7 @@ use regex::Regex;
 
 struct MonkRule {
     pattern: Regex,
-    color: Option<(AnsiCode, bool)>,
+    color: Option<TextStyle>,
     set_var: Option<(&'static str, &'static str)>,
 }
 
@@ -77,8 +77,8 @@ impl MonkGuild {
             .iter()
             .filter(|rule| rule.pattern.is_match(&line))
         {
-            if let Some((color, bold)) = rule.color {
-                styled_line.set_line_color(color, bold);
+            if let Some(style) = rule.color {
+                styled_line.set_line_style(style);
             }
             if let Some((key, value)) = rule.set_var {
                 output
@@ -109,302 +109,302 @@ lazy_static! {
         Regex::new(r"^You start chanting\.$").unwrap(),
     ];
     static ref MONK_RULES: Vec<MonkRule> = vec![
-        rule(r"You do a complex attack maneuver but miss\.", Some((AnsiCode::Red, true)), None),
-        rule(r"You fail to reach the state of inner harmony\.", Some((AnsiCode::Red, false)), None),
-        rule(r"Your training is starting to pay off!", Some((AnsiCode::Blue, false)), None),
+        rule(r"You do a complex attack maneuver but miss\.", Some(TextStyle::BRIGHT_RED), None),
+        rule(r"You fail to reach the state of inner harmony\.", Some(TextStyle::RED), None),
+        rule(r"Your training is starting to pay off!", Some(TextStyle::BLUE), None),
         rule(
             r"You feel like you have mastered the art of (.+)\. It might be time to find another advanced technique\.",
-            Some((AnsiCode::Blue, false)),
+            Some(TextStyle::BLUE),
             None,
         ),
         rule(
             r"Because you mastered the skill before, it comes back to you much faster this time\.",
-            Some((AnsiCode::Blue, false)),
+            Some(TextStyle::BLUE),
             None,
         ),
         rule(
             r"You feel like imaginary food is done digesting\.",
-            Some((AnsiCode::Red, false)),
+            Some(TextStyle::RED),
             None,
         ),
         rule(
             r"^The (blow|thrashing) knocks some of (its|her|his) defenses loose,\s+leaving (it|him|her) temporarily vulnerable!$",
-            Some((AnsiCode::Green, false)),
+            Some(TextStyle::GREEN),
             None,
         ),
         rule(
             r"^As (she|he|it) lands, some of (his|her|its) protection shifts out of place, leaving (him|her|it) temporarily vulnerable!$",
-            Some((AnsiCode::Green, false)),
+            Some(TextStyle::GREEN),
             None,
         ),
         rule(
             r"but only score a glancing blow\.$",
-            Some((AnsiCode::Red, true)),
+            Some(TextStyle::BRIGHT_RED),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_1)),
         ),
         rule(
             r"but only bruise the muscle\.$",
-            Some((AnsiCode::Cyan, false)),
+            Some(TextStyle::CYAN),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_2)),
         ),
         rule(
             r"scoring a solid hit!$",
-            Some((AnsiCode::Blue, false)),
+            Some(TextStyle::BLUE),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_2)),
         ),
         rule(
             r"and you feel something pop!$",
-            Some((AnsiCode::Yellow, false)),
+            Some(TextStyle::YELLOW),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_2)),
         ),
         rule(
             r"and you feel something snap!$",
-            Some((AnsiCode::Green, false)),
+            Some(TextStyle::GREEN),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_2)),
         ),
         rule(
             r"and you feel something shatter!$",
-            Some((AnsiCode::Magenta, false)),
+            Some(TextStyle::MAGENTA),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_2)),
         ),
         rule(
             r"but don't get any solid hits\.$",
-            Some((AnsiCode::Red, true)),
+            Some(TextStyle::BRIGHT_RED),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_1)),
         ),
         rule(
             r"preventing you from hitting with the others\.$",
-            Some((AnsiCode::Cyan, false)),
+            Some(TextStyle::CYAN),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_3)),
         ),
         rule(
             r"getting two hits in!$",
-            Some((AnsiCode::Blue, false)),
+            Some(TextStyle::BLUE),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_3)),
         ),
         rule(
             r"shaking (his|her|its) whole body!$",
-            Some((AnsiCode::Yellow, false)),
+            Some(TextStyle::YELLOW),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_3)),
         ),
         rule(
             r"outstretched limbs, but miss\.$",
-            Some((AnsiCode::Red, true)),
+            Some(TextStyle::BRIGHT_RED),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_1)),
         ),
         rule(
             r"(manage|manages|managed) to land on (his|her|its) butt\.$",
-            Some((AnsiCode::Cyan, false)),
+            Some(TextStyle::CYAN),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_1)),
         ),
         rule(
             r"but (he|she|it) twists to (landon|land on) (his|her|its) side\.$",
-            Some((AnsiCode::Blue, false)),
+            Some(TextStyle::BLUE),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_1)),
         ),
         rule(
             r"and throw (him|it|her) down onto (his|her|its) back!$",
-            Some((AnsiCode::Yellow, false)),
+            Some(TextStyle::YELLOW),
             Some((CURRENT_ARMOUR_SKILL_VAR, ARMOUR_SKILL_1)),
         ),
         rule(
             r"shakes (his|her|its) head back and forth, clearly disoriented\.$",
-            Some((AnsiCode::Green, false)),
+            Some(TextStyle::GREEN),
             None,
         ),
         rule(
             r"blinks distractedly, looking somewhat blind!$",
-            Some((AnsiCode::Green, false)),
+            Some(TextStyle::GREEN),
             None,
         ),
         rule(
             r"hacks and wheezes, looking disoriented\.$",
-            Some((AnsiCode::Green, false)),
+            Some(TextStyle::GREEN),
             None,
         ),
         rule(
             r"takes a moment too long to regain (his|her|its) footing\.$",
-            Some((AnsiCode::Green, false)),
+            Some(TextStyle::GREEN),
             None,
         ),
         rule(
             r"but can't make flesh contact\.$",
-            Some((AnsiCode::Red, true)),
+            Some(TextStyle::BRIGHT_RED),
             Some((CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_1)),
         ),
         rule(
             r"on the side of the head\.$",
-            Some((AnsiCode::Cyan, false)),
+            Some(TextStyle::CYAN),
             Some((CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_2)),
         ),
         rule(
             r"a harsh slap across the jaw\.$",
-            Some((AnsiCode::Blue, false)),
+            Some(TextStyle::BLUE),
             Some((CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_2)),
         ),
         rule(
             r"but miss the veins you were aiming for\.$",
-            Some((AnsiCode::Yellow, false)),
+            Some(TextStyle::YELLOW),
             Some((CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_2)),
         ),
         rule(
             r"hitting one of the arteries and disrupting (his|her|its) blood flow!$",
-            Some((AnsiCode::Green, false)),
+            Some(TextStyle::GREEN),
             Some((CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_2)),
         ),
         rule(
             r"hitting both arteries and temporarily halting (his|her|its) blood to the brain!$",
-            Some((AnsiCode::Green, true)),
+            Some(TextStyle::BRIGHT_GREEN),
             Some((CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_2)),
         ),
         rule(
             r"but slip and fall down\.$",
-            Some((AnsiCode::Red, true)),
+            Some(TextStyle::BRIGHT_RED),
             Some((CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_1)),
         ),
         rule(
             r"You jump up and kick (.+) in the ribcage, but don't get enough contact to backflip\.",
-            Some((AnsiCode::Cyan, false)),
+            Some(TextStyle::CYAN),
             Some((CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_3)),
         ),
         rule(
             r"and have to settle for a dropkick to the stomach\.$",
-            Some((AnsiCode::Blue, false)),
+            Some(TextStyle::BLUE),
             Some((CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_3)),
         ),
         rule(
             r"You land a single kick in the middle of (.+)'s chest, backflip, and land on your feet\.",
-            Some((AnsiCode::Yellow, false)),
+            Some(TextStyle::YELLOW),
             Some((CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_3)),
         ),
         rule(
             r"but (he|she|it) deflects your hands\.$",
-            Some((AnsiCode::Red, true)),
+            Some(TextStyle::BRIGHT_RED),
             Some((CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_1)),
         ),
         rule(
             r"but barely manage to move (her|it|him) at all\.$",
-            Some((AnsiCode::Cyan, false)),
+            Some(TextStyle::CYAN),
             Some((CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_1)),
         ),
         rule(
             r"forcing (him|her|it) to take a few steps back\.$",
-            Some((AnsiCode::Blue, false)),
+            Some(TextStyle::BLUE),
             Some((CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_1)),
         ),
         rule(
             r"backs off and you can't even get started\.$",
-            Some((AnsiCode::Red, true)),
+            Some(TextStyle::BRIGHT_RED),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_1)),
         ),
         rule(
             r"^Most of your attacks are partially deflected or blocked\.$",
-            Some((AnsiCode::Cyan, false)),
+            Some(TextStyle::CYAN),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_2)),
         ),
         rule(
             r"shoulders and sides, but nothing deadly\.$",
-            Some((AnsiCode::Blue, false)),
+            Some(TextStyle::BLUE),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_2)),
         ),
         rule(
             r"^You get some hits to the belly, getting some penetration\.$",
-            Some((AnsiCode::Yellow, false)),
+            Some(TextStyle::YELLOW),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_2)),
         ),
         rule(
             r#"getting your fingers between the ribs like you"d hoped\.$"#,
-            Some((AnsiCode::Green, false)),
+            Some(TextStyle::GREEN),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_2)),
         ),
         rule(
             r"your knuckles between the ribs!$",
-            Some((AnsiCode::Magenta, false)),
+            Some(TextStyle::MAGENTA),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_2)),
         ),
         rule(
             r"^You send (.+) crashing into (.+)!$",
-            Some((AnsiCode::Magenta, true)),
+            Some(TextStyle::BRIGHT_MAGENTA),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_2)),
         ),
         rule(
             r"blocks it and knocks you to the ground\.$",
-            Some((AnsiCode::Red, true)),
+            Some(TextStyle::BRIGHT_RED),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_1)),
         ),
         rule(
             r"^Your kick is true, but not forceful enough to knock anyone around\.$",
-            Some((AnsiCode::Cyan, false)),
+            Some(TextStyle::CYAN),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_3)),
         ),
         rule(
             r"The impact is less than satisfying\.$",
-            Some((AnsiCode::Blue, false)),
+            Some(TextStyle::BLUE),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_3)),
         ),
         rule(
             r"^You kick it stumbling backwards!$",
-            Some((AnsiCode::Yellow, false)),
+            Some(TextStyle::YELLOW),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_3)),
         ),
         rule(
             r"^You knock (.+) into (.+)!$",
-            Some((AnsiCode::Green, false)),
+            Some(TextStyle::GREEN),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_3)),
         ),
         rule(
             r"braces and blocks it\.$",
-            Some((AnsiCode::Red, true)),
+            Some(TextStyle::BRIGHT_RED),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_1)),
         ),
         rule(
             r"^You drop down and sweep your leg low along the ground\.$",
-            Some((AnsiCode::Magenta, false)),
+            Some(TextStyle::MAGENTA),
             Some((CURRENT_AREA_SKILL_VAR, AREA_SKILL_1)),
         ),
         rule(
             r"but are pushed back\.$",
-            Some((AnsiCode::Red, true)),
+            Some(TextStyle::BRIGHT_RED),
             Some((CURRENT_AVOID_SKILL_VAR, AVOID_SKILL_1)),
         ),
         rule(
             r"but can't get a decent claw in\.$",
-            Some((AnsiCode::Cyan, false)),
+            Some(TextStyle::CYAN),
             Some((CURRENT_AVOID_SKILL_VAR, AVOID_SKILL_2)),
         ),
         rule(
             r"but can't push hard enough to get into a flip\.$",
-            Some((AnsiCode::Blue, false)),
+            Some(TextStyle::BLUE),
             Some((CURRENT_AVOID_SKILL_VAR, AVOID_SKILL_2)),
         ),
         rule(
             r"clawing (.+) in the back with curved fingers!$",
-            Some((AnsiCode::Yellow, false)),
+            Some(TextStyle::YELLOW),
             Some((CURRENT_AVOID_SKILL_VAR, AVOID_SKILL_2)),
         ),
         rule(
             r"leaving you flat on your back!$",
-            Some((AnsiCode::Red, true)),
+            Some(TextStyle::BRIGHT_RED),
             Some((CURRENT_AVOID_SKILL_VAR, AVOID_SKILL_1)),
         ),
         rule(
             r"and you end up merely slamming your back against (.+)\.$",
-            Some((AnsiCode::Cyan, false)),
+            Some(TextStyle::CYAN),
             Some((CURRENT_AVOID_SKILL_VAR, AVOID_SKILL_3)),
         ),
         rule(
             r"over the shoulder with the heel of your foot\.$",
-            Some((AnsiCode::Blue, false)),
+            Some(TextStyle::BLUE),
             Some((CURRENT_AVOID_SKILL_VAR, AVOID_SKILL_3)),
         ),
         rule(
             r"but fall short and land on your side\.$",
-            Some((AnsiCode::Red, true)),
+            Some(TextStyle::BRIGHT_RED),
             Some((CURRENT_AVOID_SKILL_VAR, AVOID_SKILL_1)),
         ),
         rule(
             r"and end up merely kicking (.+) in the face with one foot\.$",
-            Some((AnsiCode::Cyan, false)),
+            Some(TextStyle::CYAN),
             Some((CURRENT_AVOID_SKILL_VAR, AVOID_SKILL_1)),
         ),
     ];
@@ -412,7 +412,7 @@ lazy_static! {
 
 fn rule(
     pattern: &str,
-    color: Option<(AnsiCode, bool)>,
+    color: Option<TextStyle>,
     set_var: Option<(&'static str, &'static str)>,
 ) -> MonkRule {
     MonkRule {
@@ -425,6 +425,7 @@ fn rule(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::Automation;
     use crate::stats::Stats;
 

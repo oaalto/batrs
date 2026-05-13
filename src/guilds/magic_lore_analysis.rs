@@ -1,6 +1,6 @@
 //! "Analysis of magic lore" combat-line highlighting shared by guilds (Civmage, Mage).
 
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use unicode_segmentation::UnicodeSegmentation;
@@ -8,17 +8,17 @@ use unicode_segmentation::UnicodeSegmentation;
 /// Paints tiered damage-reaction text on `styled_line` when `line` matches an analysis pattern.
 /// Returns `true` when a rule matched.
 pub fn paint_magic_lore_analysis(styled_line: &mut StyledLine, line: &str) -> bool {
-    let tiers: &[(&Regex, AnsiCode, bool)] = &[
-        (&ANALYSIS_SCREAMS, AnsiCode::Green, false),
-        (&ANALYSIS_WRITHES, AnsiCode::Blue, false),
-        (&ANALYSIS_SHUDDERS, AnsiCode::Cyan, false),
-        (&ANALYSIS_GRUNTS, AnsiCode::Yellow, false),
-        (&ANALYSIS_WINCES, AnsiCode::Magenta, false),
-        (&ANALYSIS_SHRUGS, AnsiCode::Red, false),
+    let tiers: &[(&Regex, TextStyle)] = &[
+        (&ANALYSIS_SCREAMS, TextStyle::GREEN),
+        (&ANALYSIS_WRITHES, TextStyle::BLUE),
+        (&ANALYSIS_SHUDDERS, TextStyle::CYAN),
+        (&ANALYSIS_GRUNTS, TextStyle::YELLOW),
+        (&ANALYSIS_WINCES, TextStyle::MAGENTA),
+        (&ANALYSIS_SHRUGS, TextStyle::RED),
     ];
-    for (regular_expression, color, bold) in tiers {
+    for (regular_expression, style) in tiers {
         if let Some(captures) = regular_expression.captures(line) {
-            apply_capture_hilite(styled_line, &captures, 2, *color, *bold);
+            apply_capture_hilite(styled_line, &captures, 2, *style);
             return true;
         }
     }
@@ -29,8 +29,7 @@ fn apply_capture_hilite(
     styled_line: &mut StyledLine,
     captures: &Captures<'_>,
     index: usize,
-    color: AnsiCode,
-    bold: bool,
+    style: TextStyle,
 ) {
     let Some(matched) = captures.get(index) else {
         return;
@@ -43,8 +42,8 @@ fn apply_capture_hilite(
     let end = end.min(length);
 
     for grapheme_index in start..end {
-        styled_line.styled_chars[grapheme_index].color = color.into();
-        styled_line.styled_chars[grapheme_index].bold = bold;
+        styled_line.styled_chars[grapheme_index].color = style.color;
+        styled_line.styled_chars[grapheme_index].bold = style.bold;
     }
 }
 
@@ -69,6 +68,7 @@ lazy_static! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use unicode_segmentation::UnicodeSegmentation;
 
     #[test]

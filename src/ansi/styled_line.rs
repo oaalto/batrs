@@ -1,5 +1,5 @@
 use crate::ansi::styled_text_block::StyledChar;
-use crate::ansi::{AnsiCode, TextStyle, palette};
+use crate::ansi::{TextStyle, palette};
 use lazy_static::lazy_static;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -58,10 +58,6 @@ impl StyledLine {
         lines
     }
 
-    pub fn set_block_color(&mut self, part: &str, color: AnsiCode, bold: bool) {
-        self.set_block_style(part, TextStyle::new(color, bold));
-    }
-
     pub fn set_block_style(&mut self, part: &str, style: TextStyle) {
         if let Some(range) = self.get_range_for(part) {
             range.into_iter().for_each(|index| {
@@ -76,10 +72,6 @@ impl StyledLine {
             start,
             end: start + part.len(),
         })
-    }
-
-    pub fn set_line_color(&mut self, color: AnsiCode, bold: bool) {
-        self.set_line_style(TextStyle::new(color, bold));
     }
 
     pub fn set_line_style(&mut self, style: TextStyle) {

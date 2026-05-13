@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::RiftwalkerGuild;
 use crate::guilds::riftwalker::{
@@ -210,74 +210,74 @@ fn current_skill_equals(ctx: &TriggerContext<'_>, needle: &str) -> bool {
 
 fn down_notice(message: &'static str) -> StyledLine {
     let mut line = StyledLine::new(message);
-    line.set_line_color(AnsiCode::Red, true);
+    line.set_line_style(TextStyle::BRIGHT_RED);
     line
 }
 
 fn elemental_line_paint(styled_line: &mut StyledLine) {
     let text = styled_line.plain_line.as_str();
     if ELEMENTAL_HIT.is_match(text) {
-        styled_line.set_line_color(AnsiCode::Green, false);
+        styled_line.set_line_style(TextStyle::GREEN);
     } else if ELEMENTAL_STUN.is_match(text) {
-        styled_line.set_line_color(AnsiCode::Red, false);
+        styled_line.set_line_style(TextStyle::RED);
     } else if ENTITY_MISS.is_match(text) {
-        styled_line.set_line_color(AnsiCode::Red, true);
+        styled_line.set_line_style(TextStyle::BRIGHT_RED);
     }
 }
 
 fn elemental_tokens_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLine) {
     let pairs = [
-        ("Fire entity", ENTITY_LABEL_FIRE, AnsiCode::Red, false),
-        ("Air entity", ENTITY_LABEL_AIR, AnsiCode::Cyan, true),
-        ("Water entity", ENTITY_LABEL_WATER, AnsiCode::Blue, false),
-        ("Earth entity", ENTITY_LABEL_EARTH, AnsiCode::Yellow, false),
+        ("Fire entity", ENTITY_LABEL_FIRE, TextStyle::RED),
+        ("Air entity", ENTITY_LABEL_AIR, TextStyle::BRIGHT_CYAN),
+        ("Water entity", ENTITY_LABEL_WATER, TextStyle::BLUE),
+        ("Earth entity", ENTITY_LABEL_EARTH, TextStyle::YELLOW),
     ];
-    for (stock_slice, configuration_key, palette, bold_choice) in pairs {
-        styled_line.set_block_color(stock_slice, palette, bold_choice);
+    for (stock_slice, configuration_key, style) in pairs {
+        styled_line.set_block_style(stock_slice, style);
         let customized = stock_slice.replace(
             "entity",
             automation_label(ctx.automation, configuration_key).as_str(),
         );
         if customized != stock_slice {
-            styled_line.set_block_color(customized.as_str(), palette, bold_choice);
+            styled_line.set_block_style(customized.as_str(), style);
         }
     }
 }
 
 fn aura_paint(styled_line: &mut StyledLine) {
-    const TABLE: &[(&str, AnsiCode, bool)] = &[
-        ("glowing", AnsiCode::Blue, false),
-        ("shimmering", AnsiCode::Blue, true),
-        ("gleaming", AnsiCode::Cyan, false),
-        ("sizzling", AnsiCode::Cyan, true),
-        ("sparkling", AnsiCode::Yellow, false),
-        ("glittering", AnsiCode::Yellow, true),
-        ("radiating", AnsiCode::Magenta, false),
-        ("throbbing", AnsiCode::Magenta, true),
-        ("pulsating", AnsiCode::Red, false),
-        ("blazing", AnsiCode::Red, true),
+    const TABLE: &[(&str, TextStyle)] = &[
+        ("glowing", TextStyle::BLUE),
+        ("shimmering", TextStyle::BRIGHT_BLUE),
+        ("gleaming", TextStyle::CYAN),
+        ("sizzling", TextStyle::BRIGHT_CYAN),
+        ("sparkling", TextStyle::YELLOW),
+        ("glittering", TextStyle::BRIGHT_YELLOW),
+        ("radiating", TextStyle::MAGENTA),
+        ("throbbing", TextStyle::BRIGHT_MAGENTA),
+        ("pulsating", TextStyle::RED),
+        ("blazing", TextStyle::BRIGHT_RED),
     ];
-    for &(token, pigment, accented) in TABLE {
-        styled_line.set_block_color(token, pigment, accented);
+    for &(token, style) in TABLE {
+        styled_line.set_block_style(token, style);
     }
 }
 
 fn misc_paint(styled_line: &mut StyledLine) {
     let text = styled_line.plain_line.as_str();
     if AIR_EMBRACE.is_match(text) {
-        styled_line.set_line_color(AnsiCode::Blue, true);
+        styled_line.set_line_style(TextStyle::BRIGHT_BLUE);
         return;
     }
     if text == "A wave of blue light bursts forth from your entity and hits you in the chest." {
-        styled_line.set_line_color(AnsiCode::Blue, false);
+        styled_line.set_line_style(TextStyle::BLUE);
         return;
     }
     if WATER_GLOW.is_match(text) {
-        styled_line.set_line_color(AnsiCode::Blue, true);
+        styled_line.set_line_style(TextStyle::BRIGHT_BLUE);
         return;
     }
     if SKILL_FOCUS.is_match(text) {
-        styled_line.set_line_color(AnsiCode::White, true);
+        styled_line.set_line_style(TextStyle::BRIGHT_WHITE);
     }
 }
 
@@ -288,6 +288,6 @@ lazy_static! {
 fn entity_sense_paint(styled_line: &mut StyledLine) {
     let text = styled_line.plain_line.clone();
     if let Some(found) = ENTITY_SENSE_SEGMENT.find(text.as_str()) {
-        styled_line.set_block_color(found.as_str(), AnsiCode::Blue, true);
+        styled_line.set_block_style(found.as_str(), TextStyle::BRIGHT_BLUE);
     }
 }

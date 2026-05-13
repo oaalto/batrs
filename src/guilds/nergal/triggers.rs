@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::NergalGuild;
 use crate::stats::NergalMinion;
@@ -51,7 +51,7 @@ impl NergalGuild {
         }
 
         if line == "Your body can't handle any more of potentia!" {
-            styled_line.set_line_color(AnsiCode::Red, false);
+            styled_line.set_line_style(TextStyle::RED);
             output
                 .lines
                 .push(echo_notice("***** POTENTIA IS FULL! *****", false));
@@ -66,7 +66,7 @@ impl NergalGuild {
         }
 
         if line == "Your body can't handle any more of vitae!" {
-            styled_line.set_line_color(AnsiCode::Red, false);
+            styled_line.set_line_style(TextStyle::RED);
             output
                 .lines
                 .push(echo_notice("***** VITAE IS FULL! *****", false));
@@ -78,21 +78,21 @@ impl NergalGuild {
             || HARVEST_POTENTIA.is_match(line)
             || line.contains("You feel your insight of evolution expanding")
         {
-            styled_line.set_line_color(AnsiCode::Cyan, false);
+            styled_line.set_line_style(TextStyle::CYAN);
         } else if line
             .contains("You hear deep inside your head the parasite whispers more secrets of")
             || line.contains(
                 "You hear deep inside your head the parasite whispering to you secrets of",
             )
         {
-            styled_line.set_line_color(AnsiCode::Green, false);
+            styled_line.set_line_style(TextStyle::GREEN);
         } else if line.contains("looks relieved as the aether line fades away") {
-            styled_line.set_line_color(AnsiCode::Blue, false);
+            styled_line.set_line_style(TextStyle::BLUE);
         } else if AURA_SCRATCH.is_match(line)
             || AURA_PLUNGES.is_match(line)
             || AURA_ESSENCE.is_match(line)
         {
-            styled_line.set_line_color(AnsiCode::Green, false);
+            styled_line.set_line_style(TextStyle::GREEN);
         }
 
         output
@@ -101,14 +101,11 @@ impl NergalGuild {
 
 fn echo_notice(text: &str, green: bool) -> StyledLine {
     let mut line = StyledLine::new(text);
-    line.set_line_color(
-        if green {
-            AnsiCode::Green
-        } else {
-            AnsiCode::Red
-        },
-        true,
-    );
+    line.set_line_style(if green {
+        TextStyle::BRIGHT_GREEN
+    } else {
+        TextStyle::BRIGHT_RED
+    });
     line
 }
 
@@ -146,6 +143,7 @@ lazy_static! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::Automation;
     use crate::stats::Stats;
 

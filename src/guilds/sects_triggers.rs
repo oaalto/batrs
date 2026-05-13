@@ -1,6 +1,6 @@
 //! Sect cultivation and mantra lines shared by Tiger and Monk.
 
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -22,11 +22,11 @@ pub fn sect_cultivation_hilite_trigger(
 ) -> TriggerOutput {
     let line = &styled_line.plain_line;
     if FINISHED_CULTIVATING.is_match(line) {
-        styled_line.set_line_color(AnsiCode::Green, false);
+        styled_line.set_line_style(TextStyle::GREEN);
     } else if MANTRA_NO_LONGER_ACTIVE.is_match(line) {
-        styled_line.set_line_color(AnsiCode::Yellow, false);
+        styled_line.set_line_style(TextStyle::YELLOW);
     } else if RECITE_WITHOUT_CULTIVATION.is_match(line) {
-        styled_line.set_line_color(AnsiCode::Red, false);
+        styled_line.set_line_style(TextStyle::RED);
     }
     TriggerOutput::default()
 }
@@ -34,6 +34,7 @@ pub fn sect_cultivation_hilite_trigger(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::Automation;
     use crate::stats::Stats;
 

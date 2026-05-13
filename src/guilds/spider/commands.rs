@@ -1,5 +1,5 @@
 use crate::abilities;
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::command;
 use crate::command::Command;
 use crate::guilds::SpiderGuild;
@@ -124,7 +124,7 @@ impl SpiderGuild {
         let args = data.args.trim();
         if args.is_empty() {
             let mut banner = StyledLine::new("No target!");
-            banner.set_line_color(AnsiCode::Red, true);
+            banner.set_line_style(TextStyle::BRIGHT_RED);
             ctx.push_output_line(banner);
             return None;
         }

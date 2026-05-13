@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::guilds::FolkloristGuild;
 use crate::triggers::{TriggerContext, TriggerOutput};
 
@@ -16,7 +16,7 @@ impl FolkloristGuild {
         let plain = styled_line.plain_line.trim_end_matches('\r').trim();
 
         if plain == MINOR_PROTECTION_FADES {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
         }
 
         TriggerOutput::default()
@@ -26,6 +26,7 @@ impl FolkloristGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::Automation;
     use crate::stats::Stats;
 

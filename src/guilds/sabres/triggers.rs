@@ -1,5 +1,5 @@
 use crate::abilities;
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::sabres::{SABRE_WEAPON_VAR, SabresGuild};
 use crate::triggers::{TriggerContext, TriggerOutput};
@@ -53,13 +53,13 @@ impl SabresGuild {
     ) -> TriggerOutput {
         let plain = styled_line.plain_line.as_str();
         if plain == *BATTLE_CADENCE {
-            styled_line.set_line_color(AnsiCode::Blue, false);
+            styled_line.set_line_style(TextStyle::BLUE);
         } else if plain == *LOUNGING_YELLOW {
-            styled_line.set_line_color(AnsiCode::Yellow, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_YELLOW);
         } else if plain == *LOUNGING_GREEN {
-            styled_line.set_line_color(AnsiCode::Green, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
         } else if plain == *FUMBLING_LINE {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
         }
         TriggerOutput::default()
     }
@@ -70,9 +70,9 @@ impl SabresGuild {
     ) -> TriggerOutput {
         let plain = styled_line.plain_line.as_str();
         if FENCE_RED_HILITE.contains(&plain) {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
         } else if FENCE_GREEN_HILITE.contains(&plain) {
-            styled_line.set_line_color(AnsiCode::Green, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
         }
         TriggerOutput::default()
     }
@@ -85,7 +85,7 @@ impl SabresGuild {
             .plain_line
             .starts_with("You feel more proficient in")
         {
-            styled_line.set_line_color(AnsiCode::Blue, false);
+            styled_line.set_line_style(TextStyle::BLUE);
         }
         TriggerOutput::default()
     }
@@ -117,7 +117,7 @@ impl SabresGuild {
         styled_line: &mut StyledLine,
     ) -> TriggerOutput {
         if GREEN_WIELD.is_match(styled_line.plain_line.as_str()) {
-            styled_line.set_line_color(AnsiCode::Green, false);
+            styled_line.set_line_style(TextStyle::GREEN);
         }
         TriggerOutput::default()
     }

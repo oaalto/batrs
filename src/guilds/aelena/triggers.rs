@@ -1,5 +1,5 @@
 use crate::abilities;
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::AelenaGuild;
 use crate::triggers::{Trigger, TriggerContext, TriggerOutput};
@@ -48,7 +48,7 @@ impl AelenaGuild {
         }
 
         if line == "Your Shadow Familiar shrieks as it advances a level!" {
-            styled_line.set_line_color(AnsiCode::Green, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
         } else if line
             == "The surge of magic backlashes at you, just when you're finishing the spell."
             || line == "You fail to chant the spell correctly."
@@ -56,17 +56,17 @@ impl AelenaGuild {
                 "At the last moment you notice the spell is about to turn at you, and abort the",
             )
         {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
         } else if CHAOS_UNPOWERED.is_match(line) {
-            styled_line.set_line_color(AnsiCode::Red, false);
+            styled_line.set_line_style(TextStyle::RED);
         } else if WOUNDS_SPILL.is_match(line)
             || line == "Your senses sharpen as you fight for you life."
         {
-            styled_line.set_line_color(AnsiCode::Green, false);
+            styled_line.set_line_style(TextStyle::GREEN);
         } else if line == "The connection between you and your blade fades away." {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
             let mut echo = StyledLine::new("Command Blade down!");
-            echo.set_line_color(AnsiCode::Magenta, true);
+            echo.set_line_style(TextStyle::BRIGHT_MAGENTA);
             output.lines.push(echo);
         }
 
@@ -77,6 +77,7 @@ impl AelenaGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::Automation;
     use crate::stats::Stats;
 

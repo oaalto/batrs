@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::guilds::CivmageGuild;
 use crate::guilds::magic_lore_analysis::paint_magic_lore_analysis;
 use crate::triggers::{Trigger, TriggerContext, TriggerOutput};
@@ -20,7 +20,7 @@ impl CivmageGuild {
             .to_string();
 
         if line == "You feel odd. Not weaker, but..." {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
             return output;
         }
 
@@ -39,13 +39,14 @@ impl CivmageGuild {
 
 fn disc_notice() -> StyledLine {
     let mut line = StyledLine::new("FLOATING DISC IS GOING DOWN!");
-    line.set_line_color(AnsiCode::Red, true);
+    line.set_line_style(TextStyle::BRIGHT_RED);
     line
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::Automation;
     use crate::stats::Stats;
 

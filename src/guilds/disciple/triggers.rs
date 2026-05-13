@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::guilds::DiscipleGuild;
 use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
@@ -33,9 +33,9 @@ impl DiscipleGuild {
     ) -> TriggerOutput {
         let mut output = TriggerOutput::default();
         if SPAWN_GOING_DOWN.is_match(&styled_line.plain_line) {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
             let mut alert = StyledLine::new("*************** SPAWN GOING DOWN!! ***************");
-            alert.set_line_color(AnsiCode::Red, true);
+            alert.set_line_style(TextStyle::BRIGHT_RED);
             output.lines.push(alert);
         }
         output
@@ -49,7 +49,7 @@ impl DiscipleGuild {
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
         }
         TriggerOutput::default()
     }
@@ -62,7 +62,7 @@ impl DiscipleGuild {
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Green, false);
+            styled_line.set_line_style(TextStyle::GREEN);
         }
         TriggerOutput::default()
     }

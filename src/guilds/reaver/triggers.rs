@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::guilds::ReaverGuild;
 use crate::triggers::Trigger;
 use crate::triggers::{TriggerContext, TriggerOutput};
@@ -85,7 +85,7 @@ impl ReaverGuild {
         styled_line: &mut StyledLine,
     ) -> TriggerOutput {
         if SCYTHE_SWIPE_REGEX.is_match(&styled_line.plain_line) {
-            styled_line.set_line_color(AnsiCode::Blue, false);
+            styled_line.set_line_style(TextStyle::BLUE);
         }
         TriggerOutput::default()
     }
@@ -98,7 +98,7 @@ impl ReaverGuild {
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Blue, false);
+            styled_line.set_line_style(TextStyle::BLUE);
         }
         TriggerOutput::default()
     }
@@ -111,7 +111,7 @@ impl ReaverGuild {
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Blue, false);
+            styled_line.set_line_style(TextStyle::BLUE);
         }
         TriggerOutput::default()
     }
@@ -124,7 +124,7 @@ impl ReaverGuild {
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
         }
         TriggerOutput::default()
     }
@@ -134,7 +134,7 @@ impl ReaverGuild {
         styled_line: &mut StyledLine,
     ) -> TriggerOutput {
         if KILLING_BLOW.is_match(&styled_line.plain_line) {
-            styled_line.set_block_color("KILLING BLOW", AnsiCode::Red, true);
+            styled_line.set_block_style("KILLING BLOW", TextStyle::BRIGHT_RED);
         }
         TriggerOutput::default()
     }
@@ -145,8 +145,8 @@ impl ReaverGuild {
     ) -> TriggerOutput {
         let plain_line = styled_line.plain_line.clone();
         if let Some(captures) = SPEAK_ANCIENT.captures(&plain_line) {
-            apply_capture_hilite(styled_line, &captures, 1, AnsiCode::White, true);
-            apply_capture_hilite(styled_line, &captures, 2, AnsiCode::White, true);
+            apply_capture_hilite(styled_line, &captures, 1, TextStyle::BRIGHT_WHITE);
+            apply_capture_hilite(styled_line, &captures, 2, TextStyle::BRIGHT_WHITE);
         }
         TriggerOutput::default()
     }
@@ -160,7 +160,7 @@ impl ReaverGuild {
             .iter()
             .find_map(|r| r.captures(&plain_line))
         {
-            apply_capture_hilite(styled_line, &captures, 1, AnsiCode::Cyan, false);
+            apply_capture_hilite(styled_line, &captures, 1, TextStyle::CYAN);
         }
         TriggerOutput::default()
     }
@@ -173,7 +173,7 @@ impl ReaverGuild {
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Blue, false);
+            styled_line.set_line_style(TextStyle::BLUE);
         }
         TriggerOutput::default()
     }
@@ -186,7 +186,7 @@ impl ReaverGuild {
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Magenta, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_MAGENTA);
         }
         TriggerOutput::default()
     }
@@ -199,7 +199,7 @@ impl ReaverGuild {
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Green, false);
+            styled_line.set_line_style(TextStyle::GREEN);
         }
         TriggerOutput::default()
     }
@@ -212,7 +212,7 @@ impl ReaverGuild {
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Red, false);
+            styled_line.set_line_style(TextStyle::RED);
         }
         TriggerOutput::default()
     }
@@ -232,8 +232,7 @@ fn apply_capture_hilite(
     styled_line: &mut StyledLine,
     captures: &Captures<'_>,
     index: usize,
-    color: AnsiCode,
-    bold: bool,
+    style: TextStyle,
 ) {
     let Some(m) = captures.get(index) else {
         return;
@@ -246,8 +245,8 @@ fn apply_capture_hilite(
     let end = end.min(len);
 
     for i in start..end {
-        styled_line.styled_chars[i].color = color.into();
-        styled_line.styled_chars[i].bold = bold;
+        styled_line.styled_chars[i].color = style.color;
+        styled_line.styled_chars[i].bold = style.bold;
     }
 }
 
@@ -260,6 +259,7 @@ fn byte_to_grapheme_index(text: &str, byte_index: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::Automation;
     use crate::stats::Stats;
 

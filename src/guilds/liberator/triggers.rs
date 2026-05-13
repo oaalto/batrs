@@ -1,6 +1,6 @@
 //! Line highlights for Liberator guild output.
 
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::guilds::LiberatorGuild;
 use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
@@ -26,11 +26,11 @@ impl LiberatorGuild {
             "You swing and miss your mark!"
             | "Your greater light spell flickers briefly and disappears."
             | "Your holy glow fades." => {
-                styled_line.set_line_color(AnsiCode::Red, true);
+                styled_line.set_line_style(TextStyle::BRIGHT_RED);
             }
             _ => {
                 if GHOST_FAREWELL.is_match(plain) {
-                    styled_line.set_line_color(AnsiCode::Red, false);
+                    styled_line.set_line_style(TextStyle::RED);
                 }
             }
         }
@@ -42,6 +42,7 @@ impl LiberatorGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::Automation;
     use crate::stats::Stats;
 

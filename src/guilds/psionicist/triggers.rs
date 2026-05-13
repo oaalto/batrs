@@ -1,5 +1,5 @@
 use crate::abilities;
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::PsionicistGuild;
 use crate::triggers::{TriggerContext, TriggerOutput};
@@ -44,7 +44,7 @@ impl PsionicistGuild {
         let line = plain_owned.as_str();
 
         if line == "You seize the mind of the monster as it dies." {
-            styled_line.set_line_color(AnsiCode::Blue, false);
+            styled_line.set_line_style(TextStyle::BLUE);
             output
                 .actions
                 .push(Action::Send(abilities::client_send_line("psi sense")));
@@ -56,8 +56,7 @@ impl PsionicistGuild {
             &NEED_UNIMAGINABLE_AMOUNT,
             line,
             1,
-            AnsiCode::Red,
-            false,
+            TextStyle::RED,
         ) {
             return output;
         }
@@ -66,32 +65,17 @@ impl PsionicistGuild {
             &NEED_EXTREMELY_MUCH_MORE,
             line,
             1,
-            AnsiCode::Red,
-            true,
+            TextStyle::BRIGHT_RED,
         ) {
             return output;
         }
-        if apply_if_captures(
-            styled_line,
-            &NEED_MUCH_MORE,
-            line,
-            1,
-            AnsiCode::Magenta,
-            false,
-        ) {
+        if apply_if_captures(styled_line, &NEED_MUCH_MORE, line, 1, TextStyle::MAGENTA) {
             return output;
         }
-        if apply_if_captures(styled_line, &NEED_MORE, line, 1, AnsiCode::Magenta, true) {
+        if apply_if_captures(styled_line, &NEED_MORE, line, 1, TextStyle::BRIGHT_MAGENTA) {
             return output;
         }
-        if apply_if_captures(
-            styled_line,
-            &NEED_A_LITTLE_MORE,
-            line,
-            1,
-            AnsiCode::Yellow,
-            false,
-        ) {
+        if apply_if_captures(styled_line, &NEED_A_LITTLE_MORE, line, 1, TextStyle::YELLOW) {
             return output;
         }
         if apply_if_captures(
@@ -99,19 +83,18 @@ impl PsionicistGuild {
             &ONLY_NEED_VERY_LITTLE_MORE,
             line,
             1,
-            AnsiCode::Yellow,
-            true,
+            TextStyle::BRIGHT_YELLOW,
         ) {
             return output;
         }
 
         if STUNNED_INTRUSION.is_match(line) {
-            styled_line.set_line_color(AnsiCode::Green, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
             return output;
         }
 
         if line.contains("YOU GAIN AN INCONCEIVABLE AMOUNT OF KNOWLEDGE!") {
-            styled_line.set_line_color(AnsiCode::Green, false);
+            styled_line.set_line_style(TextStyle::GREEN);
             return output;
         }
 
@@ -125,17 +108,17 @@ impl PsionicistGuild {
         ) || line
             == "You sense that you have acquired enough knowledge of how the mind works in order to improve your knowledge of mental defence."
         {
-            styled_line.set_line_color(AnsiCode::Green, false);
+            styled_line.set_line_style(TextStyle::GREEN);
             return output;
         }
 
         if line == "You gained no new knowledge from such a pitiful monster." {
-            styled_line.set_line_color(AnsiCode::Red, false);
+            styled_line.set_line_style(TextStyle::RED);
             return output;
         }
 
         if STILL_NEED_KNOWLEDGE_BLUE.is_match(line) {
-            styled_line.set_line_color(AnsiCode::Blue, false);
+            styled_line.set_line_style(TextStyle::BLUE);
         }
 
         output
@@ -147,13 +130,12 @@ fn apply_if_captures(
     re: &Regex,
     line: &str,
     capture_index: usize,
-    color: AnsiCode,
-    bold: bool,
+    style: TextStyle,
 ) -> bool {
     let Some(caps) = re.captures(line) else {
         return false;
     };
-    apply_capture_hilite(styled_line, &caps, capture_index, color, bold);
+    apply_capture_hilite(styled_line, &caps, capture_index, style);
     true
 }
 
@@ -161,8 +143,7 @@ fn apply_capture_hilite(
     styled_line: &mut StyledLine,
     captures: &Captures<'_>,
     index: usize,
-    color: AnsiCode,
-    bold: bool,
+    style: TextStyle,
 ) {
     let Some(m) = captures.get(index) else {
         return;
@@ -175,8 +156,8 @@ fn apply_capture_hilite(
     let end = end.min(len);
 
     for grapheme_ix in start..end {
-        styled_line.styled_chars[grapheme_ix].color = color.into();
-        styled_line.styled_chars[grapheme_ix].bold = bold;
+        styled_line.styled_chars[grapheme_ix].color = style.color;
+        styled_line.styled_chars[grapheme_ix].bold = style.bold;
     }
 }
 
@@ -189,6 +170,7 @@ fn byte_to_grapheme_index(text: &str, byte_index: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::{Action, Automation};
     use crate::stats::Stats;
 

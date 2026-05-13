@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::guilds::TigerGuild;
 use crate::guilds::sects_triggers;
 use crate::triggers::{TriggerContext, TriggerOutput};
@@ -34,7 +34,7 @@ impl TigerGuild {
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
         }
         TriggerOutput::default()
     }
@@ -47,7 +47,7 @@ impl TigerGuild {
             .iter()
             .any(|r| r.is_match(&styled_line.plain_line))
         {
-            styled_line.set_line_color(AnsiCode::Green, false);
+            styled_line.set_line_style(TextStyle::GREEN);
         }
         TriggerOutput::default()
     }

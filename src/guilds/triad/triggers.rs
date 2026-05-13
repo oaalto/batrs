@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, StyledLine};
+use crate::ansi::{StyledLine, TextStyle};
 use crate::guilds::TriadGuild;
 use crate::triggers::{TriggerContext, TriggerOutput};
 use lazy_static::lazy_static;
@@ -17,9 +17,9 @@ impl TriadGuild {
         let line = styled_line.plain_line.trim_end_matches('\r').trim();
 
         if CURSE_FADE.is_match(line) || FAIL_REACH.is_match(line) {
-            styled_line.set_line_color(AnsiCode::Red, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_RED);
         } else if HARM.is_match(line) {
-            styled_line.set_line_color(AnsiCode::Green, true);
+            styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
         }
 
         output
@@ -36,6 +36,7 @@ lazy_static! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ansi::AnsiCode;
     use crate::automation::Automation;
     use crate::stats::Stats;
 
