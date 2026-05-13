@@ -1,6 +1,58 @@
 {
   "version": 1,
   "entries": {
+    "cursor:mcp:context7": {
+      "package_id": "mcp:context7",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/mcp.json",
+      "managed_block_id": "mcp:context7",
+      "template_source_hash": "bec7d980ef6a20e5eb4dd445d5428974233fa31e7d3dc008e8657cb5d9cadccf",
+      "template_installed_hash": "bec7d980ef6a20e5eb4dd445d5428974233fa31e7d3dc008e8657cb5d9cadccf",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778675897
+    },
+    "cursor:mcp:git": {
+      "package_id": "mcp:git",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/mcp.json",
+      "managed_block_id": "mcp:git",
+      "template_source_hash": "dd0fe262bca554ecf612d46a98dc679ddea5089eb67ce104c127539c29563fd6",
+      "template_installed_hash": "dd0fe262bca554ecf612d46a98dc679ddea5089eb67ce104c127539c29563fd6",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778675897
+    },
+    "cursor:mcp:memory": {
+      "package_id": "mcp:memory",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/mcp.json",
+      "managed_block_id": "mcp:memory",
+      "template_source_hash": "65c037668085bf1a0c94c46394a819f42c18b1524c3c4b45b0f13b132ebb91fc",
+      "template_installed_hash": "65c037668085bf1a0c94c46394a819f42c18b1524c3c4b45b0f13b132ebb91fc",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778675897
+    },
+    "cursor:mcp:sequential-thinking": {
+      "package_id": "mcp:sequential-thinking",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/mcp.json",
+      "managed_block_id": "mcp:sequential-thinking",
+      "template_source_hash": "b024b2df87f4d9927a59752968053bb319d953cd5cbf09c9514aed8565d1010b",
+      "template_installed_hash": "b024b2df87f4d9927a59752968053bb319d953cd5cbf09c9514aed8565d1010b",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1778675897
+    },
     "cursor:rule:api-design-basics": {
       "package_id": "rule:api-design-basics",
       "provider_kind": "cursor",
@@ -216,14 +268,14 @@
       "target_template_path": "/home/oaalto/batrs/.cursor/rules/rust-workflow-gates.mdc",
       "managed_block_id": "rule:rust-workflow-gates",
       "template_source_hash": "9b765ec26b2d0395362aca6fda80f4c72949e867a6fa68614af1e067ca5d5d58",
-      "template_installed_hash": "9b765ec26b2d0395362aca6fda80f4c72949e867a6fa68614af1e067ca5d5d58",
+      "template_installed_hash": "4d723e30cd6265f918cfcb76fc5540cff4bb5c7f9a0dad032663fb13ba16bd3f",
       "support_source_hashes": {},
       "support_installed_hashes": {},
       "render_vars": {
         "rule__rust__workflow__gates__globs": "**/*.rs"
       },
       "render_vars_hash": "59ffea16f011c04718a18c94dd2f0122829c102a4549f0c05ac08d2b246cbdb3",
-      "installed_at_unix": 1778237103
+      "installed_at_unix": 1778675897
     },
     "cursor:rule:signature": {
       "package_id": "rule:signature",
