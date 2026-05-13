@@ -11,6 +11,7 @@ impl AnimistGuild {
             Self::soul_companion_status_trigger,
             Self::spirit_appears_trigger,
             Self::soul_companion_training_trigger,
+            Self::soul_companion_sword_hit_trigger,
         ]
     }
 
@@ -54,6 +55,16 @@ impl AnimistGuild {
         }
         TriggerOutput::default()
     }
+
+    pub fn soul_companion_sword_hit_trigger(
+        _ctx: &mut TriggerContext<'_>,
+        styled_line: &mut StyledLine,
+    ) -> TriggerOutput {
+        if SOUL_COMPANION_SWORD_HIT.is_match(&styled_line.plain_line) {
+            styled_line.set_line_style(TextStyle::BRIGHT_BLUE);
+        }
+        TriggerOutput::default()
+    }
 }
 
 lazy_static! {
@@ -64,6 +75,8 @@ lazy_static! {
     .unwrap();
     static ref SPIRIT_APPEARS: Regex =
         Regex::new(r"^(.+) spirit slowly appears, answering your call\.$").unwrap();
+    static ref SOUL_COMPANION_SWORD_HIT: Regex =
+        Regex::new(r"^(.+)'s soul companion swings his sword in (.+) arc, and hits.*$").unwrap();
 }
 
 #[cfg(test)]
@@ -156,5 +169,19 @@ mod tests {
         let _ = AnimistGuild::soul_companion_training_trigger(&mut ctx, &mut line);
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Blue);
+    }
+
+    #[test]
+    fn soul_companion_sword_hit_is_light_blue() {
+        let mut stats = Stats::default();
+        let mut automation = Automation::new();
+        let mut ctx = ctx(&mut stats, &mut automation);
+        let mut line =
+            StyledLine::new("Oaalto's soul companion swings his sword in wide arc, and hits Orc.");
+
+        let _ = AnimistGuild::soul_companion_sword_hit_trigger(&mut ctx, &mut line);
+
+        assert_eq!(line.styled_chars[0].color, AnsiCode::Blue);
+        assert!(line.styled_chars[0].bold);
     }
 }
