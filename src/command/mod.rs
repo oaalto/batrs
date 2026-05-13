@@ -1,6 +1,7 @@
 mod generic;
 mod guilds;
 mod quit;
+mod raw_logs;
 mod settings;
 
 use crate::ansi::StyledLine;
@@ -27,6 +28,10 @@ lazy_static! {
         (
             "/settings".to_string(),
             CommandDef::new(settings::run as Command, true),
+        ),
+        (
+            "/raw_logs".to_string(),
+            CommandDef::new(raw_logs::run as Command, false),
         ),
     ]);
 }
@@ -89,6 +94,7 @@ pub struct CommandContext {
     pub open_guilds_dialog: bool,
     pub open_generic_commands_dialog: bool,
     pub open_settings_dialog: bool,
+    pub toggle_raw_logs: bool,
     pub logged_in: bool,
     /// Main-hand weapon for Sabres (`/guilds` / `sabre_weapon` in player settings); may be empty.
     pub sabre_weapon: String,
@@ -108,6 +114,7 @@ impl CommandContext {
             open_guilds_dialog: false,
             open_generic_commands_dialog: false,
             open_settings_dialog: false,
+            toggle_raw_logs: false,
             logged_in,
             sabre_weapon,
         }
@@ -136,6 +143,10 @@ impl CommandContext {
     pub fn open_settings_dialog(&mut self) {
         self.open_settings_dialog = true;
     }
+
+    pub fn toggle_raw_logs(&mut self) {
+        self.toggle_raw_logs = true;
+    }
 }
 
 pub struct Data {
@@ -162,6 +173,7 @@ pub struct CommandOutcome {
     pub open_guilds_dialog: bool,
     pub open_generic_commands_dialog: bool,
     pub open_settings_dialog: bool,
+    pub toggle_raw_logs: bool,
 }
 
 impl CommandOutcome {
@@ -174,6 +186,7 @@ impl CommandOutcome {
             open_guilds_dialog: ctx.open_guilds_dialog,
             open_generic_commands_dialog: ctx.open_generic_commands_dialog,
             open_settings_dialog: ctx.open_settings_dialog,
+            toggle_raw_logs: ctx.toggle_raw_logs,
         }
     }
 }
@@ -220,6 +233,16 @@ mod tests {
         let outcome = process("/quit", &mut ctx, &[], &generic);
 
         assert!(outcome.should_quit);
+        assert!(outcome.send.is_none());
+    }
+
+    #[test]
+    fn process_handles_raw_logs_toggle() {
+        let mut ctx = CommandContext::new(HashMap::new(), false, String::new());
+        let generic = GenericCommands::default();
+        let outcome = process("/raw_logs", &mut ctx, &[], &generic);
+
+        assert!(outcome.toggle_raw_logs);
         assert!(outcome.send.is_none());
     }
 

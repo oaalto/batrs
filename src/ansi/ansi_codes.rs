@@ -3,6 +3,7 @@ pub enum AnsiCode {
     Reset = 0,
     Bold = 1,
     BoldOff = 22,
+    Black = 30,
     Red = 31,
     Green = 32,
     Yellow = 33,

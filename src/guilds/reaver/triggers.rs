@@ -246,7 +246,7 @@ fn apply_capture_hilite(
     let end = end.min(len);
 
     for i in start..end {
-        styled_line.styled_chars[i].color = color;
+        styled_line.styled_chars[i].color = color.into();
         styled_line.styled_chars[i].bold = bold;
     }
 }

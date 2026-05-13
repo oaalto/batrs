@@ -175,7 +175,7 @@ fn apply_capture_hilite(
     let end = end.min(len);
 
     for grapheme_ix in start..end {
-        styled_line.styled_chars[grapheme_ix].color = color;
+        styled_line.styled_chars[grapheme_ix].color = color.into();
         styled_line.styled_chars[grapheme_ix].bold = bold;
     }
 }

@@ -1,7 +1,7 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use crate::app::BatApp;
+use crate::app::{AppEvent, BatApp};
 use crossterm::event::{self, Event};
 use crossterm::execute;
 use crossterm::terminal::{
@@ -10,7 +10,6 @@ use crossterm::terminal::{
 use futures::future;
 use futures::stream::StreamExt;
 use libmudtelnet::Parser;
-use libmudtelnet::events::TelnetEvents;
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 use std::sync::mpsc;
@@ -90,7 +89,7 @@ fn run_app(
     Ok(())
 }
 
-fn setup_connection() -> (Receiver<TelnetEvents>, Sender<String>) {
+fn setup_connection() -> (Receiver<AppEvent>, Sender<String>) {
     let rt = Runtime::new().expect("Unable to create Runtime");
 
     // Enter the runtime so that `tokio::spawn` is available immediately.
@@ -121,11 +120,14 @@ fn setup_connection() -> (Receiver<TelnetEvents>, Sender<String>) {
                         let sender = event_sender.clone();
 
                         async move {
+                            sender
+                                .send(AppEvent::RawInput(data.to_vec()))
+                                .expect("failed to send raw input to channel");
                             let mut parser = Parser::new();
                             let events = parser.receive(&data);
                             for event in events {
                                 sender
-                                    .send(event)
+                                    .send(AppEvent::Telnet(event))
                                     .expect("failed to send telnet event to channel");
                             }
                         }

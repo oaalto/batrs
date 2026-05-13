@@ -1,4 +1,4 @@
-use crate::ansi::{AnsiCode, TextStyle};
+use crate::ansi::{AnsiCode, TextColor, TextStyle};
 use ratatui::style::Color;
 
 pub const BLACK: Color = Color::Black;
@@ -30,50 +30,72 @@ pub const SELECTION: Color = DARK_GRAY;
 
 pub fn get_color(style: TextStyle) -> Color {
     match style.color {
-        AnsiCode::Red => {
+        TextColor::Default => {
             if style.bold {
+                BOLD_WHITE
+            } else {
+                TEXT
+            }
+        }
+        TextColor::Indexed(index) => Color::Indexed(index),
+        TextColor::Rgb(red, green, blue) => Color::Rgb(red, green, blue),
+        TextColor::Ansi(color) => ansi_color(color, style.bold),
+    }
+}
+
+fn ansi_color(color: AnsiCode, bold: bool) -> Color {
+    match color {
+        AnsiCode::Black => {
+            if bold {
+                DARK_GRAY
+            } else {
+                BLACK
+            }
+        }
+        AnsiCode::Red => {
+            if bold {
                 BOLD_RED
             } else {
                 RED
             }
         }
         AnsiCode::Green => {
-            if style.bold {
+            if bold {
                 BOLD_GREEN
             } else {
                 GREEN
             }
         }
         AnsiCode::Yellow => {
-            if style.bold {
+            if bold {
                 BOLD_YELLOW
             } else {
                 YELLOW
             }
         }
         AnsiCode::Blue => {
-            if style.bold {
+            if bold {
                 BOLD_BLUE
             } else {
                 BLUE
             }
         }
         AnsiCode::Magenta => {
-            if style.bold {
+            if bold {
                 BOLD_MAGENTA
             } else {
                 MAGENTA
             }
         }
         AnsiCode::Cyan => {
-            if style.bold {
+            if bold {
                 BOLD_CYAN
             } else {
                 CYAN
             }
         }
         AnsiCode::White => {
-            if style.bold {
+            if bold {
                 BOLD_WHITE
             } else {
                 WHITE

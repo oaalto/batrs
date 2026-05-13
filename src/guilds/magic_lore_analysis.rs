@@ -43,7 +43,7 @@ fn apply_capture_hilite(
     let end = end.min(length);
 
     for grapheme_index in start..end {
-        styled_line.styled_chars[grapheme_index].color = color;
+        styled_line.styled_chars[grapheme_index].color = color.into();
         styled_line.styled_chars[grapheme_index].bold = bold;
     }
 }

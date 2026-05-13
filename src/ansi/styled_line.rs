@@ -1,7 +1,6 @@
 use crate::ansi::styled_text_block::StyledChar;
 use crate::ansi::{AnsiCode, TextStyle, palette};
 use lazy_static::lazy_static;
-use num_traits::FromPrimitive;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use regex::Regex;
@@ -22,7 +21,7 @@ pub struct StyledLine {
 struct MatchedAnsiBlock {
     start: usize,
     end: usize,
-    codes: Vec<AnsiCode>,
+    codes: Vec<u8>,
 }
 
 impl StyledLine {
@@ -150,7 +149,7 @@ impl StyledLine {
             while let Some(block) = matched_ansi_blocks.get(block_index)
                 && block.end <= byte_index
             {
-                current_style.process_ansi_codes(&block.codes);
+                current_style.process_sgr_codes(&block.codes);
                 block_index += 1;
             }
 
@@ -216,7 +215,7 @@ lazy_static! {
     pub static ref ANSI_CODE_REGEX: Regex = Regex::new(r"\u{1b}\[(.*)m").unwrap();
 }
 
-fn parse_ansi_code_block(block: &[u8]) -> Vec<AnsiCode> {
+fn parse_ansi_code_block(block: &[u8]) -> Vec<u8> {
     match std::str::from_utf8(block) {
         Ok(s) => {
             if let Some(captures) = ANSI_CODE_REGEX.captures(s) {
@@ -225,7 +224,6 @@ fn parse_ansi_code_block(block: &[u8]) -> Vec<AnsiCode> {
                 return groups[0]
                     .split(';')
                     .filter_map(|c| c.parse::<u8>().ok())
-                    .filter_map(AnsiCode::from_u8)
                     .collect();
             }
         }
@@ -252,7 +250,8 @@ fn plain_prefix_grapheme_count(plain_line: &str, byte_end: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ansi::AnsiCode;
+    use crate::ansi::{AnsiCode, TextColor, palette};
+    use ratatui::style::{Color, Modifier};
 
     #[test]
     fn leading_tab_expands_to_spaces() {
@@ -282,5 +281,79 @@ mod tests {
                 .iter()
                 .all(|c| c.color == AnsiCode::Green)
         );
+    }
+
+    #[test]
+    fn parses_and_renders_256_color_foreground() {
+        let line = StyledLine::new("\x1b[38;5;219mpink\x1b[0m plain");
+
+        assert_eq!(line.plain_line, "pink plain");
+        assert_eq!(line.styled_chars[0].color, TextColor::Indexed(219));
+        assert_eq!(line.styled_chars[4].color, TextColor::Default);
+
+        let rendered = line.to_wrapped_lines(80);
+        assert_eq!(rendered[0].spans[0].style.fg, Some(Color::Indexed(219)));
+        assert_eq!(rendered[0].spans[4].style.fg, Some(palette::TEXT));
+    }
+
+    #[test]
+    fn parses_and_renders_truecolor_foreground() {
+        let line = StyledLine::new("\x1b[38;2;255;128;64morange\x1b[0m");
+
+        assert_eq!(line.plain_line, "orange");
+        assert_eq!(line.styled_chars[0].color, TextColor::Rgb(255, 128, 64));
+
+        let rendered = line.to_wrapped_lines(80);
+        assert_eq!(
+            rendered[0].spans[0].style.fg,
+            Some(Color::Rgb(255, 128, 64))
+        );
+    }
+
+    #[test]
+    fn bright_white_stays_bold_and_uses_palette_white() {
+        let line = StyledLine::new("\x1b[1;37mwhite\x1b[0m");
+
+        assert_eq!(line.styled_chars[0].color, AnsiCode::White);
+        assert!(line.styled_chars[0].bold);
+
+        let rendered = line.to_wrapped_lines(80);
+        assert_eq!(rendered[0].spans[0].style.fg, Some(palette::BOLD_WHITE));
+        assert!(
+            rendered[0].spans[0]
+                .style
+                .add_modifier
+                .contains(Modifier::BOLD)
+        );
+    }
+
+    #[test]
+    fn bold_default_text_renders_as_bright_white() {
+        let line = StyledLine::new("\x1b[1mYou start chanting.\x1b[0m");
+
+        assert_eq!(line.styled_chars[0].color, TextColor::Default);
+        assert!(line.styled_chars[0].bold);
+
+        let rendered = line.to_wrapped_lines(80);
+        assert_eq!(rendered[0].spans[0].style.fg, Some(palette::BOLD_WHITE));
+        assert!(
+            rendered[0].spans[0]
+                .style
+                .add_modifier
+                .contains(Modifier::BOLD)
+        );
+    }
+
+    #[test]
+    fn reset_returns_following_text_to_default_style() {
+        let line = StyledLine::new("\x1b[31mred\x1b[0mplain");
+
+        assert_eq!(line.styled_chars[0].color, AnsiCode::Red);
+        assert_eq!(line.styled_chars[3].color, TextColor::Default);
+        assert!(!line.styled_chars[3].bold);
+
+        let rendered = line.to_wrapped_lines(80);
+        assert_eq!(rendered[0].spans[0].style.fg, Some(palette::RED));
+        assert_eq!(rendered[0].spans[3].style.fg, Some(palette::TEXT));
     }
 }

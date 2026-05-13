@@ -2,6 +2,7 @@ mod dialogs;
 mod input_state;
 mod output_buffer;
 mod player_logger;
+mod raw_logger;
 mod session_state;
 mod telnet_buffer;
 mod util;
@@ -28,6 +29,7 @@ use libmudtelnet::events::TelnetEvents;
 use player_logger::PlayerLogger;
 use ratatui::Frame;
 use ratatui::text::Line;
+use raw_logger::RawLogger;
 use std::sync::mpsc::{Receiver, Sender};
 use telnet_buffer::TelnetBuffer;
 use util::{filter_known_guilds, show_clock};
@@ -35,12 +37,17 @@ use util::{filter_known_guilds, show_clock};
 use output_buffer::OutputBuffer;
 use session_state::{LoginState, SessionState};
 
+pub enum AppEvent {
+    RawInput(Vec<u8>),
+    Telnet(TelnetEvents),
+}
+
 pub struct BatApp {
     output: OutputBuffer,
     input: InputState,
     session: SessionState,
     stats: Stats,
-    event_receiver: Receiver<TelnetEvents>,
+    event_receiver: Receiver<AppEvent>,
     command_sender: Sender<String>,
     telnet_buffer: TelnetBuffer,
     selected_guilds: Vec<Box<dyn Guild>>,
@@ -55,6 +62,7 @@ pub struct BatApp {
     generic_commands_dialog: Option<GenericCommandsDialog>,
     settings_dialog: Option<SettingsDialog>,
     player_logger: Option<PlayerLogger>,
+    raw_logger: Option<RawLogger>,
 }
 
 impl BatApp {
@@ -79,7 +87,7 @@ impl BatApp {
         }
     }
 
-    pub fn new(event_receiver: Receiver<TelnetEvents>, command_sender: Sender<String>) -> Self {
+    pub fn new(event_receiver: Receiver<AppEvent>, command_sender: Sender<String>) -> Self {
         let config_manager = match ConfigManager::new() {
             Ok(mut manager) => {
                 if let Err(e) = manager.init_base() {
@@ -112,6 +120,7 @@ impl BatApp {
             generic_commands_dialog: None,
             settings_dialog: None,
             player_logger: PlayerLogger::new().ok(),
+            raw_logger: RawLogger::new().ok(),
         };
 
         app.apply_selected_guilds(app.selected_guild_keys.clone());
@@ -171,9 +180,20 @@ impl BatApp {
 
     pub fn read_input(&mut self) {
         while let Ok(event) = self.event_receiver.try_recv() {
-            let lines = self.telnet_buffer.handle_event(&event);
-            if !lines.is_empty() {
-                self.process_input_lines(lines);
+            match event {
+                AppEvent::RawInput(bytes) => {
+                    if let Some(logger) = self.raw_logger.as_mut()
+                        && let Err(e) = logger.write_bytes(&bytes)
+                    {
+                        eprintln!("failed to write raw log: {e}");
+                    }
+                }
+                AppEvent::Telnet(telnet_event) => {
+                    let lines = self.telnet_buffer.handle_event(&telnet_event);
+                    if !lines.is_empty() {
+                        self.process_input_lines(lines);
+                    }
+                }
             }
         }
     }
@@ -321,6 +341,9 @@ impl BatApp {
                 if outcome.open_settings_dialog {
                     self.open_settings_dialog();
                 }
+                if outcome.toggle_raw_logs {
+                    self.toggle_raw_logs();
+                }
                 if !outcome.output_lines.is_empty() {
                     self.output.append_lines(outcome.output_lines);
                 }
@@ -364,6 +387,9 @@ impl BatApp {
         }
         if outcome.open_settings_dialog {
             self.open_settings_dialog();
+        }
+        if outcome.toggle_raw_logs {
+            self.toggle_raw_logs();
         }
 
         self.apply_automation_actions(outcome.automation_actions);
@@ -740,6 +766,32 @@ impl BatApp {
     fn send_command(&mut self, command: String) {
         if let Err(e) = self.command_sender.send(command) {
             eprintln!("failed to send data: {e}");
+        }
+    }
+
+    fn toggle_raw_logs(&mut self) {
+        let Some(logger) = self.raw_logger.as_mut() else {
+            self.output.append_lines(vec![StyledLine::new(
+                "Raw logging unavailable: HOME is not set.",
+            )]);
+            return;
+        };
+
+        if logger.is_enabled() {
+            logger.disable();
+            self.output
+                .append_lines(vec![StyledLine::new("Raw logging disabled.")]);
+            return;
+        }
+
+        match logger.enable(self.session.login_name()) {
+            Ok(path) => self.output.append_lines(vec![StyledLine::new(&format!(
+                "Raw logging enabled: {}",
+                path.display()
+            ))]),
+            Err(e) => self
+                .output
+                .append_lines(vec![StyledLine::new(&format!("Raw logging failed: {e}"))]),
         }
     }
 
