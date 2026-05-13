@@ -400,6 +400,7 @@ pub static VOCAL_SPELL_GROUPS: &[(&str, &[&str])] = &[
     ("shatter aquar sphorq", &["Disrupt magic"]),
     ("symur nahder relegus", &["Magica pandemonica"]),
     ("tevenyt tietree akta", &["Aura of irreverence"]),
+    ("Avee Avee Aveallis", &["Celestial spark"]),
     ("Avee Alee adudaaa..", &["Holy way"]),
     ("corpus novus foobar", &["New body"]),
     ("fah mar nak prztrzz", &["Searing fervor"]),
