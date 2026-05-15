@@ -18,6 +18,7 @@ pub struct Stats {
     diff_exp: i32,
     money: i32,
     diff_money: i32,
+    combat_round_active: bool,
     soul_companion: Option<SoulCompanionStatus>,
     tzarakk_mount: Option<TzarakkMountStatus>,
     pub(crate) nergal_minions: [Option<NergalMinion>; 3],
@@ -85,6 +86,12 @@ impl Stats {
     }
 
     pub fn update_from_prompt(&mut self, stats: [i32; 7]) {
+        let diff_hp = self.diff_hp;
+        let diff_sp = self.diff_sp;
+        let diff_ep = self.diff_ep;
+        let diff_exp = self.diff_exp;
+        let diff_money = self.diff_money;
+        let combat_round_active = self.combat_round_active;
         let soul_companion = self.soul_companion.clone();
         let tzarakk_mount = self.tzarakk_mount.clone();
         let nergal_minions = self.nergal_minions.clone();
@@ -92,6 +99,12 @@ impl Stats {
         let recovery_bracket_camping = self.recovery_bracket_camping;
         let recovery_bracket_meditation = self.recovery_bracket_meditation;
         *self = Self::new(stats);
+        self.diff_hp = diff_hp;
+        self.diff_sp = diff_sp;
+        self.diff_ep = diff_ep;
+        self.diff_exp = diff_exp;
+        self.diff_money = diff_money;
+        self.combat_round_active = combat_round_active;
         self.soul_companion = soul_companion;
         self.tzarakk_mount = tzarakk_mount;
         self.nergal_minions = nergal_minions;
@@ -101,17 +114,48 @@ impl Stats {
     }
 
     pub fn update_from_short_score(&mut self, stats: [i32; 13]) {
+        let diff_hp = self.diff_hp;
+        let diff_sp = self.diff_sp;
+        let diff_ep = self.diff_ep;
+        let diff_exp = self.diff_exp;
+        let diff_money = self.diff_money;
+        let combat_round_active = self.combat_round_active;
         let soul_companion = self.soul_companion.clone();
         let tzarakk_mount = self.tzarakk_mount.clone();
         let nergal_minions = self.nergal_minions.clone();
         let recovery_bracket_camping = self.recovery_bracket_camping;
         let recovery_bracket_meditation = self.recovery_bracket_meditation;
         *self = Self::new_from_sc(stats);
+        if combat_round_active {
+            self.diff_hp += diff_hp;
+            self.diff_sp += diff_sp;
+            self.diff_ep += diff_ep;
+            self.diff_exp += diff_exp;
+            self.diff_money += diff_money;
+        }
+        self.combat_round_active = combat_round_active;
         self.soul_companion = soul_companion;
         self.tzarakk_mount = tzarakk_mount;
         self.nergal_minions = nergal_minions;
         self.recovery_bracket_camping = recovery_bracket_camping;
         self.recovery_bracket_meditation = recovery_bracket_meditation;
+    }
+
+    pub(crate) fn start_combat_round(&mut self) {
+        self.clear_diffs();
+        self.combat_round_active = true;
+    }
+
+    pub(crate) fn end_combat(&mut self) {
+        self.combat_round_active = false;
+    }
+
+    fn clear_diffs(&mut self) {
+        self.diff_hp = 0;
+        self.diff_sp = 0;
+        self.diff_ep = 0;
+        self.diff_exp = 0;
+        self.diff_money = 0;
     }
 
     pub fn set_recovery_bracket_defaults_for_login(&mut self) {
@@ -659,17 +703,132 @@ mod tests {
     }
 
     #[test]
-    fn prompt_clears_money_diff_like_other_diffs() {
+    fn prompt_updates_preserve_visible_diffs_from_short_score() {
         let mut stats = Stats::default();
-        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 100, -5, 8, 0]);
+        stats.start_combat_round();
+        stats.update_from_short_score([1, 2, 10, 3, 4, -5, 5, 6, 7, 100, -5, 8, 9]);
 
-        stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
+        stats.update_from_prompt([10, 20, 30, 40, 50, 60, 70]);
 
         let line = line_text(&stats.render_inline());
         assert!(line.contains("$: 100"));
+        assert!(line.contains("+10"), "hp diff should persist; got {line:?}");
         assert!(
-            !line.contains("-5"),
-            "money delta from short score should not persist after prompt-only line; got {line:?}"
+            line.contains("-5"),
+            "sp/money diff should persist; got {line:?}"
+        );
+        assert!(
+            line.contains("+9"),
+            "exp diff should persist after prompt-only line; got {line:?}"
+        );
+    }
+
+    #[test]
+    fn zero_diff_short_score_during_combat_round_preserves_accumulated_diffs() {
+        let mut stats = Stats::default();
+        stats.start_combat_round();
+        stats.update_from_short_score([1, 2, 10, 3, 4, -5, 5, 6, 7, 100, -5, 8, 9]);
+
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 100, 0, 8, 0]);
+
+        let line = line_text(&stats.render_inline());
+        assert!(line.contains("+10"), "hp diff should persist; got {line:?}");
+        assert!(
+            line.contains("-5"),
+            "sp/money diff should persist; got {line:?}"
+        );
+        assert!(
+            line.contains("+9"),
+            "exp diff should persist after zero-diff short score; got {line:?}"
+        );
+    }
+
+    #[test]
+    fn zero_diff_short_score_outside_combat_replaces_previous_diffs() {
+        let mut stats = Stats::default();
+        stats.update_from_short_score([1, 2, 10, 3, 4, -5, 5, 6, 7, 100, -5, 8, 9]);
+
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 100, 0, 8, 0]);
+
+        let line = line_text(&stats.render_inline());
+        assert!(
+            !line.contains("+10") && !line.contains("-5") && !line.contains("+9"),
+            "zero-diff short score outside combat should clear previous diffs; got {line:?}"
+        );
+    }
+
+    #[test]
+    fn combat_round_short_score_diffs_accumulate() {
+        let mut stats = Stats::default();
+        stats.start_combat_round();
+        stats.update_from_short_score([1, 2, 10, 3, 4, -5, 5, 6, 7, 100, -5, 8, 9]);
+        stats.update_from_short_score([1, 2, -2, 3, 4, 0, 5, 6, -3, 100, 4, 8, 1]);
+
+        let line = line_text(&stats.render_inline());
+        assert!(
+            line.contains("+8"),
+            "hp diffs should accumulate; got {line:?}"
+        );
+        assert!(line.contains("-5"), "sp diff should persist; got {line:?}");
+        assert!(
+            line.contains("$: 100 (-1)"),
+            "money diff should accumulate; got {line:?}"
+        );
+        assert!(
+            line.contains("+10"),
+            "exp diffs should accumulate; got {line:?}"
+        );
+        assert!(
+            line.contains("Ep: 5/6 (+4)"),
+            "ep diff should accumulate from later short score; got {line:?}"
+        );
+    }
+
+    #[test]
+    fn starting_new_combat_round_clears_previous_diffs() {
+        let mut stats = Stats::default();
+        stats.start_combat_round();
+        stats.update_from_short_score([1, 2, 10, 3, 4, -5, 5, 6, 7, 100, -5, 8, 9]);
+
+        stats.start_combat_round();
+
+        let line = line_text(&stats.render_inline());
+        assert!(
+            !line.contains("+10") && !line.contains("-5") && !line.contains("+9"),
+            "new combat round should clear previous diffs; got {line:?}"
+        );
+    }
+
+    #[test]
+    fn ending_combat_preserves_final_round_diffs() {
+        let mut stats = Stats::default();
+        stats.start_combat_round();
+        stats.update_from_short_score([1, 2, 10, 3, 4, -5, 5, 6, 7, 100, -5, 8, 9]);
+
+        stats.end_combat();
+
+        let line = line_text(&stats.render_inline());
+        assert!(line.contains("+10"), "hp diff should remain; got {line:?}");
+        assert!(
+            line.contains("-5"),
+            "sp/money diff should remain; got {line:?}"
+        );
+        assert!(line.contains("+9"), "exp diff should remain; got {line:?}");
+    }
+
+    #[test]
+    fn short_score_after_combat_end_replaces_final_round_diffs() {
+        let mut stats = Stats::default();
+        stats.start_combat_round();
+        stats.update_from_short_score([1, 2, 10, 3, 4, -5, 5, 6, 7, 100, -5, 8, 9]);
+        stats.end_combat();
+
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 100, 0, 8, 0]);
+
+        let line = line_text(&stats.render_inline());
+        assert!(
+            !line.contains("+10") && !line.contains("-5") && !line.contains("+9"),
+            "post-combat short score should replace final round diffs; got {line:?}"
         );
     }
 

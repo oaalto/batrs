@@ -4,6 +4,7 @@ use crate::guilds::Guild;
 use crate::stats::Stats;
 use lazy_static::lazy_static;
 
+mod combat_round;
 mod common;
 mod prompt;
 mod recovery_bracket;
@@ -14,6 +15,7 @@ mod spell_vocals;
 lazy_static! {
     static ref COMMON_TRIGGERS: Vec<Trigger> = vec![common::trigger];
     static ref CORE_TRIGGERS: Vec<Trigger> = vec![
+        combat_round::trigger,
         prompt::trigger,
         short_score::trigger,
         recovery_bracket::trigger,

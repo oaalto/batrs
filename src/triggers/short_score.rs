@@ -26,6 +26,13 @@ mod tests {
     use crate::automation::Automation;
     use crate::stats::Stats;
 
+    fn rendered_text(line: &ratatui::text::Line<'_>) -> String {
+        line.spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect()
+    }
+
     #[test]
     fn trigger_parses_short_score_stats_and_gags() {
         let mut stats = Stats::default();
@@ -42,12 +49,11 @@ mod tests {
         let _ = trigger(&mut ctx, &mut line);
 
         assert!(line.gag);
-        assert_eq!(
-            format!("{:?}", *ctx.stats),
-            format!(
-                "{:?}",
-                Stats::new_from_sc([571, 802, 20, 635, 635, 0, 311, 311, 0, 2786, 0, 21657, 0])
-            )
-        );
+        let status_line = rendered_text(&ctx.stats.render_inline());
+        assert!(status_line.contains("Hp: 571/802 (+20)"));
+        assert!(status_line.contains("Sp: 635/635"));
+        assert!(status_line.contains("Ep: 311/311"));
+        assert!(status_line.contains("$: 2786"));
+        assert!(status_line.contains("Exp: 21657"));
     }
 }
