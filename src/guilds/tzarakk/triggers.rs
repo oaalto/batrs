@@ -233,7 +233,7 @@ impl TzarakkGuild {
                 .push(Action::SetFlag(MOUNT_SUMMONED_FLAG.to_string(), true));
             // Auto-set feed mode after summoning
             output.actions.push(Action::Send(
-                "@rip_action set get all from corpse;tzarakk chaosfeed corpse;drop zinc;drop mowgles".to_string()
+                "@rip_action set get all from corpse;tzarakk chaosfeed corpse;tzarakk chaosfeed corpse;drop zinc;drop mowgles".to_string()
             ));
         }
         output
