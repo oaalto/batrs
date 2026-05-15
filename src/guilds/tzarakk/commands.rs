@@ -1,6 +1,8 @@
 use crate::abilities;
+use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
+use crate::guilds::tzarakk::MOUNT_SUMMONED_FLAG;
 use crate::guilds::{TzarakkGuild, use_skill};
 use std::collections::HashMap;
 
@@ -95,19 +97,22 @@ impl TzarakkGuild {
     // Utility handlers
     pub fn use_meditation(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
+        ctx: &mut command::CommandContext,
     ) -> Option<String> {
+        mark_mount_for_remount(ctx);
         Some(abilities::compound_send(&["dismount", "use 'meditation'"]))
     }
 
-    pub fn do_sleep(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
+    pub fn do_sleep(_data: &command::Data, ctx: &mut command::CommandContext) -> Option<String> {
+        mark_mount_for_remount(ctx);
         Some(abilities::compound_send(&["dismount", "sleep"]))
     }
 
     pub fn use_dark_meditation(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
+        ctx: &mut command::CommandContext,
     ) -> Option<String> {
+        mark_mount_for_remount(ctx);
         let logical = match data.args.trim() {
             "hp" => "use dark meditation at sacrifice health",
             "sp" => "use dark meditation at sacrifice power",
@@ -145,6 +150,10 @@ impl TzarakkGuild {
     }
 }
 
+fn mark_mount_for_remount(ctx: &mut command::CommandContext) {
+    ctx.push_action(Action::SetFlag(MOUNT_SUMMONED_FLAG.to_string(), true));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,6 +167,15 @@ mod tests {
 
     fn empty_ctx() -> command::CommandContext {
         command::CommandContext::new(HashMap::new(), true, String::new())
+    }
+
+    fn sets_mount_summoned(ctx: &command::CommandContext) -> bool {
+        ctx.automation_actions.iter().any(|action| {
+            matches!(
+                action,
+                Action::SetFlag(flag, true) if flag == MOUNT_SUMMONED_FLAG
+            )
+        })
     }
 
     #[test]
@@ -228,35 +246,45 @@ mod tests {
 
     #[test]
     fn meditation_includes_dismount() {
-        let result = TzarakkGuild::use_meditation(&data("med", ""), &mut empty_ctx());
+        let mut ctx = empty_ctx();
+        let result = TzarakkGuild::use_meditation(&data("med", ""), &mut ctx);
         assert_eq!(result, Some("@dismount;use 'meditation'".to_string()));
+        assert!(sets_mount_summoned(&ctx));
     }
 
     #[test]
     fn dark_meditation_includes_dismount() {
-        let hp = TzarakkGuild::use_dark_meditation(&data("dmed", "hp"), &mut empty_ctx());
+        let mut hp_ctx = empty_ctx();
+        let hp = TzarakkGuild::use_dark_meditation(&data("dmed", "hp"), &mut hp_ctx);
         assert_eq!(
             hp,
             Some("@dismount;use dark meditation at sacrifice health".to_string())
         );
+        assert!(sets_mount_summoned(&hp_ctx));
 
-        let sp = TzarakkGuild::use_dark_meditation(&data("dmed", "sp"), &mut empty_ctx());
+        let mut sp_ctx = empty_ctx();
+        let sp = TzarakkGuild::use_dark_meditation(&data("dmed", "sp"), &mut sp_ctx);
         assert_eq!(
             sp,
             Some("@dismount;use dark meditation at sacrifice power".to_string())
         );
+        assert!(sets_mount_summoned(&sp_ctx));
 
-        let endurance = TzarakkGuild::use_dark_meditation(&data("dmed", ""), &mut empty_ctx());
+        let mut endurance_ctx = empty_ctx();
+        let endurance = TzarakkGuild::use_dark_meditation(&data("dmed", ""), &mut endurance_ctx);
         assert_eq!(
             endurance,
             Some("@dismount;use dark meditation at sacrifice endurance".to_string())
         );
+        assert!(sets_mount_summoned(&endurance_ctx));
     }
 
     #[test]
     fn sleep_includes_dismount() {
-        let result = TzarakkGuild::do_sleep(&data("sleep", ""), &mut empty_ctx());
+        let mut ctx = empty_ctx();
+        let result = TzarakkGuild::do_sleep(&data("sleep", ""), &mut ctx);
         assert_eq!(result, Some("@dismount;sleep".to_string()));
+        assert!(sets_mount_summoned(&ctx));
     }
 
     #[test]
