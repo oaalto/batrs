@@ -11,7 +11,7 @@ pub struct ViewModel<'a> {
     pub scroll_offset: u16,
     pub show_stats: bool,
     pub stats_line: Line<'static>,
-    /// Soul companion (Animist) and Nergal minion HUD rows below the main stats line.
+    /// Guild-specific HUD rows below the main stats line, such as Soul, Tzarakk mount, and Nergal minions.
     pub secondary_status_lines: Vec<Line<'static>>,
     pub clock: String,
     pub input_text: String,

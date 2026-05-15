@@ -18,6 +18,7 @@ After you are logged in, a **single summary line** can show combat and character
 Sometimes the client adds **another line or two** under the main status:
 
 - **Soul companion** (Animist, or when the game shows companion status): a short soul summary.
+- **Tzarakk mount**: mount name and current health percentage.
 - **Nergal minions**: extra rows when you have minion status to show.
 
 When these rows appear, the story window above gets a little shorter so everything still fits.

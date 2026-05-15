@@ -262,10 +262,18 @@ impl BatApp {
             .iter()
             .any(|key| key.as_str() == "nergal")
             || self.stats.has_nergal_minions();
+        let tzarakk_supported = self
+            .selected_guild_keys
+            .iter()
+            .any(|key| key.as_str() == "tzarakk")
+            || self.stats.has_tzarakk_mount_status();
 
         let mut secondary_status_lines: Vec<Line<'static>> = Vec::new();
         if show_stats && soul_supported {
             secondary_status_lines.push(self.stats.render_soul_inline());
+        }
+        if show_stats && tzarakk_supported {
+            secondary_status_lines.push(self.stats.render_tzarakk_mount_inline());
         }
         if show_stats && nergal_supported {
             secondary_status_lines

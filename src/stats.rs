@@ -19,6 +19,7 @@ pub struct Stats {
     money: i32,
     diff_money: i32,
     soul_companion: Option<SoulCompanionStatus>,
+    tzarakk_mount: Option<TzarakkMountStatus>,
     pub(crate) nergal_minions: [Option<NergalMinion>; 3],
     /// Green `c` in the recovery bracket: on when the MUD hints you may want to camp; off while resting (lie-down line).
     recovery_bracket_camping: bool,
@@ -39,6 +40,13 @@ pub struct NergalMinion {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SoulCompanionStatus {
+    percent: i32,
+    description: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct TzarakkMountStatus {
+    name: String,
     percent: i32,
     description: String,
 }
@@ -78,12 +86,14 @@ impl Stats {
 
     pub fn update_from_prompt(&mut self, stats: [i32; 7]) {
         let soul_companion = self.soul_companion.clone();
+        let tzarakk_mount = self.tzarakk_mount.clone();
         let nergal_minions = self.nergal_minions.clone();
         let money = self.money;
         let recovery_bracket_camping = self.recovery_bracket_camping;
         let recovery_bracket_meditation = self.recovery_bracket_meditation;
         *self = Self::new(stats);
         self.soul_companion = soul_companion;
+        self.tzarakk_mount = tzarakk_mount;
         self.nergal_minions = nergal_minions;
         self.money = money;
         self.recovery_bracket_camping = recovery_bracket_camping;
@@ -92,11 +102,13 @@ impl Stats {
 
     pub fn update_from_short_score(&mut self, stats: [i32; 13]) {
         let soul_companion = self.soul_companion.clone();
+        let tzarakk_mount = self.tzarakk_mount.clone();
         let nergal_minions = self.nergal_minions.clone();
         let recovery_bracket_camping = self.recovery_bracket_camping;
         let recovery_bracket_meditation = self.recovery_bracket_meditation;
         *self = Self::new_from_sc(stats);
         self.soul_companion = soul_companion;
+        self.tzarakk_mount = tzarakk_mount;
         self.nergal_minions = nergal_minions;
         self.recovery_bracket_camping = recovery_bracket_camping;
         self.recovery_bracket_meditation = recovery_bracket_meditation;
@@ -124,6 +136,18 @@ impl Stats {
 
     pub fn has_soul_companion_status(&self) -> bool {
         self.soul_companion.is_some()
+    }
+
+    pub fn set_tzarakk_mount_status(&mut self, name: String, percent: i32, description: String) {
+        self.tzarakk_mount = Some(TzarakkMountStatus {
+            name,
+            percent,
+            description,
+        });
+    }
+
+    pub fn has_tzarakk_mount_status(&self) -> bool {
+        self.tzarakk_mount.is_some()
     }
 
     pub fn has_nergal_minions(&self) -> bool {
@@ -254,6 +278,21 @@ impl Stats {
         spans.extend(soul_description_spans(&soul_companion.description));
 
         Line::from(spans)
+    }
+
+    pub fn render_tzarakk_mount_inline(&self) -> Line<'static> {
+        let Some(mount) = &self.tzarakk_mount else {
+            return Line::from("");
+        };
+
+        Line::from(vec![
+            Span::styled(mount.name.clone(), bold_white_style()),
+            Span::raw(": "),
+            Span::styled(
+                format!("{}%", mount.percent),
+                Style::default().fg(progress_color(mount.percent as f32 / 100.0)),
+            ),
+        ])
     }
 
     fn inline_stat_spans(
@@ -407,6 +446,14 @@ mod tests {
         stats.set_soul_companion(75, "resting".to_string());
 
         assert!(!line_text(&stats.render_inline()).contains("Soul:"));
+    }
+
+    #[test]
+    fn render_inline_does_not_include_tzarakk_mount_status() {
+        let mut stats = Stats::default();
+        stats.set_tzarakk_mount_status("Vedir".to_string(), 100, "in excellent shape".to_string());
+
+        assert!(!line_text(&stats.render_inline()).contains("Vedir:"));
     }
 
     #[test]
@@ -630,6 +677,52 @@ mod tests {
         stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
 
         assert_eq!(line_text(&stats.render_soul_inline()), "Soul: 45% nearby");
+    }
+
+    #[test]
+    fn render_tzarakk_mount_inline_includes_name_and_percent() {
+        let mut stats = Stats::default();
+        stats.set_tzarakk_mount_status("Vedir".to_string(), 100, "in excellent shape".to_string());
+
+        assert_eq!(
+            line_text(&stats.render_tzarakk_mount_inline()),
+            "Vedir: 100%"
+        );
+
+        let line = stats.render_tzarakk_mount_inline();
+        let name = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "Vedir")
+            .expect("mount name span");
+        assert!(name.style.add_modifier.contains(Modifier::BOLD));
+        assert_eq!(name.style.fg, Some(palette::BOLD_WHITE));
+    }
+
+    #[test]
+    fn prompt_updates_preserve_tzarakk_mount_status() {
+        let mut stats = Stats::default();
+        stats.set_tzarakk_mount_status("Vedir".to_string(), 90, "in good shape".to_string());
+
+        stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
+
+        assert_eq!(
+            line_text(&stats.render_tzarakk_mount_inline()),
+            "Vedir: 90%"
+        );
+    }
+
+    #[test]
+    fn short_score_updates_preserve_tzarakk_mount_status() {
+        let mut stats = Stats::default();
+        stats.set_tzarakk_mount_status("Orthos".to_string(), 45, "hurt".to_string());
+
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
+
+        assert_eq!(
+            line_text(&stats.render_tzarakk_mount_inline()),
+            "Orthos: 45%"
+        );
     }
 
     fn sample_minion_a() -> NergalMinion {

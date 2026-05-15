@@ -58,7 +58,7 @@ lazy_static! {
 
     // Mount status
     static ref MOUNT_STATUS_REGEX: Regex =
-        Regex::new(r"^(Orthos|Vedir) is (.+) \((\d+)%\)").unwrap();
+        Regex::new(r"^(Orthos|Vedir) is (.+) \((\d+)%\)\.?$").unwrap();
 }
 
 impl TzarakkGuild {
@@ -240,11 +240,17 @@ impl TzarakkGuild {
     }
 
     pub fn mount_status_trigger(
-        _ctx: &mut TriggerContext<'_>,
+        ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> TriggerOutput {
-        if MOUNT_STATUS_REGEX.is_match(&styled_line.plain_line) {
+        let plain = styled_line.plain_line.trim_end_matches('\r').trim();
+        if let Some(captures) = MOUNT_STATUS_REGEX.captures(plain) {
+            let name = captures[1].to_string();
+            let description = captures[2].trim().to_string();
+            let percent = captures[3].parse::<i32>().unwrap_or_default();
             styled_line.gag = true;
+            ctx.stats
+                .set_tzarakk_mount_status(name, percent.clamp(0, 100), description);
         }
         TriggerOutput::default()
     }
@@ -262,6 +268,15 @@ mod tests {
             rig: None,
             player_name: None,
         }
+    }
+
+    fn tzarakk_mount_line_text(stats: &Stats) -> String {
+        stats
+            .render_tzarakk_mount_inline()
+            .spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect()
     }
 
     #[test]
@@ -486,15 +501,16 @@ mod tests {
     }
 
     #[test]
-    fn mount_status_line_gagged() {
+    fn mount_status_line_gagged_and_updates_stats() {
         let mut stats = Stats::default();
         let mut automation = Automation::new();
         let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("Vedir is a black steed (100%)");
+        let mut line = StyledLine::new("Vedir is in excellent shape (100%).");
 
         TzarakkGuild::mount_status_trigger(&mut ctx, &mut line);
 
         assert!(line.gag);
+        assert_eq!(tzarakk_mount_line_text(ctx.stats), "Vedir: 100%");
     }
 
     #[test]
