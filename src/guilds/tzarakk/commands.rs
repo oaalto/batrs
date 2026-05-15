@@ -20,8 +20,10 @@ impl TzarakkGuild {
             ("cpc".to_string(), Self::cast_preserve_corpse as Command),
             ("cst".to_string(), Self::cast_steed_of_tzarakk as Command),
             ("cban".to_string(), Self::cast_banish_mount as Command),
+            ("csdb".to_string(), Self::cast_summon_dire_boar as Command),
             // Utility
             ("med".to_string(), Self::use_meditation as Command),
+            ("dmed".to_string(), Self::use_dark_meditation as Command),
             ("sleep".to_string(), Self::do_sleep as Command),
             // Modes
             ("feed_mode".to_string(), Self::set_feed_mode as Command),
@@ -83,6 +85,13 @@ impl TzarakkGuild {
         Some(abilities::client_send_line("cast 'banish mount'"))
     }
 
+    pub fn cast_summon_dire_boar(
+        _data: &command::Data,
+        _ctx: &mut command::CommandContext,
+    ) -> Option<String> {
+        Some(abilities::client_send_line("cast summon dire boar"))
+    }
+
     // Utility handlers
     pub fn use_meditation(
         _data: &command::Data,
@@ -93,6 +102,18 @@ impl TzarakkGuild {
 
     pub fn do_sleep(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
         Some(abilities::compound_send(&["dismount", "sleep"]))
+    }
+
+    pub fn use_dark_meditation(
+        data: &command::Data,
+        _ctx: &mut command::CommandContext,
+    ) -> Option<String> {
+        let logical = match data.args.trim() {
+            "hp" => "use dark meditation at sacrifice health",
+            "sp" => "use dark meditation at sacrifice power",
+            _ => "use dark meditation at sacrifice endurance",
+        };
+        Some(abilities::compound_send(&["dismount", logical]))
     }
 
     // Mode handlers
@@ -200,9 +221,36 @@ mod tests {
     }
 
     #[test]
+    fn summon_dire_boar() {
+        let result = TzarakkGuild::cast_summon_dire_boar(&data("csdb", ""), &mut empty_ctx());
+        assert_eq!(result, Some("@cast summon dire boar".to_string()));
+    }
+
+    #[test]
     fn meditation_includes_dismount() {
         let result = TzarakkGuild::use_meditation(&data("med", ""), &mut empty_ctx());
         assert_eq!(result, Some("@dismount;use 'meditation'".to_string()));
+    }
+
+    #[test]
+    fn dark_meditation_includes_dismount() {
+        let hp = TzarakkGuild::use_dark_meditation(&data("dmed", "hp"), &mut empty_ctx());
+        assert_eq!(
+            hp,
+            Some("@dismount;use dark meditation at sacrifice health".to_string())
+        );
+
+        let sp = TzarakkGuild::use_dark_meditation(&data("dmed", "sp"), &mut empty_ctx());
+        assert_eq!(
+            sp,
+            Some("@dismount;use dark meditation at sacrifice power".to_string())
+        );
+
+        let endurance = TzarakkGuild::use_dark_meditation(&data("dmed", ""), &mut empty_ctx());
+        assert_eq!(
+            endurance,
+            Some("@dismount;use dark meditation at sacrifice endurance".to_string())
+        );
     }
 
     #[test]

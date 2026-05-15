@@ -19,6 +19,12 @@ lazy_static! {
     // Round tracking
     static ref ROUND_REGEX: Regex = Regex::new(r"^\*+ Round .+ \*+$").unwrap();
 
+    // Mount feeding
+    static ref CHAOSFEED_REPLENISH_REGEX: Regex = Regex::new(
+        r"^A faint fog-like substance flows from corpse of (.+) to (.+)'s lifeless eyes replenishing it (.+)\.$"
+    )
+    .unwrap();
+
     // Dismount detection
     static ref DISMOUNT_REGEXES: Vec<Regex> = vec![
         Regex::new(r"The ice makes a sound below your mount, scaring it!").unwrap(),
@@ -66,6 +72,7 @@ impl TzarakkGuild {
         vec![
             Self::mount_detection_trigger,
             Self::round_trigger,
+            Self::chaosfeed_replenish_trigger,
             Self::dismount_trigger,
             Self::mount_appears_trigger,
             Self::mount_death_trigger,
@@ -104,6 +111,29 @@ impl TzarakkGuild {
                 .cloned()
                 .unwrap_or_else(|| "Vedir".to_string());
             output.actions.push(Action::Send(format!("@x {}", mount)));
+        }
+        output
+    }
+
+    pub fn chaosfeed_replenish_trigger(
+        ctx: &mut TriggerContext<'_>,
+        styled_line: &mut StyledLine,
+    ) -> TriggerOutput {
+        let mut output = TriggerOutput::default();
+        if let Some(captures) = CHAOSFEED_REPLENISH_REGEX.captures(&styled_line.plain_line) {
+            let replenished_mount = captures.get(1).map(|m| m.as_str()).unwrap_or("");
+            let tzarakk_mount = ctx
+                .automation
+                .get_var(TZARAKK_MOUNT_VAR)
+                .cloned()
+                .unwrap_or_else(|| "Vedir".to_string());
+
+            if replenished_mount == tzarakk_mount {
+                output.actions.push(Action::Send(format!(
+                    "@tzarakk chaosfeed corpse;x {}",
+                    tzarakk_mount
+                )));
+            }
         }
         output
     }
@@ -184,11 +214,12 @@ impl TzarakkGuild {
     }
 
     pub fn banish_mount_trigger(
-        _ctx: &mut TriggerContext<'_>,
+        ctx: &mut TriggerContext<'_>,
         styled_line: &mut StyledLine,
     ) -> TriggerOutput {
         let mut output = TriggerOutput::default();
         if BANISH_MOUNT_REGEX.is_match(&styled_line.plain_line) {
+            ctx.stats.clear_tzarakk_mount_status();
             output
                 .actions
                 .push(Action::SetFlag(MOUNT_SUMMONED_FLAG.to_string(), false));
@@ -340,6 +371,39 @@ mod tests {
     }
 
     #[test]
+    fn chaosfeed_replenish_feeds_and_mount_checks_tracked_mount() {
+        let mut stats = Stats::default();
+        let mut automation = Automation::new();
+        automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
+        let mut ctx = ctx(&mut stats, &mut automation);
+        let mut line = StyledLine::new(
+            "A faint fog-like substance flows from corpse of Vedir to goblin's lifeless eyes replenishing it fully.",
+        );
+
+        let output = TzarakkGuild::chaosfeed_replenish_trigger(&mut ctx, &mut line);
+
+        assert!(matches!(
+            &output.actions[0],
+            Action::Send(cmd) if cmd == "@tzarakk chaosfeed corpse;x Vedir"
+        ));
+    }
+
+    #[test]
+    fn chaosfeed_replenish_ignores_other_corpses() {
+        let mut stats = Stats::default();
+        let mut automation = Automation::new();
+        automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
+        let mut ctx = ctx(&mut stats, &mut automation);
+        let mut line = StyledLine::new(
+            "A faint fog-like substance flows from corpse of Orthos to goblin's lifeless eyes replenishing it fully.",
+        );
+
+        let output = TzarakkGuild::chaosfeed_replenish_trigger(&mut ctx, &mut line);
+
+        assert!(output.actions.is_empty());
+    }
+
+    #[test]
     fn dismount_detects_ice_sound() {
         let mut stats = Stats::default();
         let mut automation = Automation::new();
@@ -437,6 +501,7 @@ mod tests {
     #[test]
     fn banish_mount_clears_flag_and_sets_rip_action() {
         let mut stats = Stats::default();
+        stats.set_tzarakk_mount_status("Vedir".to_string(), 100, "in excellent shape".to_string());
         let mut automation = Automation::new();
         automation.set_flag(MOUNT_SUMMONED_FLAG, true);
         let mut ctx = ctx(&mut stats, &mut automation);
@@ -450,6 +515,7 @@ mod tests {
         assert!(output.actions.iter().any(|a| matches!(
             a, Action::Send(cmd) if cmd.contains("dig grave")
         )));
+        assert!(!ctx.stats.has_tzarakk_mount_status());
     }
 
     #[test]

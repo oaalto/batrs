@@ -146,6 +146,10 @@ impl Stats {
         });
     }
 
+    pub fn clear_tzarakk_mount_status(&mut self) {
+        self.tzarakk_mount = None;
+    }
+
     pub fn has_tzarakk_mount_status(&self) -> bool {
         self.tzarakk_mount.is_some()
     }
