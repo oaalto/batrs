@@ -310,15 +310,15 @@
       "provider_kind": "cursor",
       "target_template_path": "/home/oaalto/batrs/.cursor/rules/testing.mdc",
       "managed_block_id": "rule:testing",
-      "template_source_hash": "3026661b9dac5ceb2565dcfb64410614b8a78d4fdb702f131e6966906e70300c",
-      "template_installed_hash": "3026661b9dac5ceb2565dcfb64410614b8a78d4fdb702f131e6966906e70300c",
+      "template_source_hash": "31bbec0950193f3f3d78413d2be9d9e9584aea9d2e4b2ac60f8fdcbc9dbbb3c3",
+      "template_installed_hash": "31bbec0950193f3f3d78413d2be9d9e9584aea9d2e4b2ac60f8fdcbc9dbbb3c3",
       "support_source_hashes": {},
       "support_installed_hashes": {},
       "render_vars": {
         "rule__testing__globs": "**/test/**"
       },
       "render_vars_hash": "eb7576b991f728ee5e22913e77fc31c07a54071e38311a10506b63c8d6924d9a",
-      "installed_at_unix": 1778237103
+      "installed_at_unix": 1778836264
     },
     "cursor:rule:warning-hygiene": {
       "package_id": "rule:warning-hygiene",
