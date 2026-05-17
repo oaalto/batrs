@@ -86,7 +86,7 @@ impl CivmageGuild {
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(abilities::client_send_line("repeat inf cast heal self"))
+        Some(abilities::repeat_inf_cast_heal_self())
     }
 
     pub fn cast_mirror_image(

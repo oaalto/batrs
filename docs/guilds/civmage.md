@@ -29,6 +29,10 @@ Floating disc helpers (cast, get/put), identify, lift of load, mirror image, spa
 | `gawd` | Get all weapon from disc | Inventory helper. |
 | `pd` | Put noeq in disc | `put noeq in my disc` helper. |
 
+!!! note "Shared shortcuts"
+
+    **`chf`** (repeat heal self) is also on **Mage** and **Psionicist** — first guild in `/guilds` wins.
+
 ## Profile
 
 Enable **`civmage`** in **`/guilds`**.

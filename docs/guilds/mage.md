@@ -28,6 +28,7 @@ Spell‑lore style lines get color markup when the client recognises them.
 | `cfab` | Force absorption | `cast_spell`. |
 | `cf` | Floating | `cast_spell`. |
 | `cfl` | Floating letters | `cast_spell`. |
+| `chf` | Heal self (repeat) | `repeat inf cast heal self`. |
 | `chs` | Heal self | `cast_spell`. |
 | `ci` | Identify | No args: `cast identify at me`. With args: at target. |
 | `cinv` | Invisibility | `cast_spell`. |
@@ -53,6 +54,8 @@ Spell‑lore style lines get color markup when the client recognises them.
     **`cmm`** is also on **Mage Magical** — pick one guild order.
 
     **`cfa`** matches **Mage Fire** (flame arrow), **`cfl`** matches **Mage Electricity** (forked lightning), and **`csg`** matches **Mage Electricity** (shocking grasp) — same rule: first guild in `/guilds` wins.
+
+    **`chf`** (repeat heal self) overlaps **Civmage** and **Psionicist** — first guild wins.
 
 ## Profile
 

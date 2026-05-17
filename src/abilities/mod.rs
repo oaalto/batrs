@@ -71,6 +71,11 @@ pub fn compound_send(parts: &[&str]) -> String {
     client_send_line(&parts.join(";"))
 }
 
+/// `repeat inf cast heal self` (Civmage / Mage / Psionicist `chf`).
+pub fn repeat_inf_cast_heal_self() -> String {
+    client_send_line("repeat inf cast heal self")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,5 +123,10 @@ mod tests {
             compound_send(&["dismount", "use 'meditation'"]),
             "@dismount;use 'meditation'"
         );
+    }
+
+    #[test]
+    fn repeat_inf_cast_heal_self_line() {
+        assert_eq!(repeat_inf_cast_heal_self(), "@repeat inf cast heal self");
     }
 }

@@ -18,6 +18,7 @@ Training messages for mental defence are colored by urgency. Certain kill lines 
 
 | Shortcut | Full name | Notes |
 |----------|-----------|-------|
+| `chf` | Heal self (repeat) | `repeat inf cast heal self`. |
 | `cms` | Mindseize | `cast_spell`. |
 | `cmb` | Mind blast | `cast_spell`. |
 | `cp` | Psibolt | `cast_spell`. |
@@ -31,7 +32,7 @@ Training messages for mental defence are colored by urgency. Certain kill lines 
 | `cgo` | Phaze shift | `cast_spell`. |
 
 !!! note "Overlaps"
-    **`cps`** is **psychic storm** here but **parasitic swarm** on **Nergal**. **`med`** overlaps Monk / Tiger / Tzarakk.
+    **`cps`** is **psychic storm** here but **parasitic swarm** on **Nergal**. **`med`** overlaps Monk / Tiger / Tzarakk. **`chf`** (repeat heal self) overlaps **Civmage** and **Mage** — first guild in `/guilds` wins.
 
 ## Profile
 

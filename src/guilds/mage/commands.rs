@@ -30,6 +30,7 @@ impl MageGuild {
             ("cfab".to_string(), Self::cast_force_absorption as Command),
             ("cf".to_string(), Self::cast_floating as Command),
             ("cfl".to_string(), Self::cast_floating_letters as Command),
+            ("chf".to_string(), Self::repeat_heal_self as Command),
             ("chs".to_string(), Self::cast_heal_self as Command),
             ("ci".to_string(), Self::cast_identify as Command),
             ("cinv".to_string(), Self::cast_invisibility as Command),
@@ -92,6 +93,13 @@ impl MageGuild {
         Some(abilities::client_send_line(&format!(
             "cast mirror image at {at}"
         )))
+    }
+
+    pub fn repeat_heal_self(
+        _data: &command::Data,
+        _ctx: &mut command::CommandContext,
+    ) -> Option<String> {
+        Some(abilities::repeat_inf_cast_heal_self())
     }
 
     mage_cast_spell!(cast_aura_detection, "aura detection");
@@ -199,6 +207,14 @@ mod tests {
         assert_eq!(
             MageGuild::cast_mirror_image(&data("cmi", "ally"), &mut empty_ctx()),
             Some("@cast mirror image at ally".to_string())
+        );
+    }
+
+    #[test]
+    fn repeat_heal_self_chf() {
+        assert_eq!(
+            MageGuild::repeat_heal_self(&data("chf", ""), &mut empty_ctx()),
+            Some("@repeat inf cast heal self".to_string())
         );
     }
 
