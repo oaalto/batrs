@@ -18,6 +18,7 @@ After you are logged in, a **single summary line** can show combat and character
 Sometimes the client adds **another line or two** under the main status:
 
 - **Soul companion** (Animist, or when the game shows companion status): a short soul summary.
+- **Riftwalker entity** (Riftwalker guild or after battle-listen entity lines): battle-style text such as `Fire entity  HP:629(633) [+5] [] []`. The label picks up **fire/air/water/earth** colors; current HP uses the same gradient as your main Hp bar, max inside parentheses is bold white like the main line, the **first** bracket is the HP delta (inner **green**/**red** by sign; the `[` `]` characters use normal white), the **second** bracket’s inner text is **bold white** (delimiters normal white), and the **third** bracket’s inner text follows default styling (delimiters normal white).
 - **Tzarakk mount**: mount name and current health percentage.
 - **Nergal minions**: extra rows when you have minion status to show.
 

@@ -8,7 +8,17 @@ use crate::guilds::riftwalker::{
     RIFTWALKER_SKILL_VAR, WATER_SKILL,
 };
 use crate::triggers::{Trigger, TriggerContext, TriggerOutput};
+use lazy_static::lazy_static;
 use regex::Regex;
+
+lazy_static! {
+    /// Battle listen entity HP (TinyFugue `riftwalker.tf`); requires `battle listen` on the MUD.
+    /// Lines may end with extra fields and `  =--`; optional three bracket segments after `HP:n(max)`.
+    static ref RIFTWALKER_BATTLE_HP: Regex =
+        Regex::new(r"(?i)^--=\s+(.+?)\s+HP:([0-9]+)\(([^)]+)\)(?:\s+(\[[^\]]*\]))?(?:\s+(\[[^\]]*\]))?(?:\s+(\[[^\]]*\]))?").unwrap();
+    static ref RIFTWALKER_BATTLE_LABEL: Regex =
+        Regex::new(r"(?i)^--=\s+(.+?)\s+=--\s*$").unwrap();
+}
 
 impl RiftwalkerGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
@@ -20,8 +30,13 @@ impl RiftwalkerGuild {
         styled_line: &mut StyledLine,
     ) -> TriggerOutput {
         let mut output = TriggerOutput::default();
+        battle_listen_entity_status(ctx, styled_line, &mut output);
+        if styled_line.gag {
+            return output;
+        }
+
         let line = styled_line.plain_line.as_str();
-        clears_and_keeps(line, ctx.automation, &mut output);
+        clears_and_keeps(ctx, line, &mut output);
         line_sync_entity_skill(ctx, line, &mut output);
         skill_state_echoes(ctx, line, &mut output);
 
@@ -44,6 +59,27 @@ fn automation_label(automation: &Automation, key: &str) -> String {
         .unwrap_or_else(|| "entity".to_string())
 }
 
+/// BatMUD often prints the literal word `entity` in `A/An … <element> <noun> <aura> with power [yours]`
+/// even when the player uses a custom label in other messages. Accept either configured noun or `entity`.
+fn status_line_noun_regex_chunk(configured: &str) -> String {
+    let trimmed = configured.trim();
+    let esc = regex::escape(trimmed);
+    if trimmed.eq_ignore_ascii_case("entity") {
+        esc
+    } else {
+        format!("(?:{esc}|entity)")
+    }
+}
+
+fn aura_noun_alternation(automation: &Automation) -> String {
+    let base = noun_alt_pattern(automation);
+    if base.is_empty() {
+        "entity".to_string()
+    } else {
+        format!("{base}|entity")
+    }
+}
+
 /// Sorted, deduped, regex-escaped alternation of per-element nouns.
 fn noun_alt_pattern(automation: &Automation) -> String {
     let mut parts = vec![
@@ -61,8 +97,73 @@ fn noun_alt_pattern(automation: &Automation) -> String {
         .join("|")
 }
 
-fn clears_and_keeps(line: &str, automation: &Automation, output: &mut TriggerOutput) {
-    let n_alt = noun_alt_pattern(automation);
+fn battle_listen_entity_status(
+    ctx: &mut TriggerContext<'_>,
+    styled_line: &mut StyledLine,
+    output: &mut TriggerOutput,
+) {
+    let text = styled_line.plain_line.trim_end_matches('\r');
+    if let Some(caps) = RIFTWALKER_BATTLE_HP.captures(text) {
+        if ctx.automation.flag_is_set(RIFTWALKER_HAS_ENTITY_FLAG) {
+            if let Some(label_seg) = caps.get(1) {
+                let lbl = label_seg.as_str().trim();
+                if !lbl.is_empty() {
+                    ctx.stats.merge_riftwalker_battle_label(lbl.to_string());
+                }
+            }
+            let hp = caps
+                .get(2)
+                .map(|segment| segment.as_str().parse::<i32>().unwrap_or(0))
+                .unwrap_or(0);
+            let paren_inside = caps.get(3).map(|g| g.as_str()).unwrap_or("");
+            let b1 = caps.get(4).map(|g| g.as_str());
+            let b2 = caps.get(5).map(|g| g.as_str());
+            let b3 = caps.get(6).map(|g| g.as_str());
+            ctx.stats
+                .merge_riftwalker_battle_hp_from_listen(hp, paren_inside, b1, b2, b3);
+            push_entity_hp_notices(hp, output);
+        }
+        styled_line.gag = true;
+        return;
+    }
+    if !ctx.automation.flag_is_set(RIFTWALKER_HAS_ENTITY_FLAG) {
+        return;
+    }
+    if let Some(caps) = RIFTWALKER_BATTLE_LABEL.captures(text) {
+        let label = caps
+            .get(1)
+            .map(|segment| segment.as_str().to_string())
+            .unwrap_or_default();
+        ctx.stats.merge_riftwalker_battle_label(label);
+        styled_line.gag = true;
+    }
+}
+
+fn push_entity_hp_notices(hp: i32, output: &mut TriggerOutput) {
+    let (message, style) = if hp < 100 {
+        (
+            "*********** !!! ENTITY UNDER 100 HP !!! ***********",
+            TextStyle::BRIGHT_RED,
+        )
+    } else if hp < 150 {
+        (
+            "____________ENTITY UNDER 150hp______________",
+            TextStyle::BRIGHT_MAGENTA,
+        )
+    } else if hp < 200 {
+        ("ENTITY UNDER 200hp!!", TextStyle::MAGENTA)
+    } else if hp < 250 {
+        ("Entity under 250hp!!", TextStyle::BRIGHT_YELLOW)
+    } else {
+        return;
+    };
+    let mut notice = StyledLine::new(message);
+    notice.set_line_style(style);
+    output.lines.push(notice);
+}
+
+fn clears_and_keeps(ctx: &mut TriggerContext<'_>, line: &str, output: &mut TriggerOutput) {
+    let n_alt = noun_alt_pattern(ctx.automation);
     let lost_entity = format!(
         r"(?i)^Your\s+(?:{n_alt})\s+begins to warp, seeming to become unstable\. It folds in on itself and vanishes!$"
     );
@@ -70,6 +171,7 @@ fn clears_and_keeps(line: &str, automation: &Automation, output: &mut TriggerOut
     if Regex::new(&lost_entity).is_ok_and(|re| re.is_match(line.trim()))
         || Regex::new(lost_soul).is_ok_and(|re| re.is_match(line.trim()))
     {
+        ctx.stats.clear_riftwalker_entity_status();
         output.actions.push(Action::SetFlag(
             RIFTWALKER_HAS_ENTITY_FLAG.to_string(),
             false,
@@ -257,7 +359,7 @@ fn summon_entity_line_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLi
         ("earth", ENTITY_LABEL_EARTH, TextStyle::YELLOW),
     ];
     for &(elem, key, style) in &rows {
-        let n = regex::escape(&automation_label(ctx.automation, key));
+        let n = status_line_noun_regex_chunk(&automation_label(ctx.automation, key));
         let Ok(re) = Regex::new(&format!(
             r"(?i)^(?:A|An)\s+(.+)\s+{elem}\s+{n}\s+(.+?)\s+with power \[yours\]$"
         )) else {
@@ -278,13 +380,16 @@ fn elemental_tokens_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLine
         ("Earth entity", ENTITY_LABEL_EARTH, TextStyle::YELLOW),
     ];
     for (stock_slice, configuration_key, style) in pairs {
-        styled_line.set_block_style(stock_slice, style);
         let customized = stock_slice.replace(
             "entity",
             automation_label(ctx.automation, configuration_key).as_str(),
         );
-        if customized != stock_slice {
-            styled_line.set_block_style(customized.as_str(), style);
+        for fragment in [stock_slice, &customized] {
+            styled_line.set_block_style(fragment, style);
+            let lower = fragment.to_ascii_lowercase();
+            if lower != *fragment {
+                styled_line.set_block_style(lower.as_str(), style);
+            }
         }
     }
 }
@@ -325,7 +430,7 @@ fn aura_style_for(word: &str) -> Option<TextStyle> {
 
 fn aura_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLine) {
     let text = styled_line.plain_line.as_str();
-    let n_alt = noun_alt_pattern(ctx.automation);
+    let n_alt = aura_noun_alternation(ctx.automation);
     let aura_alt = AURA_WORDS.join("|");
     let Ok(re) = Regex::new(&format!(
         r"(?i)^(?:A|An)\s+(?P<pre>.+)\s+(?P<nn>(?:{n_alt}))\s+(?P<aur>{aura_alt})\s+with power \[yours\]$"
@@ -406,7 +511,15 @@ mod tests {
     use crate::automation::Automation;
     use crate::stats::Stats;
     use crate::triggers::TriggerContext;
+    use ratatui::text::Line;
     use unicode_segmentation::UnicodeSegmentation;
+
+    fn line_plain(line: &Line<'_>) -> String {
+        line.spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect()
+    }
 
     #[test]
     fn aura_only_on_summon_line_not_random_sparkling() {
@@ -472,5 +585,121 @@ mod tests {
             &mut out,
         );
         assert!(!out.actions.is_empty());
+    }
+
+    #[test]
+    fn battle_listen_hp_updates_stats_gags_and_warns_when_flag_set() {
+        let mut stats = Stats::default();
+        let mut auto = Automation::new();
+        auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
+        let mut ctx = TriggerContext {
+            stats: &mut stats,
+            automation: &mut auto,
+            rig: None,
+            player_name: None,
+        };
+        let mut line = StyledLine::new("--=  fire thing  HP:95(30%) more");
+        let out = RiftwalkerGuild::primary_trigger(&mut ctx, &mut line);
+        assert!(line.gag);
+        assert!(stats.has_riftwalker_entity_status());
+        assert!(line_plain(&stats.render_riftwalker_entity_inline()).contains("HP:95(30%)"));
+        assert_eq!(
+            out.lines[0].plain_line,
+            "*********** !!! ENTITY UNDER 100 HP !!! ***********"
+        );
+    }
+
+    #[test]
+    fn battle_listen_hp_gags_even_without_has_entity_flag() {
+        let mut stats = Stats::default();
+        let mut auto = Automation::new();
+        auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, false);
+        let mut ctx = TriggerContext {
+            stats: &mut stats,
+            automation: &mut auto,
+            rig: None,
+            player_name: None,
+        };
+        let mut line = StyledLine::new("--=  fire thing  HP:200(50%) more");
+        let _ = RiftwalkerGuild::primary_trigger(&mut ctx, &mut line);
+        assert!(line.gag);
+        assert!(!stats.has_riftwalker_entity_status());
+    }
+
+    #[test]
+    fn battle_listen_combined_line_with_trailing_status_is_gagged() {
+        let mut stats = Stats::default();
+        let mut auto = Automation::new();
+        auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
+        let mut ctx = TriggerContext {
+            stats: &mut stats,
+            automation: &mut auto,
+            rig: None,
+            player_name: None,
+        };
+        let mut line = StyledLine::new("--=  Fire entity  HP:511(629) [+28] [] []  =--");
+        let _ = RiftwalkerGuild::primary_trigger(&mut ctx, &mut line);
+        assert!(line.gag);
+        assert_eq!(
+            line_plain(&stats.render_riftwalker_entity_inline()),
+            "Fire entity  HP:511(629) [+28] [] []"
+        );
+    }
+
+    #[test]
+    fn battle_listen_second_and_third_bracket_slots_use_mud_text() {
+        let mut stats = Stats::default();
+        let mut auto = Automation::new();
+        auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
+        let mut ctx = TriggerContext {
+            stats: &mut stats,
+            automation: &mut auto,
+            rig: None,
+            player_name: None,
+        };
+        let mut line = StyledLine::new("--=  Water entity  HP:100(100) [+1] [foo] [bar]  =--");
+        let _ = RiftwalkerGuild::primary_trigger(&mut ctx, &mut line);
+        assert!(line.gag);
+        assert_eq!(
+            line_plain(&stats.render_riftwalker_entity_inline()),
+            "Water entity  HP:100(100) [+1] [foo] [bar]",
+        );
+    }
+
+    #[test]
+    fn battle_listen_label_merges_and_gags() {
+        let mut stats = Stats::default();
+        let mut auto = Automation::new();
+        auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
+        let mut ctx = TriggerContext {
+            stats: &mut stats,
+            automation: &mut auto,
+            rig: None,
+            player_name: None,
+        };
+        let mut line = StyledLine::new("--=  My pet wisp  =--");
+        let out = RiftwalkerGuild::primary_trigger(&mut ctx, &mut line);
+        assert!(line.gag);
+        assert!(line_plain(&stats.render_riftwalker_entity_inline()).contains("My pet wisp"));
+        assert!(out.lines.is_empty());
+    }
+
+    #[test]
+    fn entity_death_clears_battle_listen_status() {
+        let mut stats = Stats::default();
+        stats.merge_riftwalker_battle_hp(400);
+        let mut auto = Automation::new();
+        auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
+        let mut ctx = TriggerContext {
+            stats: &mut stats,
+            automation: &mut auto,
+            rig: None,
+            player_name: None,
+        };
+        let mut line = StyledLine::new(
+            "Your entity begins to warp, seeming to become unstable. It folds in on itself and vanishes!",
+        );
+        let _ = RiftwalkerGuild::primary_trigger(&mut ctx, &mut line);
+        assert!(!stats.has_riftwalker_entity_status());
     }
 }

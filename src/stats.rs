@@ -21,11 +21,26 @@ pub struct Stats {
     combat_round_active: bool,
     soul_companion: Option<SoulCompanionStatus>,
     tzarakk_mount: Option<TzarakkMountStatus>,
+    riftwalker_entity: Option<RiftwalkerEntityStatus>,
     pub(crate) nergal_minions: [Option<NergalMinion>; 3],
     /// Green `c` in the recovery bracket: on when the MUD hints you may want to camp; off while resting (lie-down line).
     recovery_bracket_camping: bool,
     /// Yellow `m`: on after meditation harmony line, off when meditation starts.
     recovery_bracket_meditation: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RiftwalkerEntityStatus {
+    pub label: String,
+    pub hp: i32,
+    pub max_hp: Option<i32>,
+    /// Non-numeric parenthetical from the MUD when `max_hp` is absent (e.g. percent).
+    pub hp_paren_raw: Option<String>,
+    pub brackets: [String; 3],
+}
+
+fn default_riftwalker_entity_brackets() -> [String; 3] {
+    ["[]".to_string(), "[]".to_string(), "[]".to_string()]
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -94,6 +109,7 @@ impl Stats {
         let combat_round_active = self.combat_round_active;
         let soul_companion = self.soul_companion.clone();
         let tzarakk_mount = self.tzarakk_mount.clone();
+        let riftwalker_entity = self.riftwalker_entity.clone();
         let nergal_minions = self.nergal_minions.clone();
         let money = self.money;
         let recovery_bracket_camping = self.recovery_bracket_camping;
@@ -107,6 +123,7 @@ impl Stats {
         self.combat_round_active = combat_round_active;
         self.soul_companion = soul_companion;
         self.tzarakk_mount = tzarakk_mount;
+        self.riftwalker_entity = riftwalker_entity;
         self.nergal_minions = nergal_minions;
         self.money = money;
         self.recovery_bracket_camping = recovery_bracket_camping;
@@ -122,6 +139,7 @@ impl Stats {
         let combat_round_active = self.combat_round_active;
         let soul_companion = self.soul_companion.clone();
         let tzarakk_mount = self.tzarakk_mount.clone();
+        let riftwalker_entity = self.riftwalker_entity.clone();
         let nergal_minions = self.nergal_minions.clone();
         let recovery_bracket_camping = self.recovery_bracket_camping;
         let recovery_bracket_meditation = self.recovery_bracket_meditation;
@@ -136,6 +154,7 @@ impl Stats {
         self.combat_round_active = combat_round_active;
         self.soul_companion = soul_companion;
         self.tzarakk_mount = tzarakk_mount;
+        self.riftwalker_entity = riftwalker_entity;
         self.nergal_minions = nergal_minions;
         self.recovery_bracket_camping = recovery_bracket_camping;
         self.recovery_bracket_meditation = recovery_bracket_meditation;
@@ -196,6 +215,133 @@ impl Stats {
 
     pub fn has_tzarakk_mount_status(&self) -> bool {
         self.tzarakk_mount.is_some()
+    }
+
+    pub fn merge_riftwalker_battle_label(&mut self, label: String) {
+        let label = label.trim().to_string();
+        self.riftwalker_entity = Some(match self.riftwalker_entity.take() {
+            Some(mut s) => {
+                s.label = label;
+                s
+            }
+            None => RiftwalkerEntityStatus {
+                label,
+                hp: 0,
+                max_hp: None,
+                hp_paren_raw: None,
+                brackets: default_riftwalker_entity_brackets(),
+            },
+        });
+    }
+
+    /// HP-only merge (preserves other battle fields). Battle listen uses [`merge_riftwalker_battle_hp_from_listen`].
+    #[allow(dead_code)]
+    pub fn merge_riftwalker_battle_hp(&mut self, hp: i32) {
+        self.riftwalker_entity = Some(match self.riftwalker_entity.take() {
+            Some(mut s) => {
+                s.hp = hp;
+                s
+            }
+            None => RiftwalkerEntityStatus {
+                label: String::new(),
+                hp,
+                max_hp: None,
+                hp_paren_raw: None,
+                brackets: default_riftwalker_entity_brackets(),
+            },
+        });
+    }
+
+    /// Parsed battle-listen HP line: `HP:curr(max_or_other) […] […] […]`.
+    pub fn merge_riftwalker_battle_hp_from_listen(
+        &mut self,
+        hp: i32,
+        paren_inside: &str,
+        bracket1: Option<&str>,
+        bracket2: Option<&str>,
+        bracket3: Option<&str>,
+    ) {
+        let (max_hp, hp_paren_raw) = if paren_inside.is_empty() {
+            (None, None)
+        } else {
+            match paren_inside.parse::<i32>() {
+                Ok(m) => (Some(m), None),
+                Err(_) => (None, Some(paren_inside.to_string())),
+            }
+        };
+        let norm_br = |o: Option<&str>| {
+            o.map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+                .unwrap_or_else(|| "[]".to_string())
+        };
+        let brackets = [norm_br(bracket1), norm_br(bracket2), norm_br(bracket3)];
+        self.riftwalker_entity = Some(match self.riftwalker_entity.take() {
+            Some(mut s) => {
+                s.hp = hp;
+                s.max_hp = max_hp;
+                s.hp_paren_raw = hp_paren_raw;
+                s.brackets = brackets;
+                s
+            }
+            None => RiftwalkerEntityStatus {
+                label: String::new(),
+                hp,
+                max_hp,
+                hp_paren_raw,
+                brackets,
+            },
+        });
+    }
+
+    pub fn clear_riftwalker_entity_status(&mut self) {
+        self.riftwalker_entity = None;
+    }
+
+    pub fn has_riftwalker_entity_status(&self) -> bool {
+        self.riftwalker_entity.is_some()
+    }
+
+    pub fn render_riftwalker_entity_inline(&self) -> Line<'static> {
+        let Some(entity) = &self.riftwalker_entity else {
+            return Line::from("");
+        };
+
+        let label_fg = riftwalker_entity_label_fg(&entity.label);
+        let mut spans = vec![];
+        if !entity.label.is_empty() {
+            spans.push(Span::styled(
+                format!("{}  ", entity.label),
+                Style::default().fg(label_fg),
+            ));
+        }
+        spans.push(Span::styled("HP:", Style::default().fg(palette::TEXT)));
+        let cur_fg = riftwalker_entity_current_hp_fg(entity.hp, entity.max_hp);
+        spans.push(Span::styled(
+            entity.hp.to_string(),
+            Style::default().fg(cur_fg),
+        ));
+
+        if let Some(m) = entity.max_hp {
+            spans.push(Span::styled("(", Style::default().fg(palette::TEXT)));
+            spans.push(Span::styled(m.to_string(), bold_white_style()));
+            spans.push(Span::styled(")", Style::default().fg(palette::TEXT)));
+        } else if let Some(r) = entity.hp_paren_raw.as_ref() {
+            spans.push(Span::styled("(", Style::default().fg(palette::TEXT)));
+            spans.push(Span::styled(r.clone(), bold_white_style()));
+            spans.push(Span::styled(")", Style::default().fg(palette::TEXT)));
+        }
+
+        for (idx, b) in entity.brackets.iter().enumerate() {
+            spans.push(Span::raw(" "));
+            match idx {
+                0 => push_riftwalker_hp_diff_bracket_spans(&mut spans, b),
+                1 => push_riftwalker_middle_bracket_spans(&mut spans, b),
+                _ => push_riftwalker_trailing_bracket_spans(&mut spans, b),
+            }
+        }
+
+        Line::from(spans)
     }
 
     pub fn has_nergal_minions(&self) -> bool {
@@ -445,6 +591,113 @@ fn soul_description_spans(description: &str) -> Vec<Span<'static>> {
 
 fn spans_display_width(spans: &[Span<'_>]) -> usize {
     spans.iter().map(|span| span.content.width()).sum()
+}
+
+fn riftwalker_bracket_delim_style() -> Style {
+    Style::default().fg(palette::WHITE)
+}
+
+/// HP delta bracket: `[` / `]` normal white; inner green / red / default by sign.
+fn push_riftwalker_hp_diff_bracket_spans(spans: &mut Vec<Span<'static>>, bracket: &str) {
+    let delim = riftwalker_bracket_delim_style();
+    if let Some(inner) = bracket.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        let inner = inner.trim();
+        spans.push(Span::styled("[", delim));
+        if !inner.is_empty() {
+            spans.push(Span::styled(
+                inner.to_string(),
+                riftwalker_entity_hp_diff_inner_style(inner),
+            ));
+        }
+        spans.push(Span::styled("]", delim));
+    } else {
+        spans.push(Span::styled(
+            bracket.to_string(),
+            Style::default().fg(palette::TEXT),
+        ));
+    }
+}
+
+/// Third battle-listen bracket: `[` / `]` normal white; inner default text color.
+fn push_riftwalker_trailing_bracket_spans(spans: &mut Vec<Span<'static>>, bracket: &str) {
+    let delim = riftwalker_bracket_delim_style();
+    let inner_style = Style::default().fg(palette::TEXT);
+    if let Some(inner) = bracket.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        spans.push(Span::styled("[", delim));
+        if !inner.is_empty() {
+            spans.push(Span::styled(inner.to_string(), inner_style));
+        }
+        spans.push(Span::styled("]", delim));
+    } else {
+        spans.push(Span::styled(bracket.to_string(), inner_style));
+    }
+}
+
+/// Second battle-listen bracket: `[` / `]` normal white; inner bold white (player max style).
+fn push_riftwalker_middle_bracket_spans(spans: &mut Vec<Span<'static>>, bracket: &str) {
+    let delim = riftwalker_bracket_delim_style();
+    if let Some(inner) = bracket.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        spans.push(Span::styled("[", delim));
+        if !inner.is_empty() {
+            spans.push(Span::styled(inner.to_string(), bold_white_style()));
+        }
+        spans.push(Span::styled("]", delim));
+    } else {
+        spans.push(Span::styled(bracket.to_string(), bold_white_style()));
+    }
+}
+
+/// Inner text of first battle-listen bracket (HP delta): green / red / default by sign.
+fn riftwalker_entity_hp_diff_inner_style(inner: &str) -> Style {
+    if inner.is_empty() {
+        return Style::default().fg(palette::TEXT);
+    }
+    let Ok(n) = inner.parse::<i32>() else {
+        return Style::default().fg(palette::TEXT);
+    };
+    let fg = if n > 0 {
+        palette::GREEN
+    } else if n < 0 {
+        palette::RED
+    } else {
+        palette::TEXT
+    };
+    Style::default().fg(fg)
+}
+
+/// Element token in the battle-listen label (`Fire entity`, custom text containing `water`, …).
+fn riftwalker_entity_label_fg(label: &str) -> Color {
+    for word in label
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|s| !s.is_empty())
+    {
+        if word.eq_ignore_ascii_case("fire") {
+            return palette::RED;
+        }
+        if word.eq_ignore_ascii_case("air") {
+            return Color::Rgb(140, 200, 255);
+        }
+        if word.eq_ignore_ascii_case("water") {
+            return Color::Rgb(36, 72, 190);
+        }
+        if word.eq_ignore_ascii_case("earth") {
+            return Color::Rgb(168, 110, 55);
+        }
+    }
+    palette::TEXT
+}
+
+/// Same progression as player HP in [`Stats::inline_stat_spans`] when max is known.
+fn riftwalker_entity_current_hp_fg(hp: i32, max_hp: Option<i32>) -> Color {
+    let Some(max) = max_hp.filter(|&m| m > 0) else {
+        return palette::TEXT;
+    };
+    let progress = if hp <= 0 {
+        0.0
+    } else {
+        (hp as f32 / max as f32).min(1.0)
+    };
+    progress_color(progress)
 }
 
 fn bold_white_style() -> Style {
@@ -886,6 +1139,135 @@ mod tests {
             line_text(&stats.render_tzarakk_mount_inline()),
             "Orthos: 45%"
         );
+    }
+
+    #[test]
+    fn prompt_updates_preserve_riftwalker_entity_status() {
+        let mut stats = Stats::default();
+        stats.merge_riftwalker_battle_label("glowing fire entity".to_string());
+        stats.merge_riftwalker_battle_hp(300);
+
+        stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
+
+        assert_eq!(
+            line_text(&stats.render_riftwalker_entity_inline()),
+            "glowing fire entity  HP:300 [] [] []"
+        );
+    }
+
+    #[test]
+    fn short_score_updates_preserve_riftwalker_entity_status() {
+        let mut stats = Stats::default();
+        stats.merge_riftwalker_battle_hp(180);
+
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
+
+        assert_eq!(
+            line_text(&stats.render_riftwalker_entity_inline()),
+            "HP:180 [] [] []"
+        );
+    }
+
+    #[test]
+    fn render_riftwalker_entity_hp_diff_bracket_green_red() {
+        let mut stats = Stats::default();
+        stats.merge_riftwalker_battle_hp_from_listen(
+            100,
+            "100",
+            Some("[+7]"),
+            Some("[]"),
+            Some("[]"),
+        );
+        let line = stats.render_riftwalker_entity_inline();
+        let pos = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "+7")
+            .expect("+7 span");
+        assert_eq!(pos.style.fg, Some(palette::GREEN));
+
+        stats.merge_riftwalker_battle_hp_from_listen(
+            90,
+            "100",
+            Some("[-3]"),
+            Some("[]"),
+            Some("[]"),
+        );
+        let line = stats.render_riftwalker_entity_inline();
+        let neg = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "-3")
+            .expect("-3 span");
+        assert_eq!(neg.style.fg, Some(palette::RED));
+
+        stats.merge_riftwalker_battle_hp_from_listen(
+            50,
+            "100",
+            Some("[0]"),
+            Some("[]"),
+            Some("[]"),
+        );
+        let line = stats.render_riftwalker_entity_inline();
+        let zero = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "0")
+            .expect("0 span");
+        assert_eq!(zero.style.fg, Some(palette::TEXT));
+
+        stats.merge_riftwalker_battle_hp_from_listen(
+            50,
+            "100",
+            Some("[x]"),
+            Some("[]"),
+            Some("[]"),
+        );
+        let line = stats.render_riftwalker_entity_inline();
+        let other = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "x")
+            .expect("x span");
+        assert_eq!(other.style.fg, Some(palette::TEXT));
+    }
+
+    #[test]
+    fn render_riftwalker_entity_middle_bracket_inner_is_bold_white() {
+        let mut stats = Stats::default();
+        stats.merge_riftwalker_battle_hp_from_listen(
+            50,
+            "100",
+            Some("[+1]"),
+            Some("[mid]"),
+            Some("[]"),
+        );
+        let line = stats.render_riftwalker_entity_inline();
+        let mid = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "mid")
+            .expect("mid span");
+        assert!(
+            mid.style.add_modifier.contains(Modifier::BOLD),
+            "middle bracket contents should be bold"
+        );
+        assert_eq!(mid.style.fg, Some(palette::BOLD_WHITE));
+        assert_eq!(line_text(&line), "HP:50(100) [+1] [mid] []");
+    }
+
+    #[test]
+    fn render_riftwalker_entity_inline_empty_when_cleared() {
+        let stats = Stats::default();
+        assert_eq!(line_text(&stats.render_riftwalker_entity_inline()), "");
+    }
+
+    #[test]
+    fn clear_riftwalker_entity_status_removes_secondary_line() {
+        let mut stats = Stats::default();
+        stats.merge_riftwalker_battle_hp(400);
+        stats.clear_riftwalker_entity_status();
+        assert!(!stats.has_riftwalker_entity_status());
     }
 
     fn sample_minion_a() -> NergalMinion {

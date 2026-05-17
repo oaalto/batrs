@@ -257,6 +257,11 @@ impl BatApp {
             .iter()
             .any(|key| key.as_str() == "animist")
             || self.stats.has_soul_companion_status();
+        let riftwalker_supported = self
+            .selected_guild_keys
+            .iter()
+            .any(|key| key.as_str() == "riftwalker")
+            || self.stats.has_riftwalker_entity_status();
         let nergal_supported = self
             .selected_guild_keys
             .iter()
@@ -271,6 +276,9 @@ impl BatApp {
         let mut secondary_status_lines: Vec<Line<'static>> = Vec::new();
         if show_stats && soul_supported {
             secondary_status_lines.push(self.stats.render_soul_inline());
+        }
+        if show_stats && riftwalker_supported {
+            secondary_status_lines.push(self.stats.render_riftwalker_entity_inline());
         }
         if show_stats && tzarakk_supported {
             secondary_status_lines.push(self.stats.render_tzarakk_mount_inline());
