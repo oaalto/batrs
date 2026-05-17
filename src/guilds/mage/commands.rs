@@ -30,8 +30,8 @@ impl MageGuild {
             ("cfab".to_string(), Self::cast_force_absorption as Command),
             ("cf".to_string(), Self::cast_floating as Command),
             ("cfl".to_string(), Self::cast_floating_letters as Command),
+            ("ch".to_string(), Self::cast_heal_self as Command),
             ("chf".to_string(), Self::repeat_heal_self as Command),
-            ("chs".to_string(), Self::cast_heal_self as Command),
             ("ci".to_string(), Self::cast_identify as Command),
             ("cinv".to_string(), Self::cast_invisibility as Command),
             ("cl".to_string(), Self::cast_light as Command),
@@ -215,6 +215,18 @@ mod tests {
         assert_eq!(
             MageGuild::repeat_heal_self(&data("chf", ""), &mut empty_ctx()),
             Some("@repeat inf cast heal self".to_string())
+        );
+    }
+
+    #[test]
+    fn cast_heal_self_ch() {
+        assert_eq!(
+            MageGuild::cast_heal_self(&data("ch", ""), &mut empty_ctx()),
+            Some("@cast 'heal self'".to_string())
+        );
+        assert_eq!(
+            MageGuild::cast_heal_self(&data("ch", "orc"), &mut empty_ctx()),
+            Some("@target orc;cast 'heal self' orc".to_string())
         );
     }
 

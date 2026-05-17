@@ -17,6 +17,7 @@ Floating disc helpers (cast, get/put), identify, lift of load, mirror image, spa
 | `cld` | Lift of load | No args: `cast lift of load at me`. With args: at target. |
 | `cid` | Identify | No args: `cast identify at me`. With args: at target. |
 | `cfd` | Floating disc | Uses Batrs floating-disc helper line. |
+| `ch` | Heal self | `cast_spell`. |
 | `chf` | Heal self (repeat) | `repeat inf cast heal self`. |
 | `cmi` | Mirror image | No args: `cast mirror image at me`. With args: at target. |
 
@@ -30,6 +31,8 @@ Floating disc helpers (cast, get/put), identify, lift of load, mirror image, spa
 | `pd` | Put noeq in disc | `put noeq in my disc` helper. |
 
 !!! note "Shared shortcuts"
+
+    **`ch`** (heal self) is also on **Mage**, **Psionicist**, and **Curate** (**hemorrhage**) — first guild wins.
 
     **`chf`** (repeat heal self) is also on **Mage** and **Psionicist** — first guild in `/guilds` wins.
 

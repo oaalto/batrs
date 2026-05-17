@@ -19,6 +19,7 @@ impl PsionicistGuild {
             ("cmdev".to_string(), Self::cast_mind_development as Command),
             ("cgo".to_string(), Self::cast_phaze_shift as Command),
             ("med".to_string(), Self::use_meditation as Command),
+            ("ch".to_string(), Self::cast_heal_self as Command),
             ("chf".to_string(), Self::repeat_heal_self as Command),
         ])
     }
@@ -122,6 +123,13 @@ impl PsionicistGuild {
     ) -> Option<String> {
         Some(crate::abilities::repeat_inf_cast_heal_self())
     }
+
+    pub fn cast_heal_self(
+        data: &command::Data,
+        _ctx: &mut command::CommandContext,
+    ) -> Option<String> {
+        Some(cast_spell("heal self", data))
+    }
 }
 
 #[cfg(test)]
@@ -216,6 +224,18 @@ mod tests {
         assert_eq!(
             PsionicistGuild::repeat_heal_self(&data("chf", ""), &mut empty_ctx()),
             Some("@repeat inf cast heal self".to_string())
+        );
+    }
+
+    #[test]
+    fn cast_heal_self_ch() {
+        assert_eq!(
+            PsionicistGuild::cast_heal_self(&data("ch", ""), &mut empty_ctx()),
+            Some("@cast 'heal self'".to_string())
+        );
+        assert_eq!(
+            PsionicistGuild::cast_heal_self(&data("ch", "orc"), &mut empty_ctx()),
+            Some("@target orc;cast 'heal self' orc".to_string())
         );
     }
 }

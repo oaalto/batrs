@@ -18,7 +18,7 @@ None from this guild.
 
 | Shortcut | Full name | Notes |
 |----------|-----------|-------|
-| `ch` | Hemorrhage | `cast_spell`. |
+| `ch` | Hemorrhage | `cast_spell`. Overlaps **Mage** / **Civmage** / **Psionicist** heal self — first guild in `/guilds` wins. |
 | `ca` | Aneurysm | `cast_spell`. |
 | `cmcan` | Mobile cannon | `cast_spell`. |
 

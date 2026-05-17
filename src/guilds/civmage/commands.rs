@@ -1,7 +1,7 @@
 use crate::abilities;
 use crate::command;
 use crate::command::Command;
-use crate::guilds::CivmageGuild;
+use crate::guilds::{CivmageGuild, cast_spell};
 use std::collections::HashMap;
 
 impl CivmageGuild {
@@ -20,6 +20,7 @@ impl CivmageGuild {
                 Self::get_all_weapon_from_disc as Command,
             ),
             ("pd".to_string(), Self::put_noeq_in_disc as Command),
+            ("ch".to_string(), Self::cast_heal_self as Command),
             ("chf".to_string(), Self::repeat_heal_self as Command),
             ("cmi".to_string(), Self::cast_mirror_image as Command),
         ])
@@ -87,6 +88,13 @@ impl CivmageGuild {
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
         Some(abilities::repeat_inf_cast_heal_self())
+    }
+
+    pub fn cast_heal_self(
+        data: &command::Data,
+        _ctx: &mut command::CommandContext,
+    ) -> Option<String> {
+        Some(cast_spell("heal self", data))
     }
 
     pub fn cast_mirror_image(
@@ -182,6 +190,18 @@ mod tests {
         assert_eq!(
             CivmageGuild::repeat_heal_self(&data("chf", ""), &mut empty_ctx()),
             Some("@repeat inf cast heal self".to_string())
+        );
+    }
+
+    #[test]
+    fn cast_heal_self_ch() {
+        assert_eq!(
+            CivmageGuild::cast_heal_self(&data("ch", ""), &mut empty_ctx()),
+            Some("@cast 'heal self'".to_string())
+        );
+        assert_eq!(
+            CivmageGuild::cast_heal_self(&data("ch", "orc"), &mut empty_ctx()),
+            Some("@target orc;cast 'heal self' orc".to_string())
         );
     }
 
