@@ -122,7 +122,7 @@ impl RiftwalkerGuild {
     ) -> Option<String> {
         let args = data.args.trim();
         ctx.push_action(Action::Send(abilities::client_send_line(&format!(
-            "cast 'summon rift entity' at {args}"
+            "cast 'summon rift entity' {args}"
         ))));
         apply_element_from_free_text(ctx, args);
         ctx.push_action(Action::SetFlag(
@@ -160,7 +160,7 @@ impl RiftwalkerGuild {
             ))
         } else {
             Some(abilities::client_send_line(&format!(
-                "cast 'establish entity control' at {}",
+                "cast 'establish entity control' {}",
                 data.args.trim()
             )))
         }
@@ -171,7 +171,7 @@ impl RiftwalkerGuild {
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
         Some(abilities::client_send_line(
-            "cast 'establish entity control' at 10",
+            "cast 'establish entity control' 10",
         ))
     }
 
@@ -190,7 +190,7 @@ impl RiftwalkerGuild {
         match args.split_once(char::is_whitespace) {
             Some((target_at, rest)) => {
                 ctx.push_action(Action::Send(abilities::client_send_line(&format!(
-                    "cast 'transform rift entity' at {target_at}"
+                    "cast 'transform rift entity' {target_at}"
                 ))));
                 let src = rest.trim();
                 apply_element_from_free_text(ctx, if src.is_empty() { target_at } else { src });
@@ -198,7 +198,7 @@ impl RiftwalkerGuild {
             }
             None if !args.is_empty() => {
                 ctx.push_action(Action::Send(abilities::client_send_line(&format!(
-                    "cast 'transform rift entity' at {args}"
+                    "cast 'transform rift entity' {args}"
                 ))));
                 apply_element_from_free_text(ctx, args);
                 None
@@ -263,7 +263,7 @@ impl RiftwalkerGuild {
     ) -> Option<String> {
         if data.args.trim().is_empty() {
             Some(abilities::client_send_line(
-                "cast 'force absorption' at entity",
+                "cast 'force absorption' entity",
             ))
         } else {
             Some(cast_spell("force absorption", data))
@@ -274,7 +274,7 @@ impl RiftwalkerGuild {
         _data: &command::Data,
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
-        Some(abilities::client_send_line("cast 'mirror image' at entity"))
+        Some(abilities::client_send_line("cast 'mirror image' entity"))
     }
 
     pub fn cmd_cast_absorbing_meld(
@@ -289,7 +289,7 @@ impl RiftwalkerGuild {
         _ctx: &mut command::CommandContext,
     ) -> Option<String> {
         if data.args.trim().is_empty() {
-            Some(abilities::client_send_line("cast 'iron will' at entity"))
+            Some(abilities::client_send_line("cast 'iron will' entity"))
         } else {
             Some(cast_spell("iron will", data))
         }

@@ -67,6 +67,24 @@ impl StyledLine {
         }
     }
 
+    /// Style graphemes whose `plain_line` UTF-8 byte span lies in `[range.start, range.end)`.
+    pub fn set_plain_byte_range_style(&mut self, range: Range<usize>, style: TextStyle) {
+        let len = self.plain_line.len();
+        let start = range.start.min(len);
+        let end = range.end.min(len).max(start);
+        let grapheme_start = plain_prefix_grapheme_count(&self.plain_line, start);
+        let grapheme_end = plain_prefix_grapheme_count(&self.plain_line, end);
+        for styled in self
+            .styled_chars
+            .iter_mut()
+            .take(grapheme_end)
+            .skip(grapheme_start)
+        {
+            styled.color = style.color;
+            styled.bold = style.bold;
+        }
+    }
+
     fn get_range_for(&self, part: &str) -> Option<Range<usize>> {
         self.plain_line.find(part).map(|start| Range {
             start,
@@ -242,8 +260,23 @@ fn plain_prefix_grapheme_count(plain_line: &str, byte_end: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ansi::{AnsiCode, TextColor, palette};
+    use crate::ansi::{AnsiCode, TextColor, TextStyle, palette};
     use ratatui::style::{Color, Modifier};
+
+    #[test]
+    fn plain_byte_range_style_marks_substring() {
+        let mut line = StyledLine::new("alpha β gamma");
+        let beta_start = line.plain_line.find('β').unwrap();
+        let beta_end = beta_start + "β".len();
+        line.set_plain_byte_range_style(beta_start..beta_end, TextStyle::BRIGHT_RED);
+        let beta_grapheme = line.plain_line[..beta_start].graphemes(true).count();
+        assert_eq!(
+            line.styled_chars[beta_grapheme].color,
+            TextStyle::BRIGHT_RED.color
+        );
+        assert!(line.styled_chars[beta_grapheme].bold);
+        assert_eq!(line.styled_chars[0].color, TextColor::Default);
+    }
 
     #[test]
     fn leading_tab_expands_to_spaces() {
