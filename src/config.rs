@@ -59,7 +59,7 @@ pub struct GenericCommandsConfig {
     pub disabled_commands: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SettingsTable {
     #[serde(default)]
     pub rig: String,
@@ -67,16 +67,35 @@ pub struct SettingsTable {
     pub tzarakk_mount: String,
     #[serde(default)]
     pub sabre_weapon: String,
-    #[serde(default)]
+    #[serde(default = "default_riftwalker_entity_label")]
     pub riftwalker_entity_fire: String,
-    #[serde(default)]
+    #[serde(default = "default_riftwalker_entity_label")]
     pub riftwalker_entity_air: String,
-    #[serde(default)]
+    #[serde(default = "default_riftwalker_entity_label")]
     pub riftwalker_entity_water: String,
-    #[serde(default)]
+    #[serde(default = "default_riftwalker_entity_label")]
     pub riftwalker_entity_earth: String,
     #[serde(flatten)]
     pub extra: HashMap<String, String>,
+}
+
+impl Default for SettingsTable {
+    fn default() -> Self {
+        Self {
+            rig: String::new(),
+            tzarakk_mount: String::new(),
+            sabre_weapon: String::new(),
+            riftwalker_entity_fire: default_riftwalker_entity_label(),
+            riftwalker_entity_air: default_riftwalker_entity_label(),
+            riftwalker_entity_water: default_riftwalker_entity_label(),
+            riftwalker_entity_earth: default_riftwalker_entity_label(),
+            extra: HashMap::new(),
+        }
+    }
+}
+
+fn default_riftwalker_entity_label() -> String {
+    "entity".to_string()
 }
 
 #[derive(Debug)]
@@ -132,19 +151,19 @@ const SETTINGS_DEFS: &[SettingDefinition] = &[
     },
     SettingDefinition {
         key: "riftwalker_entity_fire",
-        default: "",
+        default: "entity",
     },
     SettingDefinition {
         key: "riftwalker_entity_air",
-        default: "",
+        default: "entity",
     },
     SettingDefinition {
         key: "riftwalker_entity_water",
-        default: "",
+        default: "entity",
     },
     SettingDefinition {
         key: "riftwalker_entity_earth",
-        default: "",
+        default: "entity",
     },
 ];
 
@@ -430,10 +449,10 @@ fn settings_table_from_entries(entries: &[SettingEntry]) -> SettingsTable {
     let mut rig = String::new();
     let mut tzarakk_mount = String::new();
     let mut sabre_weapon = String::new();
-    let mut riftwalker_entity_fire = String::new();
-    let mut riftwalker_entity_air = String::new();
-    let mut riftwalker_entity_water = String::new();
-    let mut riftwalker_entity_earth = String::new();
+    let mut riftwalker_entity_fire = default_riftwalker_entity_label();
+    let mut riftwalker_entity_air = default_riftwalker_entity_label();
+    let mut riftwalker_entity_water = default_riftwalker_entity_label();
+    let mut riftwalker_entity_earth = default_riftwalker_entity_label();
     let mut extra = HashMap::new();
     for entry in entries {
         if entry.key == "rig" {
@@ -490,7 +509,18 @@ fn normalize_settings_entries(entries: Vec<SettingEntry>) -> (Vec<SettingEntry>,
     let mut changed = false;
     let mut normalized = Vec::new();
     for def in SETTINGS_DEFS {
-        if let Some(value) = known.remove(def.key) {
+        if let Some(mut value) = known.remove(def.key) {
+            if matches!(
+                def.key,
+                "riftwalker_entity_fire"
+                    | "riftwalker_entity_air"
+                    | "riftwalker_entity_water"
+                    | "riftwalker_entity_earth"
+            ) && value.is_empty()
+            {
+                value = def.default.to_string();
+                changed = true;
+            }
             normalized.push(SettingEntry {
                 key: def.key.to_string(),
                 value,
@@ -831,6 +861,10 @@ rig = "x"
 "#;
         let parsed: PlayerToml = toml::from_str(text).unwrap();
         assert_eq!(parsed.guilds, None);
+        assert_eq!(parsed.settings.riftwalker_entity_fire, "entity");
+        assert_eq!(parsed.settings.riftwalker_entity_air, "entity");
+        assert_eq!(parsed.settings.riftwalker_entity_water, "entity");
+        assert_eq!(parsed.settings.riftwalker_entity_earth, "entity");
     }
 
     #[test]

@@ -35,7 +35,7 @@ enum DrillRow {
 }
 
 pub(crate) fn default_riftwalker_entity_labels() -> [String; 4] {
-    std::array::from_fn(|_| String::new())
+    std::array::from_fn(|_| "entity".to_string())
 }
 
 pub(crate) struct GuildDialog {
@@ -889,13 +889,14 @@ mod guild_dialog_keystroke_tests {
             .iter()
             .map(|definition| definition.key == "riftwalker")
             .collect();
+        let empty_riftwalker = std::array::from_fn(|_| String::new());
         let mut dialog = GuildDialog::new(
             definitions,
             selected,
             magical_keyword(),
             String::new(),
             String::new(),
-            super::default_riftwalker_entity_labels(),
+            empty_riftwalker,
         );
 
         dialog.browse_cursor = THEMES_UX_ORDER

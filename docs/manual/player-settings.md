@@ -17,10 +17,12 @@ You usually edit this through **`/guilds`** and **`/settings`**, but advanced us
 | `rig` | Your automation rig name (set in **`/settings`** or edit the profile file) |
 | `tzarakk_mount` | Mount name used for Tzarakk features |
 | `sabre_weapon` | Main-hand weapon for Sabres shortcuts |
-| `riftwalker_entity_fire` | Label you use for your fire entity |
-| `riftwalker_entity_air` | Air entity label |
-| `riftwalker_entity_water` | Water entity label |
-| `riftwalker_entity_earth` | Earth entity label |
+| `riftwalker_entity_fire` | Label you use for your fire entity (default **`entity`**) |
+| `riftwalker_entity_air` | Air entity label (default **`entity`**) |
+| `riftwalker_entity_water` | Water entity label (default **`entity`**) |
+| `riftwalker_entity_earth` | Earth entity label (default **`entity`**) |
+
+Omitted or empty values are rewritten to **`entity`** when the profile is loaded and normalized.
 
 Any other **`key = "value"`** lines are kept as extra settings. One common extra:
 
