@@ -28,34 +28,46 @@ impl NergalGuild {
 
     fn cast_enthralling_parasite(
         data: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::cast_quoted_with_suffix(
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::cast_quoted_with_suffix(
             "enthralling parasite",
             &data.args,
         ))
     }
 
-    fn cast_harvest_vitae(data: &command::Data, _: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::compound_send(&[
+    fn cast_harvest_vitae(
+        data: &command::Data,
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::compound_send(&[
             &format!("target {}", data.args),
             &format!("cast 'harvest vitae' {}", data.args),
         ]))
     }
 
-    fn cast_corrupt_ground(_: &command::Data, _: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::client_send_line("cast corrupt ground"))
+    fn cast_corrupt_ground(
+        _: &command::Data,
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("cast corrupt ground"))
     }
 
-    fn cast_evaluate_host(data: &command::Data, _: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::compound_send(&[
+    fn cast_evaluate_host(
+        data: &command::Data,
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::compound_send(&[
             &format!("target {}", data.args),
             &format!("cast 'evaluate host' {}", data.args),
         ]))
     }
 
-    fn cast_reap_potentia(data: &command::Data, _: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::compound_send(&[
+    fn cast_reap_potentia(
+        data: &command::Data,
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::compound_send(&[
             &format!("target {}", data.args),
             &format!("cast 'reap potentia' {}", data.args),
         ]))
@@ -63,9 +75,9 @@ impl NergalGuild {
 
     fn cast_parasitic_swarm(
         data: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::compound_send(&[
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::compound_send(&[
             &format!("target {}", data.args),
             &format!("cast 'parasitic swarm' {}", data.args),
         ]))
@@ -73,12 +85,12 @@ impl NergalGuild {
 
     fn cast_end_enthrallment(
         data: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.trim().is_empty() {
-            return None;
+            return Vec::new();
         }
-        Some(abilities::client_send_line(&format!(
+        command::send(abilities::client_send_line(&format!(
             "cast end enthrallment at {}",
             data.args
         )))
@@ -86,22 +98,28 @@ impl NergalGuild {
 
     fn cast_nourish_enthralled(
         data: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let mut parts = data.args.split_whitespace();
-        let first = parts.next()?;
-        let second = parts.next()?;
-        let third = parts.next()?;
-        Some(abilities::client_send_line(&format!(
+        let Some(first) = parts.next() else {
+            return Vec::new();
+        };
+        let Some(second) = parts.next() else {
+            return Vec::new();
+        };
+        let Some(third) = parts.next() else {
+            return Vec::new();
+        };
+        command::send(abilities::client_send_line(&format!(
             "cast nourish enthralled at {first} consume {second} {third}"
         )))
     }
 
     fn cast_call_forth_enthralled(
         data: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(&format!(
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(&format!(
             "cast call forth enthralled at {}",
             data.args
         )))
@@ -109,12 +127,12 @@ impl NergalGuild {
 
     fn use_embrace_the_gifts_aura(
         data: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.trim().is_empty() {
-            return None;
+            return Vec::new();
         }
-        Some(abilities::client_send_line(&format!(
+        command::send(abilities::client_send_line(&format!(
             "use embrace the gifts at start aura {}",
             data.args
         )))
@@ -122,12 +140,12 @@ impl NergalGuild {
 
     fn use_embrace_the_gifts_mutation(
         data: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.trim().is_empty() {
-            return None;
+            return Vec::new();
         }
-        Some(abilities::client_send_line(&format!(
+        command::send(abilities::client_send_line(&format!(
             "use embrace the gifts at start mutation {}",
             data.args
         )))
@@ -135,16 +153,19 @@ impl NergalGuild {
 
     fn use_dreary_hibernation(
         _: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("use dreary hibernation"))
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("use dreary hibernation"))
     }
 
-    fn use_stab(data: &command::Data, _: &mut command::CommandContext) -> Option<String> {
+    fn use_stab(
+        data: &command::Data,
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.trim().is_empty() {
-            return None;
+            return Vec::new();
         }
-        Some(abilities::compound_send(&[
+        command::send(abilities::compound_send(&[
             &format!("target {}", data.args),
             &format!("use 'stab' {}", data.args),
         ]))
@@ -155,7 +176,31 @@ impl NergalGuild {
 mod tests {
     use super::*;
     use crate::command::Data;
-    use std::collections::HashMap;
+
+    trait CommandEffectTestExt {
+        fn as_deref(&self) -> Vec<command::CommandEffect>;
+        fn is_none(&self) -> bool;
+        fn unwrap(self) -> String;
+    }
+
+    impl CommandEffectTestExt for Vec<command::CommandEffect> {
+        fn as_deref(&self) -> Vec<command::CommandEffect> {
+            self.clone()
+        }
+
+        fn is_none(&self) -> bool {
+            self.is_empty()
+        }
+
+        fn unwrap(self) -> String {
+            self.into_iter()
+                .find_map(|effect| match effect {
+                    command::CommandEffect::Send(line) => Some(line),
+                    _ => None,
+                })
+                .expect("send effect")
+        }
+    }
 
     #[test]
     fn cep_with_args_uses_quoted_spell() {
@@ -164,12 +209,9 @@ mod tests {
             args: "goblin".into(),
         };
         assert_eq!(
-            NergalGuild::cast_enthralling_parasite(
-                &data,
-                &mut command::CommandContext::new(HashMap::new(), true, String::new())
-            )
-            .as_deref(),
-            Some("@cast 'enthralling parasite' goblin")
+            NergalGuild::cast_enthralling_parasite(&data, &command::CommandEnvironment::empty())
+                .as_deref(),
+            command::send("@cast 'enthralling parasite' goblin")
         );
     }
 
@@ -180,11 +222,8 @@ mod tests {
             args: "   ".into(),
         };
         assert!(
-            NergalGuild::cast_end_enthrallment(
-                &data,
-                &mut command::CommandContext::new(Default::default(), true, String::new())
-            )
-            .is_none()
+            NergalGuild::cast_end_enthrallment(&data, &command::CommandEnvironment::empty())
+                .is_none()
         );
     }
 
@@ -194,11 +233,8 @@ mod tests {
             cmd: "cee".into(),
             args: "host1".into(),
         };
-        let out = NergalGuild::cast_end_enthrallment(
-            &data,
-            &mut command::CommandContext::new(Default::default(), true, String::new()),
-        )
-        .unwrap();
+        let out = NergalGuild::cast_end_enthrallment(&data, &command::CommandEnvironment::empty())
+            .unwrap();
         assert_eq!(out, "@cast end enthrallment at host1");
     }
 
@@ -209,11 +245,8 @@ mod tests {
             args: "a b".into(),
         };
         assert!(
-            NergalGuild::cast_nourish_enthralled(
-                &data,
-                &mut command::CommandContext::new(Default::default(), true, String::new())
-            )
-            .is_none()
+            NergalGuild::cast_nourish_enthralled(&data, &command::CommandEnvironment::empty())
+                .is_none()
         );
     }
 
@@ -223,11 +256,9 @@ mod tests {
             cmd: "cne".into(),
             args: "host minor vitae".into(),
         };
-        let out = NergalGuild::cast_nourish_enthralled(
-            &data,
-            &mut command::CommandContext::new(Default::default(), true, String::new()),
-        )
-        .unwrap();
+        let out =
+            NergalGuild::cast_nourish_enthralled(&data, &command::CommandEnvironment::empty())
+                .unwrap();
         assert_eq!(out, "@cast nourish enthralled at host consume minor vitae");
     }
 
@@ -237,11 +268,8 @@ mod tests {
             cmd: "chv".into(),
             args: "orc".into(),
         };
-        let out = NergalGuild::cast_harvest_vitae(
-            &data,
-            &mut command::CommandContext::new(Default::default(), true, String::new()),
-        )
-        .unwrap();
+        let out =
+            NergalGuild::cast_harvest_vitae(&data, &command::CommandEnvironment::empty()).unwrap();
         assert_eq!(out, "@target orc;cast 'harvest vitae' orc");
     }
 
@@ -251,12 +279,6 @@ mod tests {
             cmd: "us".into(),
             args: "".into(),
         };
-        assert!(
-            NergalGuild::use_stab(
-                &data,
-                &mut command::CommandContext::new(Default::default(), true, String::new())
-            )
-            .is_none()
-        );
+        assert!(NergalGuild::use_stab(&data, &command::CommandEnvironment::empty()).is_none());
     }
 }

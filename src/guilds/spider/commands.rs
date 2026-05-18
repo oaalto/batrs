@@ -27,12 +27,15 @@ impl SpiderGuild {
         ])
     }
 
-    fn cast_spider_wrath(data: &command::Data, _: &mut command::CommandContext) -> Option<String> {
+    fn cast_spider_wrath(
+        data: &command::Data,
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            return Some(abilities::cast_quoted_with_suffix("spider wrath", ""));
+            return command::send(abilities::cast_quoted_with_suffix("spider wrath", ""));
         }
-        Some(abilities::compound_send(&[
+        command::send(abilities::compound_send(&[
             &format!("target {args}"),
             &format!("cast 'spider wrath' {args}"),
         ]))
@@ -40,13 +43,13 @@ impl SpiderGuild {
 
     fn cast_hunger_of_the_spider(
         data: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            return None;
+            return Vec::new();
         }
-        Some(abilities::compound_send(&[
+        command::send(abilities::compound_send(&[
             &format!("target {args}"),
             &format!("cast hunger of the spider at {args}"),
         ]))
@@ -54,9 +57,9 @@ impl SpiderGuild {
 
     fn cast_spider_demon_conjuration(
         data: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(&format!(
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(&format!(
             "cast spider demon conjuration at me with {}",
             data.args
         )))
@@ -64,18 +67,18 @@ impl SpiderGuild {
 
     fn cast_spider_demon_control(
         _: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "cast spider demon control at me",
         ))
     }
 
     fn cast_spider_demon_sacrifice(
         data: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(&format!(
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(&format!(
             "cast spider demon sacrifice at {}",
             data.args.trim()
         )))
@@ -83,107 +86,121 @@ impl SpiderGuild {
 
     fn cast_spider_demon_banishment(
         _: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "cast spider demon banishment at me",
         ))
     }
 
     fn cast_spider_demon_inquiry(
         _: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "cast spider demon inquiry at me",
         ))
     }
 
     fn cast_spider_demon_channeling(
         _: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "cast spider demon channeling at me",
         ))
     }
 
     fn cast_toxic_dilution(
         data: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            Some(abilities::client_send_line("cast toxic dilution at me"))
+            command::send(abilities::client_send_line("cast toxic dilution at me"))
         } else {
-            Some(abilities::cast_quoted_with_suffix("toxic dilution", args))
+            command::send(abilities::cast_quoted_with_suffix("toxic dilution", args))
         }
     }
 
-    fn cast_venom_blade(data: &command::Data, ctx: &mut command::CommandContext) -> Option<String> {
+    fn cast_venom_blade(
+        data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
             let mut banner = StyledLine::new("No target!");
             banner.set_line_style(TextStyle::BRIGHT_RED);
-            ctx.push_output_line(banner);
-            return None;
+            return vec![command::output(banner)];
         }
-        Some(abilities::cast_quoted_with_suffix("venom blade", args))
+        command::send(abilities::cast_quoted_with_suffix("venom blade", args))
     }
 
-    fn cast_spider_walk(data: &command::Data, _: &mut command::CommandContext) -> Option<String> {
+    fn cast_spider_walk(
+        data: &command::Data,
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            Some(abilities::client_send_line("cast spider walk at me"))
+            command::send(abilities::client_send_line("cast spider walk at me"))
         } else {
-            Some(abilities::cast_quoted_with_suffix("spider walk", args))
+            command::send(abilities::cast_quoted_with_suffix("spider walk", args))
         }
     }
 
-    fn cast_heavy_weight(data: &command::Data, _: &mut command::CommandContext) -> Option<String> {
+    fn cast_heavy_weight(
+        data: &command::Data,
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            Some(abilities::client_send_line("cast heavy weight at me"))
+            command::send(abilities::client_send_line("cast heavy weight at me"))
         } else {
-            Some(abilities::cast_quoted_with_suffix("heavy weight", args))
+            command::send(abilities::cast_quoted_with_suffix("heavy weight", args))
         }
     }
 
     fn cast_spider_demon_mass_sacrifice(
         _: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "cast spider demon mass sacrifice",
         ))
     }
 
     fn cast_prayer_to_the_spider_queen(
         _: &command::Data,
-        _: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "cast prayer to the spider queen",
         ))
     }
 
-    fn cast_remove_poison(data: &command::Data, _: &mut command::CommandContext) -> Option<String> {
+    fn cast_remove_poison(
+        data: &command::Data,
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            Some(abilities::client_send_line("cast remove poison at me"))
+            command::send(abilities::client_send_line("cast remove poison at me"))
         } else {
-            Some(abilities::client_send_line(&format!(
+            command::send(abilities::client_send_line(&format!(
                 "cast remove poison at {args}"
             )))
         }
     }
 
-    fn use_stab(data: &command::Data, _: &mut command::CommandContext) -> Option<String> {
+    fn use_stab(
+        data: &command::Data,
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            return Some(abilities::client_send_line("use 'stab'"));
+            return command::send(abilities::client_send_line("use 'stab'"));
         }
-        Some(abilities::compound_send(&[
+        command::send(abilities::compound_send(&[
             &format!("target {args}"),
             &format!("use 'stab' {args}"),
         ]))
@@ -193,10 +210,27 @@ impl SpiderGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
-    fn ctx() -> CommandContext {
-        CommandContext::new(std::collections::HashMap::new(), true, String::new())
+    fn ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
+    }
+
+    fn send_line(effects: Vec<command::CommandEffect>) -> Option<String> {
+        effects.into_iter().find_map(|effect| match effect {
+            command::CommandEffect::Send(line) => Some(line),
+            _ => None,
+        })
+    }
+
+    trait CommandEffectTestExt {
+        fn as_deref(&self) -> Vec<command::CommandEffect>;
+    }
+
+    impl CommandEffectTestExt for Vec<command::CommandEffect> {
+        fn as_deref(&self) -> Vec<command::CommandEffect> {
+            self.clone()
+        }
     }
 
     #[test]
@@ -205,7 +239,7 @@ mod tests {
             cmd: "csw".into(),
             args: "".into(),
         };
-        let out = SpiderGuild::cast_spider_wrath(&data, &mut ctx()).unwrap();
+        let out = send_line(SpiderGuild::cast_spider_wrath(&data, &ctx())).unwrap();
         assert_eq!(out, "@cast 'spider wrath'");
     }
 
@@ -215,7 +249,7 @@ mod tests {
             cmd: "csw".into(),
             args: "orc".into(),
         };
-        let out = SpiderGuild::cast_spider_wrath(&data, &mut ctx()).unwrap();
+        let out = send_line(SpiderGuild::cast_spider_wrath(&data, &ctx())).unwrap();
         assert_eq!(out, "@target orc;cast 'spider wrath' orc");
     }
 
@@ -225,7 +259,7 @@ mod tests {
             cmd: "chs".into(),
             args: "".into(),
         };
-        assert!(SpiderGuild::cast_hunger_of_the_spider(&data, &mut ctx()).is_none());
+        assert!(SpiderGuild::cast_hunger_of_the_spider(&data, &ctx()).is_empty());
     }
 
     #[test]
@@ -234,7 +268,7 @@ mod tests {
             cmd: "chs".into(),
             args: "  troll  ".into(),
         };
-        let out = SpiderGuild::cast_hunger_of_the_spider(&data, &mut ctx()).unwrap();
+        let out = send_line(SpiderGuild::cast_hunger_of_the_spider(&data, &ctx())).unwrap();
         assert_eq!(out, "@target troll;cast hunger of the spider at troll");
     }
 
@@ -244,7 +278,7 @@ mod tests {
             cmd: "csum".into(),
             args: "".into(),
         };
-        let out = SpiderGuild::cast_spider_demon_conjuration(&data, &mut ctx()).unwrap();
+        let out = send_line(SpiderGuild::cast_spider_demon_conjuration(&data, &ctx())).unwrap();
         assert_eq!(out, "@cast spider demon conjuration at me with ");
     }
 
@@ -254,7 +288,7 @@ mod tests {
             cmd: "csum".into(),
             args: "thing".into(),
         };
-        let out = SpiderGuild::cast_spider_demon_conjuration(&data, &mut ctx()).unwrap();
+        let out = send_line(SpiderGuild::cast_spider_demon_conjuration(&data, &ctx())).unwrap();
         assert_eq!(out, "@cast spider demon conjuration at me with thing");
     }
 
@@ -264,7 +298,7 @@ mod tests {
             cmd: "ctrl".into(),
             args: "ignored".into(),
         };
-        let out = SpiderGuild::cast_spider_demon_control(&data, &mut ctx()).unwrap();
+        let out = send_line(SpiderGuild::cast_spider_demon_control(&data, &ctx())).unwrap();
         assert_eq!(out, "@cast spider demon control at me");
     }
 
@@ -274,7 +308,7 @@ mod tests {
             cmd: "ctd".into(),
             args: "".into(),
         };
-        let out = SpiderGuild::cast_toxic_dilution(&data, &mut ctx()).unwrap();
+        let out = send_line(SpiderGuild::cast_toxic_dilution(&data, &ctx())).unwrap();
         assert_eq!(out, "@cast toxic dilution at me");
     }
 
@@ -284,7 +318,7 @@ mod tests {
             cmd: "ctd".into(),
             args: "foo".into(),
         };
-        let out = SpiderGuild::cast_toxic_dilution(&data, &mut ctx()).unwrap();
+        let out = send_line(SpiderGuild::cast_toxic_dilution(&data, &ctx())).unwrap();
         assert_eq!(out, "@cast 'toxic dilution' foo");
     }
 
@@ -294,10 +328,12 @@ mod tests {
             cmd: "cvb".into(),
             args: "".into(),
         };
-        let mut cx = ctx();
-        assert!(SpiderGuild::cast_venom_blade(&data, &mut cx).is_none(),);
-        assert_eq!(cx.output_lines.len(), 1);
-        assert_eq!(cx.output_lines[0].plain_line, "No target!");
+        let effects = SpiderGuild::cast_venom_blade(&data, &ctx());
+        assert_eq!(effects.len(), 1);
+        assert!(matches!(
+            &effects[0],
+            command::CommandEffect::Output(line) if line.plain_line == "No target!"
+        ));
     }
 
     #[test]
@@ -306,23 +342,23 @@ mod tests {
             cmd: "cvb".into(),
             args: "orc".into(),
         };
-        let out = SpiderGuild::cast_venom_blade(&data, &mut ctx()).unwrap();
+        let out = send_line(SpiderGuild::cast_venom_blade(&data, &ctx())).unwrap();
         assert_eq!(out, "@cast 'venom blade' orc");
     }
 
     #[test]
     fn cswalk_and_chw_branches() {
-        let mut cx = ctx();
+        let cx = ctx();
         assert_eq!(
             SpiderGuild::cast_spider_walk(
                 &command::Data {
                     cmd: "cswalk".into(),
                     args: "".into(),
                 },
-                &mut cx
+                &cx
             )
             .as_deref(),
-            Some("@cast spider walk at me")
+            command::send("@cast spider walk at me")
         );
         assert_eq!(
             SpiderGuild::cast_spider_walk(
@@ -330,10 +366,10 @@ mod tests {
                     cmd: "cswalk".into(),
                     args: "x".into(),
                 },
-                &mut cx,
+                &cx,
             )
             .as_deref(),
-            Some("@cast 'spider walk' x")
+            command::send("@cast 'spider walk' x")
         );
         assert_eq!(
             SpiderGuild::cast_heavy_weight(
@@ -341,10 +377,10 @@ mod tests {
                     cmd: "chw".into(),
                     args: "".into(),
                 },
-                &mut cx,
+                &cx,
             )
             .as_deref(),
-            Some("@cast heavy weight at me")
+            command::send("@cast heavy weight at me")
         );
         assert_eq!(
             SpiderGuild::cast_heavy_weight(
@@ -352,26 +388,26 @@ mod tests {
                     cmd: "chw".into(),
                     args: "orc".into(),
                 },
-                &mut cx,
+                &cx,
             )
             .as_deref(),
-            Some("@cast 'heavy weight' orc")
+            command::send("@cast 'heavy weight' orc")
         );
     }
 
     #[test]
     fn cmsac_cpsq() {
-        let mut cx = ctx();
+        let cx = ctx();
         assert_eq!(
             SpiderGuild::cast_spider_demon_mass_sacrifice(
                 &command::Data {
                     cmd: "cmsac".into(),
                     args: "".into(),
                 },
-                &mut cx,
+                &cx,
             )
             .as_deref(),
-            Some("@cast spider demon mass sacrifice")
+            command::send("@cast spider demon mass sacrifice")
         );
         assert_eq!(
             SpiderGuild::cast_prayer_to_the_spider_queen(
@@ -379,26 +415,26 @@ mod tests {
                     cmd: "cpsq".into(),
                     args: "".into(),
                 },
-                &mut cx,
+                &cx,
             )
             .as_deref(),
-            Some("@cast prayer to the spider queen")
+            command::send("@cast prayer to the spider queen")
         );
     }
 
     #[test]
     fn crmp_branching() {
-        let mut cx = ctx();
+        let cx = ctx();
         assert_eq!(
             SpiderGuild::cast_remove_poison(
                 &command::Data {
                     cmd: "crmp".into(),
                     args: "".into(),
                 },
-                &mut cx,
+                &cx,
             )
             .as_deref(),
-            Some("@cast remove poison at me")
+            command::send("@cast remove poison at me")
         );
         assert_eq!(
             SpiderGuild::cast_remove_poison(
@@ -406,26 +442,26 @@ mod tests {
                     cmd: "crmp".into(),
                     args: "ally".into(),
                 },
-                &mut cx,
+                &cx,
             )
             .as_deref(),
-            Some("@cast remove poison at ally")
+            command::send("@cast remove poison at ally")
         );
     }
 
     #[test]
     fn use_stab_empty_and_with_target() {
-        let mut cx = ctx();
+        let cx = ctx();
         assert_eq!(
             SpiderGuild::use_stab(
                 &command::Data {
                     cmd: "us".into(),
                     args: "".into(),
                 },
-                &mut cx,
+                &cx,
             )
             .as_deref(),
-            Some("@use 'stab'")
+            command::send("@use 'stab'")
         );
         assert_eq!(
             SpiderGuild::use_stab(
@@ -433,10 +469,10 @@ mod tests {
                     cmd: "us".into(),
                     args: "orc".into(),
                 },
-                &mut cx,
+                &cx,
             )
             .as_deref(),
-            Some("@target orc;use 'stab' orc")
+            command::send("@target orc;use 'stab' orc")
         );
     }
 }

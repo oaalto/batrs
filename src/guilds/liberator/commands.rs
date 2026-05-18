@@ -55,9 +55,9 @@ impl LiberatorGuild {
 
     pub fn lib_autoselect(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(&format!(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(&format!(
             "liberator autoselect {}",
             NON_SPECIALIST_SELECT
         )))
@@ -65,8 +65,8 @@ impl LiberatorGuild {
 
     pub fn cast_ghost_light(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let tail = data.args.trim();
         let select = liberator_select_non_specialist();
         let logical = if tail.is_empty() {
@@ -74,13 +74,13 @@ impl LiberatorGuild {
         } else {
             format!("target {tail};{select};cast 'ghost light' {tail}")
         };
-        Some(abilities::client_send_line(&logical))
+        command::send(abilities::client_send_line(&logical))
     }
 
     pub fn cast_ghost_chill(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let tail = data.args.trim();
         let select = liberator_select_non_specialist();
         let logical = if tail.is_empty() {
@@ -88,14 +88,14 @@ impl LiberatorGuild {
         } else {
             format!("target {tail};{select};cast 'ghost chill' {tail}")
         };
-        Some(abilities::client_send_line(&logical))
+        command::send(abilities::client_send_line(&logical))
     }
 
     pub fn cast_ghost_armour(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::compound_send(&[
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::compound_send(&[
             "liberator select weakest armoursmith",
             "cast ghost armour",
         ]))
@@ -103,13 +103,13 @@ impl LiberatorGuild {
 
     pub fn cast_ghost_sword(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let tail = data.args.trim();
         if tail.is_empty() {
-            return None;
+            return Vec::new();
         }
-        Some(abilities::compound_send(&[
+        command::send(abilities::compound_send(&[
             "liberator select weakest weaponsmith",
             &format!("cast ghost sword at {tail}"),
         ]))
@@ -117,9 +117,9 @@ impl LiberatorGuild {
 
     pub fn cast_ghost_companion(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::compound_send(&[
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::compound_send(&[
             "liberator select weakest guardian",
             "cast ghost companion",
         ]))
@@ -127,10 +127,10 @@ impl LiberatorGuild {
 
     pub fn cast_ghost_link(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let select = liberator_select_non_specialist();
-        Some(abilities::compound_send(&[
+        command::send(abilities::compound_send(&[
             select.as_str(),
             "cast ghost link at me",
         ]))
@@ -138,8 +138,8 @@ impl LiberatorGuild {
 
     pub fn cast_restful_sleep(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let tail = data.args.trim();
         let select = liberator_select_non_specialist();
         let logical = if tail.is_empty() {
@@ -147,24 +147,27 @@ impl LiberatorGuild {
         } else {
             format!("{select};cast restful sleep {tail}")
         };
-        Some(abilities::client_send_line(&logical))
+        command::send(abilities::client_send_line(&logical))
     }
 
     pub fn cast_holy_glow(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("cast holy glow"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("cast holy glow"))
     }
 
-    pub fn use_slash(data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some(use_skill("slash", data))
+    pub fn use_slash(
+        data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("slash", data))
     }
 
     pub fn use_ghost_slash(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let tail = data.args.trim();
         let core = if tail.is_empty() {
             "liberator select clear;liberator select weakest soldier;use 'ghost slash'".to_string()
@@ -174,13 +177,13 @@ impl LiberatorGuild {
                 tail
             )
         };
-        Some(optional_target_then(tail, &core))
+        command::send(optional_target_then(tail, &core))
     }
 
     pub fn use_radiant_slash(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let tail = data.args.trim();
         let select = liberator_select_non_specialist();
         let core = if tail.is_empty() {
@@ -188,14 +191,14 @@ impl LiberatorGuild {
         } else {
             format!("{select};use 'radiant slash' {}", tail)
         };
-        Some(optional_target_then(tail, &core))
+        command::send(optional_target_then(tail, &core))
     }
 
     pub fn use_ghost_channeling_fire(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::compound_send(&[
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::compound_send(&[
             "liberator select weakest ranger",
             "use 'ghost channeling' fire",
         ]))
@@ -203,9 +206,9 @@ impl LiberatorGuild {
 
     pub fn use_ghost_channeling_camp(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::compound_send(&[
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::compound_send(&[
             "liberator select weakest ranger",
             "use 'ghost channeling' camp",
         ]))
@@ -215,7 +218,7 @@ impl LiberatorGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
     fn data(cmd: &str, args: &str) -> command::Data {
         command::Data {
@@ -224,80 +227,84 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
     #[test]
     fn lib_autoselect_matches_expected() {
-        let out = LiberatorGuild::lib_autoselect(&data("lib_autoselect", ""), &mut empty_ctx());
+        let out = LiberatorGuild::lib_autoselect(&data("lib_autoselect", ""), &empty_ctx());
         assert_eq!(
             out,
-            Some("@liberator autoselect weakest non armoursmith,guardian,weaponsmith,soldier,locksmith,ranger".to_string())
+            command::send("@liberator autoselect weakest non armoursmith,guardian,weaponsmith,soldier,locksmith,ranger".to_string())
         );
     }
 
     #[test]
     fn ghost_light_without_target() {
-        let out = LiberatorGuild::cast_ghost_light(&data("cgl", ""), &mut empty_ctx());
+        let out = LiberatorGuild::cast_ghost_light(&data("cgl", ""), &empty_ctx());
         assert_eq!(
             out,
-            Some("@liberator select weakest non armoursmith,guardian,weaponsmith,soldier,locksmith,ranger;cast 'ghost light'".to_string())
+            command::send("@liberator select weakest non armoursmith,guardian,weaponsmith,soldier,locksmith,ranger;cast 'ghost light'".to_string())
         );
     }
 
     #[test]
     fn ghost_light_with_target() {
-        let out = LiberatorGuild::cast_ghost_light(&data("cgl", "orc"), &mut empty_ctx());
+        let out = LiberatorGuild::cast_ghost_light(&data("cgl", "orc"), &empty_ctx());
         assert_eq!(
             out,
-            Some("@target orc;liberator select weakest non armoursmith,guardian,weaponsmith,soldier,locksmith,ranger;cast 'ghost light' orc".to_string())
+            command::send("@target orc;liberator select weakest non armoursmith,guardian,weaponsmith,soldier,locksmith,ranger;cast 'ghost light' orc".to_string())
         );
     }
 
     #[test]
     fn ghost_armour() {
-        let out = LiberatorGuild::cast_ghost_armour(&data("cga", ""), &mut empty_ctx());
+        let out = LiberatorGuild::cast_ghost_armour(&data("cga", ""), &empty_ctx());
         assert_eq!(
             out,
-            Some("@liberator select weakest armoursmith;cast ghost armour".to_string())
+            command::send("@liberator select weakest armoursmith;cast ghost armour".to_string())
         );
     }
 
     #[test]
     fn ghost_sword_requires_target() {
         assert_eq!(
-            LiberatorGuild::cast_ghost_sword(&data("cgs", ""), &mut empty_ctx()),
-            None
+            LiberatorGuild::cast_ghost_sword(&data("cgs", ""), &empty_ctx()),
+            Vec::new()
         );
-        let out = LiberatorGuild::cast_ghost_sword(&data("cgs", "troll"), &mut empty_ctx());
+        let out = LiberatorGuild::cast_ghost_sword(&data("cgs", "troll"), &empty_ctx());
         assert_eq!(
             out,
-            Some("@liberator select weakest weaponsmith;cast ghost sword at troll".to_string())
+            command::send(
+                "@liberator select weakest weaponsmith;cast ghost sword at troll".to_string()
+            )
         );
     }
 
     #[test]
     fn ghost_slash_with_target() {
-        let out = LiberatorGuild::use_ghost_slash(&data("ugs", "orc"), &mut empty_ctx());
+        let out = LiberatorGuild::use_ghost_slash(&data("ugs", "orc"), &empty_ctx());
         assert_eq!(
             out,
-            Some("@target orc;liberator select clear;liberator select weakest soldier;use 'ghost slash' orc".to_string())
+            command::send("@target orc;liberator select clear;liberator select weakest soldier;use 'ghost slash' orc".to_string())
         );
     }
 
     #[test]
     fn holy_glow_unquoted() {
-        let out = LiberatorGuild::cast_holy_glow(&data("chg", ""), &mut empty_ctx());
-        assert_eq!(out, Some("@cast holy glow".to_string()));
+        let out = LiberatorGuild::cast_holy_glow(&data("chg", ""), &empty_ctx());
+        assert_eq!(out, command::send("@cast holy glow".to_string()));
     }
 
     #[test]
     fn ghost_channeling_fire() {
-        let out = LiberatorGuild::use_ghost_channeling_fire(&data("ugcf", ""), &mut empty_ctx());
+        let out = LiberatorGuild::use_ghost_channeling_fire(&data("ugcf", ""), &empty_ctx());
         assert_eq!(
             out,
-            Some("@liberator select weakest ranger;use 'ghost channeling' fire".to_string())
+            command::send(
+                "@liberator select weakest ranger;use 'ghost channeling' fire".to_string()
+            )
         );
     }
 }

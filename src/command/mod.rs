@@ -74,7 +74,7 @@ pub fn dispatch(
     }
 
     if let Some(cmd) = guild_cmds.get(parsed.name()) {
-        return adapt_legacy_handler(*cmd, &parsed, env);
+        return cmd(&parsed, &env);
     }
 
     if let Some(send) = generic.render_command(parsed.name(), &parsed.args) {
@@ -84,7 +84,7 @@ pub fn dispatch(
     vec![CommandEffect::Send(parsed.original())]
 }
 
-pub type Command = fn(&ParsedCommand, &mut CommandContext) -> Option<String>;
+pub type Command = fn(&ParsedCommand, &CommandEnvironment) -> Vec<CommandEffect>;
 
 pub type Data = ParsedCommand;
 
@@ -111,7 +111,7 @@ impl CommandDispatchInput {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommandEffect {
     Send(String),
     Automation(Action),
@@ -142,62 +142,6 @@ impl BuiltinCommand {
     }
 }
 
-#[derive(Debug)]
-pub struct CommandContext {
-    pub should_quit: bool,
-    pub automation_actions: Vec<Action>,
-    env: CommandEnvironment,
-    pub output_lines: Vec<StyledLine>,
-    pub open_guilds_dialog: bool,
-    pub open_generic_commands_dialog: bool,
-    pub open_settings_dialog: bool,
-    pub toggle_raw_logs: bool,
-}
-
-impl CommandContext {
-    #[cfg(test)]
-    pub fn new(
-        automation_flags: HashMap<String, bool>,
-        _logged_in: bool,
-        _legacy_setting: String,
-    ) -> Self {
-        Self::with_vars(automation_flags, HashMap::new())
-    }
-
-    #[cfg(test)]
-    pub fn with_vars(
-        automation_flags: HashMap<String, bool>,
-        automation_vars: HashMap<String, String>,
-    ) -> Self {
-        Self {
-            should_quit: false,
-            automation_actions: Vec::new(),
-            env: CommandEnvironment::new(automation_flags, automation_vars),
-            output_lines: Vec::new(),
-            open_guilds_dialog: false,
-            open_generic_commands_dialog: false,
-            open_settings_dialog: false,
-            toggle_raw_logs: false,
-        }
-    }
-
-    pub fn flag(&self, key: &str) -> bool {
-        self.env.flag(key)
-    }
-
-    pub fn var(&self, key: &str) -> Option<&str> {
-        self.env.var(key)
-    }
-
-    pub fn push_action(&mut self, action: Action) {
-        self.automation_actions.push(action);
-    }
-
-    pub fn push_output_line(&mut self, line: StyledLine) {
-        self.output_lines.push(line);
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CommandEnvironment {
     flags: HashMap<String, bool>,
@@ -209,6 +153,16 @@ impl CommandEnvironment {
         Self { flags, vars }
     }
 
+    #[cfg(test)]
+    pub fn empty() -> Self {
+        Self::new(HashMap::new(), HashMap::new())
+    }
+
+    #[cfg(test)]
+    pub fn with_vars(flags: HashMap<String, bool>, vars: HashMap<String, String>) -> Self {
+        Self::new(flags, vars)
+    }
+
     pub fn flag(&self, key: &str) -> bool {
         self.flags.get(key).copied().unwrap_or(false)
     }
@@ -216,6 +170,22 @@ impl CommandEnvironment {
     pub fn var(&self, key: &str) -> Option<&str> {
         self.vars.get(key).map(String::as_str)
     }
+}
+
+pub fn send(line: impl Into<String>) -> Vec<CommandEffect> {
+    vec![CommandEffect::Send(line.into())]
+}
+
+pub fn automation(action: Action) -> CommandEffect {
+    CommandEffect::Automation(action)
+}
+
+pub fn automations(actions: impl IntoIterator<Item = Action>) -> Vec<CommandEffect> {
+    actions.into_iter().map(CommandEffect::Automation).collect()
+}
+
+pub fn output(line: StyledLine) -> CommandEffect {
+    CommandEffect::Output(line)
 }
 
 pub struct ParsedCommand {
@@ -300,51 +270,6 @@ fn builtin_toggle_raw_logs(_data: &ParsedCommand) -> Vec<CommandEffect> {
     vec![CommandEffect::ToggleRawLogs]
 }
 
-fn adapt_legacy_handler(
-    handler: Command,
-    data: &ParsedCommand,
-    env: CommandEnvironment,
-) -> Vec<CommandEffect> {
-    let mut ctx = CommandContext {
-        should_quit: false,
-        automation_actions: Vec::new(),
-        env,
-        output_lines: Vec::new(),
-        open_guilds_dialog: false,
-        open_generic_commands_dialog: false,
-        open_settings_dialog: false,
-        toggle_raw_logs: false,
-    };
-
-    let send = handler(data, &mut ctx);
-    let mut effects = Vec::new();
-    if ctx.should_quit {
-        effects.push(CommandEffect::Quit);
-    }
-    effects.extend(
-        ctx.automation_actions
-            .into_iter()
-            .map(CommandEffect::Automation),
-    );
-    effects.extend(ctx.output_lines.into_iter().map(CommandEffect::Output));
-    if ctx.open_guilds_dialog {
-        effects.push(CommandEffect::OpenDialog(DialogKind::Guilds));
-    }
-    if ctx.open_generic_commands_dialog {
-        effects.push(CommandEffect::OpenDialog(DialogKind::GenericCommands));
-    }
-    if ctx.open_settings_dialog {
-        effects.push(CommandEffect::OpenDialog(DialogKind::Settings));
-    }
-    if ctx.toggle_raw_logs {
-        effects.push(CommandEffect::ToggleRawLogs);
-    }
-    if let Some(send) = send {
-        effects.push(CommandEffect::Send(send));
-    }
-    effects
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -364,11 +289,11 @@ mod tests {
         }
     }
 
-    fn ping_handler(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
+    fn ping_handler(data: &Data, _env: &CommandEnvironment) -> Vec<CommandEffect> {
         if data.args.is_empty() {
-            Some("pong".to_string())
+            send("pong")
         } else {
-            Some(format!("pong {}", data.args))
+            send(format!("pong {}", data.args))
         }
     }
 

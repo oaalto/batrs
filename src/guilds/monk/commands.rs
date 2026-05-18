@@ -33,168 +33,183 @@ impl MonkGuild {
         ])
     }
 
-    pub fn use_kiai_cry(data: &command::Data, ctx: &mut command::CommandContext) -> Option<String> {
-        reset_current_skills(ctx);
+    pub fn use_kiai_cry(
+        data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        let mut effects = reset_current_skill_effects();
         if data.args.is_empty() {
-            None
+            effects
         } else {
-            Some(abilities::client_send_line(&format!(
+            effects.extend(command::send(abilities::client_send_line(&format!(
                 "target {};use kiai-cry at {}",
                 data.args, data.args
-            )))
+            ))));
+            effects
         }
     }
 
     pub fn use_joint_lock(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        reset_current_skills(ctx);
-        Some(use_skill("joint lock", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        let mut effects = reset_current_skill_effects();
+        effects.extend(command::send(use_skill("joint lock", data)));
+        effects
     }
 
     pub fn use_pattern_weave(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        reset_current_skills(ctx);
-        Some(use_skill("pattern weave", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        let mut effects = reset_current_skill_effects();
+        effects.extend(command::send(use_skill("pattern weave", data)));
+        effects
     }
 
     pub fn use_skulking(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        reset_current_skills(ctx);
-        Some(abilities::client_send_line("use 'skulking'"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        let mut effects = reset_current_skill_effects();
+        effects.extend(command::send(abilities::client_send_line("use 'skulking'")));
+        effects
     }
 
     pub fn use_iron_palm(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        reset_current_skills(ctx);
-        Some(use_skill("iron palm", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        let mut effects = reset_current_skill_effects();
+        effects.extend(command::send(use_skill("iron palm", data)));
+        effects
     }
 
-    pub fn use_kata(_data: &command::Data, ctx: &mut command::CommandContext) -> Option<String> {
-        reset_current_skills(ctx);
-        Some(abilities::client_send_line("use 'kata'"))
+    pub fn use_kata(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        let mut effects = reset_current_skill_effects();
+        effects.extend(command::send(abilities::client_send_line("use 'kata'")));
+        effects
     }
 
     pub fn use_meditation(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        reset_current_skills(ctx);
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        let mut effects = reset_current_skill_effects();
         if ctx.flag(KATA_DONE_FLAG) {
-            Some(abilities::client_send_line("use 'meditation'"))
+            effects.extend(command::send(abilities::client_send_line(
+                "use 'meditation'",
+            )));
         } else {
-            ctx.push_action(Action::SetFlag(DOING_MEDITATION_FLAG.to_string(), true));
-            Some(abilities::client_send_line("use 'kata'"))
+            effects.push(command::automation(Action::SetFlag(
+                DOING_MEDITATION_FLAG.to_string(),
+                true,
+            )));
+            effects.extend(command::send(abilities::client_send_line("use 'kata'")));
         }
+        effects
     }
 
     pub fn use_mind_over_body(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        reset_current_skills(ctx);
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        let mut effects = reset_current_skill_effects();
         if data.args.is_empty() {
-            Some(abilities::client_send_line("use 'mind over body'"))
+            effects.extend(command::send(abilities::client_send_line(
+                "use 'mind over body'",
+            )));
         } else {
-            Some(abilities::client_send_line(&format!(
+            effects.extend(command::send(abilities::client_send_line(&format!(
                 "use 'mind over body' at {}",
                 data.args
-            )))
+            ))));
         }
+        effects
     }
 
     pub fn do_disrupt_skill(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        send_current_skill(ctx, CURRENT_DISRUPT_SKILL_VAR, &data.args);
-        None
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        current_skill_effects(CURRENT_DISRUPT_SKILL_VAR, &data.args)
     }
 
     pub fn do_area_skill(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        send_current_skill(ctx, CURRENT_AREA_SKILL_VAR, &data.args);
-        None
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        current_skill_effects(CURRENT_AREA_SKILL_VAR, &data.args)
     }
 
     pub fn do_armour_skill(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        send_current_skill(ctx, CURRENT_ARMOUR_SKILL_VAR, &data.args);
-        None
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        current_skill_effects(CURRENT_ARMOUR_SKILL_VAR, &data.args)
     }
 
     pub fn do_avoid_skill(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        send_current_skill(ctx, CURRENT_AVOID_SKILL_VAR, &data.args);
-        None
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        current_skill_effects(CURRENT_AVOID_SKILL_VAR, &data.args)
     }
 
     pub fn use_wave_crest_strike(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        ctx.push_action(Action::SetVar(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        let mut effects = vec![command::automation(Action::SetVar(
             CURRENT_DISRUPT_SKILL_VAR.to_string(),
             DISRUPT_SKILL_1.to_string(),
-        ));
-        send_current_skill(ctx, CURRENT_DISRUPT_SKILL_VAR, &data.args);
-        None
+        ))];
+        effects.extend(current_skill_effects(CURRENT_DISRUPT_SKILL_VAR, &data.args));
+        effects
     }
 
     pub fn use_geyser_force_kick(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        ctx.push_action(Action::SetVar(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        let mut effects = vec![command::automation(Action::SetVar(
             CURRENT_DISRUPT_SKILL_VAR.to_string(),
             DISRUPT_SKILL_2.to_string(),
-        ));
-        send_current_skill(ctx, CURRENT_DISRUPT_SKILL_VAR, &data.args);
-        None
+        ))];
+        effects.extend(current_skill_effects(CURRENT_DISRUPT_SKILL_VAR, &data.args));
+        effects
     }
 
     pub fn use_earthquake_kick(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        ctx.push_action(Action::SetVar(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        let mut effects = vec![command::automation(Action::SetVar(
             CURRENT_ARMOUR_SKILL_VAR.to_string(),
             ARMOUR_SKILL_2.to_string(),
-        ));
-        send_current_skill(ctx, CURRENT_ARMOUR_SKILL_VAR, &data.args);
-        None
+        ))];
+        effects.extend(current_skill_effects(CURRENT_ARMOUR_SKILL_VAR, &data.args));
+        effects
     }
 
     pub fn use_avalanche_slam(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        ctx.push_action(Action::SetVar(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        let mut effects = vec![command::automation(Action::SetVar(
             CURRENT_ARMOUR_SKILL_VAR.to_string(),
             ARMOUR_SKILL_3.to_string(),
-        ));
-        send_current_skill(ctx, CURRENT_ARMOUR_SKILL_VAR, &data.args);
-        None
+        ))];
+        effects.extend(current_skill_effects(CURRENT_ARMOUR_SKILL_VAR, &data.args));
+        effects
     }
 }
 
-pub fn reset_current_skills(ctx: &mut command::CommandContext) {
-    for (key, value) in default_skill_vars() {
-        ctx.push_action(Action::SetVar(key.to_string(), value.to_string()));
-    }
+pub fn reset_current_skill_effects() -> Vec<command::CommandEffect> {
+    command::automations(reset_current_skill_actions())
 }
 
 pub fn reset_current_skill_actions() -> Vec<Action> {
@@ -213,14 +228,14 @@ fn default_skill_vars() -> [(&'static str, &'static str); 4] {
     ]
 }
 
-fn send_current_skill(ctx: &mut command::CommandContext, var: &str, target: &str) {
+fn current_skill_effects(var: &str, target: &str) -> Vec<command::CommandEffect> {
     let skill_template = format!("{{{var}}}");
     let command = if target.is_empty() {
         abilities::client_send_line(&format!("use '{skill_template}'"))
     } else {
         abilities::client_send_line(&format!("target {target};use '{skill_template}' {target}"))
     };
-    ctx.push_action(Action::Send(command));
+    vec![command::automation(Action::Send(command))]
 }
 
 #[cfg(test)]
@@ -237,56 +252,69 @@ mod tests {
         }
     }
 
-    fn ctx_with_flag(flag: bool) -> command::CommandContext {
-        command::CommandContext::new(
+    fn ctx_with_flag(flag: bool) -> command::CommandEnvironment {
+        command::CommandEnvironment::new(
             HashMap::from([(KATA_DONE_FLAG.to_string(), flag)]),
-            true,
-            String::new(),
+            HashMap::new(),
         )
+    }
+
+    fn automation_actions(effects: &[command::CommandEffect]) -> Vec<&Action> {
+        effects
+            .iter()
+            .filter_map(|effect| match effect {
+                command::CommandEffect::Automation(action) => Some(action),
+                _ => None,
+            })
+            .collect()
     }
 
     #[test]
     fn kiai_cry_requires_target_and_resets_skills() {
-        let mut ctx = ctx_with_flag(false);
-        let result = MonkGuild::use_kiai_cry(&data("cs", "orc"), &mut ctx);
+        let ctx = ctx_with_flag(false);
+        let result = MonkGuild::use_kiai_cry(&data("cs", "orc"), &ctx);
 
-        assert_eq!(result, Some("@target orc;use kiai-cry at orc".to_string()));
-        assert_eq!(ctx.automation_actions.len(), 4);
+        assert!(result.contains(&command::CommandEffect::Send(
+            "@target orc;use kiai-cry at orc".to_string()
+        )));
+        assert_eq!(automation_actions(&result).len(), 4);
     }
 
     #[test]
     fn meditation_uses_kata_until_kata_is_done() {
-        let mut ctx = ctx_with_flag(false);
-        let result = MonkGuild::use_meditation(&data("med", ""), &mut ctx);
+        let ctx = ctx_with_flag(false);
+        let result = MonkGuild::use_meditation(&data("med", ""), &ctx);
 
-        assert_eq!(result, Some("@use 'kata'".to_string()));
-        assert!(ctx.automation_actions.iter().any(|action| matches!(
-            action,
+        assert!(result.contains(&command::CommandEffect::Send("@use 'kata'".to_string())));
+        assert!(automation_actions(&result).iter().any(|action| matches!(
+            *action,
             Action::SetFlag(flag, true) if flag == DOING_MEDITATION_FLAG
         )));
     }
 
     #[test]
     fn meditation_runs_directly_after_kata_is_done() {
-        let mut ctx = ctx_with_flag(true);
-        let result = MonkGuild::use_meditation(&data("med", ""), &mut ctx);
+        let ctx = ctx_with_flag(true);
+        let result = MonkGuild::use_meditation(&data("med", ""), &ctx);
 
-        assert_eq!(result, Some("@use 'meditation'".to_string()));
+        assert!(result.contains(&command::CommandEffect::Send(
+            "@use 'meditation'".to_string()
+        )));
     }
 
     #[test]
     fn advanced_skill_alias_sets_var_and_sends_template() {
-        let mut ctx = ctx_with_flag(false);
-        let result = MonkGuild::use_geyser_force_kick(&data("ugk", "troll"), &mut ctx);
+        let ctx = ctx_with_flag(false);
+        let result = MonkGuild::use_geyser_force_kick(&data("ugk", "troll"), &ctx);
+        let actions = automation_actions(&result);
 
-        assert!(result.is_none());
         assert!(matches!(
-            &ctx.automation_actions[0],
+            actions[0],
             Action::SetVar(key, value)
                 if key == CURRENT_DISRUPT_SKILL_VAR && value == DISRUPT_SKILL_2
         ));
         assert!(matches!(
-            &ctx.automation_actions[1],
+            actions[1],
             Action::Send(command)
                 if command == "@target troll;use '{monk_current_disrupt_skill}' troll"
         ));

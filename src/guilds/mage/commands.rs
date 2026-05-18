@@ -9,9 +9,9 @@ macro_rules! mage_cast_spell {
     ($fn_name:ident, $spell:literal) => {
         pub fn $fn_name(
             data: &command::Data,
-            _ctx: &mut command::CommandContext,
-        ) -> Option<String> {
-            Some(cast_spell($spell, data))
+            _ctx: &command::CommandEnvironment,
+        ) -> Vec<command::CommandEffect> {
+            command::send(cast_spell($spell, data))
         }
     };
 }
@@ -61,45 +61,45 @@ impl MageGuild {
 
     pub fn use_ceremony(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(use_skill("ceremony", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("ceremony", data))
     }
 
     pub fn use_create_staff(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(use_skill("create staff", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("create staff", data))
     }
 
     pub fn cast_identify(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        Some(abilities::client_send_line(&format!(
+        command::send(abilities::client_send_line(&format!(
             "cast identify at {at}"
         )))
     }
 
     pub fn cast_mirror_image(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        Some(abilities::client_send_line(&format!(
+        command::send(abilities::client_send_line(&format!(
             "cast mirror image at {at}"
         )))
     }
 
     pub fn repeat_heal_self(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::repeat_inf_cast_heal_self())
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::repeat_inf_cast_heal_self())
     }
 
     mage_cast_spell!(cast_aura_detection, "aura detection");
@@ -133,7 +133,7 @@ impl MageGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
     fn data(cmd: &str, args: &str) -> command::Data {
         command::Data {
@@ -142,123 +142,123 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(std::collections::HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
     #[test]
     fn ceremony_without_target() {
         assert_eq!(
-            MageGuild::use_ceremony(&data("cere", ""), &mut empty_ctx()),
-            Some("@use 'ceremony'".to_string())
+            MageGuild::use_ceremony(&data("cere", ""), &empty_ctx()),
+            command::send("@use 'ceremony'".to_string())
         );
     }
 
     #[test]
     fn ceremony_with_target() {
         assert_eq!(
-            MageGuild::use_ceremony(&data("cere", "altar"), &mut empty_ctx()),
-            Some("@target altar;use 'ceremony' altar".to_string())
+            MageGuild::use_ceremony(&data("cere", "altar"), &empty_ctx()),
+            command::send("@target altar;use 'ceremony' altar".to_string())
         );
     }
 
     #[test]
     fn create_staff_without_target() {
         assert_eq!(
-            MageGuild::use_create_staff(&data("ucs", ""), &mut empty_ctx()),
-            Some("@use 'create staff'".to_string())
+            MageGuild::use_create_staff(&data("ucs", ""), &empty_ctx()),
+            command::send("@use 'create staff'".to_string())
         );
     }
 
     #[test]
     fn create_staff_with_target() {
         assert_eq!(
-            MageGuild::use_create_staff(&data("ucs", "branch"), &mut empty_ctx()),
-            Some("@target branch;use 'create staff' branch".to_string())
+            MageGuild::use_create_staff(&data("ucs", "branch"), &empty_ctx()),
+            command::send("@target branch;use 'create staff' branch".to_string())
         );
     }
 
     #[test]
     fn identify_defaults_to_me() {
         assert_eq!(
-            MageGuild::cast_identify(&data("ci", ""), &mut empty_ctx()),
-            Some("@cast identify at me".to_string())
+            MageGuild::cast_identify(&data("ci", ""), &empty_ctx()),
+            command::send("@cast identify at me".to_string())
         );
     }
 
     #[test]
     fn identify_with_target() {
         assert_eq!(
-            MageGuild::cast_identify(&data("ci", "sword"), &mut empty_ctx()),
-            Some("@cast identify at sword".to_string())
+            MageGuild::cast_identify(&data("ci", "sword"), &empty_ctx()),
+            command::send("@cast identify at sword".to_string())
         );
     }
 
     #[test]
     fn mirror_image_defaults_to_me() {
         assert_eq!(
-            MageGuild::cast_mirror_image(&data("cmi", ""), &mut empty_ctx()),
-            Some("@cast mirror image at me".to_string())
+            MageGuild::cast_mirror_image(&data("cmi", ""), &empty_ctx()),
+            command::send("@cast mirror image at me".to_string())
         );
     }
 
     #[test]
     fn mirror_image_with_target() {
         assert_eq!(
-            MageGuild::cast_mirror_image(&data("cmi", "ally"), &mut empty_ctx()),
-            Some("@cast mirror image at ally".to_string())
+            MageGuild::cast_mirror_image(&data("cmi", "ally"), &empty_ctx()),
+            command::send("@cast mirror image at ally".to_string())
         );
     }
 
     #[test]
     fn repeat_heal_self_chf() {
         assert_eq!(
-            MageGuild::repeat_heal_self(&data("chf", ""), &mut empty_ctx()),
-            Some("@repeat inf cast heal self".to_string())
+            MageGuild::repeat_heal_self(&data("chf", ""), &empty_ctx()),
+            command::send("@repeat inf cast heal self".to_string())
         );
     }
 
     #[test]
     fn cast_heal_self_ch() {
         assert_eq!(
-            MageGuild::cast_heal_self(&data("ch", ""), &mut empty_ctx()),
-            Some("@cast 'heal self'".to_string())
+            MageGuild::cast_heal_self(&data("ch", ""), &empty_ctx()),
+            command::send("@cast 'heal self'".to_string())
         );
         assert_eq!(
-            MageGuild::cast_heal_self(&data("ch", "orc"), &mut empty_ctx()),
-            Some("@target orc;cast 'heal self' orc".to_string())
+            MageGuild::cast_heal_self(&data("ch", "orc"), &empty_ctx()),
+            command::send("@target orc;cast 'heal self' orc".to_string())
         );
     }
 
     #[test]
     fn magic_missile_cast_spell() {
         assert_eq!(
-            MageGuild::cast_magic_missile(&data("cmm", ""), &mut empty_ctx()),
-            Some("@cast 'magic missile'".to_string())
+            MageGuild::cast_magic_missile(&data("cmm", ""), &empty_ctx()),
+            command::send("@cast 'magic missile'".to_string())
         );
         assert_eq!(
-            MageGuild::cast_magic_missile(&data("cmm", "orc"), &mut empty_ctx()),
-            Some("@target orc;cast 'magic missile' orc".to_string())
+            MageGuild::cast_magic_missile(&data("cmm", "orc"), &empty_ctx()),
+            command::send("@target orc;cast 'magic missile' orc".to_string())
         );
     }
 
     #[test]
     fn word_of_recall_cast_spell() {
         assert_eq!(
-            MageGuild::cast_word_of_recall(&data("cwor", ""), &mut empty_ctx()),
-            Some("@cast 'word of recall'".to_string())
+            MageGuild::cast_word_of_recall(&data("cwor", ""), &empty_ctx()),
+            command::send("@cast 'word of recall'".to_string())
         );
     }
 
     #[test]
     fn vacuumbolt_cast_spell() {
         assert_eq!(
-            MageGuild::cast_vacuumbolt(&data("cv", ""), &mut empty_ctx()),
-            Some("@cast 'vacuumbolt'".to_string())
+            MageGuild::cast_vacuumbolt(&data("cv", ""), &empty_ctx()),
+            command::send("@cast 'vacuumbolt'".to_string())
         );
         assert_eq!(
-            MageGuild::cast_vacuumbolt(&data("cv", "orc"), &mut empty_ctx()),
-            Some("@target orc;cast 'vacuumbolt' orc".to_string())
+            MageGuild::cast_vacuumbolt(&data("cv", "orc"), &empty_ctx()),
+            command::send("@target orc;cast 'vacuumbolt' orc".to_string())
         );
     }
 }

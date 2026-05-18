@@ -47,246 +47,279 @@ impl KharimGuild {
 
     pub fn use_foul_play(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let tail = data.args.trim();
         let logical = if tail.is_empty() {
             "kharim observe;use 'foul play'".to_string()
         } else {
             format!("kharim observe;target {tail};use 'foul play' {tail}")
         };
-        Some(abilities::client_send_line(&logical))
+        command::send(abilities::client_send_line(&logical))
     }
 
     pub fn use_act_of_mercy(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(use_skill("deceitful act of mercy", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("deceitful act of mercy", data))
     }
 
     pub fn use_feigned_remorse(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(use_skill("feigned remorse", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("feigned remorse", data))
     }
 
-    pub fn use_scourge(data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
+    pub fn use_scourge(
+        data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let tail = data.args.trim();
         let logical = if tail.is_empty() {
             "use 'scourge of dark steel'".to_string()
         } else {
             format!("kharim observe;target {tail};use 'scourge of dark steel' {tail}")
         };
-        Some(abilities::client_send_line(&logical))
+        command::send(abilities::client_send_line(&logical))
     }
 
     pub fn use_vampiric_blow(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(use_skill("vampiric blow", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("vampiric blow", data))
     }
 
     pub fn use_chaotic_circulation(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("use Chaotic circulation at me"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("use Chaotic circulation at me"))
     }
 
     pub fn cast_flame_arrow(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let logical = if data.args.trim().is_empty() {
             "cast flame arrow at device".to_string()
         } else {
             format!("cast flame arrow at {}", data.args.trim())
         };
-        Some(abilities::client_send_line(&logical))
+        command::send(abilities::client_send_line(&logical))
     }
 
     pub fn cast_blade_of_fire(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("cast blade of fire"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("cast blade of fire"))
     }
 
     pub fn cast_aura_of_chaos(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("cast aura of chaos"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("cast aura of chaos"))
     }
 
-    pub fn rip_action(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::client_send_line(
+    pub fn rip_action(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "rip_action set get all from corpse;kharim drain corpse;drop zinc;drop mowgles",
         ))
     }
 
     pub fn nav_tositwar(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("6 w;4 sw;4 w;nw"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("6 w;4 sw;4 w;nw"))
     }
 
     pub fn nav_fromsitwar(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("se;4 e;4 ne;6 e"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("se;4 e;4 ne;6 e"))
     }
 
     pub fn nav_tomelee(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("6 w;4 sw;20 w;6 w;nw"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("6 w;4 sw;20 w;6 w;nw"))
     }
 
     pub fn nav_frommelee(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("se;6 e;20 e;4 ne;6 e"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("se;6 e;20 e;4 ne;6 e"))
     }
 
-    pub fn nav_tosw(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::client_send_line("6 w;4 sw;20 w;ne;2 n;nw"))
+    pub fn nav_tosw(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("6 w;4 sw;20 w;ne;2 n;nw"))
     }
 
-    pub fn nav_fromsw(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::client_send_line("se;2 s;sw;20 e;4 ne;6 e"))
+    pub fn nav_fromsw(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("se;2 s;sw;20 e;4 ne;6 e"))
     }
 
-    pub fn nav_tose(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::client_send_line("6 w;4 sw;9 w;2 nw;ne;n"))
+    pub fn nav_tose(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("6 w;4 sw;9 w;2 nw;ne;n"))
     }
 
-    pub fn nav_fromse(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::client_send_line("s;sw;2 se;9 e;4 ne;6 e"))
+    pub fn nav_fromse(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("s;sw;2 se;9 e;4 ne;6 e"))
     }
 
-    pub fn nav_tonw(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::client_send_line(
+    pub fn nav_tonw(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "6 w;4 sw;20 w;8 w;3 nw;3 ne;2 n;2 nw;3 n;3 nw;3 w;nw;n;3 ne;6 e",
         ))
     }
 
-    pub fn nav_fromnw(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::client_send_line(
+    pub fn nav_fromnw(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "6 w;3 sw;s;se;3 e;3 se;3 s;2 se;2 s;3 sw;3 se;8 e;20 e;4 ne;6 e",
         ))
     }
 
-    pub fn nav_tone(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::client_send_line(
+    pub fn nav_tone(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "6 w;3 nw;7 w;2 n;nw;2 ne;4 n;nw;3 n;e;ne;6 e",
         ))
     }
 
-    pub fn nav_fromne(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::client_send_line(
+    pub fn nav_fromne(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "6 w;sw;w;3 s;se;4 s;2 sw;se;2 s;7 e;3 se;6 e",
         ))
     }
 
     pub fn nav_tokitan(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "6 w;4 sw;20 w;8 w;3 nw;3 ne;2 n;2 nw;3 n;3 nw;3 w;nw;3 n;nw;enter",
         ))
     }
 
     pub fn nav_fromkitan(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "out;se;3 s;se;3 e;3 se;3 s;2 se;2 s;3 sw;3 se;8 e;20 e;4 ne;6 e",
         ))
     }
 
     pub fn nav_tosouls(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "6 w;3 nw;7 w;2 n;nw;2 ne;4 n;nw;3 n;2 w;nw;enter;ask man about services;kharim souls",
         ))
     }
 
     pub fn nav_fromsouls(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "out;se;2 e;3 s;se;4 s;2 sw;se;2 s;7 e;3 se;6 e",
         ))
     }
 
     pub fn nav_tocloud(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "6 w;4 sw;20 w;11 w;4 nw;3 w;cloud",
         ))
     }
 
     pub fn nav_fromcloud(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "descend;3 e;4 se;11 e;20 e;4 ne;6 e",
         ))
     }
 
     pub fn nav_toswords(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "4 w;6 nw;5 n;2 e;2 ne;e;2 ne;n;ne;2 e;enter",
         ))
     }
 
     pub fn nav_fromswords(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "out;2 w;sw;s;2 sw;w;2 sw;2 w;5 s;6 se;4 e",
         ))
     }
 
     pub fn nav_todevice(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "w;out;3 w;nw;ne;2 nw;4 w;S;E;se;e",
         ))
     }
 
     pub fn nav_fromdevice(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "w;nw;7 w;7 n;E;s;se;sw;se;E;e;enter",
         ))
     }
 
-    pub fn help(_data: &command::Data, ctx: &mut command::CommandContext) -> Option<String> {
+    pub fn help(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let lines = [
             "/tositwar goes from the device to the shield trainer",
             "/tomelee goes from the device to the general fighting trainer",
@@ -300,17 +333,17 @@ impl KharimGuild {
             "/toswords goes from the device to the sword hotel",
             "/todevice goes from the elevator to the device",
         ];
-        for line in lines {
-            ctx.push_output_line(StyledLine::new(line));
-        }
-        None
+        lines
+            .into_iter()
+            .map(|line| command::output(StyledLine::new(line)))
+            .collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
     fn data(cmd: &str, args: &str) -> command::Data {
         command::Data {
@@ -319,73 +352,90 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
     #[test]
     fn foul_play_without_target() {
-        let out = KharimGuild::use_foul_play(&data("ufp", ""), &mut empty_ctx());
-        assert_eq!(out, Some("@kharim observe;use 'foul play'".to_string()));
+        let out = KharimGuild::use_foul_play(&data("ufp", ""), &empty_ctx());
+        assert_eq!(
+            out,
+            command::send("@kharim observe;use 'foul play'".to_string())
+        );
     }
 
     #[test]
     fn foul_play_with_target() {
-        let out = KharimGuild::use_foul_play(&data("ufp", "orc"), &mut empty_ctx());
+        let out = KharimGuild::use_foul_play(&data("ufp", "orc"), &empty_ctx());
         assert_eq!(
             out,
-            Some("@kharim observe;target orc;use 'foul play' orc".to_string())
+            command::send("@kharim observe;target orc;use 'foul play' orc".to_string())
         );
     }
 
     #[test]
     fn scourge_without_target() {
-        let out = KharimGuild::use_scourge(&data("usd", ""), &mut empty_ctx());
-        assert_eq!(out, Some("@use 'scourge of dark steel'".to_string()));
+        let out = KharimGuild::use_scourge(&data("usd", ""), &empty_ctx());
+        assert_eq!(
+            out,
+            command::send("@use 'scourge of dark steel'".to_string())
+        );
     }
 
     #[test]
     fn scourge_with_target() {
-        let out = KharimGuild::use_scourge(&data("usd", "troll"), &mut empty_ctx());
+        let out = KharimGuild::use_scourge(&data("usd", "troll"), &empty_ctx());
         assert_eq!(
             out,
-            Some("@kharim observe;target troll;use 'scourge of dark steel' troll".to_string())
+            command::send(
+                "@kharim observe;target troll;use 'scourge of dark steel' troll".to_string()
+            )
         );
     }
 
     #[test]
     fn act_of_mercy_uses_targeted_use() {
-        let out = KharimGuild::use_act_of_mercy(&data("uam", "orc"), &mut empty_ctx());
+        let out = KharimGuild::use_act_of_mercy(&data("uam", "orc"), &empty_ctx());
         assert_eq!(
             out,
-            Some("@target orc;use 'deceitful act of mercy' orc".to_string())
+            command::send("@target orc;use 'deceitful act of mercy' orc".to_string())
         );
     }
 
     #[test]
     fn chaotic_circulation_exact_casing() {
-        let out = KharimGuild::use_chaotic_circulation(&data("ucc", ""), &mut empty_ctx());
-        assert_eq!(out, Some("@use Chaotic circulation at me".to_string()));
+        let out = KharimGuild::use_chaotic_circulation(&data("ucc", ""), &empty_ctx());
+        assert_eq!(
+            out,
+            command::send("@use Chaotic circulation at me".to_string())
+        );
     }
 
     #[test]
     fn flame_arrow_defaults_to_device() {
-        let out = KharimGuild::cast_flame_arrow(&data("cfa", ""), &mut empty_ctx());
-        assert_eq!(out, Some("@cast flame arrow at device".to_string()));
+        let out = KharimGuild::cast_flame_arrow(&data("cfa", ""), &empty_ctx());
+        assert_eq!(
+            out,
+            command::send("@cast flame arrow at device".to_string())
+        );
     }
 
     #[test]
     fn flame_arrow_with_target() {
-        let out = KharimGuild::cast_flame_arrow(&data("cfa", "goblin"), &mut empty_ctx());
-        assert_eq!(out, Some("@cast flame arrow at goblin".to_string()));
+        let out = KharimGuild::cast_flame_arrow(&data("cfa", "goblin"), &empty_ctx());
+        assert_eq!(
+            out,
+            command::send("@cast flame arrow at goblin".to_string())
+        );
     }
 
     #[test]
     fn rip_action_matches_expected() {
-        let out = KharimGuild::rip_action(&data("kharim_rip", ""), &mut empty_ctx());
+        let out = KharimGuild::rip_action(&data("kharim_rip", ""), &empty_ctx());
         assert_eq!(
             out,
-            Some(
+            command::send(
                 "@rip_action set get all from corpse;kharim drain corpse;drop zinc;drop mowgles"
                     .to_string()
             )
@@ -394,10 +444,11 @@ mod tests {
 
     #[test]
     fn kharim_help_emits_lines_and_no_send() {
-        let mut ctx = empty_ctx();
-        let out = KharimGuild::help(&data("kharim_help", ""), &mut ctx);
-        assert!(out.is_none());
-        assert_eq!(ctx.output_lines.len(), 11);
-        assert!(ctx.output_lines[0].plain_line.contains("tositwar"));
+        let out = KharimGuild::help(&data("kharim_help", ""), &empty_ctx());
+        assert_eq!(out.len(), 11);
+        assert!(matches!(
+            &out[0],
+            command::CommandEffect::Output(line) if line.plain_line.contains("tositwar")
+        ));
     }
 }

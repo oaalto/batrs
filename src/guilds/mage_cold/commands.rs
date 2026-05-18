@@ -11,9 +11,9 @@ macro_rules! mage_cold_targeted_cast {
     ($fn_name:ident, $spell:literal) => {
         pub fn $fn_name(
             data: &command::Data,
-            _ctx: &mut command::CommandContext,
-        ) -> Option<String> {
-            Some(cast_spell($spell, data))
+            _ctx: &command::CommandEnvironment,
+        ) -> Vec<command::CommandEffect> {
+            command::send(cast_spell($spell, data))
         }
     };
 }
@@ -54,11 +54,11 @@ impl MageColdGuild {
 
     pub fn cast_frost_shield(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        Some(abilities::client_send_line(&format!(
+        command::send(abilities::client_send_line(&format!(
             "cast frost shield at {at}"
         )))
     }
@@ -67,7 +67,7 @@ impl MageColdGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
     fn data(cmd: &str, args: &str) -> command::Data {
         command::Data {
@@ -76,39 +76,39 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(std::collections::HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
     #[test]
     fn cold_ray_without_target() {
         assert_eq!(
-            MageColdGuild::cast_cold_ray(&data("ccray", ""), &mut empty_ctx()),
-            Some("@cast 'cold ray'".to_string())
+            MageColdGuild::cast_cold_ray(&data("ccray", ""), &empty_ctx()),
+            command::send("@cast 'cold ray'".to_string())
         );
     }
 
     #[test]
     fn cold_ray_with_target() {
         assert_eq!(
-            MageColdGuild::cast_cold_ray(&data("ccray", "orc"), &mut empty_ctx()),
-            Some("@target orc;cast 'cold ray' orc".to_string())
+            MageColdGuild::cast_cold_ray(&data("ccray", "orc"), &empty_ctx()),
+            command::send("@target orc;cast 'cold ray' orc".to_string())
         );
     }
 
     #[test]
     fn frost_shield_defaults_to_me() {
         assert_eq!(
-            MageColdGuild::cast_frost_shield(&data("cfrshield", ""), &mut empty_ctx()),
-            Some("@cast frost shield at me".to_string())
+            MageColdGuild::cast_frost_shield(&data("cfrshield", ""), &empty_ctx()),
+            command::send("@cast frost shield at me".to_string())
         );
     }
 
     #[test]
     fn frost_shield_with_target() {
         assert_eq!(
-            MageColdGuild::cast_frost_shield(&data("cfrshield", "ally"), &mut empty_ctx()),
-            Some("@cast frost shield at ally".to_string())
+            MageColdGuild::cast_frost_shield(&data("cfrshield", "ally"), &empty_ctx()),
+            command::send("@cast frost shield at ally".to_string())
         );
     }
 }

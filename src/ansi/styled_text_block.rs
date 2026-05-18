@@ -1,7 +1,7 @@
 use crate::ansi::{AnsiCode, TextColor};
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StyledChar {
     pub bold: bool,
     pub color: TextColor,

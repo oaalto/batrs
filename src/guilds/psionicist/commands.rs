@@ -26,109 +26,109 @@ impl PsionicistGuild {
 
     pub fn cast_mindseize(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("mindseize", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("mindseize", data))
     }
 
     pub fn cast_mind_blast(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("mind blast", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("mind blast", data))
     }
 
     pub fn cast_psibolt(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("psibolt", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("psibolt", data))
     }
 
     pub fn cast_psi_blast(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("psi blast", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("psi blast", data))
     }
 
     pub fn cast_mind_disruption(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("mind disruption", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("mind disruption", data))
     }
 
     pub fn cast_psychic_crush(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("psychic crush", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("psychic crush", data))
     }
 
     pub fn cast_psychic_storm(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("psychic storm", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("psychic storm", data))
     }
 
     pub fn cast_force_shield(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if !args.is_empty() {
-            return Some(cast_spell("force shield", data));
+            return command::send(cast_spell("force shield", data));
         }
         let logical = if ctx.flag(RIFTWALKER_HAS_ENTITY_FLAG) {
             "cast force shield at entity"
         } else {
             "cast force shield at me"
         };
-        Some(crate::abilities::client_send_line(logical))
+        command::send(crate::abilities::client_send_line(logical))
     }
 
     pub fn cast_psionic_shield(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(crate::abilities::client_send_line("cast psionic shield"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(crate::abilities::client_send_line("cast psionic shield"))
     }
 
     pub fn cast_mind_development(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("mind development", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("mind development", data))
     }
 
     pub fn cast_phaze_shift(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("phaze shift", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("phaze shift", data))
     }
 
     pub fn use_meditation(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(crate::abilities::client_send_line("use meditation"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(crate::abilities::client_send_line("use meditation"))
     }
 
     pub fn repeat_heal_self(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(crate::abilities::repeat_inf_cast_heal_self())
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(crate::abilities::repeat_inf_cast_heal_self())
     }
 
     pub fn cast_heal_self(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("heal self", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("heal self", data))
     }
 }
 
@@ -136,7 +136,7 @@ impl PsionicistGuild {
 mod tests {
     use super::*;
     use crate::abilities;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
     use crate::guilds::riftwalker::RIFTWALKER_HAS_ENTITY_FLAG;
 
     fn data(cmd: &str, args: &str) -> command::Data {
@@ -146,50 +146,46 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
-    fn ctx_with_entity_flag(has: bool) -> CommandContext {
-        CommandContext::new(
+    fn ctx_with_entity_flag(has: bool) -> CommandEnvironment {
+        CommandEnvironment::new(
             HashMap::from([(RIFTWALKER_HAS_ENTITY_FLAG.to_string(), has)]),
-            true,
-            String::new(),
+            HashMap::new(),
         )
     }
 
     #[test]
     fn mindseize_targets_like_cast_spell() {
         assert_eq!(
-            PsionicistGuild::cast_mindseize(&data("cms", ""), &mut empty_ctx()),
-            Some("@cast 'mindseize'".to_string())
+            PsionicistGuild::cast_mindseize(&data("cms", ""), &empty_ctx()),
+            command::send("@cast 'mindseize'".to_string())
         );
         assert_eq!(
-            PsionicistGuild::cast_mindseize(&data("cms", "orc"), &mut empty_ctx()),
-            Some("@target orc;cast 'mindseize' orc".to_string())
+            PsionicistGuild::cast_mindseize(&data("cms", "orc"), &empty_ctx()),
+            command::send("@target orc;cast 'mindseize' orc".to_string())
         );
     }
 
     #[test]
     fn mind_blast_mobile_cannon_style_spell_names() {
         assert_eq!(
-            PsionicistGuild::cast_mind_blast(&data("cmb", "troll"), &mut empty_ctx()),
-            Some("@target troll;cast 'mind blast' troll".to_string())
+            PsionicistGuild::cast_mind_blast(&data("cmb", "troll"), &empty_ctx()),
+            command::send("@target troll;cast 'mind blast' troll".to_string())
         );
         assert_eq!(
-            PsionicistGuild::cast_phaze_shift(&data("cgo", ""), &mut empty_ctx()),
-            Some("@cast 'phaze shift'".to_string())
+            PsionicistGuild::cast_phaze_shift(&data("cgo", ""), &empty_ctx()),
+            command::send("@cast 'phaze shift'".to_string())
         );
     }
 
     #[test]
     fn force_shield_branches_match_expected() {
         assert_eq!(
-            PsionicistGuild::cast_force_shield(
-                &data("cfs", "self"),
-                &mut ctx_with_entity_flag(true)
-            ),
-            Some(cast_spell("force shield", &data("cfs", "self")))
+            PsionicistGuild::cast_force_shield(&data("cfs", "self"), &ctx_with_entity_flag(true)),
+            command::send(cast_spell("force shield", &data("cfs", "self")))
         );
 
         assert_eq!(
@@ -198,44 +194,44 @@ mod tests {
         );
 
         assert_eq!(
-            PsionicistGuild::cast_force_shield(&data("cfs", ""), &mut ctx_with_entity_flag(true)),
-            Some("@cast force shield at entity".to_string())
+            PsionicistGuild::cast_force_shield(&data("cfs", ""), &ctx_with_entity_flag(true)),
+            command::send("@cast force shield at entity".to_string())
         );
         assert_eq!(
-            PsionicistGuild::cast_force_shield(&data("cfs", ""), &mut ctx_with_entity_flag(false)),
-            Some("@cast force shield at me".to_string())
+            PsionicistGuild::cast_force_shield(&data("cfs", ""), &ctx_with_entity_flag(false)),
+            command::send("@cast force shield at me".to_string())
         );
     }
 
     #[test]
     fn psionic_shield_unquoted_meditation() {
         assert_eq!(
-            PsionicistGuild::cast_psionic_shield(&data("cpshield", ""), &mut empty_ctx()),
-            Some("@cast psionic shield".to_string())
+            PsionicistGuild::cast_psionic_shield(&data("cpshield", ""), &empty_ctx()),
+            command::send("@cast psionic shield".to_string())
         );
         assert_eq!(
-            PsionicistGuild::use_meditation(&data("med", ""), &mut empty_ctx()),
-            Some("@use meditation".to_string())
+            PsionicistGuild::use_meditation(&data("med", ""), &empty_ctx()),
+            command::send("@use meditation".to_string())
         );
     }
 
     #[test]
     fn repeat_heal_self_chf() {
         assert_eq!(
-            PsionicistGuild::repeat_heal_self(&data("chf", ""), &mut empty_ctx()),
-            Some("@repeat inf cast heal self".to_string())
+            PsionicistGuild::repeat_heal_self(&data("chf", ""), &empty_ctx()),
+            command::send("@repeat inf cast heal self".to_string())
         );
     }
 
     #[test]
     fn cast_heal_self_ch() {
         assert_eq!(
-            PsionicistGuild::cast_heal_self(&data("ch", ""), &mut empty_ctx()),
-            Some("@cast 'heal self'".to_string())
+            PsionicistGuild::cast_heal_self(&data("ch", ""), &empty_ctx()),
+            command::send("@cast 'heal self'".to_string())
         );
         assert_eq!(
-            PsionicistGuild::cast_heal_self(&data("ch", "orc"), &mut empty_ctx()),
-            Some("@target orc;cast 'heal self' orc".to_string())
+            PsionicistGuild::cast_heal_self(&data("ch", "orc"), &empty_ctx()),
+            command::send("@target orc;cast 'heal self' orc".to_string())
         );
     }
 }

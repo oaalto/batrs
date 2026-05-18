@@ -16,42 +16,42 @@ impl CurateGuild {
 
     pub fn cast_hemorrhage(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("hemorrhage", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("hemorrhage", data))
     }
 
     pub fn cast_aneurysm(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("aneurysm", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("aneurysm", data))
     }
 
     pub fn cast_mobile_cannon(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("mobile cannon", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("mobile cannon", data))
     }
 
     pub fn use_dark_meditation(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let logical = match data.args.trim() {
             "hp" => "use dark meditation at sacrifice health",
             "sp" => "use dark meditation at sacrifice power",
             _ => "use dark meditation at sacrifice endurance",
         };
-        Some(abilities::client_send_line(logical))
+        command::send(abilities::client_send_line(logical))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
     fn data(cmd: &str, args: &str) -> command::Data {
         command::Data {
@@ -60,85 +60,85 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
     #[test]
     fn hemorrhage_without_target() {
-        let result = CurateGuild::cast_hemorrhage(&data("ch", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@cast 'hemorrhage'".to_string()));
+        let result = CurateGuild::cast_hemorrhage(&data("ch", ""), &empty_ctx());
+        assert_eq!(result, command::send("@cast 'hemorrhage'".to_string()));
     }
 
     #[test]
     fn hemorrhage_with_target() {
-        let result = CurateGuild::cast_hemorrhage(&data("ch", "orc"), &mut empty_ctx());
+        let result = CurateGuild::cast_hemorrhage(&data("ch", "orc"), &empty_ctx());
         assert_eq!(
             result,
-            Some("@target orc;cast 'hemorrhage' orc".to_string())
+            command::send("@target orc;cast 'hemorrhage' orc".to_string())
         );
     }
 
     #[test]
     fn aneurysm_without_target() {
-        let result = CurateGuild::cast_aneurysm(&data("ca", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@cast 'aneurysm'".to_string()));
+        let result = CurateGuild::cast_aneurysm(&data("ca", ""), &empty_ctx());
+        assert_eq!(result, command::send("@cast 'aneurysm'".to_string()));
     }
 
     #[test]
     fn aneurysm_with_target() {
-        let result = CurateGuild::cast_aneurysm(&data("ca", "troll"), &mut empty_ctx());
+        let result = CurateGuild::cast_aneurysm(&data("ca", "troll"), &empty_ctx());
         assert_eq!(
             result,
-            Some("@target troll;cast 'aneurysm' troll".to_string())
+            command::send("@target troll;cast 'aneurysm' troll".to_string())
         );
     }
 
     #[test]
     fn mobile_cannon_without_target() {
-        let result = CurateGuild::cast_mobile_cannon(&data("cmcan", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@cast 'mobile cannon'".to_string()));
+        let result = CurateGuild::cast_mobile_cannon(&data("cmcan", ""), &empty_ctx());
+        assert_eq!(result, command::send("@cast 'mobile cannon'".to_string()));
     }
 
     #[test]
     fn mobile_cannon_with_target() {
-        let result = CurateGuild::cast_mobile_cannon(&data("cmcan", "orc"), &mut empty_ctx());
+        let result = CurateGuild::cast_mobile_cannon(&data("cmcan", "orc"), &empty_ctx());
         assert_eq!(
             result,
-            Some("@target orc;cast 'mobile cannon' orc".to_string())
+            command::send("@target orc;cast 'mobile cannon' orc".to_string())
         );
     }
 
     #[test]
     fn dark_meditation_hp() {
-        let result = CurateGuild::use_dark_meditation(&data("dmed", "hp"), &mut empty_ctx());
+        let result = CurateGuild::use_dark_meditation(&data("dmed", "hp"), &empty_ctx());
         assert_eq!(
             result,
-            Some("@use dark meditation at sacrifice health".to_string())
+            command::send("@use dark meditation at sacrifice health".to_string())
         );
     }
 
     #[test]
     fn dark_meditation_sp() {
-        let result = CurateGuild::use_dark_meditation(&data("dmed", "sp"), &mut empty_ctx());
+        let result = CurateGuild::use_dark_meditation(&data("dmed", "sp"), &empty_ctx());
         assert_eq!(
             result,
-            Some("@use dark meditation at sacrifice power".to_string())
+            command::send("@use dark meditation at sacrifice power".to_string())
         );
     }
 
     #[test]
     fn dark_meditation_default_endurance_when_empty_or_unknown() {
-        let empty = CurateGuild::use_dark_meditation(&data("dmed", ""), &mut empty_ctx());
+        let empty = CurateGuild::use_dark_meditation(&data("dmed", ""), &empty_ctx());
         assert_eq!(
             empty,
-            Some("@use dark meditation at sacrifice endurance".to_string())
+            command::send("@use dark meditation at sacrifice endurance".to_string())
         );
 
-        let unknown = CurateGuild::use_dark_meditation(&data("dmed", "xy"), &mut empty_ctx());
+        let unknown = CurateGuild::use_dark_meditation(&data("dmed", "xy"), &empty_ctx());
         assert_eq!(
             unknown,
-            Some("@use dark meditation at sacrifice endurance".to_string())
+            command::send("@use dark meditation at sacrifice endurance".to_string())
         );
     }
 }

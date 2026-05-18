@@ -11,9 +11,9 @@ macro_rules! mage_asphyxiation_cast {
     ($fn_name:ident, $spell:literal) => {
         pub fn $fn_name(
             data: &command::Data,
-            _ctx: &mut command::CommandContext,
-        ) -> Option<String> {
-            Some(cast_spell($spell, data))
+            _ctx: &command::CommandEnvironment,
+        ) -> Vec<command::CommandEffect> {
+            command::send(cast_spell($spell, data))
         }
     };
 }
@@ -36,11 +36,11 @@ impl MageAsphyxiationGuild {
 
     pub fn cast_air_shield(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        Some(abilities::client_send_line(&format!(
+        command::send(abilities::client_send_line(&format!(
             "cast air shield at {at}"
         )))
     }
@@ -59,7 +59,7 @@ impl MageAsphyxiationGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
     fn data(cmd: &str, args: &str) -> command::Data {
         command::Data {
@@ -68,35 +68,35 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(std::collections::HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
     #[test]
     fn air_shield_defaults_to_me() {
         assert_eq!(
-            MageAsphyxiationGuild::cast_air_shield(&data("cairshield", ""), &mut empty_ctx()),
-            Some("@cast air shield at me".to_string())
+            MageAsphyxiationGuild::cast_air_shield(&data("cairshield", ""), &empty_ctx()),
+            command::send("@cast air shield at me".to_string())
         );
     }
 
     #[test]
     fn air_shield_with_target() {
         assert_eq!(
-            MageAsphyxiationGuild::cast_air_shield(&data("cairshield", "ally"), &mut empty_ctx()),
-            Some("@cast air shield at ally".to_string())
+            MageAsphyxiationGuild::cast_air_shield(&data("cairshield", "ally"), &empty_ctx()),
+            command::send("@cast air shield at ally".to_string())
         );
     }
 
     #[test]
     fn vacuumbolt_cast_spell() {
         assert_eq!(
-            MageAsphyxiationGuild::cast_vacuumbolt(&data("cvacb", ""), &mut empty_ctx()),
-            Some("@cast 'vacuumbolt'".to_string())
+            MageAsphyxiationGuild::cast_vacuumbolt(&data("cvacb", ""), &empty_ctx()),
+            command::send("@cast 'vacuumbolt'".to_string())
         );
         assert_eq!(
-            MageAsphyxiationGuild::cast_vacuumbolt(&data("cvacb", "orc"), &mut empty_ctx()),
-            Some("@target orc;cast 'vacuumbolt' orc".to_string())
+            MageAsphyxiationGuild::cast_vacuumbolt(&data("cvacb", "orc"), &empty_ctx()),
+            command::send("@target orc;cast 'vacuumbolt' orc".to_string())
         );
     }
 }

@@ -9,7 +9,7 @@ pub struct Waiter {
     pub consume: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
     Send(String),
     SetFlag(String, bool),

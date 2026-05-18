@@ -14,9 +14,9 @@ macro_rules! mage_poison_targeted_cast {
     ($fn_name:ident, $spell:literal) => {
         pub fn $fn_name(
             data: &command::Data,
-            _ctx: &mut command::CommandContext,
-        ) -> Option<String> {
-            Some(cast_spell($spell, data))
+            _ctx: &command::CommandEnvironment,
+        ) -> Vec<command::CommandEffect> {
+            command::send(cast_spell($spell, data))
         }
     };
 }
@@ -62,11 +62,11 @@ impl MagePoisonGuild {
 
     pub fn cast_shield_of_detoxification(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        Some(abilities::client_send_line(&format!(
+        command::send(abilities::client_send_line(&format!(
             "cast shield of detoxification at {at}"
         )))
     }
@@ -75,7 +75,7 @@ impl MagePoisonGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
     fn data(cmd: &str, args: &str) -> command::Data {
         command::Data {
@@ -84,42 +84,39 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(std::collections::HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
     #[test]
     fn poison_scan_without_target() {
         assert_eq!(
-            MagePoisonGuild::cast_poison_scan(&data("cpscan", ""), &mut empty_ctx()),
-            Some("@cast 'poison scan'".to_string())
+            MagePoisonGuild::cast_poison_scan(&data("cpscan", ""), &empty_ctx()),
+            command::send("@cast 'poison scan'".to_string())
         );
     }
 
     #[test]
     fn poison_scan_with_target() {
         assert_eq!(
-            MagePoisonGuild::cast_poison_scan(&data("cpscan", "orc"), &mut empty_ctx()),
-            Some("@target orc;cast 'poison scan' orc".to_string())
+            MagePoisonGuild::cast_poison_scan(&data("cpscan", "orc"), &empty_ctx()),
+            command::send("@target orc;cast 'poison scan' orc".to_string())
         );
     }
 
     #[test]
     fn shield_of_detoxification_defaults_to_me() {
         assert_eq!(
-            MagePoisonGuild::cast_shield_of_detoxification(&data("cdetoxsh", ""), &mut empty_ctx()),
-            Some("@cast shield of detoxification at me".to_string())
+            MagePoisonGuild::cast_shield_of_detoxification(&data("cdetoxsh", ""), &empty_ctx()),
+            command::send("@cast shield of detoxification at me".to_string())
         );
     }
 
     #[test]
     fn shield_of_detoxification_with_target() {
         assert_eq!(
-            MagePoisonGuild::cast_shield_of_detoxification(
-                &data("cdetoxsh", "ally"),
-                &mut empty_ctx()
-            ),
-            Some("@cast shield of detoxification at ally".to_string())
+            MagePoisonGuild::cast_shield_of_detoxification(&data("cdetoxsh", "ally"), &empty_ctx()),
+            command::send("@cast shield of detoxification at ally".to_string())
         );
     }
 }

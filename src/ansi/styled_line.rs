@@ -11,7 +11,7 @@ use unicode_width::UnicodeWidthStr;
 
 const TAB_STOP_WIDTH: usize = 8;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StyledLine {
     pub plain_line: String,
     pub styled_chars: Vec<StyledChar>,

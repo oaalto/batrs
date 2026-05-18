@@ -16,24 +16,26 @@ impl RangerGuild {
 
     pub fn use_bladed_fury(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.is_empty() {
-            Some(abilities::client_send_line("use 'bladed fury'"))
+            command::send(abilities::client_send_line("use 'bladed fury'"))
         } else {
-            Some(abilities::client_send_line(&abilities::targeted_use(
+            command::send(abilities::client_send_line(&abilities::targeted_use(
                 "bladed fury",
                 &data.args,
             )))
         }
     }
 
-    pub fn start_combat(data: &command::Data, ctx: &mut command::CommandContext) -> Option<String> {
+    pub fn start_combat(
+        data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.is_empty() {
-            ctx.push_output_line(StyledLine::new("No target!"));
-            None
+            vec![command::output(StyledLine::new("No target!"))]
         } else {
-            Some(abilities::client_send_line(&format!(
+            command::send(abilities::client_send_line(&format!(
                 "target {};use 'bladed fury' {};@k {}",
                 data.args, data.args, data.args
             )))
@@ -42,16 +44,16 @@ impl RangerGuild {
 
     pub fn use_torch_creation(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("use 'torch creation'"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("use 'torch creation'"))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
     fn data(cmd: &str, args: &str) -> command::Data {
         command::Data {
@@ -60,46 +62,43 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
     #[test]
     fn bladed_fury_without_target() {
-        let result = RangerGuild::use_bladed_fury(&data("ubf", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@use 'bladed fury'".to_string()));
+        let result = RangerGuild::use_bladed_fury(&data("ubf", ""), &empty_ctx());
+        assert_eq!(result, command::send("@use 'bladed fury'".to_string()));
     }
 
     #[test]
     fn bladed_fury_with_target() {
-        let result = RangerGuild::use_bladed_fury(&data("ubf", "orc"), &mut empty_ctx());
+        let result = RangerGuild::use_bladed_fury(&data("ubf", "orc"), &empty_ctx());
         assert_eq!(
             result,
-            Some("@target orc;use 'bladed fury' orc".to_string())
+            command::send("@target orc;use 'bladed fury' orc".to_string())
         );
     }
 
     #[test]
     fn start_combat_with_target() {
-        let result = RangerGuild::start_combat(&data("cs", "orc"), &mut empty_ctx());
+        let result = RangerGuild::start_combat(&data("cs", "orc"), &empty_ctx());
         assert_eq!(
             result,
-            Some("@target orc;use 'bladed fury' orc;@k orc".to_string())
+            command::send("@target orc;use 'bladed fury' orc;@k orc".to_string())
         );
     }
 
     #[test]
     fn start_combat_without_target_shows_message() {
-        let mut ctx = empty_ctx();
-        let result = RangerGuild::start_combat(&data("cs", ""), &mut ctx);
-        assert!(result.is_none());
-        assert_eq!(ctx.output_lines.len(), 1);
-        assert_eq!(ctx.output_lines[0].plain_line, "No target!");
+        let result = RangerGuild::start_combat(&data("cs", ""), &empty_ctx());
+        assert_eq!(result, vec![command::output(StyledLine::new("No target!"))]);
     }
 
     #[test]
     fn torch_creation() {
-        let result = RangerGuild::use_torch_creation(&data("utc", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@use 'torch creation'".to_string()));
+        let result = RangerGuild::use_torch_creation(&data("utc", ""), &empty_ctx());
+        assert_eq!(result, command::send("@use 'torch creation'".to_string()));
     }
 }

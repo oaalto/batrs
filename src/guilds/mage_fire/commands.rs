@@ -11,9 +11,9 @@ macro_rules! mage_fire_targeted_cast {
     ($fn_name:ident, $spell:literal) => {
         pub fn $fn_name(
             data: &command::Data,
-            _ctx: &mut command::CommandContext,
-        ) -> Option<String> {
-            Some(cast_spell($spell, data))
+            _ctx: &command::CommandEnvironment,
+        ) -> Vec<command::CommandEffect> {
+            command::send(cast_spell($spell, data))
         }
     };
 }
@@ -46,11 +46,11 @@ impl MageFireGuild {
 
     pub fn cast_flame_shield(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        Some(abilities::client_send_line(&format!(
+        command::send(abilities::client_send_line(&format!(
             "cast flame shield at {at}"
         )))
     }
@@ -59,7 +59,7 @@ impl MageFireGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
     fn data(cmd: &str, args: &str) -> command::Data {
         command::Data {
@@ -68,63 +68,63 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(std::collections::HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
     #[test]
     fn flame_arrow_without_target() {
         assert_eq!(
-            MageFireGuild::cast_flame_arrow(&data("cfa", ""), &mut empty_ctx()),
-            Some("@cast 'flame arrow'".to_string())
+            MageFireGuild::cast_flame_arrow(&data("cfa", ""), &empty_ctx()),
+            command::send("@cast 'flame arrow'".to_string())
         );
     }
 
     #[test]
     fn flame_arrow_with_target() {
         assert_eq!(
-            MageFireGuild::cast_flame_arrow(&data("cfa", "orc"), &mut empty_ctx()),
-            Some("@target orc;cast 'flame arrow' orc".to_string())
+            MageFireGuild::cast_flame_arrow(&data("cfa", "orc"), &empty_ctx()),
+            command::send("@target orc;cast 'flame arrow' orc".to_string())
         );
     }
 
     #[test]
     fn firebolt_with_target() {
         assert_eq!(
-            MageFireGuild::cast_firebolt(&data("cf", "troll"), &mut empty_ctx()),
-            Some("@target troll;cast 'firebolt' troll".to_string())
+            MageFireGuild::cast_firebolt(&data("cf", "troll"), &empty_ctx()),
+            command::send("@target troll;cast 'firebolt' troll".to_string())
         );
     }
 
     #[test]
     fn fire_blast_without_target() {
         assert_eq!(
-            MageFireGuild::cast_fire_blast(&data("cfb", ""), &mut empty_ctx()),
-            Some("@cast 'fire blast'".to_string())
+            MageFireGuild::cast_fire_blast(&data("cfb", ""), &empty_ctx()),
+            command::send("@cast 'fire blast'".to_string())
         );
     }
 
     #[test]
     fn flame_shield_defaults_to_me() {
         assert_eq!(
-            MageFireGuild::cast_flame_shield(&data("cflshield", ""), &mut empty_ctx()),
-            Some("@cast flame shield at me".to_string())
+            MageFireGuild::cast_flame_shield(&data("cflshield", ""), &empty_ctx()),
+            command::send("@cast flame shield at me".to_string())
         );
     }
 
     #[test]
     fn flame_shield_with_target() {
         assert_eq!(
-            MageFireGuild::cast_flame_shield(&data("cflshield", "ally"), &mut empty_ctx()),
-            Some("@cast flame shield at ally".to_string())
+            MageFireGuild::cast_flame_shield(&data("cflshield", "ally"), &empty_ctx()),
+            command::send("@cast flame shield at ally".to_string())
         );
     }
 
     #[test]
     fn heat_reduction_cast_spell() {
         assert_eq!(
-            MageFireGuild::cast_heat_reduction(&data("chred", ""), &mut empty_ctx()),
-            Some("@cast 'heat reduction'".to_string())
+            MageFireGuild::cast_heat_reduction(&data("chred", ""), &empty_ctx()),
+            command::send("@cast 'heat reduction'".to_string())
         );
     }
 }

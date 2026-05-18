@@ -73,12 +73,12 @@ impl ReaverGuild {
 
     pub fn command_reaver_threaten(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.is_empty() {
-            None
+            Vec::new()
         } else {
-            Some(abilities::client_send_line(&format!(
+            command::send(abilities::client_send_line(&format!(
                 "reaver threaten {}",
                 &data.args
             )))
@@ -89,133 +89,132 @@ impl ReaverGuild {
 
     pub fn use_scythe_swipe(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(Self::compound_threaten_use(data, "scythe swipe"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(Self::compound_threaten_use(data, "scythe swipe"))
     }
 
     pub fn use_rampant_cutting(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(Self::compound_threaten_use(data, "rampant cutting"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(Self::compound_threaten_use(data, "rampant cutting"))
     }
 
     pub fn use_reaver_strike(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(Self::compound_threaten_use(data, "reaver strike"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(Self::compound_threaten_use(data, "reaver strike"))
     }
 
     pub fn use_blood_harvest(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(Self::compound_threaten_use(data, "blood harvest"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(Self::compound_threaten_use(data, "blood harvest"))
     }
 
     pub fn use_reave_shield(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(use_skill("reave shield", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("reave shield", data))
     }
 
     pub fn use_reave_weapon(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(use_skill("reave weapon", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("reave weapon", data))
     }
 
     pub fn use_reave_armour(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(use_skill("reave armour", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("reave armour", data))
     }
 
     pub fn use_true_reaving(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(Self::compound_threaten_use(data, "true reaving"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(Self::compound_threaten_use(data, "true reaving"))
     }
 
     pub fn use_corrosive_cut(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(Self::compound_threaten_use(data, "corrosive cut"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(Self::compound_threaten_use(data, "corrosive cut"))
     }
 
     pub fn use_breath_of_doom(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(Self::compound_threaten_use(data, "breath of doom"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(Self::compound_threaten_use(data, "breath of doom"))
     }
 
     pub fn use_prayer_to_destruction(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if !data.args.is_empty() {
-            return Some(abilities::client_send_line(&format!(
+            return command::send(abilities::client_send_line(&format!(
                 "use 'prayer to destruction' at {}",
                 &data.args
             )));
         }
-        ctx.push_output_line(StyledLine::new("No target!"));
-        None
+        vec![command::output(StyledLine::new("No target!"))]
     }
 
     // SPELLS
 
     pub fn cast_word_of_spite(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(Self::compound_threaten_cast(data, "word of spite"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(Self::compound_threaten_cast(data, "word of spite"))
     }
 
     pub fn cast_word_of_blasting(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(Self::compound_threaten_cast(data, "word of blasting"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(Self::compound_threaten_cast(data, "word of blasting"))
     }
 
     pub fn cast_word_of_destruction(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(Self::compound_threaten_cast(data, "word of destruction"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(Self::compound_threaten_cast(data, "word of destruction"))
     }
 
     pub fn cast_word_of_slaughter(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(Self::compound_threaten_cast(data, "word of slaughter"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(Self::compound_threaten_cast(data, "word of slaughter"))
     }
 
     pub fn cast_word_of_genocide(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(Self::compound_threaten_cast(data, "word of genocide"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(Self::compound_threaten_cast(data, "word of genocide"))
     }
 
     pub fn cast_word_of_attrition(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.is_empty() {
-            None
+            Vec::new()
         } else {
-            Some(abilities::client_send_line(&format!(
+            command::send(abilities::client_send_line(&format!(
                 "cast 'word of attrition' at {}",
                 &data.args
             )))
@@ -224,109 +223,114 @@ impl ReaverGuild {
 
     pub fn cast_shattered_feast(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if ctx.flag("prayer_done") {
-            return Some(abilities::client_send_line(
+            return command::send(abilities::client_send_line(
                 "cast 'shattered feast' at amount 100",
             ));
         }
 
-        set_prayer_flag(ctx, "cast_shattered_feast");
-        Some(abilities::client_send_line(
+        let mut effects = prayer_flag_effects("cast_shattered_feast");
+        effects.extend(command::send(abilities::client_send_line(
             "use 'prayer to destruction' at spell",
-        ))
+        )));
+        effects
     }
 
     pub fn cast_black_hole(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if ctx.flag("prayer_done") {
-            return Some(abilities::client_send_line("cast 'black hole'"));
+            return command::send(abilities::client_send_line("cast 'black hole'"));
         }
 
-        set_prayer_flag(ctx, "cast_black_hole");
-        Some(abilities::client_send_line(
+        let mut effects = prayer_flag_effects("cast_black_hole");
+        effects.extend(command::send(abilities::client_send_line(
             "use 'prayer to destruction' at spell",
-        ))
+        )));
+        effects
     }
 
     pub fn cast_blood_seeker(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if ctx.flag("prayer_done") {
-            return Some(abilities::client_send_line(
+            return command::send(abilities::client_send_line(
                 "cast 'blood seeker' at amount 100",
             ));
         }
 
-        set_prayer_flag(ctx, "cast_blood_seeker");
-        Some(abilities::client_send_line(
+        let mut effects = prayer_flag_effects("cast_blood_seeker");
+        effects.extend(command::send(abilities::client_send_line(
             "use 'prayer to destruction' at spell",
-        ))
+        )));
+        effects
     }
 
     pub fn cast_reaping_of_bile(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("cast 'reaping of bile'"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("cast 'reaping of bile'"))
     }
 
     pub fn cast_call_armour(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.is_empty() {
-            None
+            Vec::new()
         } else {
             if ctx.flag("prayer_done") {
-                return Some(abilities::client_send_line(&format!(
+                return command::send(abilities::client_send_line(&format!(
                     "cast 'call armour' at amount {}",
                     &data.args
                 )));
             }
 
-            ctx.push_action(Action::SetVar(
+            let mut effects = vec![command::automation(Action::SetVar(
                 "call_armour_amount".to_string(),
                 data.args.clone(),
-            ));
-            set_prayer_flag(ctx, "cast_call_armour");
-            Some(abilities::client_send_line(
+            ))];
+            effects.extend(prayer_flag_effects("cast_call_armour"));
+            effects.extend(command::send(abilities::client_send_line(
                 "use 'prayer to destruction' at spell",
-            ))
+            )));
+            effects
         }
     }
 
     pub fn cast_spirit_drain(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.is_empty() {
-            None
+            Vec::new()
         } else {
             if ctx.flag("prayer_done") {
-                return Some(abilities::client_send_line(&format!(
+                return command::send(abilities::client_send_line(&format!(
                     "cast 'spirit drain' at {} amount 100",
                     &data.args
                 )));
             }
 
-            ctx.push_action(Action::SetVar(
+            let mut effects = vec![command::automation(Action::SetVar(
                 "spirit_drain_target".to_string(),
                 data.args.clone(),
-            ));
-            set_prayer_flag(ctx, "cast_spirit_drain");
-            Some(abilities::client_send_line(
+            ))];
+            effects.extend(prayer_flag_effects("cast_spirit_drain"));
+            effects.extend(command::send(abilities::client_send_line(
                 "use 'prayer to destruction' at spell",
-            ))
+            )));
+            effects
         }
     }
 }
 
-fn set_prayer_flag(ctx: &mut command::CommandContext, flag: &str) {
+fn prayer_flag_effects(flag: &str) -> Vec<command::CommandEffect> {
     let flags = [
         "cast_shattered_feast",
         "cast_blood_seeker",
@@ -335,19 +339,19 @@ fn set_prayer_flag(ctx: &mut command::CommandContext, flag: &str) {
         "cast_black_hole",
     ];
 
+    let mut effects = Vec::new();
     for existing in flags {
         if existing != flag {
-            ctx.push_action(Action::ClearFlag(existing.to_string()));
+            effects.push(command::automation(Action::ClearFlag(existing.to_string())));
         }
     }
-
-    ctx.push_action(Action::SetFlag(flag.to_string(), true));
+    effects.push(command::automation(Action::SetFlag(flag.to_string(), true)));
+    effects
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     #[test]
     fn prayer_to_destruction_requires_target() {
@@ -355,12 +359,10 @@ mod tests {
             cmd: "upd".to_string(),
             args: "".to_string(),
         };
-        let mut ctx = command::CommandContext::new(HashMap::new(), true, String::new());
+        let ctx = command::CommandEnvironment::empty();
 
-        let result = ReaverGuild::use_prayer_to_destruction(&data, &mut ctx);
+        let result = ReaverGuild::use_prayer_to_destruction(&data, &ctx);
 
-        assert!(result.is_none());
-        assert_eq!(ctx.output_lines.len(), 1);
-        assert_eq!(ctx.output_lines[0].plain_line, "No target!");
+        assert_eq!(result, vec![command::output(StyledLine::new("No target!"))]);
     }
 }

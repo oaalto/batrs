@@ -10,9 +10,9 @@ macro_rules! mage_magical_targeted_cast {
     ($fn_name:ident, $spell:literal) => {
         pub fn $fn_name(
             data: &command::Data,
-            _ctx: &mut command::CommandContext,
-        ) -> Option<String> {
-            Some(cast_spell($spell, data))
+            _ctx: &command::CommandEnvironment,
+        ) -> Vec<command::CommandEffect> {
+            command::send(cast_spell($spell, data))
         }
     };
 }
@@ -54,7 +54,7 @@ impl MageMagicalGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
     fn data(cmd: &str, args: &str) -> command::Data {
         command::Data {
@@ -63,31 +63,31 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(std::collections::HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
     #[test]
     fn magic_missile_without_target() {
         assert_eq!(
-            MageMagicalGuild::cast_magic_missile(&data("cmm", ""), &mut empty_ctx()),
-            Some("@cast 'magic missile'".to_string())
+            MageMagicalGuild::cast_magic_missile(&data("cmm", ""), &empty_ctx()),
+            command::send("@cast 'magic missile'".to_string())
         );
     }
 
     #[test]
     fn magic_missile_with_target() {
         assert_eq!(
-            MageMagicalGuild::cast_magic_missile(&data("cmm", "orc"), &mut empty_ctx()),
-            Some("@target orc;cast 'magic missile' orc".to_string())
+            MageMagicalGuild::cast_magic_missile(&data("cmm", "orc"), &empty_ctx()),
+            command::send("@target orc;cast 'magic missile' orc".to_string())
         );
     }
 
     #[test]
     fn golden_arrow_cast_spell() {
         assert_eq!(
-            MageMagicalGuild::cast_golden_arrow(&data("cgoa", ""), &mut empty_ctx()),
-            Some("@cast 'golden arrow'".to_string())
+            MageMagicalGuild::cast_golden_arrow(&data("cgoa", ""), &empty_ctx()),
+            command::send("@cast 'golden arrow'".to_string())
         );
     }
 }

@@ -9,8 +9,11 @@ impl BarbarianGuild {
         HashMap::from([("barb_rip".to_string(), Self::barb_rip as Command)])
     }
 
-    pub fn barb_rip(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::compound_send(&[
+    pub fn barb_rip(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::compound_send(&[
             "rip_action set get all from corpse",
             "light torch",
             "barbburn",
@@ -24,7 +27,7 @@ impl BarbarianGuild {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
     fn data(cmd: &str, args: &str) -> command::Data {
         command::Data {
@@ -33,16 +36,16 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
     #[test]
     fn barb_rip_matches_expected_line() {
-        let result = BarbarianGuild::barb_rip(&data("barb_rip", ""), &mut empty_ctx());
+        let result = BarbarianGuild::barb_rip(&data("barb_rip", ""), &empty_ctx());
         assert_eq!(
             result,
-            Some(
+            command::send(
                 "@rip_action set get all from corpse;light torch;barbburn;extinguish torch;drop zinc;drop mowgles"
                     .to_string()
             )

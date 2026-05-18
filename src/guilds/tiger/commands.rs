@@ -21,17 +21,19 @@ impl TigerGuild {
 
     pub fn use_iron_palm(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(use_skill("iron palm", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("iron palm", data))
     }
 
-    pub fn use_dim_mak(data: &command::Data, ctx: &mut command::CommandContext) -> Option<String> {
+    pub fn use_dim_mak(
+        data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.is_empty() {
-            ctx.push_output_line(StyledLine::new("No target!"));
-            None
+            vec![command::output(StyledLine::new("No target!"))]
         } else {
-            Some(abilities::client_send_line(&format!(
+            command::send(abilities::client_send_line(&format!(
                 "target {};use 'dim mak' at {}",
                 data.args, data.args
             )))
@@ -40,24 +42,23 @@ impl TigerGuild {
 
     pub fn use_meditation(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if ctx.flag(MOUNT_SUMMONED_FLAG) {
-            Some(abilities::compound_send(&["dismount", "use 'meditation'"]))
+            command::send(abilities::compound_send(&["dismount", "use 'meditation'"]))
         } else {
-            Some(abilities::client_send_line("use 'meditation'"))
+            command::send(abilities::client_send_line("use 'meditation'"))
         }
     }
 
     pub fn use_pick_locks(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.is_empty() {
-            ctx.push_output_line(StyledLine::new("No target!"));
-            None
+            vec![command::output(StyledLine::new("No target!"))]
         } else {
-            Some(abilities::client_send_line(&format!(
+            command::send(abilities::client_send_line(&format!(
                 "target {};use 'pick locks' at {}",
                 data.args, data.args
             )))
@@ -66,20 +67,23 @@ impl TigerGuild {
 
     pub fn cast_tiger_claw(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("tiger claw", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("tiger claw", data))
     }
 
     pub fn cast_flame_fists(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("cast 'flame fists'"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("cast 'flame fists'"))
     }
 
-    pub fn use_sneak(_data: &command::Data, _ctx: &mut command::CommandContext) -> Option<String> {
-        Some(abilities::client_send_line("use 'sneak'"))
+    pub fn use_sneak(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("use 'sneak'"))
     }
 }
 
@@ -95,98 +99,101 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> command::CommandContext {
-        command::CommandContext::new(HashMap::new(), true, String::new())
+    fn empty_ctx() -> command::CommandEnvironment {
+        command::CommandEnvironment::empty()
     }
 
-    fn ctx_with_mount_summoned() -> command::CommandContext {
-        command::CommandContext::new(
+    fn ctx_with_mount_summoned() -> command::CommandEnvironment {
+        command::CommandEnvironment::new(
             HashMap::from([(MOUNT_SUMMONED_FLAG.to_string(), true)]),
-            true,
-            String::new(),
+            HashMap::new(),
         )
     }
 
     #[test]
     fn iron_palm_without_target() {
-        let result = TigerGuild::use_iron_palm(&data("ip", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@use 'iron palm'".to_string()));
+        let result = TigerGuild::use_iron_palm(&data("ip", ""), &empty_ctx());
+        assert_eq!(result, command::send("@use 'iron palm'".to_string()));
     }
 
     #[test]
     fn iron_palm_with_target() {
-        let result = TigerGuild::use_iron_palm(&data("ip", "orc"), &mut empty_ctx());
-        assert_eq!(result, Some("@target orc;use 'iron palm' orc".to_string()));
+        let result = TigerGuild::use_iron_palm(&data("ip", "orc"), &empty_ctx());
+        assert_eq!(
+            result,
+            command::send("@target orc;use 'iron palm' orc".to_string())
+        );
     }
 
     #[test]
     fn dim_mak_without_target_shows_message() {
-        let mut ctx = empty_ctx();
-        let result = TigerGuild::use_dim_mak(&data("dm", ""), &mut ctx);
-        assert!(result.is_none());
-        assert_eq!(ctx.output_lines.len(), 1);
-        assert_eq!(ctx.output_lines[0].plain_line, "No target!");
+        let result = TigerGuild::use_dim_mak(&data("dm", ""), &empty_ctx());
+        assert_eq!(result, vec![command::output(StyledLine::new("No target!"))]);
     }
 
     #[test]
     fn dim_mak_with_target() {
-        let result = TigerGuild::use_dim_mak(&data("dm", "orc"), &mut empty_ctx());
-        assert_eq!(result, Some("@target orc;use 'dim mak' at orc".to_string()));
+        let result = TigerGuild::use_dim_mak(&data("dm", "orc"), &empty_ctx());
+        assert_eq!(
+            result,
+            command::send("@target orc;use 'dim mak' at orc".to_string())
+        );
     }
 
     #[test]
     fn meditation_without_mount() {
-        let result = TigerGuild::use_meditation(&data("med", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@use 'meditation'".to_string()));
+        let result = TigerGuild::use_meditation(&data("med", ""), &empty_ctx());
+        assert_eq!(result, command::send("@use 'meditation'".to_string()));
     }
 
     #[test]
     fn meditation_with_mount_summoned_prefixes_dismount() {
-        let result = TigerGuild::use_meditation(&data("med", ""), &mut ctx_with_mount_summoned());
-        assert_eq!(result, Some("@dismount;use 'meditation'".to_string()));
+        let result = TigerGuild::use_meditation(&data("med", ""), &ctx_with_mount_summoned());
+        assert_eq!(
+            result,
+            command::send("@dismount;use 'meditation'".to_string())
+        );
     }
 
     #[test]
     fn pick_locks_without_target_shows_message() {
-        let mut ctx = empty_ctx();
-        let result = TigerGuild::use_pick_locks(&data("upl", ""), &mut ctx);
-        assert!(result.is_none());
-        assert_eq!(ctx.output_lines[0].plain_line, "No target!");
+        let result = TigerGuild::use_pick_locks(&data("upl", ""), &empty_ctx());
+        assert_eq!(result, vec![command::output(StyledLine::new("No target!"))]);
     }
 
     #[test]
     fn pick_locks_with_target() {
-        let result = TigerGuild::use_pick_locks(&data("upl", "chest"), &mut empty_ctx());
+        let result = TigerGuild::use_pick_locks(&data("upl", "chest"), &empty_ctx());
         assert_eq!(
             result,
-            Some("@target chest;use 'pick locks' at chest".to_string())
+            command::send("@target chest;use 'pick locks' at chest".to_string())
         );
     }
 
     #[test]
     fn tiger_claw_without_target() {
-        let result = TigerGuild::cast_tiger_claw(&data("tc", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@cast 'tiger claw'".to_string()));
+        let result = TigerGuild::cast_tiger_claw(&data("tc", ""), &empty_ctx());
+        assert_eq!(result, command::send("@cast 'tiger claw'".to_string()));
     }
 
     #[test]
     fn tiger_claw_with_target() {
-        let result = TigerGuild::cast_tiger_claw(&data("tc", "orc"), &mut empty_ctx());
+        let result = TigerGuild::cast_tiger_claw(&data("tc", "orc"), &empty_ctx());
         assert_eq!(
             result,
-            Some("@target orc;cast 'tiger claw' orc".to_string())
+            command::send("@target orc;cast 'tiger claw' orc".to_string())
         );
     }
 
     #[test]
     fn flame_fists() {
-        let result = TigerGuild::cast_flame_fists(&data("cff", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@cast 'flame fists'".to_string()));
+        let result = TigerGuild::cast_flame_fists(&data("cff", ""), &empty_ctx());
+        assert_eq!(result, command::send("@cast 'flame fists'".to_string()));
     }
 
     #[test]
     fn sneak() {
-        let result = TigerGuild::use_sneak(&data("usn", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@use 'sneak'".to_string()));
+        let result = TigerGuild::use_sneak(&data("usn", ""), &empty_ctx());
+        assert_eq!(result, command::send("@use 'sneak'".to_string()));
     }
 }

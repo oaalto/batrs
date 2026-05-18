@@ -10,16 +10,16 @@ impl SeminaryGuild {
 
     pub fn cast_harm_body(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("harm body", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("harm body", data))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
     fn data(cmd: &str, args: &str) -> command::Data {
         command::Data {
@@ -28,19 +28,22 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
     #[test]
     fn harm_body_without_target() {
-        let result = SeminaryGuild::cast_harm_body(&data("chb", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@cast 'harm body'".to_string()));
+        let result = SeminaryGuild::cast_harm_body(&data("chb", ""), &empty_ctx());
+        assert_eq!(result, command::send("@cast 'harm body'".to_string()));
     }
 
     #[test]
     fn harm_body_with_target() {
-        let result = SeminaryGuild::cast_harm_body(&data("chb", "orc"), &mut empty_ctx());
-        assert_eq!(result, Some("@target orc;cast 'harm body' orc".to_string()));
+        let result = SeminaryGuild::cast_harm_body(&data("chb", "orc"), &empty_ctx());
+        assert_eq!(
+            result,
+            command::send("@target orc;cast 'harm body' orc".to_string())
+        );
     }
 }

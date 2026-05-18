@@ -15,12 +15,12 @@ impl DiscipleGuild {
 
     pub fn use_chaotic_spawn(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.is_empty() {
-            Some(abilities::client_send_line("use 'chaotic spawn'"))
+            command::send(abilities::client_send_line("use 'chaotic spawn'"))
         } else {
-            Some(abilities::client_send_line(&format!(
+            command::send(abilities::client_send_line(&format!(
                 "use 'chaotic spawn' {}",
                 data.args
             )))
@@ -29,19 +29,19 @@ impl DiscipleGuild {
 
     pub fn use_clawed_strike(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(use_skill("clawed strike", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("clawed strike", data))
     }
 
     pub fn use_kiss_of_death(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.is_empty() {
-            None
+            Vec::new()
         } else {
-            Some(abilities::client_send_line(&format!(
+            command::send(abilities::client_send_line(&format!(
                 "target {};use 'kiss of death' at {}",
                 data.args, data.args
             )))

@@ -19,27 +19,27 @@ impl SabresGuild {
         ])
     }
 
-    fn sabre_weapon_trimmed(ctx: &command::CommandContext) -> Option<&str> {
+    fn sabre_weapon_trimmed(ctx: &command::CommandEnvironment) -> Option<&str> {
         let trimmed = ctx.var(SABRE_WEAPON_VAR).unwrap_or_default().trim();
         (!trimmed.is_empty()).then_some(trimmed)
     }
 
     pub fn use_lounging(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(use_skill("lounging", data))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("lounging", data))
     }
 
     pub fn use_sabre_fence(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            Some(abilities::client_send_line("use 'sabre fence'"))
+            command::send(abilities::client_send_line("use 'sabre fence'"))
         } else {
-            Some(abilities::client_send_line(&format!(
+            command::send(abilities::client_send_line(&format!(
                 "target {args};use sabre fence at {args}"
             )))
         }
@@ -47,18 +47,16 @@ impl SabresGuild {
 
     pub fn use_gloveknock(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let Some(weapon) = Self::sabre_weapon_trimmed(ctx) else {
-            ctx.push_output_line(StyledLine::new(UNSET_SABRE_WEAPON_HINT));
-            return None;
+            return vec![command::output(StyledLine::new(UNSET_SABRE_WEAPON_HINT))];
         };
         if data.args.is_empty() {
-            ctx.push_output_line(StyledLine::new("No target!"));
-            return None;
+            return vec![command::output(StyledLine::new("No target!"))];
         }
         let target = data.args.trim();
-        Some(abilities::compound_send(&[
+        command::send(abilities::compound_send(&[
             &format!("remove {weapon} from right hand"),
             &format!("target {target}"),
             &format!("use gloveknock at {target}"),
@@ -67,13 +65,12 @@ impl SabresGuild {
 
     pub fn wield_sabre_weapon(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let Some(weapon) = Self::sabre_weapon_trimmed(ctx) else {
-            ctx.push_output_line(StyledLine::new(UNSET_SABRE_WEAPON_HINT));
-            return None;
+            return vec![command::output(StyledLine::new(UNSET_SABRE_WEAPON_HINT))];
         };
-        Some(abilities::client_send_line(&format!("wield {weapon}")))
+        command::send(abilities::client_send_line(&format!("wield {weapon}")))
     }
 }
 
@@ -89,80 +86,85 @@ mod tests {
         }
     }
 
-    fn ctx(sabre_weapon: &str) -> command::CommandContext {
-        command::CommandContext::with_vars(
+    fn ctx(sabre_weapon: &str) -> command::CommandEnvironment {
+        command::CommandEnvironment::with_vars(
             HashMap::new(),
             HashMap::from([(SABRE_WEAPON_VAR.to_string(), sabre_weapon.to_string())]),
         )
     }
 
-    fn empty_ctx() -> command::CommandContext {
+    fn empty_ctx() -> command::CommandEnvironment {
         ctx("")
     }
 
     #[test]
     fn lounging_no_target() {
-        let result = SabresGuild::use_lounging(&data("ul", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@use 'lounging'".to_string()));
+        let result = SabresGuild::use_lounging(&data("ul", ""), &empty_ctx());
+        assert_eq!(result, command::send("@use 'lounging'".to_string()));
     }
 
     #[test]
     fn lounging_with_target() {
-        let result = SabresGuild::use_lounging(&data("ul", "orc"), &mut empty_ctx());
-        assert_eq!(result, Some("@target orc;use 'lounging' orc".to_string()));
+        let result = SabresGuild::use_lounging(&data("ul", "orc"), &empty_ctx());
+        assert_eq!(
+            result,
+            command::send("@target orc;use 'lounging' orc".to_string())
+        );
     }
 
     #[test]
     fn sabre_fence_untargeted() {
-        let result = SabresGuild::use_sabre_fence(&data("usf", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@use 'sabre fence'".to_string()));
+        let result = SabresGuild::use_sabre_fence(&data("usf", ""), &empty_ctx());
+        assert_eq!(result, command::send("@use 'sabre fence'".to_string()));
     }
 
     #[test]
     fn sabre_fence_targeted() {
-        let result = SabresGuild::use_sabre_fence(&data("usf", "orc"), &mut empty_ctx());
+        let result = SabresGuild::use_sabre_fence(&data("usf", "orc"), &empty_ctx());
         assert_eq!(
             result,
-            Some("@target orc;use sabre fence at orc".to_string())
+            command::send("@target orc;use sabre fence at orc".to_string())
         );
     }
 
     #[test]
     fn gloveknock_requires_weapon() {
-        let mut c = empty_ctx();
-        let result = SabresGuild::use_gloveknock(&data("ug", "orc"), &mut c);
-        assert!(result.is_none());
-        assert_eq!(c.output_lines[0].plain_line, UNSET_SABRE_WEAPON_HINT);
+        let result = SabresGuild::use_gloveknock(&data("ug", "orc"), &empty_ctx());
+        assert_eq!(
+            result,
+            vec![command::output(StyledLine::new(UNSET_SABRE_WEAPON_HINT))]
+        );
     }
 
     #[test]
     fn gloveknock_requires_target() {
-        let mut c = ctx("sabre");
-        let result = SabresGuild::use_gloveknock(&data("ug", ""), &mut c);
-        assert!(result.is_none());
-        assert_eq!(c.output_lines[0].plain_line, "No target!");
+        let result = SabresGuild::use_gloveknock(&data("ug", ""), &ctx("sabre"));
+        assert_eq!(result, vec![command::output(StyledLine::new("No target!"))]);
     }
 
     #[test]
     fn gloveknock_success() {
-        let result = SabresGuild::use_gloveknock(&data("ug", "orc"), &mut ctx("sabre"));
+        let result = SabresGuild::use_gloveknock(&data("ug", "orc"), &ctx("sabre"));
         assert_eq!(
             result,
-            Some("@remove sabre from right hand;target orc;use gloveknock at orc".to_string())
+            command::send(
+                "@remove sabre from right hand;target orc;use gloveknock at orc".to_string()
+            )
         );
     }
 
     #[test]
     fn wield_requires_weapon() {
-        let mut c = empty_ctx();
-        let result = SabresGuild::wield_sabre_weapon(&data("wsw", ""), &mut c);
-        assert!(result.is_none());
-        assert_eq!(c.output_lines[0].plain_line, UNSET_SABRE_WEAPON_HINT);
+        let result = SabresGuild::wield_sabre_weapon(&data("wsw", ""), &empty_ctx());
+        assert_eq!(
+            result,
+            vec![command::output(StyledLine::new(UNSET_SABRE_WEAPON_HINT))]
+        );
     }
 
     #[test]
     fn wield_success() {
-        let result = SabresGuild::wield_sabre_weapon(&data("wsw", ""), &mut ctx("sabre"));
-        assert_eq!(result, Some("@wield sabre".to_string()));
+        let result = SabresGuild::wield_sabre_weapon(&data("wsw", ""), &ctx("sabre"));
+        assert_eq!(result, command::send("@wield sabre".to_string()));
     }
 }

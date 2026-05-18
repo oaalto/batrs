@@ -60,106 +60,102 @@ impl RiftwalkerGuild {
 
     pub fn set_skill_fire(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        push_set_entity_skill(ctx, FIRE_SKILL, "fire");
-        None
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        set_entity_skill_effects(FIRE_SKILL, "fire")
     }
 
     pub fn set_skill_air(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        push_set_entity_skill(ctx, AIR_SKILL, "air");
-        None
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        set_entity_skill_effects(AIR_SKILL, "air")
     }
 
     pub fn set_skill_earth(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        push_set_entity_skill(ctx, EARTH_SKILL, "earth");
-        None
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        set_entity_skill_effects(EARTH_SKILL, "earth")
     }
 
     pub fn set_skill_water(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        push_set_entity_skill(ctx, WATER_SKILL, "water");
-        None
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        set_entity_skill_effects(WATER_SKILL, "water")
     }
 
     pub fn cmd_use_current_skill(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        push_target_gem_chain(ctx, data.args.trim());
-        None
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        target_gem_chain_effects(data.args.trim())
     }
 
     pub fn cmd_gem_entity(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            ctx.push_action(Action::Send(abilities::client_send_line(&format!(
+            command::automations([Action::Send(abilities::client_send_line(&format!(
                 "gem entities {{{}}}",
                 RIFTWALKER_ELEMENT_VAR
-            ))));
+            )))])
         } else {
-            ctx.push_action(Action::Send(abilities::client_send_line(&format!(
+            command::automations([Action::Send(abilities::client_send_line(&format!(
                 "gem entities {args}"
-            ))));
+            )))])
         }
-        None
     }
 
     pub fn cmd_summon_entity(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
-        ctx.push_action(Action::Send(abilities::client_send_line(&format!(
-            "cast 'summon rift entity' {args}"
-        ))));
-        apply_element_from_free_text(ctx, args);
-        ctx.push_action(Action::SetFlag(
+        let mut effects = command::automations([Action::Send(abilities::client_send_line(
+            &format!("cast 'summon rift entity' {args}"),
+        ))]);
+        effects.extend(element_from_free_text_effects(args));
+        effects.push(command::automation(Action::SetFlag(
             RIFTWALKER_HAS_ENTITY_FLAG.to_string(),
             true,
-        ));
-        None
+        )));
+        effects
     }
 
     pub fn cmd_dismiss_entity(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        ctx.push_action(Action::SetFlag(
-            RIFTWALKER_HAS_ENTITY_FLAG.to_string(),
-            false,
-        ));
-        Some(abilities::client_send_line("cast 'dismiss rift entity'"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        vec![
+            command::automation(Action::SetFlag(
+                RIFTWALKER_HAS_ENTITY_FLAG.to_string(),
+                false,
+            )),
+            command::CommandEffect::Send(abilities::client_send_line("cast 'dismiss rift entity'")),
+        ]
     }
 
     pub fn cmd_beckon_entity(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("cast 'beckon rift entity'"))
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("cast 'beckon rift entity'"))
     }
 
     pub fn cmd_entity_control(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.trim().is_empty() {
-            Some(abilities::client_send_line(
+            command::send(abilities::client_send_line(
                 "cast 'establish entity control'",
             ))
         } else {
-            Some(abilities::client_send_line(&format!(
+            command::send(abilities::client_send_line(&format!(
                 "cast 'establish entity control' {}",
                 data.args.trim()
             )))
@@ -168,200 +164,201 @@ impl RiftwalkerGuild {
 
     pub fn cmd_entity_control_long(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(
             "cast 'establish entity control' 10",
         ))
     }
 
     pub fn cmd_entity_regen(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("cast 'regenerate rift entity'"))
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("cast 'regenerate rift entity'"))
     }
 
     pub fn cmd_transform_entity(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         match args.split_once(char::is_whitespace) {
             Some((target_at, rest)) => {
-                ctx.push_action(Action::Send(abilities::client_send_line(&format!(
-                    "cast 'transform rift entity' {target_at}"
-                ))));
+                let mut effects =
+                    command::automations([Action::Send(abilities::client_send_line(&format!(
+                        "cast 'transform rift entity' {target_at}"
+                    )))]);
                 let src = rest.trim();
-                apply_element_from_free_text(ctx, if src.is_empty() { target_at } else { src });
-                None
+                effects.extend(element_from_free_text_effects(if src.is_empty() {
+                    target_at
+                } else {
+                    src
+                }));
+                effects
             }
             None if !args.is_empty() => {
-                ctx.push_action(Action::Send(abilities::client_send_line(&format!(
-                    "cast 'transform rift entity' {args}"
-                ))));
-                apply_element_from_free_text(ctx, args);
-                None
+                let mut effects = command::automations([Action::Send(
+                    abilities::client_send_line(&format!("cast 'transform rift entity' {args}")),
+                )]);
+                effects.extend(element_from_free_text_effects(args));
+                effects
             }
             None => {
-                ctx.push_output_line(StyledLine::new(
+                vec![command::output(StyledLine::new(
                     "Riftwalker: cte expects a target direction (and optional element text).",
-                ));
-                None
+                ))]
             }
         }
     }
 
     pub fn cmd_start_spark_birth(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        push_opening_battle(ctx, data.args.trim(), "spark birth");
-        None
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        opening_battle_effects(data.args.trim(), "spark birth")
     }
 
     pub fn cmd_start_rift_pulse(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        push_opening_battle(ctx, data.args.trim(), "rift pulse");
-        None
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        opening_battle_effects(data.args.trim(), "rift pulse")
     }
 
     pub fn cmd_start_dimensional_leech(
         data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        push_opening_battle(ctx, data.args.trim(), "dimensional leech");
-        None
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        opening_battle_effects(data.args.trim(), "dimensional leech")
     }
 
     pub fn cmd_cast_spark_birth(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("spark birth", data))
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("spark birth", data))
     }
 
     pub fn cmd_cast_rift_pulse(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("rift pulse", data))
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("rift pulse", data))
     }
 
     pub fn cmd_cast_dimensional_leech(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(cast_spell("dimensional leech", data))
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(cast_spell("dimensional leech", data))
     }
 
     pub fn cmd_cast_force_absorption(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.trim().is_empty() {
-            Some(abilities::client_send_line(
+            command::send(abilities::client_send_line(
                 "cast 'force absorption' entity",
             ))
         } else {
-            Some(cast_spell("force absorption", data))
+            command::send(cast_spell("force absorption", data))
         }
     }
 
     pub fn cmd_cast_mirror_image_entity(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("cast 'mirror image' entity"))
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("cast 'mirror image' entity"))
     }
 
     pub fn cmd_cast_absorbing_meld(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("cast 'Absorbing meld'"))
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("cast 'Absorbing meld'"))
     }
 
     pub fn cmd_cast_iron_will(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         if data.args.trim().is_empty() {
-            Some(abilities::client_send_line("cast 'iron will' entity"))
+            command::send(abilities::client_send_line("cast 'iron will' entity"))
         } else {
-            Some(cast_spell("iron will", data))
+            command::send(cast_spell("iron will", data))
         }
     }
 
     pub fn cmd_stop_use(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::compound_send(&["zz", "gem cmd use stop"]))
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::compound_send(&["zz", "gem cmd use stop"]))
     }
 
     pub fn cmd_gem_wield(
         data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line(&format!(
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line(&format!(
             "gem cmd wield {}",
             data.args.trim()
         )))
     }
 
-    pub fn cmd_diag(_data: &command::Data, ctx: &mut command::CommandContext) -> Option<String> {
+    pub fn cmd_diag(
+        _data: &command::Data,
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         let has = ctx.flag(RIFTWALKER_HAS_ENTITY_FLAG);
-        ctx.push_output_line(StyledLine::new(&format!(
+        vec![command::output(StyledLine::new(&format!(
             "Riftwalker: has_entity={has} (per-element labels: /guilds)",
-        )));
-        None
+        )))]
     }
 
-    pub fn cmd_fix(_data: &command::Data, ctx: &mut command::CommandContext) -> Option<String> {
-        ctx.push_output_line(StyledLine::new(
+    pub fn cmd_fix(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        vec![command::output(StyledLine::new(
             "Riftwalker: external borg/hook toggles from third-party scripts do not apply in Batrs.",
-        ));
-        None
+        ))]
     }
 }
 
-fn push_set_entity_skill(ctx: &mut command::CommandContext, skill: &str, element: &str) {
-    ctx.push_action(Action::SetVar(
-        RIFTWALKER_SKILL_VAR.to_string(),
-        skill.to_string(),
-    ));
-    ctx.push_action(Action::SetVar(
-        RIFTWALKER_ELEMENT_VAR.to_string(),
-        element.to_string(),
-    ));
-    ctx.push_action(Action::SetFlag(
-        RIFTWALKER_HAS_ENTITY_FLAG.to_string(),
-        true,
-    ));
+fn set_entity_skill_effects(skill: &str, element: &str) -> Vec<command::CommandEffect> {
+    command::automations([
+        Action::SetVar(RIFTWALKER_SKILL_VAR.to_string(), skill.to_string()),
+        Action::SetVar(RIFTWALKER_ELEMENT_VAR.to_string(), element.to_string()),
+        Action::SetFlag(RIFTWALKER_HAS_ENTITY_FLAG.to_string(), true),
+    ])
 }
 
-fn apply_element_from_free_text(ctx: &mut command::CommandContext, blob: &str) {
+fn element_from_free_text_effects(blob: &str) -> Vec<command::CommandEffect> {
     let lowered = blob.to_ascii_lowercase();
     if lowered.contains("fire") {
-        push_set_entity_skill(ctx, FIRE_SKILL, "fire");
+        set_entity_skill_effects(FIRE_SKILL, "fire")
     } else if lowered.contains("air") {
-        push_set_entity_skill(ctx, AIR_SKILL, "air");
+        set_entity_skill_effects(AIR_SKILL, "air")
     } else if lowered.contains("earth") {
-        push_set_entity_skill(ctx, EARTH_SKILL, "earth");
+        set_entity_skill_effects(EARTH_SKILL, "earth")
     } else if lowered.contains("water") {
-        push_set_entity_skill(ctx, WATER_SKILL, "water");
+        set_entity_skill_effects(WATER_SKILL, "water")
+    } else {
+        Vec::new()
     }
 }
 
-fn push_target_gem_chain(ctx: &mut command::CommandContext, tail: &str) {
+fn target_gem_chain_effects(tail: &str) -> Vec<command::CommandEffect> {
     let trimmed = tail.trim();
+    let mut effects = Vec::new();
     if !trimmed.is_empty() {
-        ctx.push_action(Action::Send(abilities::client_send_line(&format!(
-            "target {trimmed};gem cmd target {trimmed}"
-        ))));
+        effects.push(command::automation(Action::Send(
+            abilities::client_send_line(&format!("target {trimmed};gem cmd target {trimmed}")),
+        )));
     }
     let gem = if trimmed.is_empty() {
         abilities::client_send_line(&format!("gem cmd use '{{{}}}'", RIFTWALKER_SKILL_VAR))
@@ -371,18 +368,20 @@ fn push_target_gem_chain(ctx: &mut command::CommandContext, tail: &str) {
             RIFTWALKER_SKILL_VAR, trimmed
         ))
     };
-    ctx.push_action(Action::Send(gem));
+    effects.push(command::automation(Action::Send(gem)));
+    effects
 }
 
-fn push_opening_battle(ctx: &mut command::CommandContext, tail: &str, spell: &str) {
+fn opening_battle_effects(tail: &str, spell: &str) -> Vec<command::CommandEffect> {
     let trimmed = tail.trim();
+    let mut effects = Vec::new();
     if !trimmed.is_empty() {
-        ctx.push_action(Action::Send(abilities::client_send_line(&format!(
-            "target {trimmed};gem cmd target {trimmed}"
-        ))));
+        effects.push(command::automation(Action::Send(
+            abilities::client_send_line(&format!("target {trimmed};gem cmd target {trimmed}")),
+        )));
     }
     let cast_send = abilities::cast_quoted_with_suffix(spell, trimmed);
-    ctx.push_action(Action::Send(cast_send));
+    effects.push(command::automation(Action::Send(cast_send)));
     let gem_send = if trimmed.is_empty() {
         abilities::client_send_line(&format!("gem cmd use '{{{}}}'", RIFTWALKER_SKILL_VAR))
     } else {
@@ -391,47 +390,56 @@ fn push_opening_battle(ctx: &mut command::CommandContext, tail: &str, spell: &st
             RIFTWALKER_SKILL_VAR, trimmed
         ))
     };
-    ctx.push_action(Action::Send(gem_send));
+    effects.push(command::automation(Action::Send(gem_send)));
+    effects
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::automation::Automation;
-    use crate::command::{CommandContext, Data};
+    use crate::command::{CommandEnvironment, Data};
     use crate::guilds::riftwalker::RIFTWALKER_HAS_ENTITY_FLAG;
-    use std::mem;
 
     #[test]
     fn dismiss_queues_flag_then_sends_on_separate_application() {
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
+        let env = CommandEnvironment::empty();
         let outcome = RiftwalkerGuild::cmd_dismiss_entity(
             &Data {
                 cmd: "cdis".to_string(),
                 args: String::new(),
             },
-            &mut ctx,
+            &env,
         );
-        assert_eq!(outcome, Some("@cast 'dismiss rift entity'".to_string()));
         assert!(matches!(
-            ctx.automation_actions.as_slice(),
-            [Action::SetFlag(flag, false)] if flag == RIFTWALKER_HAS_ENTITY_FLAG
+            outcome.as_slice(),
+            [
+                command::CommandEffect::Automation(Action::SetFlag(flag, false)),
+                command::CommandEffect::Send(command),
+            ] if flag == RIFTWALKER_HAS_ENTITY_FLAG && command == "@cast 'dismiss rift entity'"
         ));
     }
 
     #[test]
     fn opening_battle_with_target_splits_cast_and_skill() {
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
+        let env = CommandEnvironment::empty();
         let mut automation = Automation::new();
         automation.set_var(RIFTWALKER_SKILL_VAR, FIRE_SKILL.to_string());
-        RiftwalkerGuild::cmd_start_spark_birth(
+        let effects = RiftwalkerGuild::cmd_start_spark_birth(
             &Data {
                 cmd: "cs".to_string(),
                 args: "troll".to_string(),
             },
-            &mut ctx,
+            &env,
         );
-        let sends = automation.apply_actions(mem::take(&mut ctx.automation_actions));
+        let actions: Vec<Action> = effects
+            .into_iter()
+            .filter_map(|effect| match effect {
+                command::CommandEffect::Automation(action) => Some(action),
+                _ => None,
+            })
+            .collect();
+        let sends = automation.apply_actions(actions);
         assert_eq!(
             sends,
             vec![

@@ -22,36 +22,36 @@ impl AnimistGuild {
 
     pub fn use_ceremony(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("use 'ceremony'"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("use 'ceremony'"))
     }
 
     pub fn cast_separate_soul(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         cast_after_ceremony(ctx, SEPARATING_SOUL_FLAG, "cast 'separate soul'")
     }
 
     pub fn cast_join_soul(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         cast_after_ceremony(ctx, JOINING_SOUL_FLAG, "cast 'join soul'")
     }
 
     pub fn cast_conjure_mount(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         cast_after_ceremony(ctx, CONJURING_MOUNT_FLAG, "cast 'conjure animal soul'")
     }
 
     pub fn cast_dismiss_mount(
         _data: &command::Data,
-        ctx: &mut command::CommandContext,
-    ) -> Option<String> {
+        ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
         cast_after_ceremony(
             ctx,
             DISMISSING_MOUNT_FLAG,
@@ -61,19 +61,21 @@ impl AnimistGuild {
 }
 
 fn cast_after_ceremony(
-    ctx: &mut command::CommandContext,
+    ctx: &command::CommandEnvironment,
     pending_flag: &str,
     command: &str,
-) -> Option<String> {
+) -> Vec<command::CommandEffect> {
     if ctx.flag(CEREMONY_DONE_FLAG) {
-        return Some(abilities::client_send_line(command));
+        return command::send(abilities::client_send_line(command));
     }
 
-    for action in clear_pending_actions() {
-        ctx.push_action(action);
-    }
-    ctx.push_action(Action::SetFlag(pending_flag.to_string(), true));
-    Some(abilities::client_send_line("use 'ceremony'"))
+    let mut effects = command::automations(clear_pending_actions());
+    effects.push(command::automation(Action::SetFlag(
+        pending_flag.to_string(),
+        true,
+    )));
+    effects.extend(command::send(abilities::client_send_line("use 'ceremony'")));
+    effects
 }
 
 #[cfg(test)]
@@ -88,46 +90,49 @@ mod tests {
         }
     }
 
-    fn ctx(ceremony_done: bool) -> command::CommandContext {
-        command::CommandContext::new(
+    fn ctx(ceremony_done: bool) -> command::CommandEnvironment {
+        command::CommandEnvironment::new(
             HashMap::from([(CEREMONY_DONE_FLAG.to_string(), ceremony_done)]),
-            true,
-            String::new(),
+            HashMap::new(),
         )
     }
 
     #[test]
     fn ceremony_alias_uses_ceremony() {
-        let mut ctx = ctx(false);
+        let ctx = ctx(false);
 
         assert_eq!(
-            AnimistGuild::use_ceremony(&data("cere"), &mut ctx),
-            Some("@use 'ceremony'".to_string())
+            AnimistGuild::use_ceremony(&data("cere"), &ctx),
+            command::send("@use 'ceremony'".to_string())
         );
     }
 
     #[test]
     fn cast_runs_directly_when_ceremony_is_done() {
-        let mut ctx = ctx(true);
+        let ctx = ctx(true);
 
         assert_eq!(
-            AnimistGuild::cast_separate_soul(&data("csoul"), &mut ctx),
-            Some("@cast 'separate soul'".to_string())
+            AnimistGuild::cast_separate_soul(&data("csoul"), &ctx),
+            command::send("@cast 'separate soul'".to_string())
         );
-        assert!(ctx.automation_actions.is_empty());
     }
 
     #[test]
     fn cast_queues_ceremony_when_needed() {
-        let mut ctx = ctx(false);
+        let ctx = ctx(false);
 
-        assert_eq!(
-            AnimistGuild::cast_conjure_mount(&data("csum"), &mut ctx),
-            Some("@use 'ceremony'".to_string())
-        );
-        assert_eq!(ctx.automation_actions.len(), PENDING_FLAGS.len() + 1);
+        let effects = AnimistGuild::cast_conjure_mount(&data("csum"), &ctx);
+        assert!(effects.contains(&command::CommandEffect::Send("@use 'ceremony'".to_string())));
+        let actions: Vec<&Action> = effects
+            .iter()
+            .filter_map(|effect| match effect {
+                command::CommandEffect::Automation(action) => Some(action),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(actions.len(), PENDING_FLAGS.len() + 1);
         assert!(matches!(
-            ctx.automation_actions.last(),
+            actions.last(),
             Some(Action::SetFlag(flag, true)) if flag == CONJURING_MOUNT_FLAG
         ));
     }

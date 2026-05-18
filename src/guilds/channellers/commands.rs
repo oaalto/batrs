@@ -11,16 +11,16 @@ impl ChannellersGuild {
 
     pub fn cast_drain_room(
         _data: &command::Data,
-        _ctx: &mut command::CommandContext,
-    ) -> Option<String> {
-        Some(abilities::client_send_line("cast drain room"))
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::client_send_line("cast drain room"))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::CommandContext;
+    use crate::command::CommandEnvironment;
 
     fn data(cmd: &str, args: &str) -> command::Data {
         command::Data {
@@ -29,13 +29,13 @@ mod tests {
         }
     }
 
-    fn empty_ctx() -> CommandContext {
-        CommandContext::new(HashMap::new(), true, String::new())
+    fn empty_ctx() -> CommandEnvironment {
+        CommandEnvironment::empty()
     }
 
     #[test]
     fn drain_room_matches_expected_line() {
-        let result = ChannellersGuild::cast_drain_room(&data("cdr", ""), &mut empty_ctx());
-        assert_eq!(result, Some("@cast drain room".to_string()));
+        let result = ChannellersGuild::cast_drain_room(&data("cdr", ""), &empty_ctx());
+        assert_eq!(result, command::send("@cast drain room".to_string()));
     }
 }
