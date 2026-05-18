@@ -1,9 +1,5 @@
 use crate::config::{GenericCommandsConfig, PlayerToml, SettingEntry, SettingsTable, UserSettings};
-use crate::guilds::catalog;
-use crate::guilds::grouping::{
-    DEFAULT_GUILD_PRIMARY_KEYWORD, GuildBucketClass, classify_guild_key, thematic_index_for_keyword,
-};
-use crate::guilds::guild_definitions;
+use crate::guilds::catalog::{DEFAULT_GUILD_PRIMARY_KEYWORD, GuildSelection};
 use std::collections::HashMap;
 
 const RIG_KEY: &str = "rig";
@@ -61,7 +57,7 @@ const SETTINGS_DEFS: &[SettingDefinition] = &[
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlayerRuntimeProfile {
-    pub selected_guild_keys: Option<Vec<String>>,
+    pub guild_selection: GuildSelection,
     pub guild_primary_background: String,
     pub generic_commands_config: GenericCommandsConfig,
     pub settings: KnownProfileSettings,
@@ -79,7 +75,7 @@ pub struct InterpretedPlayerProfile {
 impl Default for PlayerRuntimeProfile {
     fn default() -> Self {
         runtime_profile_from_parts(
-            None,
+            Vec::new(),
             DEFAULT_GUILD_PRIMARY_KEYWORD,
             UserSettings::default(),
             GenericCommandsConfig::default(),
@@ -124,7 +120,7 @@ pub fn interpret_player_toml(player: PlayerToml) -> InterpretedPlayerProfile {
         .as_deref()
         .unwrap_or(DEFAULT_GUILD_PRIMARY_KEYWORD);
     let runtime = runtime_profile_from_parts(
-        normalized_player.guilds.clone(),
+        normalized_player.guilds.clone().unwrap_or_default(),
         guild_primary_background,
         settings,
         normalized_player.generic_commands.clone(),
@@ -138,26 +134,22 @@ pub fn interpret_player_toml(player: PlayerToml) -> InterpretedPlayerProfile {
 }
 
 fn runtime_profile_from_parts(
-    selected_guild_keys: Option<Vec<String>>,
+    selected_guild_keys: Vec<String>,
     guild_primary_background: &str,
     settings: UserSettings,
     generic_commands_config: GenericCommandsConfig,
 ) -> PlayerRuntimeProfile {
     let known_settings = KnownProfileSettings::from_user_settings(&settings);
-    let selected_guild_keys = selected_guild_keys.map(filter_known_guilds);
-    let guild_primary_background = if guild_primary_background.is_empty() {
-        DEFAULT_GUILD_PRIMARY_KEYWORD
-    } else {
-        guild_primary_background
-    }
-    .to_string();
+    let guild_selection =
+        GuildSelection::from_persisted_keys(&selected_guild_keys, Some(guild_primary_background));
+    let guild_primary_background = guild_selection.primary_background_keyword().to_string();
     let automation_vars = automation_vars_for_settings(&known_settings);
     let automation_flags = vec![(IS_LICH_KEY.to_string(), known_settings.is_lich)];
     let guild_dialog_defaults =
         GuildDialogProfileDefaults::from_settings(&guild_primary_background, &known_settings);
 
     PlayerRuntimeProfile {
-        selected_guild_keys,
+        guild_selection,
         guild_primary_background,
         generic_commands_config,
         settings: known_settings,
@@ -309,95 +301,17 @@ fn settings_table_from_normalized_entries(entries: &[SettingEntry]) -> SettingsT
 }
 
 fn normalize_player_guilds(player: &mut PlayerToml) -> bool {
-    let mut changed = false;
+    let selection = GuildSelection::from_persisted_keys(
+        &player.guilds.clone().unwrap_or_default(),
+        player.guild_primary_background.as_deref(),
+    );
+    let normalized_guilds = selection.persisted_keys_option();
+    let normalized_primary = selection.primary_background_keyword().to_string();
+    let changed = player.guilds != normalized_guilds
+        || player.guild_primary_background.as_deref() != Some(normalized_primary.as_str());
 
-    let guilds_owned = player
-        .guilds
-        .clone()
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|key| catalog::playable_entry_for_persisted_key(key).is_some())
-        .collect::<Vec<_>>();
-
-    let mut thematic_by_bucket: [Vec<&str>; 5] = std::array::from_fn(|_| Vec::new());
-    let mut multi_keys = Vec::<&str>::new();
-
-    for key in guilds_owned.iter().map(|value| value.as_str()) {
-        match classify_guild_key(key) {
-            Some(GuildBucketClass::Multi) => multi_keys.push(key),
-            Some(GuildBucketClass::Thematic(index)) => thematic_by_bucket[index].push(key),
-            None => {}
-        }
-    }
-
-    let occupied_buckets: Vec<usize> = thematic_by_bucket
-        .iter()
-        .enumerate()
-        .filter_map(|(index, bucket)| (!bucket.is_empty()).then_some(index))
-        .collect();
-
-    let stored_primary_index = player
-        .guild_primary_background
-        .as_deref()
-        .and_then(thematic_index_for_keyword);
-
-    let chosen_primary_index: usize = match occupied_buckets.len() {
-        0 => stored_primary_index.unwrap_or_else(|| {
-            thematic_index_for_keyword(DEFAULT_GUILD_PRIMARY_KEYWORD).expect("civilized index")
-        }),
-        1 => occupied_buckets[0],
-        _ => {
-            if let Some(primary_index) = stored_primary_index
-                && occupied_buckets.contains(&primary_index)
-                && !thematic_by_bucket[primary_index].is_empty()
-            {
-                primary_index
-            } else {
-                *occupied_buckets
-                    .iter()
-                    .min_by_key(|index| **index)
-                    .expect("non-empty occupied_buckets")
-            }
-        }
-    };
-
-    let new_primary_keyword = crate::guilds::grouping::THEMES_UX_ORDER[chosen_primary_index]
-        .0
-        .to_string();
-    if player.guild_primary_background.as_deref() != Some(new_primary_keyword.as_str()) {
-        player.guild_primary_background = Some(new_primary_keyword.clone());
-        changed = true;
-    }
-
-    let mut thematic_keys_kept = Vec::<String>::new();
-
-    if occupied_buckets.len() <= 1 {
-        if let Some(index) = occupied_buckets.first() {
-            thematic_keys_kept.extend(
-                thematic_by_bucket[*index]
-                    .iter()
-                    .copied()
-                    .map(ToString::to_string),
-            );
-        }
-    } else {
-        thematic_keys_kept.extend(
-            thematic_by_bucket[chosen_primary_index]
-                .iter()
-                .copied()
-                .map(ToString::to_string),
-        );
-    }
-
-    let mut union = thematic_keys_kept;
-    union.extend(multi_keys.into_iter().map(|value| value.to_string()));
-    union.sort_unstable();
-    union.dedup();
-
-    if player.guilds.as_ref() != Some(&union) {
-        changed = true;
-    }
-    player.guilds = if union.is_empty() { None } else { Some(union) };
+    player.guilds = normalized_guilds;
+    player.guild_primary_background = Some(normalized_primary);
 
     changed
 }
@@ -461,13 +375,6 @@ fn riftwalker_entity_label(settings: &UserSettings, key: &str) -> String {
     }
 }
 
-fn filter_known_guilds(keys: Vec<String>) -> Vec<String> {
-    let definitions = guild_definitions();
-    keys.into_iter()
-        .filter(|key| definitions.iter().any(|definition| definition.key == key))
-        .collect()
-}
-
 fn non_empty(value: &str) -> Option<&str> {
     (!value.is_empty()).then_some(value)
 }
@@ -492,13 +399,16 @@ mod tests {
     #[test]
     fn profile_uses_defaults_for_missing_settings() {
         let profile = runtime_profile_from_parts(
-            None,
+            Vec::new(),
             DEFAULT_GUILD_PRIMARY_KEYWORD,
             UserSettings::default(),
             GenericCommandsConfig::default(),
         );
 
-        assert_eq!(profile.selected_guild_keys, None);
+        assert_eq!(
+            profile.guild_selection.persisted_keys(),
+            Vec::<String>::new()
+        );
         assert_eq!(
             profile.guild_primary_background,
             DEFAULT_GUILD_PRIMARY_KEYWORD
@@ -520,7 +430,7 @@ mod tests {
     #[test]
     fn profile_extracts_known_settings() {
         let profile = runtime_profile_from_parts(
-            Some(vec!["animist".to_string(), "missing".to_string()]),
+            vec!["animist".to_string(), "missing".to_string()],
             "magical",
             settings(&[
                 (RIG_KEY, "bag"),
@@ -536,14 +446,17 @@ mod tests {
         );
 
         assert_eq!(
-            profile.selected_guild_keys,
-            Some(vec!["animist".to_string()])
+            profile.guild_selection.persisted_keys(),
+            vec!["animist".to_string()]
         );
-        assert_eq!(profile.guild_primary_background, "magical");
+        assert_eq!(profile.guild_primary_background, "good_religious");
         assert_eq!(profile.settings.rig, "bag");
         assert_eq!(profile.settings.tzarakk_mount, "Vedir");
         assert_eq!(profile.settings.sabre_weapon, "sabre");
-        assert_eq!(profile.guild_dialog_defaults.primary_background, "magical");
+        assert_eq!(
+            profile.guild_dialog_defaults.primary_background,
+            "good_religious"
+        );
         assert_eq!(profile.guild_dialog_defaults.tzarakk_mount, "Vedir");
         assert_eq!(profile.guild_dialog_defaults.sabre_weapon, "sabre");
         assert_eq!(
@@ -561,7 +474,7 @@ mod tests {
     #[test]
     fn empty_riftwalker_labels_become_entity() {
         let profile = runtime_profile_from_parts(
-            None,
+            Vec::new(),
             DEFAULT_GUILD_PRIMARY_KEYWORD,
             settings(&[
                 (RIFTWALKER_ENTITY_FIRE_KEY, ""),
@@ -591,7 +504,7 @@ mod tests {
         };
 
         let profile = runtime_profile_from_parts(
-            None,
+            Vec::new(),
             DEFAULT_GUILD_PRIMARY_KEYWORD,
             UserSettings::default(),
             generic_commands_config.clone(),
@@ -619,8 +532,8 @@ mod tests {
             Some(vec!["animist".to_string()])
         );
         assert_eq!(
-            interpreted.runtime.selected_guild_keys,
-            Some(vec!["animist".to_string()])
+            interpreted.runtime.guild_selection.persisted_keys(),
+            vec!["animist".to_string()]
         );
     }
 

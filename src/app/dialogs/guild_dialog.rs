@@ -1,7 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crate::guilds::GuildDefinition;
-use crate::guilds::catalog::GuildKey;
+use crate::guilds::catalog::{GuildCatalogEntry, GuildKey, GuildSelection};
 use crate::guilds::grouping::DEFAULT_GUILD_PRIMARY_KEYWORD;
 use crate::guilds::grouping::{
     MULTI_BACKGROUND_LABEL, THEMES_UX_ORDER, clear_selected_outside_thematic_bucket,
@@ -41,7 +40,7 @@ pub(crate) fn default_riftwalker_entity_labels() -> [String; 4] {
 }
 
 pub(crate) struct GuildDialog {
-    definitions: Vec<GuildDefinition>,
+    entries: Vec<&'static GuildCatalogEntry>,
     selected: Vec<bool>,
     /// Index in [`THEMES_UX_ORDER`] (0–4).
     active_primary: usize,
@@ -62,7 +61,7 @@ pub(crate) struct GuildDialog {
 
 impl GuildDialog {
     pub(crate) fn new(
-        definitions: Vec<GuildDefinition>,
+        entries: Vec<&'static GuildCatalogEntry>,
         selected: Vec<bool>,
         active_primary_keyword: &str,
         mount_name: String,
@@ -76,22 +75,18 @@ impl GuildDialog {
             });
 
         let mut selected = selected;
-        if selected.len() < definitions.len() {
-            selected.resize(definitions.len(), false);
+        if selected.len() < entries.len() {
+            selected.resize(entries.len(), false);
         }
 
-        clear_selected_outside_thematic_bucket(
-            &definitions,
-            selected.as_mut_slice(),
-            active_primary,
-        );
+        clear_selected_outside_thematic_bucket(&entries, selected.as_mut_slice(), active_primary);
 
         let mount_cursor = mount_name.len();
         let sabre_weapon_cursor = sabre_weapon.len();
         let riftwalker_cursors =
             std::array::from_fn(|index| riftwalker_labels[index].chars().count());
         Self {
-            definitions,
+            entries,
             selected,
             active_primary,
             browse_cursor: active_primary.min(THEMES_UX_ORDER.len().saturating_sub(1)),
@@ -148,12 +143,12 @@ impl GuildDialog {
                     .playable_def_indices
                     .iter()
                     .copied()
-                    .filter(|definition_index| *definition_index < self.definitions.len())
+                    .filter(|definition_index| *definition_index < self.entries.len())
                     .collect();
 
                 let multi_filtered: Vec<usize> = visible_indices_multi_drill()
                     .into_iter()
-                    .filter(|definition_index| *definition_index < self.definitions.len())
+                    .filter(|definition_index| *definition_index < self.entries.len())
                     .collect();
 
                 if thematic_indices.is_empty() && multi_filtered.is_empty() {
@@ -184,7 +179,7 @@ impl GuildDialog {
             GuildDrillSource::MultiOnly => {
                 let multis: Vec<_> = visible_indices_multi_drill()
                     .into_iter()
-                    .filter(|definition_index| *definition_index < self.definitions.len())
+                    .filter(|definition_index| *definition_index < self.entries.len())
                     .collect();
                 if multis.is_empty() {
                     self.drill_rows.push(DrillRow::Banner(
@@ -266,7 +261,7 @@ impl GuildDialog {
         }
         self.active_primary = self.browse_cursor;
         clear_selected_outside_thematic_bucket(
-            &self.definitions,
+            &self.entries,
             &mut self.selected,
             self.active_primary,
         );
@@ -293,20 +288,18 @@ impl GuildDialog {
         self.adjust_focus_targets();
     }
 
-    pub(crate) fn selected_keys(&self) -> Vec<String> {
-        self.definitions
+    pub(crate) fn guild_selection(&self) -> GuildSelection {
+        let keys = self
+            .entries
             .iter()
             .zip(self.selected.iter())
-            .filter_map(|(definition, selected)| selected.then_some(definition.key.to_string()))
-            .collect()
+            .filter_map(|(entry, selected)| selected.then_some(entry.key))
+            .collect::<Vec<_>>();
+        GuildSelection::from_playable_keys(keys, Some(self.active_primary_keyword()))
     }
 
     fn is_guild_selected(&self, guild_key: GuildKey) -> bool {
-        let Some(position) = self
-            .definitions
-            .iter()
-            .position(|definition| definition.guild_key == guild_key)
-        else {
+        let Some(position) = self.entries.iter().position(|entry| entry.key == guild_key) else {
             return false;
         };
         self.selected.get(position).is_some_and(|value| *value)
@@ -575,9 +568,9 @@ impl GuildDialog {
         self.drill_rows.iter().map(|entry| match entry {
             DrillRow::Banner(text) => crate::ui::GuildDrillLineVm::Banner(text.clone()),
             DrillRow::Toggle { definition_index } => {
-                let definition = &self.definitions[*definition_index];
+                let entry = self.entries[*definition_index];
                 crate::ui::GuildDrillLineVm::Guild {
-                    title: definition.name.to_string(),
+                    title: entry.display_name.to_string(),
                     selected: self
                         .selected
                         .get(*definition_index)
@@ -721,9 +714,9 @@ pub(crate) fn apply_guild_dialog_keystroke(dialog: &mut GuildDialog, event: KeyE
 #[cfg(test)]
 mod guild_dialog_keystroke_tests {
     use super::{GuildDialog, GuildDialogFocus, apply_guild_dialog_keystroke};
+    use crate::guilds::catalog;
     use crate::guilds::catalog::GuildKey;
     use crate::guilds::grouping::{DEFAULT_GUILD_PRIMARY_KEYWORD, THEMES_UX_ORDER};
-    use crate::guilds::guild_definitions;
     use crate::ui::{GuildDialogPresentation, GuildDrillLineVm};
     use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
@@ -775,10 +768,10 @@ mod guild_dialog_keystroke_tests {
 
     #[test]
     fn down_moves_one_guild_at_a_time_and_reaches_final_drill_row() {
-        let definitions = guild_definitions();
-        let count = definitions.len();
+        let entries = catalog::playable_entries_list();
+        let count = entries.len();
         let mut dialog = GuildDialog::new(
-            definitions,
+            entries,
             vec![false; count],
             magical_keyword(),
             String::new(),
@@ -816,13 +809,13 @@ mod guild_dialog_keystroke_tests {
 
     #[test]
     fn typing_mount_when_tzarakk_selected_drill_moves_focus_mount() {
-        let definitions = guild_definitions();
-        let selected = definitions
+        let entries = catalog::playable_entries_list();
+        let selected = entries
             .iter()
-            .map(|definition| definition.guild_key == GuildKey::Tzarakk)
+            .map(|entry| entry.key == GuildKey::Tzarakk)
             .collect();
         let mut dialog = GuildDialog::new(
-            definitions,
+            entries,
             selected,
             evil_keyword(),
             String::new(),
@@ -837,10 +830,10 @@ mod guild_dialog_keystroke_tests {
 
     #[test]
     fn printable_ignored_mount_browse_tzarakk_not_drilled_yet() {
-        let definitions = guild_definitions();
-        let count = definitions.len();
+        let entries = catalog::playable_entries_list();
+        let count = entries.len();
         let mut dialog = GuildDialog::new(
-            definitions,
+            entries,
             vec![false; count],
             DEFAULT_GUILD_PRIMARY_KEYWORD,
             String::new(),
@@ -853,13 +846,13 @@ mod guild_dialog_keystroke_tests {
 
     #[test]
     fn tab_advances_into_mount_tzarakk_drill() {
-        let definitions = guild_definitions();
-        let selected = definitions
+        let entries = catalog::playable_entries_list();
+        let selected = entries
             .iter()
-            .map(|definition| definition.guild_key == GuildKey::Tzarakk)
+            .map(|entry| entry.key == GuildKey::Tzarakk)
             .collect();
         let mut dialog = GuildDialog::new(
-            definitions,
+            entries,
             selected,
             evil_keyword(),
             String::new(),
@@ -877,14 +870,14 @@ mod guild_dialog_keystroke_tests {
 
     #[test]
     fn tab_cycles_riftwalker_labels_after_magical_drill() {
-        let definitions = guild_definitions();
-        let selected = definitions
+        let entries = catalog::playable_entries_list();
+        let selected = entries
             .iter()
-            .map(|definition| definition.guild_key == GuildKey::Riftwalker)
+            .map(|entry| entry.key == GuildKey::Riftwalker)
             .collect();
         let empty_riftwalker = std::array::from_fn(|_| String::new());
         let mut dialog = GuildDialog::new(
-            definitions,
+            entries,
             selected,
             magical_keyword(),
             String::new(),
@@ -915,13 +908,13 @@ mod guild_dialog_keystroke_tests {
 
     #[test]
     fn ctrl_letter_does_not_mount_insert() {
-        let definitions = guild_definitions();
-        let selected = definitions
+        let entries = catalog::playable_entries_list();
+        let selected = entries
             .iter()
-            .map(|definition| definition.guild_key == GuildKey::Tzarakk)
+            .map(|entry| entry.key == GuildKey::Tzarakk)
             .collect();
         let mut dialog = GuildDialog::new(
-            definitions,
+            entries,
             selected,
             evil_keyword(),
             String::new(),

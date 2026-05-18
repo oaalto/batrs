@@ -13,9 +13,9 @@ use crate::automation::{Action, Automation};
 use crate::config::{ConfigManager, GenericCommandsConfig, UserSettings};
 use crate::generic_commands::GenericCommands;
 use crate::guilds::{
-    Guild, build_guilds,
+    Guild,
+    catalog::{self, GuildKey, GuildSelection},
     grouping::{DEFAULT_GUILD_PRIMARY_KEYWORD, thematic_index_for_keyword},
-    guild_definitions,
 };
 use crate::player_profile::{self, PlayerRuntimeProfile};
 use crate::stats::Stats;
@@ -51,7 +51,7 @@ pub struct BatApp {
     command_sender: Sender<String>,
     telnet_buffer: TelnetBuffer,
     selected_guilds: Vec<Box<dyn Guild>>,
-    selected_guild_keys: Vec<String>,
+    guild_selection: GuildSelection,
     should_quit: bool,
     automation: Automation,
     config_manager: Option<ConfigManager>,
@@ -89,7 +89,7 @@ impl BatApp {
             command_sender,
             telnet_buffer: TelnetBuffer::new(),
             selected_guilds: Vec::new(),
-            selected_guild_keys: Vec::new(),
+            guild_selection: GuildSelection::default(),
             should_quit: false,
             automation: Automation::new(),
             config_manager,
@@ -104,7 +104,7 @@ impl BatApp {
             scrollback: Scrollback::new(),
         };
 
-        app.apply_selected_guilds(app.selected_guild_keys.clone());
+        app.apply_guild_selection(app.guild_selection.clone());
 
         app
     }
@@ -229,25 +229,13 @@ impl BatApp {
 
     pub fn draw(&mut self, frame: &mut Frame<'_>) {
         let show_stats = self.session.is_logged_in();
-        let soul_supported = self
-            .selected_guild_keys
-            .iter()
-            .any(|key| key.as_str() == "animist")
+        let soul_supported = self.guild_selection.is_selected(GuildKey::Animist)
             || self.stats.has_soul_companion_status();
-        let riftwalker_supported = self
-            .selected_guild_keys
-            .iter()
-            .any(|key| key.as_str() == "riftwalker")
+        let riftwalker_supported = self.guild_selection.is_selected(GuildKey::Riftwalker)
             || self.stats.has_riftwalker_entity_status();
-        let nergal_supported = self
-            .selected_guild_keys
-            .iter()
-            .any(|key| key.as_str() == "nergal")
-            || self.stats.has_nergal_minions();
-        let tzarakk_supported = self
-            .selected_guild_keys
-            .iter()
-            .any(|key| key.as_str() == "tzarakk")
+        let nergal_supported =
+            self.guild_selection.is_selected(GuildKey::Nergal) || self.stats.has_nergal_minions();
+        let tzarakk_supported = self.guild_selection.is_selected(GuildKey::Tzarakk)
             || self.stats.has_tzarakk_mount_status();
 
         let mut secondary_status_lines: Vec<Line<'static>> = Vec::new();
@@ -406,10 +394,10 @@ impl BatApp {
         profile: PlayerRuntimeProfile,
         apply_selected_guilds: bool,
     ) {
-        let selected_guild_keys = profile.selected_guild_keys.clone();
+        let guild_selection = profile.guild_selection.clone();
         self.player_profile = profile;
-        if apply_selected_guilds && let Some(keys) = selected_guild_keys {
-            self.apply_selected_guilds(keys);
+        if apply_selected_guilds {
+            self.apply_guild_selection(guild_selection);
         } else {
             self.apply_player_profile_to_automation();
         }
@@ -459,9 +447,9 @@ impl BatApp {
         self.refresh_player_profile_from_config(false);
     }
 
-    fn apply_selected_guilds(&mut self, keys: Vec<String>) {
-        self.selected_guild_keys = keys;
-        self.selected_guilds = build_guilds(&self.selected_guild_keys);
+    fn apply_guild_selection(&mut self, selection: GuildSelection) {
+        self.selected_guilds = selection.build_guilds();
+        self.guild_selection = selection;
         self.automation = Automation::new();
         for guild in &self.selected_guilds {
             guild.register_automation(&mut self.automation);
@@ -485,18 +473,14 @@ impl BatApp {
             DEFAULT_GUILD_PRIMARY_KEYWORD
         };
 
-        let definitions = guild_definitions();
-        let selected = definitions
+        let entries = catalog::playable_entries_list();
+        let selected = entries
             .iter()
-            .map(|definition| {
-                self.selected_guild_keys
-                    .iter()
-                    .any(|key| key == definition.key)
-            })
+            .map(|entry| self.guild_selection.is_selected(entry.key))
             .collect();
 
         self.guild_dialog = Some(GuildDialog::new(
-            definitions,
+            entries,
             selected,
             primary_kw,
             defaults.tzarakk_mount.clone(),
@@ -542,16 +526,14 @@ impl BatApp {
                     dialog.open_drill_from_browse_cursor();
                     return;
                 }
-                let guild_primary_keyword = dialog.active_primary_keyword().to_string();
-                let keys = dialog.selected_keys();
+                let guild_selection = dialog.guild_selection();
                 let mount_name = dialog.mount_name();
                 let sabre_weapon = dialog.sabre_weapon();
                 let riftwalker_entities = dialog.riftwalker_entity_labels();
                 self.guild_dialog = None;
-                self.apply_selected_guilds(keys.clone());
+                self.apply_guild_selection(guild_selection.clone());
                 self.save_selected_guilds_with_auxiliary(
-                    keys,
-                    &guild_primary_keyword,
+                    guild_selection,
                     mount_name,
                     sabre_weapon,
                     riftwalker_entities,
@@ -645,8 +627,7 @@ impl BatApp {
 
     fn save_selected_guilds_with_auxiliary(
         &mut self,
-        keys: Vec<String>,
-        guild_primary_keyword: &str,
+        guild_selection: GuildSelection,
         mount_name: String,
         sabre_weapon: String,
         riftwalker_entity_labels: [String; 4],
@@ -659,7 +640,10 @@ impl BatApp {
         };
 
         // Save guilds
-        if let Err(e) = manager.save_user_guilds(&keys, guild_primary_keyword) {
+        let keys = guild_selection.persisted_keys();
+        if let Err(e) =
+            manager.save_user_guilds(&keys, guild_selection.primary_background_keyword())
+        {
             eprintln!("failed to save user guilds: {e}");
         }
 
@@ -758,7 +742,7 @@ mod tests {
             command_sender,
             telnet_buffer: TelnetBuffer::new(),
             selected_guilds: Vec::new(),
-            selected_guild_keys: Vec::new(),
+            guild_selection: GuildSelection::default(),
             should_quit: false,
             automation: Automation::new(),
             config_manager: None,

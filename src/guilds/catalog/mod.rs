@@ -7,6 +7,13 @@ use super::{
     TriadGuild, TzarakkGuild,
 };
 
+mod selection;
+
+pub use selection::{
+    DEFAULT_GUILD_PRIMARY_KEYWORD, GuildBucketClass, GuildSelection, THEMES_UX_ORDER,
+    classify_guild_key_typed, thematic_index_for_keyword,
+};
+
 pub type GuildFactory = fn() -> Box<dyn Guild>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -504,6 +511,10 @@ pub fn entries() -> &'static [GuildCatalogEntry] {
 
 pub fn playable_entries() -> impl Iterator<Item = &'static GuildCatalogEntry> {
     entries().iter().filter(|entry| entry.is_playable())
+}
+
+pub fn playable_entries_list() -> Vec<&'static GuildCatalogEntry> {
+    playable_entries().collect()
 }
 
 pub fn entry_for_key(key: GuildKey) -> Option<&'static GuildCatalogEntry> {

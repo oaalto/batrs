@@ -69,47 +69,12 @@ pub use tzarakk::TzarakkGuild;
 use crate::automation::Automation;
 use crate::command::{Command, Data};
 use crate::triggers::Trigger;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub trait Guild {
     fn commands(&self) -> HashMap<String, Command>;
     fn triggers(&self) -> Vec<Trigger>;
     fn register_automation(&self, _automation: &mut Automation) {}
-}
-
-#[derive(Clone, Debug)]
-pub struct GuildDefinition {
-    pub guild_key: catalog::GuildKey,
-    pub key: &'static str,
-    pub name: &'static str,
-}
-
-pub fn guild_definitions() -> Vec<GuildDefinition> {
-    catalog::playable_entries()
-        .map(|entry| GuildDefinition {
-            guild_key: entry.key,
-            key: entry.persisted_key,
-            name: entry.display_name,
-        })
-        .collect()
-}
-
-pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
-    let mut guilds: Vec<Box<dyn Guild>> = Vec::new();
-    let mut seen = HashSet::new();
-
-    for key in keys {
-        let Some(entry) = catalog::playable_entry_for_persisted_key(key) else {
-            continue;
-        };
-        if seen.insert(entry.key)
-            && let Some(guild) = entry.build()
-        {
-            guilds.push(guild);
-        }
-    }
-
-    guilds
 }
 
 pub fn use_skill(skill_name: &str, data: &Data) -> String {
@@ -158,32 +123,5 @@ mod tests {
             cast_spell("word of spite", &with_args),
             "@target goblin;cast 'word of spite' goblin"
         );
-    }
-
-    #[test]
-    fn guild_definitions_are_catalog_playable_entries() {
-        let definitions = guild_definitions();
-        let playable_count = catalog::playable_entries().count();
-
-        assert_eq!(definitions.len(), playable_count);
-        for definition in definitions {
-            let entry = catalog::entry_for_key(definition.guild_key).expect("catalog entry");
-            assert!(entry.is_playable());
-            assert_eq!(definition.key, entry.persisted_key);
-            assert_eq!(definition.name, entry.display_name);
-        }
-    }
-
-    #[test]
-    fn build_guilds_ignores_unknown_unimplemented_and_duplicate_keys() {
-        let guilds = build_guilds(&[
-            "animist".to_string(),
-            "alchemists".to_string(),
-            "missing".to_string(),
-            "animist".to_string(),
-            "kharim".to_string(),
-        ]);
-
-        assert_eq!(guilds.len(), 2);
     }
 }
