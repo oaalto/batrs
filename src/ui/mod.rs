@@ -424,11 +424,42 @@ fn render_settings_dialog(frame: &mut Frame<'_>, dialog: &SettingsDialogViewMode
         state.select(Some(dialog.cursor.min(dialog.items.len() - 1)));
     }
     frame.render_stateful_widget(list, chunks[0], &mut state);
+    set_settings_dialog_cursor_position(frame, dialog, chunks[0], &state);
 
     let instructions =
         Paragraph::new("Type: edit  Backspace: delete  Up/Down: move  Enter: save  Esc: cancel")
             .style(dialog_style);
     frame.render_widget(instructions, chunks[1]);
+}
+
+fn set_settings_dialog_cursor_position(
+    frame: &mut Frame<'_>,
+    dialog: &SettingsDialogViewModel,
+    list_area: Rect,
+    state: &ListState,
+) {
+    if dialog.items.is_empty() || list_area.width == 0 || list_area.height == 0 {
+        return;
+    }
+
+    let selected_index = dialog.cursor.min(dialog.items.len() - 1);
+    let Some(visible_row) = selected_index.checked_sub(state.offset()) else {
+        return;
+    };
+    if visible_row >= list_area.height as usize {
+        return;
+    }
+
+    let item = &dialog.items[selected_index];
+    let cursor_offset = 2u16
+        .saturating_add(item.key.chars().count() as u16)
+        .saturating_add(2)
+        .saturating_add(item.value.chars().count() as u16);
+    let cursor_x = list_area
+        .x
+        .saturating_add(cursor_offset.min(list_area.width.saturating_sub(1)));
+    let cursor_y = list_area.y.saturating_add(visible_row as u16);
+    frame.set_cursor_position((cursor_x, cursor_y));
 }
 
 fn render_generic_commands_dialog(frame: &mut Frame<'_>, dialog: &GenericCommandsDialogViewModel) {
