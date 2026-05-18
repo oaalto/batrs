@@ -14,6 +14,19 @@
       "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "installed_at_unix": 1778675897
     },
+    "cursor:mcp:fetch": {
+      "package_id": "mcp:fetch",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/mcp.json",
+      "managed_block_id": "mcp:fetch",
+      "template_source_hash": "f2330ad1b3046d7448cd702961ddfdfe477a1da42f13ec082e81d4ac544d7a70",
+      "template_installed_hash": "f2330ad1b3046d7448cd702961ddfdfe477a1da42f13ec082e81d4ac544d7a70",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1779083653
+    },
     "cursor:mcp:git": {
       "package_id": "mcp:git",
       "provider_kind": "cursor",
@@ -26,6 +39,19 @@
       "render_vars": {},
       "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "installed_at_unix": 1778675897
+    },
+    "cursor:mcp:github": {
+      "package_id": "mcp:github",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs/.cursor/mcp.json",
+      "managed_block_id": "mcp:github",
+      "template_source_hash": "a53d5838c3424269d3b51be8a3fa307f4f22d36bf7c5a0bca1dfd51e3a7dd37b",
+      "template_installed_hash": "a53d5838c3424269d3b51be8a3fa307f4f22d36bf7c5a0bca1dfd51e3a7dd37b",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1779083653
     },
     "cursor:mcp:memory": {
       "package_id": "mcp:memory",
@@ -345,6 +371,19 @@
       "render_vars": {},
       "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "installed_at_unix": 1778237103
+    },
+    "cursor:skill:improve-codebase-architecture": {
+      "package_id": "skill:improve-codebase-architecture",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs",
+      "managed_block_id": "skill:improve-codebase-architecture",
+      "template_source_hash": "f77bf275fbdbe16e6c1eb58bd9d8101b3092698486fc5a2dbf623be969e3031e",
+      "template_installed_hash": "f77bf275fbdbe16e6c1eb58bd9d8101b3092698486fc5a2dbf623be969e3031e",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1779084269
     }
   }
 }

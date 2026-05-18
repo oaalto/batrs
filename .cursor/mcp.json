@@ -8,6 +8,13 @@
       "command": "npx",
       "type": "stdio"
     },
+    "fetch": {
+      "args": [
+        "mcp-server-fetch"
+      ],
+      "command": "uvx",
+      "type": "stdio"
+    },
     "git": {
       "args": [
         "mcp-server-git",
@@ -15,6 +22,17 @@
         "${workspaceFolder}"
       ],
       "command": "uvx",
+      "type": "stdio"
+    },
+    "github": {
+      "args": [
+        "stdio"
+      ],
+      "command": "github-mcp-server",
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${env:GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
+      },
       "type": "stdio"
     },
     "memory": {
