@@ -372,6 +372,45 @@
       "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "installed_at_unix": 1778237103
     },
+    "cursor:skill:diagnose": {
+      "package_id": "skill:diagnose",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs",
+      "managed_block_id": "skill:diagnose",
+      "template_source_hash": "f618f18c8ada22dd7f33ad52c33457a1efe2837267311538f09bd75b67d58de1",
+      "template_installed_hash": "f618f18c8ada22dd7f33ad52c33457a1efe2837267311538f09bd75b67d58de1",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1779085196
+    },
+    "cursor:skill:grill-me": {
+      "package_id": "skill:grill-me",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs",
+      "managed_block_id": "skill:grill-me",
+      "template_source_hash": "1173fd05d2f7f510e1b8e063965bb792466d22f54de3ed4d8a91af9277250f0f",
+      "template_installed_hash": "1173fd05d2f7f510e1b8e063965bb792466d22f54de3ed4d8a91af9277250f0f",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1779085196
+    },
+    "cursor:skill:grill-with-docs": {
+      "package_id": "skill:grill-with-docs",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs",
+      "managed_block_id": "skill:grill-with-docs",
+      "template_source_hash": "dca69d5cdae59d2d3a5bb99ef31d5d55957a70fb6d98bafb25bb847376213b94",
+      "template_installed_hash": "dca69d5cdae59d2d3a5bb99ef31d5d55957a70fb6d98bafb25bb847376213b94",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1779085196
+    },
     "cursor:skill:improve-codebase-architecture": {
       "package_id": "skill:improve-codebase-architecture",
       "provider_kind": "cursor",
@@ -384,6 +423,45 @@
       "render_vars": {},
       "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "installed_at_unix": 1779084269
+    },
+    "cursor:skill:tdd": {
+      "package_id": "skill:tdd",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs",
+      "managed_block_id": "skill:tdd",
+      "template_source_hash": "f46fa1a6813f98b60e4dfbd1defba32e4e60ff3be7ddbb70ca59f024df1ecfcf",
+      "template_installed_hash": "f46fa1a6813f98b60e4dfbd1defba32e4e60ff3be7ddbb70ca59f024df1ecfcf",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1779085196
+    },
+    "cursor:skill:to-prd": {
+      "package_id": "skill:to-prd",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs",
+      "managed_block_id": "skill:to-prd",
+      "template_source_hash": "3d9a056380536776961e8013ae19a0a10caf1a0b468e95f2e4f16f0514368b8d",
+      "template_installed_hash": "3d9a056380536776961e8013ae19a0a10caf1a0b468e95f2e4f16f0514368b8d",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1779085196
+    },
+    "cursor:skill:zoom-out": {
+      "package_id": "skill:zoom-out",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs",
+      "managed_block_id": "skill:zoom-out",
+      "template_source_hash": "4813bd4c868b85ba499972b918f3c9ad5a964e6bf3041c1ed20db0f94cf592ed",
+      "template_installed_hash": "4813bd4c868b85ba499972b918f3c9ad5a964e6bf3041c1ed20db0f94cf592ed",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1779085196
     }
   }
 }
