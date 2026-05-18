@@ -1,7 +1,7 @@
-use crate::ansi::{StyledLine, TextStyle};
+use crate::ansi::TextStyle;
 use crate::guilds::TigerGuild;
 use crate::guilds::sects_triggers;
-use crate::triggers::{TriggerContext, TriggerOutput};
+use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -26,29 +26,17 @@ impl TigerGuild {
         ]
     }
 
-    pub fn red_hilites_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if RED_HILITES
-            .iter()
-            .any(|r| r.is_match(&styled_line.plain_line))
-        {
-            styled_line.set_line_style(TextStyle::BRIGHT_RED);
+    pub fn red_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        if RED_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
+            return TriggerEffects::none().style_line(TextStyle::BRIGHT_RED);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 
-    pub fn green_hilites_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if GREEN_HILITES
-            .iter()
-            .any(|r| r.is_match(&styled_line.plain_line))
-        {
-            styled_line.set_line_style(TextStyle::GREEN);
+    pub fn green_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        if GREEN_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
+            return TriggerEffects::none().style_line(TextStyle::GREEN);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 }

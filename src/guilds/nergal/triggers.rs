@@ -1,8 +1,8 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::NergalGuild;
-use crate::stats::NergalMinion;
-use crate::triggers::{Trigger, TriggerContext, TriggerOutput};
+use crate::stats::{NergalMinion, StatsEffect};
+use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -11,15 +11,11 @@ impl NergalGuild {
         vec![Self::nergal_trigger]
     }
 
-    pub fn nergal_trigger(
-        ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        let line = styled_line.plain_line.trim_end_matches('\r').trim();
+    pub fn nergal_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        let line = line.plain_line.trim_end_matches('\r').trim();
 
         if let Some(captures) = MINION_STATUS.captures(line) {
-            styled_line.gag = true;
             let minion = NergalMinion {
                 name: captures[1].to_string(),
                 hp: captures[2].parse().unwrap_or(0),
@@ -29,13 +25,11 @@ impl NergalGuild {
                 ep: captures[6].parse().unwrap_or(0),
                 max_ep: captures[7].parse().unwrap_or(0),
             };
-            ctx.stats.upsert_nergal_minion(minion);
-            return output;
+            return output.gag().stat(StatsEffect::UpsertNergalMinion(minion));
         }
 
         if UNSUMMON_CONNECTION.is_match(line) || UNSUMMON_END.is_match(line) {
-            ctx.stats.clear_nergal_minions();
-            return output;
+            return output.stat(StatsEffect::ClearNergalMinions);
         }
 
         if line.contains("DEAD, R.I.P.") {
@@ -51,11 +45,10 @@ impl NergalGuild {
         }
 
         if line == "Your body can't handle any more of potentia!" {
-            styled_line.set_line_style(TextStyle::RED);
             output
                 .lines
                 .push(echo_notice("***** POTENTIA IS FULL! *****", false));
-            return output;
+            return output.style_line(TextStyle::RED);
         }
 
         if line.contains("Vitae: 1000/1000") {
@@ -66,11 +59,10 @@ impl NergalGuild {
         }
 
         if line == "Your body can't handle any more of vitae!" {
-            styled_line.set_line_style(TextStyle::RED);
             output
                 .lines
                 .push(echo_notice("***** VITAE IS FULL! *****", false));
-            return output;
+            return output.style_line(TextStyle::RED);
         }
 
         if line.contains("looks a lot less in pain as colonies start to disappear")
@@ -78,21 +70,21 @@ impl NergalGuild {
             || HARVEST_POTENTIA.is_match(line)
             || line.contains("You feel your insight of evolution expanding")
         {
-            styled_line.set_line_style(TextStyle::CYAN);
+            output = output.style_line(TextStyle::CYAN);
         } else if line
             .contains("You hear deep inside your head the parasite whispers more secrets of")
             || line.contains(
                 "You hear deep inside your head the parasite whispering to you secrets of",
             )
         {
-            styled_line.set_line_style(TextStyle::GREEN);
+            output = output.style_line(TextStyle::GREEN);
         } else if line.contains("looks relieved as the aether line fades away") {
-            styled_line.set_line_style(TextStyle::BLUE);
+            output = output.style_line(TextStyle::BLUE);
         } else if AURA_SCRATCH.is_match(line)
             || AURA_PLUNGES.is_match(line)
             || AURA_ESSENCE.is_match(line)
         {
-            styled_line.set_line_style(TextStyle::GREEN);
+            output = output.style_line(TextStyle::GREEN);
         }
 
         output
@@ -144,32 +136,31 @@ lazy_static! {
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::automation::Automation;
     use crate::stats::Stats;
+    use crate::triggers::{TriggerFacts, TriggerLine};
 
-    fn ctx<'a>(stats: &'a mut Stats, automation: &'a mut Automation) -> TriggerContext<'a> {
-        TriggerContext {
-            stats,
-            automation,
-            rig: None,
-            player_name: None,
+    fn run(line_text: &str, stats: &mut Stats) -> (TriggerEffects, StyledLine) {
+        let output =
+            NergalGuild::nergal_trigger(&TriggerLine::new(line_text), &TriggerFacts::default());
+        for effect in output.stats.clone() {
+            stats.apply_effect(effect);
         }
+        let mut styled = StyledLine::new(line_text);
+        output.apply_line_effects_to(&mut styled);
+        (output, styled)
     }
 
     #[test]
     fn minion_status_gags_and_upserts() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
         let line = "::..:. Tick [Hp: 44 (55) (+3), Sp: 1 (1), Ep: 200 (200)]";
-        let mut styled = StyledLine::new(line);
 
-        let out = NergalGuild::nergal_trigger(&mut ctx, &mut styled);
+        let (out, styled) = run(line, &mut stats);
 
         assert!(styled.gag);
         assert!(out.actions.is_empty());
         assert!(out.lines.is_empty());
-        let first = ctx.stats.nergal_minions[0].as_ref().unwrap();
+        let first = stats.nergal_minions[0].as_ref().unwrap();
         assert_eq!(first.name, "Tick");
         assert_eq!(first.hp, 44);
         assert_eq!(first.max_hp, 55);
@@ -191,25 +182,18 @@ mod tests {
             ep: 1,
             max_ep: 1,
         });
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut styled = StyledLine::new(
-            "Your connection to your parasite is severed completely. Host jerks violently couple of times and collapses.",
-        );
+        let line = "Your connection to your parasite is severed completely. Host jerks violently couple of times and collapses.";
 
-        let _ = NergalGuild::nergal_trigger(&mut ctx, &mut styled);
+        let _ = run(line, &mut stats);
 
-        assert!(!ctx.stats.has_nergal_minions());
+        assert!(!stats.has_nergal_minions());
     }
 
     #[test]
     fn death_sends_nergal_score_alias() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut styled = StyledLine::new("DEAD, R.I.P.");
 
-        let out = NergalGuild::nergal_trigger(&mut ctx, &mut styled);
+        let (out, _) = run("DEAD, R.I.P.", &mut stats);
 
         assert_eq!(out.actions.len(), 1);
         assert!(matches!(&out.actions[0], Action::Send(command) if command == "@nergal sc"));
@@ -218,11 +202,8 @@ mod tests {
     #[test]
     fn potentia_full_echoes_green() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut styled = StyledLine::new("Potentia: 1000/1000");
 
-        let out = NergalGuild::nergal_trigger(&mut ctx, &mut styled);
+        let (out, _) = run("Potentia: 1000/1000", &mut stats);
 
         assert_eq!(out.lines.len(), 1);
         assert_eq!(out.lines[0].plain_line, "***** POTENTIA IS FULL! *****");
@@ -232,13 +213,9 @@ mod tests {
     #[test]
     fn scratch_aura_line_is_green() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut styled = StyledLine::new(
-            "Foo manages to scratch Bar skin infecting the tissue under the skin with nasty disease",
-        );
+        let line = "Foo manages to scratch Bar skin infecting the tissue under the skin with nasty disease";
 
-        let _ = NergalGuild::nergal_trigger(&mut ctx, &mut styled);
+        let (_, styled) = run(line, &mut stats);
 
         assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
     }

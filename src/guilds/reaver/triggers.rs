@@ -1,10 +1,9 @@
-use crate::ansi::{StyledLine, TextStyle};
+use crate::ansi::TextStyle;
 use crate::guilds::ReaverGuild;
 use crate::triggers::Trigger;
-use crate::triggers::{TriggerContext, TriggerOutput};
+use crate::triggers::{LineEffect, TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
-use regex::{Captures, Regex};
-use unicode_segmentation::UnicodeSegmentation;
+use regex::Regex;
 
 lazy_static! {
     static ref SCYTHE_SWIPE_REGEX: Regex =
@@ -80,202 +79,147 @@ impl ReaverGuild {
         ]
     }
 
-    pub fn scythe_swipe_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if SCYTHE_SWIPE_REGEX.is_match(&styled_line.plain_line) {
-            styled_line.set_line_style(TextStyle::BLUE);
+    pub fn scythe_swipe_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        if SCYTHE_SWIPE_REGEX.is_match(line.plain_line) {
+            return TriggerEffects::none().style_line(TextStyle::BLUE);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 
     pub fn rampant_cutting_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts,
+    ) -> TriggerEffects {
         if RAMPANT_CUTTING_REGEXS
             .iter()
-            .any(|r| r.is_match(&styled_line.plain_line))
+            .any(|r| r.is_match(line.plain_line))
         {
-            styled_line.set_line_style(TextStyle::BLUE);
+            return TriggerEffects::none().style_line(TextStyle::BLUE);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 
-    pub fn reaver_strike_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
+    pub fn reaver_strike_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
         if REAVER_STRIKE_REGEXS
             .iter()
-            .any(|r| r.is_match(&styled_line.plain_line))
+            .any(|r| r.is_match(line.plain_line))
         {
-            styled_line.set_line_style(TextStyle::BLUE);
+            return TriggerEffects::none().style_line(TextStyle::BLUE);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 
-    pub fn attack_fails_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if ATTACK_FAILS
-            .iter()
-            .any(|r| r.is_match(&styled_line.plain_line))
-        {
-            styled_line.set_line_style(TextStyle::BRIGHT_RED);
+    pub fn attack_fails_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        if ATTACK_FAILS.iter().any(|r| r.is_match(line.plain_line)) {
+            return TriggerEffects::none().style_line(TextStyle::BRIGHT_RED);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 
-    pub fn killing_blow_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if KILLING_BLOW.is_match(&styled_line.plain_line) {
-            styled_line.set_block_style("KILLING BLOW", TextStyle::BRIGHT_RED);
+    pub fn killing_blow_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        if KILLING_BLOW.is_match(line.plain_line) {
+            return TriggerEffects::none().style_block("KILLING BLOW", TextStyle::BRIGHT_RED);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 
-    pub fn speak_ancient_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let plain_line = styled_line.plain_line.clone();
-        if let Some(captures) = SPEAK_ANCIENT.captures(&plain_line) {
-            apply_capture_hilite(styled_line, &captures, 1, TextStyle::BRIGHT_WHITE);
-            apply_capture_hilite(styled_line, &captures, 2, TextStyle::BRIGHT_WHITE);
+    pub fn speak_ancient_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let plain_line = line.plain_line;
+        let mut output = TriggerEffects::none();
+        if let Some(captures) = SPEAK_ANCIENT.captures(plain_line) {
+            if let Some(effect) = capture_hilite_effect(&captures, 1, TextStyle::BRIGHT_WHITE) {
+                output.original.edits.push(effect);
+            }
+            if let Some(effect) = capture_hilite_effect(&captures, 2, TextStyle::BRIGHT_WHITE) {
+                output.original.edits.push(effect);
+            }
         }
-        TriggerOutput::default()
+        output
     }
 
     pub fn destructive_energy_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let plain_line = styled_line.plain_line.clone();
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts,
+    ) -> TriggerEffects {
+        let plain_line = line.plain_line;
+        let mut output = TriggerEffects::none();
         if let Some(captures) = DESTRUCTIVE_ENERGY
             .iter()
-            .find_map(|r| r.captures(&plain_line))
+            .find_map(|r| r.captures(plain_line))
+            && let Some(effect) = capture_hilite_effect(&captures, 1, TextStyle::CYAN)
         {
-            apply_capture_hilite(styled_line, &captures, 1, TextStyle::CYAN);
+            output.original.edits.push(effect);
         }
-        TriggerOutput::default()
+        output
     }
 
-    pub fn blue_hilites_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if BLUE_HILITES
-            .iter()
-            .any(|r| r.is_match(&styled_line.plain_line))
-        {
-            styled_line.set_line_style(TextStyle::BLUE);
+    pub fn blue_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        if BLUE_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
+            return TriggerEffects::none().style_line(TextStyle::BLUE);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 
     pub fn magenta_hilites_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if MAGENTA_HILITES
-            .iter()
-            .any(|r| r.is_match(&styled_line.plain_line))
-        {
-            styled_line.set_line_style(TextStyle::BRIGHT_MAGENTA);
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts,
+    ) -> TriggerEffects {
+        if MAGENTA_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
+            return TriggerEffects::none().style_line(TextStyle::BRIGHT_MAGENTA);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 
-    pub fn green_hilites_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if GREEN_HILITES
-            .iter()
-            .any(|r| r.is_match(&styled_line.plain_line))
-        {
-            styled_line.set_line_style(TextStyle::GREEN);
+    pub fn green_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        if GREEN_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
+            return TriggerEffects::none().style_line(TextStyle::GREEN);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 
-    pub fn red_hilites_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if RED_HILITES
-            .iter()
-            .any(|r| r.is_match(&styled_line.plain_line))
-        {
-            styled_line.set_line_style(TextStyle::RED);
+    pub fn red_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        if RED_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
+            return TriggerEffects::none().style_line(TextStyle::RED);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 
-    pub fn threaten_usage_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if "Can only be used once per 10 minutes." == styled_line.plain_line {
-            styled_line.gag = true;
+    pub fn threaten_usage_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        if "Can only be used once per 10 minutes." == line.plain_line {
+            return TriggerEffects::none().gag();
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 }
 
-fn apply_capture_hilite(
-    styled_line: &mut StyledLine,
-    captures: &Captures<'_>,
+fn capture_hilite_effect(
+    captures: &regex::Captures<'_>,
     index: usize,
     style: TextStyle,
-) {
-    let Some(m) = captures.get(index) else {
-        return;
-    };
-
-    let start = byte_to_grapheme_index(&styled_line.plain_line, m.start());
-    let end = byte_to_grapheme_index(&styled_line.plain_line, m.end());
-    let len = styled_line.styled_chars.len();
-    let start = start.min(len);
-    let end = end.min(len);
-
-    for i in start..end {
-        styled_line.styled_chars[i].color = style.color;
-        styled_line.styled_chars[i].bold = style.bold;
-    }
-}
-
-fn byte_to_grapheme_index(text: &str, byte_index: usize) -> usize {
-    text.get(..byte_index)
-        .map(|slice| slice.graphemes(true).count())
-        .unwrap_or_default()
+) -> Option<LineEffect> {
+    let m = captures.get(index)?;
+    Some(LineEffect::StylePlainByteRange {
+        range: m.range(),
+        style,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::automation::Automation;
-    use crate::stats::Stats;
+    use crate::ansi::StyledLine;
+    use crate::triggers::{TriggerFacts, TriggerLine};
 
     #[test]
     fn speak_ancient_highlights_only_matches() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut automation,
-            rig: None,
-            player_name: None,
-        };
         let mut line = StyledLine::new("You speak the ancient Ruun 'kael'");
+        let output = ReaverGuild::speak_ancient_trigger(
+            &TriggerLine::new("You speak the ancient Ruun 'kael'"),
+            &TriggerFacts::default(),
+        );
 
-        let _ = ReaverGuild::speak_ancient_trigger(&mut ctx, &mut line);
+        output.apply_line_effects_to(&mut line);
 
         let ruun_start = line.plain_line.find("Ruun").unwrap();
         let kael_start = line.plain_line.find("kael").unwrap();
@@ -292,18 +236,14 @@ mod tests {
 
     #[test]
     fn destructive_energy_highlights_amount() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut automation,
-            rig: None,
-            player_name: None,
-        };
         let mut line =
             StyledLine::new("You feel you have released 42 amount of destructive energy.");
+        let output = ReaverGuild::destructive_energy_trigger(
+            &TriggerLine::new("You feel you have released 42 amount of destructive energy."),
+            &TriggerFacts::default(),
+        );
 
-        let _ = ReaverGuild::destructive_energy_trigger(&mut ctx, &mut line);
+        output.apply_line_effects_to(&mut line);
 
         let amount_start = line.plain_line.find("42").unwrap();
         assert_eq!(line.styled_chars[amount_start].color, AnsiCode::Cyan);

@@ -1,11 +1,10 @@
 use crate::abilities;
-use crate::ansi::{StyledLine, TextStyle};
+use crate::ansi::TextStyle;
 use crate::automation::Action;
 use crate::guilds::PsionicistGuild;
-use crate::triggers::{TriggerContext, TriggerOutput};
+use crate::triggers::{LineEffect, TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
-use regex::{Captures, Regex};
-use unicode_segmentation::UnicodeSegmentation;
+use regex::Regex;
 
 lazy_static! {
     static ref NEED_UNIMAGINABLE_AMOUNT: Regex = Regex::new(
@@ -35,66 +34,61 @@ lazy_static! {
 }
 
 impl PsionicistGuild {
-    pub fn psionicist_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        let plain_owned = styled_line.plain_line.clone();
-        let line = plain_owned.as_str();
+    pub fn psionicist_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        let line = line.plain_line;
 
         if line == "You seize the mind of the monster as it dies." {
-            styled_line.set_line_style(TextStyle::BLUE);
+            output = output.style_line(TextStyle::BLUE);
             output
                 .actions
                 .push(Action::Send(abilities::client_send_line("psi sense")));
             return output;
         }
 
-        if apply_if_captures(
-            styled_line,
-            &NEED_UNIMAGINABLE_AMOUNT,
-            line,
-            1,
-            TextStyle::RED,
-        ) {
+        if let Some(effect) =
+            capture_hilite_effect(&NEED_UNIMAGINABLE_AMOUNT, line, 1, TextStyle::RED)
+        {
+            output.original.edits.push(effect);
             return output;
         }
-        if apply_if_captures(
-            styled_line,
-            &NEED_EXTREMELY_MUCH_MORE,
-            line,
-            1,
-            TextStyle::BRIGHT_RED,
-        ) {
+        if let Some(effect) =
+            capture_hilite_effect(&NEED_EXTREMELY_MUCH_MORE, line, 1, TextStyle::BRIGHT_RED)
+        {
+            output.original.edits.push(effect);
             return output;
         }
-        if apply_if_captures(styled_line, &NEED_MUCH_MORE, line, 1, TextStyle::MAGENTA) {
+        if let Some(effect) = capture_hilite_effect(&NEED_MUCH_MORE, line, 1, TextStyle::MAGENTA) {
+            output.original.edits.push(effect);
             return output;
         }
-        if apply_if_captures(styled_line, &NEED_MORE, line, 1, TextStyle::BRIGHT_MAGENTA) {
+        if let Some(effect) = capture_hilite_effect(&NEED_MORE, line, 1, TextStyle::BRIGHT_MAGENTA)
+        {
+            output.original.edits.push(effect);
             return output;
         }
-        if apply_if_captures(styled_line, &NEED_A_LITTLE_MORE, line, 1, TextStyle::YELLOW) {
+        if let Some(effect) = capture_hilite_effect(&NEED_A_LITTLE_MORE, line, 1, TextStyle::YELLOW)
+        {
+            output.original.edits.push(effect);
             return output;
         }
-        if apply_if_captures(
-            styled_line,
+        if let Some(effect) = capture_hilite_effect(
             &ONLY_NEED_VERY_LITTLE_MORE,
             line,
             1,
             TextStyle::BRIGHT_YELLOW,
         ) {
+            output.original.edits.push(effect);
             return output;
         }
 
         if STUNNED_INTRUSION.is_match(line) {
-            styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
+            output = output.style_line(TextStyle::BRIGHT_GREEN);
             return output;
         }
 
         if line.contains("YOU GAIN AN INCONCEIVABLE AMOUNT OF KNOWLEDGE!") {
-            styled_line.set_line_style(TextStyle::GREEN);
+            output = output.style_line(TextStyle::GREEN);
             return output;
         }
 
@@ -108,83 +102,51 @@ impl PsionicistGuild {
         ) || line
             == "You sense that you have acquired enough knowledge of how the mind works in order to improve your knowledge of mental defence."
         {
-            styled_line.set_line_style(TextStyle::GREEN);
+            output = output.style_line(TextStyle::GREEN);
             return output;
         }
 
         if line == "You gained no new knowledge from such a pitiful monster." {
-            styled_line.set_line_style(TextStyle::RED);
+            output = output.style_line(TextStyle::RED);
             return output;
         }
 
         if STILL_NEED_KNOWLEDGE_BLUE.is_match(line) {
-            styled_line.set_line_style(TextStyle::BLUE);
+            output = output.style_line(TextStyle::BLUE);
         }
 
         output
     }
 }
 
-fn apply_if_captures(
-    styled_line: &mut StyledLine,
+fn capture_hilite_effect(
     re: &Regex,
     line: &str,
     capture_index: usize,
     style: TextStyle,
-) -> bool {
-    let Some(caps) = re.captures(line) else {
-        return false;
-    };
-    apply_capture_hilite(styled_line, &caps, capture_index, style);
-    true
-}
-
-fn apply_capture_hilite(
-    styled_line: &mut StyledLine,
-    captures: &Captures<'_>,
-    index: usize,
-    style: TextStyle,
-) {
-    let Some(m) = captures.get(index) else {
-        return;
-    };
-
-    let start = byte_to_grapheme_index(&styled_line.plain_line, m.start());
-    let end = byte_to_grapheme_index(&styled_line.plain_line, m.end());
-    let len = styled_line.styled_chars.len();
-    let start = start.min(len);
-    let end = end.min(len);
-
-    for grapheme_ix in start..end {
-        styled_line.styled_chars[grapheme_ix].color = style.color;
-        styled_line.styled_chars[grapheme_ix].bold = style.bold;
-    }
-}
-
-fn byte_to_grapheme_index(text: &str, byte_index: usize) -> usize {
-    text.get(..byte_index)
-        .map(|slice| slice.graphemes(true).count())
-        .unwrap_or_default()
+) -> Option<LineEffect> {
+    let caps = re.captures(line)?;
+    caps.get(capture_index)
+        .map(|m| LineEffect::StylePlainByteRange {
+            range: m.range(),
+            style,
+        })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::automation::{Action, Automation};
-    use crate::stats::Stats;
+    use crate::ansi::StyledLine;
+    use crate::automation::Action;
+    use crate::triggers::{TriggerFacts, TriggerLine};
+    use unicode_segmentation::UnicodeSegmentation;
 
-    fn run(line: &str) -> (TriggerOutput, StyledLine) {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut automation,
-            rig: None,
-            player_name: None,
-        };
+    fn run(line: &str) -> (TriggerEffects, StyledLine) {
         let mut styled_line = StyledLine::new(line);
-        let output = PsionicistGuild::psionicist_trigger(&mut ctx, &mut styled_line);
+        let output =
+            PsionicistGuild::psionicist_trigger(&TriggerLine::new(line), &TriggerFacts::default());
+        output.apply_line_effects_to(&mut styled_line);
         (output, styled_line)
     }
 

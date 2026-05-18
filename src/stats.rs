@@ -29,6 +29,35 @@ pub struct Stats {
     recovery_bracket_meditation: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum StatsEffect {
+    UpdatePrompt([i32; 7]),
+    UpdateShortScore([i32; 13]),
+    StartCombatRound,
+    EndCombat,
+    SetRecoveryBracketCamping(bool),
+    SetRecoveryBracketMeditation(bool),
+    SetSoulCompanion {
+        percent: i32,
+        description: String,
+    },
+    SetTzarakkMountStatus {
+        name: String,
+        percent: i32,
+        description: String,
+    },
+    ClearTzarakkMountStatus,
+    MergeRiftwalkerBattleLabel(String),
+    MergeRiftwalkerBattleHpFromListen {
+        hp: i32,
+        paren_inside: String,
+        brackets: [Option<String>; 3],
+    },
+    ClearRiftwalkerEntityStatus,
+    UpsertNergalMinion(NergalMinion),
+    ClearNergalMinions,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RiftwalkerEntityStatus {
     pub label: String,
@@ -97,6 +126,48 @@ impl Stats {
             exp: stats[11],
             diff_exp: stats[12],
             ..Default::default()
+        }
+    }
+
+    pub fn apply_effect(&mut self, effect: StatsEffect) {
+        match effect {
+            StatsEffect::UpdatePrompt(stats) => self.update_from_prompt(stats),
+            StatsEffect::UpdateShortScore(stats) => self.update_from_short_score(stats),
+            StatsEffect::StartCombatRound => self.start_combat_round(),
+            StatsEffect::EndCombat => self.end_combat(),
+            StatsEffect::SetRecoveryBracketCamping(active) => {
+                self.set_recovery_bracket_camping(active);
+            }
+            StatsEffect::SetRecoveryBracketMeditation(active) => {
+                self.set_recovery_bracket_meditation(active);
+            }
+            StatsEffect::SetSoulCompanion {
+                percent,
+                description,
+            } => self.set_soul_companion(percent, description),
+            StatsEffect::SetTzarakkMountStatus {
+                name,
+                percent,
+                description,
+            } => self.set_tzarakk_mount_status(name, percent, description),
+            StatsEffect::ClearTzarakkMountStatus => self.clear_tzarakk_mount_status(),
+            StatsEffect::MergeRiftwalkerBattleLabel(label) => {
+                self.merge_riftwalker_battle_label(label);
+            }
+            StatsEffect::MergeRiftwalkerBattleHpFromListen {
+                hp,
+                paren_inside,
+                brackets,
+            } => self.merge_riftwalker_battle_hp_from_listen(
+                hp,
+                &paren_inside,
+                brackets[0].as_deref(),
+                brackets[1].as_deref(),
+                brackets[2].as_deref(),
+            ),
+            StatsEffect::ClearRiftwalkerEntityStatus => self.clear_riftwalker_entity_status(),
+            StatsEffect::UpsertNergalMinion(minion) => self.upsert_nergal_minion(minion),
+            StatsEffect::ClearNergalMinions => self.clear_nergal_minions(),
         }
     }
 

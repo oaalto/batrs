@@ -1,8 +1,8 @@
 //! Line highlights for Kharim guild output.
 
-use crate::ansi::{StyledLine, TextStyle};
+use crate::ansi::TextStyle;
 use crate::guilds::KharimGuild;
-use crate::triggers::{TriggerContext, TriggerOutput};
+use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -21,32 +21,32 @@ impl KharimGuild {
     }
 
     pub fn kharim_highlight_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let plain = styled_line.plain_line.trim_end_matches('\r').trim();
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts,
+    ) -> TriggerEffects {
+        let plain = line.plain_line.trim_end_matches('\r').trim();
 
         match plain {
             "Chaotic force closes the bleeding wound in your body." => {
-                styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
+                TriggerEffects::none().style_line(TextStyle::BRIGHT_GREEN)
             }
             "Your blood circulation normalizes."
             | "Your thirst for blood is growing insatiable." => {
-                styled_line.set_line_style(TextStyle::BRIGHT_YELLOW);
+                TriggerEffects::none().style_line(TextStyle::BRIGHT_YELLOW)
             }
             "The flames surrounding your chaos blade subside." => {
-                styled_line.set_line_style(TextStyle::YELLOW);
+                TriggerEffects::none().style_line(TextStyle::YELLOW)
             }
             _ => {
                 if CHAOS_AURA.is_match(plain) {
-                    styled_line.set_line_style(TextStyle::GREEN);
+                    TriggerEffects::none().style_line(TextStyle::GREEN)
                 } else if FOUL_INTENTIONS.is_match(plain) || ATTACK_FUTILE.is_match(plain) {
-                    styled_line.set_line_style(TextStyle::RED);
+                    TriggerEffects::none().style_line(TextStyle::RED)
+                } else {
+                    TriggerEffects::none()
                 }
             }
         }
-
-        TriggerOutput::default()
     }
 }
 
@@ -54,26 +54,22 @@ impl KharimGuild {
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::automation::Automation;
-    use crate::stats::Stats;
+    use crate::ansi::StyledLine;
+    use crate::triggers::{TriggerFacts, TriggerLine};
 
-    fn ctx<'a>(stats: &'a mut Stats, automation: &'a mut Automation) -> TriggerContext<'a> {
-        TriggerContext {
-            stats,
-            automation,
-            rig: None,
-            player_name: None,
-        }
+    fn run(line: &str) -> StyledLine {
+        let output = KharimGuild::kharim_highlight_trigger(
+            &TriggerLine::new(line),
+            &TriggerFacts::default(),
+        );
+        let mut styled = StyledLine::new(line);
+        output.apply_line_effects_to(&mut styled);
+        styled
     }
 
     #[test]
     fn heals_line_bold_green() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut trigger_ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("Chaotic force closes the bleeding wound in your body.");
-
-        KharimGuild::kharim_highlight_trigger(&mut trigger_ctx, &mut line);
+        let line = run("Chaotic force closes the bleeding wound in your body.");
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Green);
         assert!(line.styled_chars[0].bold);
@@ -81,12 +77,7 @@ mod tests {
 
     #[test]
     fn chaos_aura_green_not_bold() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut trigger_ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("Your chaos aura of fire reacts to the assault!");
-
-        KharimGuild::kharim_highlight_trigger(&mut trigger_ctx, &mut line);
+        let line = run("Your chaos aura of fire reacts to the assault!");
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Green);
         assert!(!line.styled_chars[0].bold);
@@ -94,13 +85,7 @@ mod tests {
 
     #[test]
     fn foul_intentions_red() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut trigger_ctx = ctx(&mut stats, &mut automation);
-        let mut line =
-            StyledLine::new("The orc notices your foul intentions and evades your attempt.");
-
-        KharimGuild::kharim_highlight_trigger(&mut trigger_ctx, &mut line);
+        let line = run("The orc notices your foul intentions and evades your attempt.");
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Red);
         assert!(!line.styled_chars[0].bold);

@@ -1,6 +1,6 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::guilds::SpiderGuild;
-use crate::triggers::{TriggerContext, TriggerOutput};
+use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -15,31 +15,27 @@ impl SpiderGuild {
     }
 
     pub fn spider_highlight_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        let line = styled_line.plain_line.trim_end_matches('\r').trim();
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts,
+    ) -> TriggerEffects {
+        let line = line.plain_line.trim_end_matches('\r').trim();
 
         if line == HEAVY_WEIGHT_EXPIRY {
-            styled_line.set_line_style(TextStyle::BRIGHT_MAGENTA);
-            output.lines.push(heavy_weight_banner());
-            return output;
+            return TriggerEffects::none()
+                .style_line(TextStyle::BRIGHT_MAGENTA)
+                .emit(heavy_weight_banner());
         }
 
         if line == QUEEN_SMILES_HELPS {
-            styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
-            return output;
+            return TriggerEffects::none().style_line(TextStyle::BRIGHT_GREEN);
         }
 
         if DEMON_HELP_YELLOW.is_match(line) {
-            styled_line.set_line_style(TextStyle::BRIGHT_YELLOW);
-            return output;
+            return TriggerEffects::none().style_line(TextStyle::BRIGHT_YELLOW);
         }
 
         if DEMON_POWER_BRIGHTRED.is_match(line) {
-            styled_line.set_line_style(TextStyle::BRIGHT_RED);
-            return output;
+            return TriggerEffects::none().style_line(TextStyle::BRIGHT_RED);
         }
 
         if BLOOD_PALM_GREEN.is_match(line)
@@ -50,16 +46,14 @@ impl SpiderGuild {
             || VENOM_CRINGE_GREEN.is_match(line)
             || POISON_FLOW_GREEN.is_match(line)
         {
-            styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
-            return output;
+            return TriggerEffects::none().style_line(TextStyle::BRIGHT_GREEN);
         }
 
         if line == LOSING_BODY_CONTROL || line == STAB_BLOCKED || FAIL_STAB_RED.is_match(line) {
-            styled_line.set_line_style(TextStyle::BRIGHT_RED);
-            return output;
+            return TriggerEffects::none().style_line(TextStyle::BRIGHT_RED);
         }
 
-        output
+        TriggerEffects::none()
     }
 }
 
@@ -112,26 +106,21 @@ lazy_static! {
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::automation::Automation;
-    use crate::stats::Stats;
+    use crate::triggers::{TriggerFacts, TriggerLine};
 
-    fn ctx<'a>(stats: &'a mut Stats, automation: &'a mut Automation) -> TriggerContext<'a> {
-        TriggerContext {
-            stats,
-            automation,
-            rig: None,
-            player_name: None,
-        }
+    fn run(line: &str) -> (TriggerEffects, StyledLine) {
+        let output = SpiderGuild::spider_highlight_trigger(
+            &TriggerLine::new(line),
+            &TriggerFacts::default(),
+        );
+        let mut styled = StyledLine::new(line);
+        output.apply_line_effects_to(&mut styled);
+        (output, styled)
     }
 
     #[test]
     fn heavy_weight_line_magenta_and_banner() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut styled = StyledLine::new(HEAVY_WEIGHT_EXPIRY);
-
-        let out = SpiderGuild::spider_highlight_trigger(&mut ctx, &mut styled);
+        let (out, styled) = run(HEAVY_WEIGHT_EXPIRY);
 
         assert_eq!(styled.styled_chars[0].color, AnsiCode::Magenta);
         assert!(styled.styled_chars[0].bold);
@@ -142,12 +131,7 @@ mod tests {
 
     #[test]
     fn queen_smiles_green() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut styled = StyledLine::new(QUEEN_SMILES_HELPS);
-
-        let out = SpiderGuild::spider_highlight_trigger(&mut ctx, &mut styled);
+        let (out, styled) = run(QUEEN_SMILES_HELPS);
 
         assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
         assert!(out.lines.is_empty());
@@ -155,24 +139,14 @@ mod tests {
 
     #[test]
     fn demon_help_yellow() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut styled = StyledLine::new("Goblin's demon feels easier to control than usual.");
-
-        let _ = SpiderGuild::spider_highlight_trigger(&mut ctx, &mut styled);
+        let (_, styled) = run("Goblin's demon feels easier to control than usual.");
 
         assert_eq!(styled.styled_chars[0].color, AnsiCode::Yellow);
     }
 
     #[test]
     fn demon_power_red_bright_parity_regex() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut styled = StyledLine::new("Goblins spider demon draws power from you.");
-
-        let _ = SpiderGuild::spider_highlight_trigger(&mut ctx, &mut styled);
+        let (_, styled) = run("Goblins spider demon draws power from you.");
 
         assert_eq!(styled.styled_chars[0].color, AnsiCode::Red);
         assert!(styled.styled_chars[0].bold);
@@ -180,13 +154,7 @@ mod tests {
 
     #[test]
     fn stab_success_green_sample() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut styled =
-            StyledLine::new("You stab with rusty sword causing blood to fly everywhere!");
-
-        let _ = SpiderGuild::spider_highlight_trigger(&mut ctx, &mut styled);
+        let (_, styled) = run("You stab with rusty sword causing blood to fly everywhere!");
 
         assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
     }

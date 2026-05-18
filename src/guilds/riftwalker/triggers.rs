@@ -1,13 +1,13 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
-use crate::automation::Automation;
 use crate::guilds::RiftwalkerGuild;
 use crate::guilds::riftwalker::{
     AIR_SKILL, EARTH_SKILL, ENTITY_LABEL_AIR, ENTITY_LABEL_EARTH, ENTITY_LABEL_FIRE,
     ENTITY_LABEL_WATER, FIRE_SKILL, RIFTWALKER_ELEMENT_VAR, RIFTWALKER_HAS_ENTITY_FLAG,
     RIFTWALKER_SKILL_VAR, WATER_SKILL,
 };
-use crate::triggers::{Trigger, TriggerContext, TriggerOutput};
+use crate::stats::StatsEffect;
+use crate::triggers::{LineEffect, Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -25,34 +25,31 @@ impl RiftwalkerGuild {
         vec![Self::primary_trigger]
     }
 
-    pub fn primary_trigger(
-        ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        battle_listen_entity_status(ctx, styled_line, &mut output);
-        if styled_line.gag {
+    pub fn primary_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        battle_listen_entity_status(facts, line.plain_line, &mut output);
+        if output.original.gag {
             return output;
         }
 
-        let line = styled_line.plain_line.as_str();
-        clears_and_keeps(ctx, line, &mut output);
-        line_sync_entity_skill(ctx, line, &mut output);
-        skill_state_echoes(ctx, line, &mut output);
+        let line = line.plain_line;
+        clears_and_keeps(facts, line, &mut output);
+        line_sync_entity_skill(facts, line, &mut output);
+        skill_state_echoes(facts, line, &mut output);
 
-        elemental_line_paint(ctx, styled_line);
-        summon_entity_line_paint(ctx, styled_line);
-        elemental_tokens_paint(ctx, styled_line);
-        aura_paint(ctx, styled_line);
-        misc_paint(ctx, styled_line);
-        entity_sense_paint(styled_line);
+        elemental_line_paint(facts, line, &mut output);
+        summon_entity_line_paint(facts, line, &mut output);
+        elemental_tokens_paint(facts, &mut output);
+        aura_paint(facts, line, &mut output);
+        misc_paint(facts, line, &mut output);
+        entity_sense_paint(&mut output);
 
         output
     }
 }
 
-fn automation_label(automation: &Automation, key: &str) -> String {
-    automation
+fn automation_label(facts: &TriggerFacts, key: &str) -> String {
+    facts
         .get_var(key)
         .cloned()
         .filter(|segment| !segment.is_empty())
@@ -71,8 +68,8 @@ fn status_line_noun_regex_chunk(configured: &str) -> String {
     }
 }
 
-fn aura_noun_alternation(automation: &Automation) -> String {
-    let base = noun_alt_pattern(automation);
+fn aura_noun_alternation(facts: &TriggerFacts) -> String {
+    let base = noun_alt_pattern(facts);
     if base.is_empty() {
         "entity".to_string()
     } else {
@@ -81,12 +78,12 @@ fn aura_noun_alternation(automation: &Automation) -> String {
 }
 
 /// Sorted, deduped, regex-escaped alternation of per-element nouns.
-fn noun_alt_pattern(automation: &Automation) -> String {
+fn noun_alt_pattern(facts: &TriggerFacts) -> String {
     let mut parts = vec![
-        automation_label(automation, ENTITY_LABEL_FIRE),
-        automation_label(automation, ENTITY_LABEL_AIR),
-        automation_label(automation, ENTITY_LABEL_WATER),
-        automation_label(automation, ENTITY_LABEL_EARTH),
+        automation_label(facts, ENTITY_LABEL_FIRE),
+        automation_label(facts, ENTITY_LABEL_AIR),
+        automation_label(facts, ENTITY_LABEL_WATER),
+        automation_label(facts, ENTITY_LABEL_EARTH),
     ];
     parts.sort();
     parts.dedup();
@@ -98,17 +95,19 @@ fn noun_alt_pattern(automation: &Automation) -> String {
 }
 
 fn battle_listen_entity_status(
-    ctx: &mut TriggerContext<'_>,
-    styled_line: &mut StyledLine,
-    output: &mut TriggerOutput,
+    facts: &TriggerFacts,
+    plain_line: &str,
+    output: &mut TriggerEffects,
 ) {
-    let text = styled_line.plain_line.trim_end_matches('\r');
+    let text = plain_line.trim_end_matches('\r');
     if let Some(caps) = RIFTWALKER_BATTLE_HP.captures(text) {
-        if ctx.automation.flag_is_set(RIFTWALKER_HAS_ENTITY_FLAG) {
+        if facts.flag_is_set(RIFTWALKER_HAS_ENTITY_FLAG) {
             if let Some(label_seg) = caps.get(1) {
                 let lbl = label_seg.as_str().trim();
                 if !lbl.is_empty() {
-                    ctx.stats.merge_riftwalker_battle_label(lbl.to_string());
+                    output
+                        .stats
+                        .push(StatsEffect::MergeRiftwalkerBattleLabel(lbl.to_string()));
                 }
             }
             let hp = caps
@@ -119,14 +118,23 @@ fn battle_listen_entity_status(
             let b1 = caps.get(4).map(|g| g.as_str());
             let b2 = caps.get(5).map(|g| g.as_str());
             let b3 = caps.get(6).map(|g| g.as_str());
-            ctx.stats
-                .merge_riftwalker_battle_hp_from_listen(hp, paren_inside, b1, b2, b3);
+            output
+                .stats
+                .push(StatsEffect::MergeRiftwalkerBattleHpFromListen {
+                    hp,
+                    paren_inside: paren_inside.to_string(),
+                    brackets: [
+                        b1.map(str::to_string),
+                        b2.map(str::to_string),
+                        b3.map(str::to_string),
+                    ],
+                });
             push_entity_hp_notices(hp, output);
         }
-        styled_line.gag = true;
+        output.original.gag = true;
         return;
     }
-    if !ctx.automation.flag_is_set(RIFTWALKER_HAS_ENTITY_FLAG) {
+    if !facts.flag_is_set(RIFTWALKER_HAS_ENTITY_FLAG) {
         return;
     }
     if let Some(caps) = RIFTWALKER_BATTLE_LABEL.captures(text) {
@@ -134,12 +142,14 @@ fn battle_listen_entity_status(
             .get(1)
             .map(|segment| segment.as_str().to_string())
             .unwrap_or_default();
-        ctx.stats.merge_riftwalker_battle_label(label);
-        styled_line.gag = true;
+        output
+            .stats
+            .push(StatsEffect::MergeRiftwalkerBattleLabel(label));
+        output.original.gag = true;
     }
 }
 
-fn push_entity_hp_notices(hp: i32, output: &mut TriggerOutput) {
+fn push_entity_hp_notices(hp: i32, output: &mut TriggerEffects) {
     let (message, style) = if hp < 100 {
         (
             "*********** !!! ENTITY UNDER 100 HP !!! ***********",
@@ -162,8 +172,8 @@ fn push_entity_hp_notices(hp: i32, output: &mut TriggerOutput) {
     output.lines.push(notice);
 }
 
-fn clears_and_keeps(ctx: &mut TriggerContext<'_>, line: &str, output: &mut TriggerOutput) {
-    let n_alt = noun_alt_pattern(ctx.automation);
+fn clears_and_keeps(facts: &TriggerFacts, line: &str, output: &mut TriggerEffects) {
+    let n_alt = noun_alt_pattern(facts);
     let lost_entity = format!(
         r"(?i)^Your\s+(?:{n_alt})\s+begins to warp, seeming to become unstable\. It folds in on itself and vanishes!$"
     );
@@ -171,7 +181,7 @@ fn clears_and_keeps(ctx: &mut TriggerContext<'_>, line: &str, output: &mut Trigg
     if Regex::new(&lost_entity).is_ok_and(|re| re.is_match(line.trim()))
         || Regex::new(lost_soul).is_ok_and(|re| re.is_match(line.trim()))
     {
-        ctx.stats.clear_riftwalker_entity_status();
+        output.stats.push(StatsEffect::ClearRiftwalkerEntityStatus);
         output.actions.push(Action::SetFlag(
             RIFTWALKER_HAS_ENTITY_FLAG.to_string(),
             false,
@@ -189,7 +199,7 @@ fn clears_and_keeps(ctx: &mut TriggerContext<'_>, line: &str, output: &mut Trigg
     }
 }
 
-fn line_sync_entity_skill(ctx: &TriggerContext<'_>, line: &str, output: &mut TriggerOutput) {
+fn line_sync_entity_skill(facts: &TriggerFacts, line: &str, output: &mut TriggerEffects) {
     let trimmed = line.trim();
     let mapping = [
         ("fire", FIRE_SKILL, "fire", ENTITY_LABEL_FIRE),
@@ -199,7 +209,7 @@ fn line_sync_entity_skill(ctx: &TriggerContext<'_>, line: &str, output: &mut Tri
     ];
 
     for &(glyph, mastery, bucket, key) in &mapping {
-        let noun = regex::escape(&automation_label(ctx.automation, key));
+        let noun = regex::escape(&automation_label(facts, key));
         let Ok(re) = Regex::new(&format!(
             r"(?i)^.+\s+{glyph}\s+{noun}\s+.+with power \[yours\]$"
         )) else {
@@ -222,8 +232,8 @@ fn entity_skill_actions(skill: &str, element: &str) -> Vec<Action> {
     ]
 }
 
-fn is_prepared_line(automation: &Automation, line: &str) -> bool {
-    let n_alt = noun_alt_pattern(automation);
+fn is_prepared_line(facts: &TriggerFacts, line: &str) -> bool {
+    let n_alt = noun_alt_pattern(facts);
     let Ok(re) = Regex::new(&format!(
         r"(?i)^Your\s+(?:{n_alt})\s+is prepared to do the skill\.?$"
     )) else {
@@ -232,8 +242,8 @@ fn is_prepared_line(automation: &Automation, line: &str) -> bool {
     re.is_match(line.trim())
 }
 
-fn is_concentration_lost_line(automation: &Automation, line: &str) -> bool {
-    let n_alt = noun_alt_pattern(automation);
+fn is_concentration_lost_line(facts: &TriggerFacts, line: &str) -> bool {
+    let n_alt = noun_alt_pattern(facts);
     let Ok(re) = Regex::new(&format!(
         r"(?i)^Your\s+(?:{n_alt})\s+loses its concentration and cannot do the skill\.$"
     )) else {
@@ -242,22 +252,22 @@ fn is_concentration_lost_line(automation: &Automation, line: &str) -> bool {
     re.is_match(line.trim())
 }
 
-fn skill_state_echoes(ctx: &TriggerContext<'_>, line: &str, output: &mut TriggerOutput) {
-    if is_prepared_line(ctx.automation, line) {
+fn skill_state_echoes(facts: &TriggerFacts, line: &str, output: &mut TriggerEffects) {
+    if is_prepared_line(facts, line) {
         let mut banner = StyledLine::new("!!!!!!!!!! Entity Skill !!!!!!!!!!");
         banner.set_line_style(TextStyle::BRIGHT_BLUE);
         output.lines.push(banner);
         return;
     }
 
-    if is_concentration_lost_line(ctx.automation, line) {
-        if current_skill_equals(ctx, AIR_SKILL) {
+    if is_concentration_lost_line(facts, line) {
+        if current_skill_equals(facts, AIR_SKILL) {
             output
                 .lines
                 .push(down_notice("SUFFOCATING EMBRACE IS DOWN!"));
-        } else if current_skill_equals(ctx, EARTH_SKILL) {
+        } else if current_skill_equals(facts, EARTH_SKILL) {
             output.lines.push(down_notice("EARTHEN COVER IS DOWN!"));
-        } else if current_skill_equals(ctx, WATER_SKILL) {
+        } else if current_skill_equals(facts, WATER_SKILL) {
             output
                 .lines
                 .push(down_notice("SUBJUGATING BACKWASH IS DOWN!"));
@@ -265,11 +275,11 @@ fn skill_state_echoes(ctx: &TriggerContext<'_>, line: &str, output: &mut Trigger
         return;
     }
 
-    let air_lab = automation_label(ctx.automation, ENTITY_LABEL_AIR);
+    let air_lab = automation_label(facts, ENTITY_LABEL_AIR);
     if matches_line_insensitive(
         line,
         format!("Your air {air_lab} falters and its wispy tendrils fall to its sides."),
-    ) && current_skill_equals(ctx, AIR_SKILL)
+    ) && current_skill_equals(facts, AIR_SKILL)
     {
         output
             .lines
@@ -277,21 +287,21 @@ fn skill_state_echoes(ctx: &TriggerContext<'_>, line: &str, output: &mut Trigger
         return;
     }
 
-    let earth_lab = automation_label(ctx.automation, ENTITY_LABEL_EARTH);
+    let earth_lab = automation_label(facts, ENTITY_LABEL_EARTH);
     if matches_line_insensitive(
         line,
         format!("Your earth {earth_lab} hunches down looking much less solid than a second ago."),
-    ) && current_skill_equals(ctx, EARTH_SKILL)
+    ) && current_skill_equals(facts, EARTH_SKILL)
     {
         output.lines.push(down_notice("EARTHEN COVER IS DOWN!"));
         return;
     }
 
-    let water_lab = automation_label(ctx.automation, ENTITY_LABEL_WATER);
+    let water_lab = automation_label(facts, ENTITY_LABEL_WATER);
     if matches_line_insensitive(
         line,
         format!("Your water {water_lab} stops glowing and its skin becomes still."),
-    ) && current_skill_equals(ctx, WATER_SKILL)
+    ) && current_skill_equals(facts, WATER_SKILL)
     {
         output
             .lines
@@ -303,8 +313,8 @@ fn matches_line_insensitive(got: &str, expected_ascii: String) -> bool {
     got.eq_ignore_ascii_case(expected_ascii.as_str())
 }
 
-fn current_skill_equals(ctx: &TriggerContext<'_>, needle: &str) -> bool {
-    ctx.automation
+fn current_skill_equals(facts: &TriggerFacts, needle: &str) -> bool {
+    facts
         .get_var(RIFTWALKER_SKILL_VAR)
         .map(|skill| skill == needle)
         .unwrap_or(false)
@@ -316,12 +326,11 @@ fn down_notice(message: &'static str) -> StyledLine {
     line
 }
 
-fn elemental_line_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLine) {
-    let text = styled_line.plain_line.as_str();
-    let f = regex::escape(&automation_label(ctx.automation, ENTITY_LABEL_FIRE));
-    let a = regex::escape(&automation_label(ctx.automation, ENTITY_LABEL_AIR));
-    let w = regex::escape(&automation_label(ctx.automation, ENTITY_LABEL_WATER));
-    let e = regex::escape(&automation_label(ctx.automation, ENTITY_LABEL_EARTH));
+fn elemental_line_paint(facts: &TriggerFacts, text: &str, output: &mut TriggerEffects) {
+    let f = regex::escape(&automation_label(facts, ENTITY_LABEL_FIRE));
+    let a = regex::escape(&automation_label(facts, ENTITY_LABEL_AIR));
+    let w = regex::escape(&automation_label(facts, ENTITY_LABEL_WATER));
+    let e = regex::escape(&automation_label(facts, ENTITY_LABEL_EARTH));
 
     let Ok(hit) = Regex::new(&format!(
         r"^(?:Fire\s+{f}|Air\s+{a}|Water\s+{w}|Earth\s+{e})\s+hits .+ (once|twice|thrice) .+\.$"
@@ -334,7 +343,7 @@ fn elemental_line_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLine) 
         return;
     };
 
-    let n_alt = noun_alt_pattern(ctx.automation);
+    let n_alt = noun_alt_pattern(facts);
     let Ok(miss) = Regex::new(&format!(
         r"^Your (.+)\s+(?:{n_alt})\s+does some strange combat maneuver but doesn't hit anything\.$"
     )) else {
@@ -342,16 +351,24 @@ fn elemental_line_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLine) 
     };
 
     if hit.is_match(text) {
-        styled_line.set_line_style(TextStyle::GREEN);
+        output
+            .original
+            .edits
+            .push(LineEffect::StyleLine(TextStyle::GREEN));
     } else if stun.is_match(text) {
-        styled_line.set_line_style(TextStyle::RED);
+        output
+            .original
+            .edits
+            .push(LineEffect::StyleLine(TextStyle::RED));
     } else if miss.is_match(text) {
-        styled_line.set_line_style(TextStyle::BRIGHT_RED);
+        output
+            .original
+            .edits
+            .push(LineEffect::StyleLine(TextStyle::BRIGHT_RED));
     }
 }
 
-fn summon_entity_line_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLine) {
-    let text = styled_line.plain_line.as_str();
+fn summon_entity_line_paint(facts: &TriggerFacts, text: &str, output: &mut TriggerEffects) {
     let rows = [
         ("air", ENTITY_LABEL_AIR, TextStyle::BRIGHT_CYAN),
         ("fire", ENTITY_LABEL_FIRE, TextStyle::RED),
@@ -359,20 +376,20 @@ fn summon_entity_line_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLi
         ("earth", ENTITY_LABEL_EARTH, TextStyle::YELLOW),
     ];
     for &(elem, key, style) in &rows {
-        let n = status_line_noun_regex_chunk(&automation_label(ctx.automation, key));
+        let n = status_line_noun_regex_chunk(&automation_label(facts, key));
         let Ok(re) = Regex::new(&format!(
             r"(?i)^(?:A|An)\s+(.+)\s+{elem}\s+{n}\s+(.+?)\s+with power \[yours\]$"
         )) else {
             continue;
         };
         if re.is_match(text) {
-            styled_line.set_line_style(style);
+            output.original.edits.push(LineEffect::StyleLine(style));
             return;
         }
     }
 }
 
-fn elemental_tokens_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLine) {
+fn elemental_tokens_paint(facts: &TriggerFacts, output: &mut TriggerEffects) {
     let pairs = [
         ("Fire entity", ENTITY_LABEL_FIRE, TextStyle::RED),
         ("Air entity", ENTITY_LABEL_AIR, TextStyle::BRIGHT_CYAN),
@@ -382,13 +399,19 @@ fn elemental_tokens_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLine
     for (stock_slice, configuration_key, style) in pairs {
         let customized = stock_slice.replace(
             "entity",
-            automation_label(ctx.automation, configuration_key).as_str(),
+            automation_label(facts, configuration_key).as_str(),
         );
         for fragment in [stock_slice, &customized] {
-            styled_line.set_block_style(fragment, style);
+            output.original.edits.push(LineEffect::StyleBlock {
+                text: fragment.to_string(),
+                style,
+            });
             let lower = fragment.to_ascii_lowercase();
             if lower != *fragment {
-                styled_line.set_block_style(lower.as_str(), style);
+                output
+                    .original
+                    .edits
+                    .push(LineEffect::StyleBlock { text: lower, style });
             }
         }
     }
@@ -428,9 +451,8 @@ fn aura_style_for(word: &str) -> Option<TextStyle> {
     None
 }
 
-fn aura_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLine) {
-    let text = styled_line.plain_line.as_str();
-    let n_alt = aura_noun_alternation(ctx.automation);
+fn aura_paint(facts: &TriggerFacts, text: &str, output: &mut TriggerEffects) {
+    let n_alt = aura_noun_alternation(facts);
     let aura_alt = AURA_WORDS.join("|");
     let Ok(re) = Regex::new(&format!(
         r"(?i)^(?:A|An)\s+(?P<pre>.+)\s+(?P<nn>(?:{n_alt}))\s+(?P<aur>{aura_alt})\s+with power \[yours\]$"
@@ -446,34 +468,45 @@ fn aura_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLine) {
     let Some(style) = aura_style_for(aur_m.as_str()) else {
         return;
     };
-    styled_line.set_plain_byte_range_style(aur_m.range(), style);
+    output.original.edits.push(LineEffect::StylePlainByteRange {
+        range: aur_m.range(),
+        style,
+    });
 }
 
-fn misc_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLine) {
-    let text = styled_line.plain_line.as_str();
-    let a = regex::escape(&automation_label(ctx.automation, ENTITY_LABEL_AIR));
+fn misc_paint(facts: &TriggerFacts, text: &str, output: &mut TriggerEffects) {
+    let a = regex::escape(&automation_label(facts, ENTITY_LABEL_AIR));
     if let Ok(air_embrace) = Regex::new(&format!(
         r"(?i)^Air\s+{a}\s+embraces .+ with its wispy tendrils\.$"
     )) && air_embrace.is_match(text)
     {
-        styled_line.set_line_style(TextStyle::BRIGHT_BLUE);
+        output
+            .original
+            .edits
+            .push(LineEffect::StyleLine(TextStyle::BRIGHT_BLUE));
         return;
     }
 
-    let n_alt = noun_alt_pattern(ctx.automation);
+    let n_alt = noun_alt_pattern(facts);
     if let Ok(wave) = Regex::new(&format!(
         r"(?i)^A wave of blue light bursts forth from your\s+(?:{n_alt})\s+and hits you in the chest\.$"
     )) && wave.is_match(text)
     {
-        styled_line.set_line_style(TextStyle::BRIGHT_BLUE);
+        output
+            .original
+            .edits
+            .push(LineEffect::StyleLine(TextStyle::BRIGHT_BLUE));
         return;
     }
 
-    let w = regex::escape(&automation_label(ctx.automation, ENTITY_LABEL_WATER));
+    let w = regex::escape(&automation_label(facts, ENTITY_LABEL_WATER));
     if let Ok(water_glow) = Regex::new(&format!(r"(?i)^Water\s+{w}\s+starts to glow,.+shore\.$"))
         && water_glow.is_match(text)
     {
-        styled_line.set_line_style(TextStyle::BRIGHT_BLUE);
+        output
+            .original
+            .edits
+            .push(LineEffect::StyleLine(TextStyle::BRIGHT_BLUE));
         return;
     }
 
@@ -481,28 +514,43 @@ fn misc_paint(ctx: &TriggerContext<'_>, styled_line: &mut StyledLine) {
         r"(?i)^.+\s+(?:{n_alt})\s+starts concentrating on a new offensive skill\.$"
     )) && skill_focus.is_match(text)
     {
-        styled_line.set_line_style(TextStyle::BRIGHT_WHITE);
+        output
+            .original
+            .edits
+            .push(LineEffect::StyleLine(TextStyle::BRIGHT_WHITE));
         return;
     }
 
-    if is_prepared_line(ctx.automation, text) {
-        styled_line.set_line_style(TextStyle::BRIGHT_BLUE);
+    if is_prepared_line(facts, text) {
+        output
+            .original
+            .edits
+            .push(LineEffect::StyleLine(TextStyle::BRIGHT_BLUE));
         return;
     }
     if text.contains("crumpled piece of paper flies through the air") {
-        styled_line.set_line_style(TextStyle::GREEN);
+        output
+            .original
+            .edits
+            .push(LineEffect::StyleLine(TextStyle::GREEN));
         return;
     }
     if let Ok(regain) = Regex::new(&format!(
         r"(?i)^You manage to regain control of your\s+(?:{n_alt})\s+before the connection is completely broken!$"
     )) && regain.is_match(text)
     {
-        styled_line.set_line_style(TextStyle::GREEN);
+        output
+            .original
+            .edits
+            .push(LineEffect::StyleLine(TextStyle::GREEN));
     }
 }
 
-fn entity_sense_paint(styled_line: &mut StyledLine) {
-    styled_line.set_block_style("Entity sense:", TextStyle::BRIGHT_BLUE);
+fn entity_sense_paint(output: &mut TriggerEffects) {
+    output.original.edits.push(LineEffect::StyleBlock {
+        text: "Entity sense:".to_string(),
+        style: TextStyle::BRIGHT_BLUE,
+    });
 }
 
 #[cfg(test)]
@@ -510,7 +558,7 @@ mod tests {
     use super::*;
     use crate::automation::Automation;
     use crate::stats::Stats;
-    use crate::triggers::TriggerContext;
+    use crate::triggers::{TriggerFacts, TriggerLine};
     use ratatui::text::Line;
     use unicode_segmentation::UnicodeSegmentation;
 
@@ -521,26 +569,46 @@ mod tests {
             .collect()
     }
 
+    fn facts(automation: &Automation) -> TriggerFacts {
+        TriggerFacts::new(
+            automation.snapshot_flags(),
+            automation.snapshot_vars(),
+            None,
+            None,
+        )
+    }
+
+    fn run(
+        line_text: &str,
+        automation: &Automation,
+        stats: &mut Stats,
+    ) -> (TriggerEffects, StyledLine) {
+        let output =
+            RiftwalkerGuild::primary_trigger(&TriggerLine::new(line_text), &facts(automation));
+        for effect in output.stats.clone() {
+            stats.apply_effect(effect);
+        }
+        let mut line = StyledLine::new(line_text);
+        output.apply_line_effects_to(&mut line);
+        (output, line)
+    }
+
     #[test]
     fn aura_only_on_summon_line_not_random_sparkling() {
         let mut stats = Stats::default();
-        let mut auto = Automation::new();
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut auto,
-            rig: None,
-            player_name: None,
-        };
-        let mut noise = StyledLine::new("The river is sparkling in the sun.");
-        RiftwalkerGuild::primary_trigger(&mut ctx, &mut noise);
+        let auto = Automation::new();
+        let (_, noise) = run("The river is sparkling in the sun.", &auto, &mut stats);
         let beta = noise.plain_line.find("sparkling").unwrap();
         assert_eq!(
             noise.styled_chars[noise.plain_line[..beta].graphemes(true).count()].color,
             crate::ansi::TextColor::Default
         );
 
-        let mut summon = StyledLine::new("A huge fire entity sparkling with power [yours]");
-        RiftwalkerGuild::primary_trigger(&mut ctx, &mut summon);
+        let (_, summon) = run(
+            "A huge fire entity sparkling with power [yours]",
+            &auto,
+            &mut stats,
+        );
         let sp = summon.plain_line.find("sparkling").unwrap();
         let idx = summon.plain_line[..sp].graphemes(true).count();
         assert_eq!(summon.styled_chars[idx].color, TextStyle::YELLOW.color);
@@ -551,14 +619,11 @@ mod tests {
         let mut stats = Stats::default();
         let mut auto = Automation::new();
         auto.set_var(ENTITY_LABEL_FIRE, "golem".to_string());
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut auto,
-            rig: None,
-            player_name: None,
-        };
-        let mut line = StyledLine::new("A huge fire golem gleaming with power [yours]");
-        RiftwalkerGuild::primary_trigger(&mut ctx, &mut line);
+        let (_, line) = run(
+            "A huge fire golem gleaming with power [yours]",
+            &auto,
+            &mut stats,
+        );
         let g = line.plain_line.find("gleaming").unwrap();
         let idx = line.plain_line[..g].graphemes(true).count();
         assert_eq!(line.styled_chars[idx].color, TextStyle::CYAN.color);
@@ -566,21 +631,19 @@ mod tests {
 
     #[test]
     fn skill_sync_requires_element_and_configured_noun() {
-        let mut stats = Stats::default();
         let mut auto = Automation::new();
         auto.set_var(ENTITY_LABEL_FIRE, "golem".to_string());
-        let ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut auto,
-            rig: None,
-            player_name: None,
-        };
-        let mut out = TriggerOutput::default();
-        line_sync_entity_skill(&ctx, "Some prefix fire entity with power [yours]", &mut out);
+        let mut out = TriggerEffects::default();
+        let facts = facts(&auto);
+        line_sync_entity_skill(
+            &facts,
+            "Some prefix fire entity with power [yours]",
+            &mut out,
+        );
         assert!(out.actions.is_empty());
 
         line_sync_entity_skill(
-            &ctx,
+            &facts,
             "Some prefix fire golem trailing with power [yours]",
             &mut out,
         );
@@ -592,14 +655,7 @@ mod tests {
         let mut stats = Stats::default();
         let mut auto = Automation::new();
         auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut auto,
-            rig: None,
-            player_name: None,
-        };
-        let mut line = StyledLine::new("--=  fire thing  HP:95(30%) more");
-        let out = RiftwalkerGuild::primary_trigger(&mut ctx, &mut line);
+        let (out, line) = run("--=  fire thing  HP:95(30%) more", &auto, &mut stats);
         assert!(line.gag);
         assert!(stats.has_riftwalker_entity_status());
         assert!(line_plain(&stats.render_riftwalker_entity_inline()).contains("HP:95(30%)"));
@@ -614,14 +670,7 @@ mod tests {
         let mut stats = Stats::default();
         let mut auto = Automation::new();
         auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, false);
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut auto,
-            rig: None,
-            player_name: None,
-        };
-        let mut line = StyledLine::new("--=  fire thing  HP:200(50%) more");
-        let _ = RiftwalkerGuild::primary_trigger(&mut ctx, &mut line);
+        let (_, line) = run("--=  fire thing  HP:200(50%) more", &auto, &mut stats);
         assert!(line.gag);
         assert!(!stats.has_riftwalker_entity_status());
     }
@@ -631,14 +680,11 @@ mod tests {
         let mut stats = Stats::default();
         let mut auto = Automation::new();
         auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut auto,
-            rig: None,
-            player_name: None,
-        };
-        let mut line = StyledLine::new("--=  Fire entity  HP:511(629) [+28] [] []  =--");
-        let _ = RiftwalkerGuild::primary_trigger(&mut ctx, &mut line);
+        let (_, line) = run(
+            "--=  Fire entity  HP:511(629) [+28] [] []  =--",
+            &auto,
+            &mut stats,
+        );
         assert!(line.gag);
         assert_eq!(
             line_plain(&stats.render_riftwalker_entity_inline()),
@@ -651,14 +697,11 @@ mod tests {
         let mut stats = Stats::default();
         let mut auto = Automation::new();
         auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut auto,
-            rig: None,
-            player_name: None,
-        };
-        let mut line = StyledLine::new("--=  Water entity  HP:100(100) [+1] [foo] [bar]  =--");
-        let _ = RiftwalkerGuild::primary_trigger(&mut ctx, &mut line);
+        let (_, line) = run(
+            "--=  Water entity  HP:100(100) [+1] [foo] [bar]  =--",
+            &auto,
+            &mut stats,
+        );
         assert!(line.gag);
         assert_eq!(
             line_plain(&stats.render_riftwalker_entity_inline()),
@@ -671,14 +714,7 @@ mod tests {
         let mut stats = Stats::default();
         let mut auto = Automation::new();
         auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut auto,
-            rig: None,
-            player_name: None,
-        };
-        let mut line = StyledLine::new("--=  My pet wisp  =--");
-        let out = RiftwalkerGuild::primary_trigger(&mut ctx, &mut line);
+        let (out, line) = run("--=  My pet wisp  =--", &auto, &mut stats);
         assert!(line.gag);
         assert!(line_plain(&stats.render_riftwalker_entity_inline()).contains("My pet wisp"));
         assert!(out.lines.is_empty());
@@ -690,16 +726,8 @@ mod tests {
         stats.merge_riftwalker_battle_hp(400);
         let mut auto = Automation::new();
         auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut auto,
-            rig: None,
-            player_name: None,
-        };
-        let mut line = StyledLine::new(
-            "Your entity begins to warp, seeming to become unstable. It folds in on itself and vanishes!",
-        );
-        let _ = RiftwalkerGuild::primary_trigger(&mut ctx, &mut line);
+        let line = "Your entity begins to warp, seeming to become unstable. It folds in on itself and vanishes!";
+        let _ = run(line, &auto, &mut stats);
         assert!(!stats.has_riftwalker_entity_status());
     }
 }

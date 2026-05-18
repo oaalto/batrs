@@ -1,39 +1,31 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::guilds::CivmageGuild;
-use crate::guilds::magic_lore_analysis::paint_magic_lore_analysis;
-use crate::triggers::{Trigger, TriggerContext, TriggerOutput};
+use crate::guilds::magic_lore_analysis::magic_lore_analysis_effect;
+use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 
 impl CivmageGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
         vec![Self::civmage_trigger]
     }
 
-    pub fn civmage_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        let line = styled_line
-            .plain_line
-            .trim_end_matches('\r')
-            .trim()
-            .to_string();
+    pub fn civmage_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let line = line.plain_line.trim_end_matches('\r').trim().to_string();
 
         if line == "You feel odd. Not weaker, but..." {
-            styled_line.set_line_style(TextStyle::BRIGHT_RED);
-            return output;
+            return TriggerEffects::none().style_line(TextStyle::BRIGHT_RED);
         }
 
         if line == "Your disc wavers dangerously." {
-            output.lines.push(disc_notice());
+            return TriggerEffects::none().emit(disc_notice());
+        }
+
+        if let Some(effect) = magic_lore_analysis_effect(line.as_str()) {
+            let mut output = TriggerEffects::none();
+            output.original.edits.push(effect);
             return output;
         }
 
-        if paint_magic_lore_analysis(styled_line, line.as_str()) {
-            return output;
-        }
-
-        output
+        TriggerEffects::none()
     }
 }
 
@@ -47,20 +39,13 @@ fn disc_notice() -> StyledLine {
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::automation::Automation;
-    use crate::stats::Stats;
+    use crate::triggers::{TriggerFacts, TriggerLine};
 
-    fn run_trigger(line: &str) -> (TriggerOutput, StyledLine) {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut automation,
-            rig: None,
-            player_name: None,
-        };
+    fn run_trigger(line: &str) -> (TriggerEffects, StyledLine) {
         let mut styled = StyledLine::new(line);
-        let output = CivmageGuild::civmage_trigger(&mut ctx, &mut styled);
+        let output =
+            CivmageGuild::civmage_trigger(&TriggerLine::new(line), &TriggerFacts::default());
+        output.apply_line_effects_to(&mut styled);
         (output, styled)
     }
 

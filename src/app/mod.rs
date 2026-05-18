@@ -134,15 +134,18 @@ impl BatApp {
             }
 
             if self.session.is_logged_in() {
-                let mut ctx = triggers::TriggerContext {
-                    stats: &mut self.stats,
-                    automation: &mut self.automation,
-                    rig: self.player_profile.settings.rig_for_triggers(),
-                    player_name: self.session.login_name(),
-                };
-                let result = triggers::process(&mut ctx, &self.selected_guilds, &mut styled_line);
+                let facts = triggers::TriggerFacts::new(
+                    self.automation.snapshot_flags(),
+                    self.automation.snapshot_vars(),
+                    self.player_profile.settings.rig_for_triggers(),
+                    self.session.login_name(),
+                );
+                let result =
+                    triggers::process(&facts, &self.selected_guilds, &styled_line.plain_line);
+                self.apply_stats_effects(result.stats);
                 self.apply_automation_actions(result.actions);
                 let mut new_lines = result.lines;
+                self.apply_original_line_effects(&mut styled_line, result.original);
                 new_lines.push(styled_line);
                 output_lines.extend(new_lines);
             } else {
@@ -387,6 +390,25 @@ impl BatApp {
             sent_command |= self.send_command(cmd);
         }
         sent_command
+    }
+
+    fn apply_stats_effects(&mut self, effects: Vec<crate::stats::StatsEffect>) {
+        for effect in effects {
+            self.stats.apply_effect(effect);
+        }
+    }
+
+    fn apply_original_line_effects(
+        &mut self,
+        styled_line: &mut StyledLine,
+        effects: triggers::OriginalLineEffects,
+    ) {
+        for edit in effects.edits {
+            edit.apply_to(styled_line);
+        }
+        if effects.gag {
+            styled_line.gag = true;
+        }
     }
 
     fn apply_player_runtime_profile(

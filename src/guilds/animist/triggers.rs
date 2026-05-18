@@ -1,7 +1,8 @@
-use crate::ansi::{StyledLine, TextStyle};
+use crate::ansi::TextStyle;
 use crate::automation::Action;
 use crate::guilds::AnimistGuild;
-use crate::triggers::{Trigger, TriggerContext, TriggerOutput};
+use crate::stats::StatsEffect;
+use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -16,27 +17,27 @@ impl AnimistGuild {
     }
 
     pub fn soul_companion_status_trigger(
-        ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let plain = styled_line.plain_line.trim_end_matches('\r').trim();
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts,
+    ) -> TriggerEffects {
+        let plain = line.plain_line.trim_end_matches('\r').trim();
         if let Some(captures) = SOUL_COMPANION_STATUS.captures(plain) {
             let percent = captures[2].parse::<i32>().unwrap_or_default();
             let description = captures[3].trim().to_string();
-            styled_line.gag = true;
-            ctx.stats
-                .set_soul_companion(percent.clamp(0, 100), description);
+            return TriggerEffects::none()
+                .gag()
+                .stat(StatsEffect::SetSoulCompanion {
+                    percent: percent.clamp(0, 100),
+                    description,
+                });
         }
 
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 
-    pub fn spirit_appears_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        if SPIRIT_APPEARS.is_match(&styled_line.plain_line) {
+    pub fn spirit_appears_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        if SPIRIT_APPEARS.is_match(line.plain_line) {
             output
                 .actions
                 .push(Action::Send("@lead my spirit".to_string()));
@@ -45,25 +46,23 @@ impl AnimistGuild {
     }
 
     pub fn soul_companion_training_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if styled_line.plain_line
-            == "You feel slightly better at fighting with your soul companion."
-        {
-            styled_line.set_line_style(TextStyle::BLUE);
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts,
+    ) -> TriggerEffects {
+        if line.plain_line == "You feel slightly better at fighting with your soul companion." {
+            return TriggerEffects::none().style_line(TextStyle::BLUE);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 
     pub fn soul_companion_sword_hit_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if SOUL_COMPANION_SWORD_HIT.is_match(&styled_line.plain_line) {
-            styled_line.set_line_style(TextStyle::BRIGHT_BLUE);
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts,
+    ) -> TriggerEffects {
+        if SOUL_COMPANION_SWORD_HIT.is_match(line.plain_line) {
+            return TriggerEffects::none().style_line(TextStyle::BRIGHT_BLUE);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 }
 
@@ -83,16 +82,18 @@ lazy_static! {
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::automation::Automation;
+    use crate::ansi::StyledLine;
     use crate::stats::Stats;
+    use crate::triggers::{Trigger, TriggerFacts, TriggerLine};
 
-    fn ctx<'a>(stats: &'a mut Stats, automation: &'a mut Automation) -> TriggerContext<'a> {
-        TriggerContext {
-            stats,
-            automation,
-            rig: None,
-            player_name: None,
+    fn run(trigger: Trigger, line_text: &str, stats: &mut Stats) -> (TriggerEffects, StyledLine) {
+        let output = trigger(&TriggerLine::new(line_text), &TriggerFacts::default());
+        for effect in output.stats.clone() {
+            stats.apply_effect(effect);
         }
+        let mut line = StyledLine::new(line_text);
+        output.apply_line_effects_to(&mut line);
+        (output, line)
     }
 
     fn stats_line_text(stats: &Stats) -> String {
@@ -107,50 +108,53 @@ mod tests {
     #[test]
     fn soul_companion_status_updates_stats() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("Your soul companion: exc (88%) guarding you");
 
-        let _ = AnimistGuild::soul_companion_status_trigger(&mut ctx, &mut line);
+        let (_, line) = run(
+            AnimistGuild::soul_companion_status_trigger,
+            "Your soul companion: exc (88%) guarding you",
+            &mut stats,
+        );
 
         assert!(line.gag);
-        assert_eq!(stats_line_text(ctx.stats), "Soul: 88% guarding you");
+        assert_eq!(stats_line_text(&stats), "Soul: 88% guarding you");
     }
 
     #[test]
     fn soul_companion_status_trims_carriage_return() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("Your soul companion: exc (88%) +\r");
 
-        let _ = AnimistGuild::soul_companion_status_trigger(&mut ctx, &mut line);
+        let (_, line) = run(
+            AnimistGuild::soul_companion_status_trigger,
+            "Your soul companion: exc (88%) +\r",
+            &mut stats,
+        );
 
         assert!(line.gag);
-        assert_eq!(stats_line_text(ctx.stats), "Soul: 88% +");
+        assert_eq!(stats_line_text(&stats), "Soul: 88% +");
     }
 
     #[test]
     fn soul_companion_status_optional_suffix() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("your soul companion: wolf (50%)");
 
-        let _ = AnimistGuild::soul_companion_status_trigger(&mut ctx, &mut line);
+        let (_, line) = run(
+            AnimistGuild::soul_companion_status_trigger,
+            "your soul companion: wolf (50%)",
+            &mut stats,
+        );
 
         assert!(line.gag);
-        assert_eq!(stats_line_text(ctx.stats), "Soul: 50% ");
+        assert_eq!(stats_line_text(&stats), "Soul: 50% ");
     }
 
     #[test]
     fn spirit_appearing_leads_it() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("A wolf spirit slowly appears, answering your call.");
-
-        let output = AnimistGuild::spirit_appears_trigger(&mut ctx, &mut line);
+        let (output, _) = run(
+            AnimistGuild::spirit_appears_trigger,
+            "A wolf spirit slowly appears, answering your call.",
+            &mut stats,
+        );
 
         assert!(matches!(
             &output.actions[0],
@@ -161,12 +165,11 @@ mod tests {
     #[test]
     fn soul_companion_training_is_blue() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line =
-            StyledLine::new("You feel slightly better at fighting with your soul companion.");
-
-        let _ = AnimistGuild::soul_companion_training_trigger(&mut ctx, &mut line);
+        let (_, line) = run(
+            AnimistGuild::soul_companion_training_trigger,
+            "You feel slightly better at fighting with your soul companion.",
+            &mut stats,
+        );
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Blue);
     }
@@ -174,12 +177,11 @@ mod tests {
     #[test]
     fn soul_companion_sword_hit_is_light_blue() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line =
-            StyledLine::new("Oaalto's soul companion swings his sword in wide arc, and hits Orc.");
-
-        let _ = AnimistGuild::soul_companion_sword_hit_trigger(&mut ctx, &mut line);
+        let (_, line) = run(
+            AnimistGuild::soul_companion_sword_hit_trigger,
+            "Oaalto's soul companion swings his sword in wide arc, and hits Orc.",
+            &mut stats,
+        );
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Blue);
         assert!(line.styled_chars[0].bold);

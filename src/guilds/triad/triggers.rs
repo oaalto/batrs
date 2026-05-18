@@ -1,6 +1,6 @@
-use crate::ansi::{StyledLine, TextStyle};
+use crate::ansi::TextStyle;
 use crate::guilds::TriadGuild;
-use crate::triggers::{TriggerContext, TriggerOutput};
+use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -10,19 +10,18 @@ impl TriadGuild {
     }
 
     pub fn triad_highlight_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let output = TriggerOutput::default();
-        let line = styled_line.plain_line.trim_end_matches('\r').trim();
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts,
+    ) -> TriggerEffects {
+        let line = line.plain_line.trim_end_matches('\r').trim();
 
         if CURSE_FADE.is_match(line) || FAIL_REACH.is_match(line) {
-            styled_line.set_line_style(TextStyle::BRIGHT_RED);
+            TriggerEffects::none().style_line(TextStyle::BRIGHT_RED)
         } else if HARM.is_match(line) {
-            styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
+            TriggerEffects::none().style_line(TextStyle::BRIGHT_GREEN)
+        } else {
+            TriggerEffects::none()
         }
-
-        output
     }
 }
 
@@ -37,26 +36,20 @@ lazy_static! {
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::automation::Automation;
-    use crate::stats::Stats;
+    use crate::ansi::StyledLine;
+    use crate::triggers::{TriggerFacts, TriggerLine};
 
-    fn ctx<'a>(stats: &'a mut Stats, automation: &'a mut Automation) -> TriggerContext<'a> {
-        TriggerContext {
-            stats,
-            automation,
-            rig: None,
-            player_name: None,
-        }
+    fn run(line: &str) -> StyledLine {
+        let output =
+            TriadGuild::triad_highlight_trigger(&TriggerLine::new(line), &TriggerFacts::default());
+        let mut styled = StyledLine::new(line);
+        output.apply_line_effects_to(&mut styled);
+        styled
     }
 
     #[test]
     fn curse_fade_red() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut trigger_ctx = ctx(&mut stats, &mut automation);
-        let mut styled = StyledLine::new("The curse on your weapon fades away.");
-
-        let _ = TriadGuild::triad_highlight_trigger(&mut trigger_ctx, &mut styled);
+        let styled = run("The curse on your weapon fades away.");
 
         assert_eq!(styled.styled_chars[0].color, AnsiCode::Red);
         assert!(styled.styled_chars[0].bold);
@@ -64,12 +57,7 @@ mod tests {
 
     #[test]
     fn fail_to_reach_red() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut trigger_ctx = ctx(&mut stats, &mut automation);
-        let mut styled = StyledLine::new("You fail to reach the goblin.");
-
-        let _ = TriadGuild::triad_highlight_trigger(&mut trigger_ctx, &mut styled);
+        let styled = run("You fail to reach the goblin.");
 
         assert_eq!(styled.styled_chars[0].color, AnsiCode::Red);
         assert!(styled.styled_chars[0].bold);
@@ -77,12 +65,7 @@ mod tests {
 
     #[test]
     fn harm_green() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut trigger_ctx = ctx(&mut stats, &mut automation);
-        let mut styled = StyledLine::new("You harm goblin a little.");
-
-        let _ = TriadGuild::triad_highlight_trigger(&mut trigger_ctx, &mut styled);
+        let styled = run("You harm goblin a little.");
 
         assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
         assert!(styled.styled_chars[0].bold);

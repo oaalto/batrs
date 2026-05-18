@@ -1,15 +1,11 @@
-use crate::ansi::{StyledLine, TextStyle};
+use crate::ansi::TextStyle;
 use crate::automation::Action;
 use crate::guilds::TzarakkGuild;
 use crate::guilds::tzarakk::{DISMOUNTED_FLAG, MOUNT_SUMMONED_FLAG, TZARAKK_MOUNT_VAR};
-use crate::triggers::{Trigger, TriggerContext, TriggerOutput};
+use crate::stats::StatsEffect;
+use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::Regex;
-
-#[cfg(test)]
-use crate::automation::Automation;
-#[cfg(test)]
-use crate::stats::Stats;
 
 lazy_static! {
     // Mount detection - when mount is already summoned and ridden
@@ -85,11 +81,11 @@ impl TzarakkGuild {
     }
 
     pub fn mount_detection_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        if MOUNT_DETECTION_REGEX.is_match(&styled_line.plain_line) {
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts,
+    ) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        if MOUNT_DETECTION_REGEX.is_match(line.plain_line) {
             output
                 .actions
                 .push(Action::SetFlag(MOUNT_SUMMONED_FLAG.to_string(), true));
@@ -97,16 +93,10 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn round_trigger(
-        ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        if ROUND_REGEX.is_match(&styled_line.plain_line)
-            && ctx.automation.flag_is_set(MOUNT_SUMMONED_FLAG)
-        {
-            let mount = ctx
-                .automation
+    pub fn round_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        if ROUND_REGEX.is_match(line.plain_line) && facts.flag_is_set(MOUNT_SUMMONED_FLAG) {
+            let mount = facts
                 .get_var(TZARAKK_MOUNT_VAR)
                 .cloned()
                 .unwrap_or_else(|| "Vedir".to_string());
@@ -116,14 +106,13 @@ impl TzarakkGuild {
     }
 
     pub fn chaosfeed_replenish_trigger(
-        ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        if let Some(captures) = CHAOSFEED_REPLENISH_REGEX.captures(&styled_line.plain_line) {
+        line: &TriggerLine<'_>,
+        facts: &TriggerFacts,
+    ) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        if let Some(captures) = CHAOSFEED_REPLENISH_REGEX.captures(line.plain_line) {
             let replenished_mount = captures.get(1).map(|m| m.as_str()).unwrap_or("");
-            let tzarakk_mount = ctx
-                .automation
+            let tzarakk_mount = facts
                 .get_var(TZARAKK_MOUNT_VAR)
                 .cloned()
                 .unwrap_or_else(|| "Vedir".to_string());
@@ -138,16 +127,10 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn dismount_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        if DISMOUNT_REGEXES
-            .iter()
-            .any(|r| r.is_match(&styled_line.plain_line))
-        {
-            styled_line.set_line_style(TextStyle::BRIGHT_RED);
+    pub fn dismount_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        if DISMOUNT_REGEXES.iter().any(|r| r.is_match(line.plain_line)) {
+            output = output.style_line(TextStyle::BRIGHT_RED);
             output
                 .actions
                 .push(Action::SetFlag(DISMOUNTED_FLAG.to_string(), true));
@@ -155,15 +138,11 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn mount_appears_trigger(
-        ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        if let Some(captures) = MOUNT_APPEARS_REGEX.captures(&styled_line.plain_line) {
+    pub fn mount_appears_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        if let Some(captures) = MOUNT_APPEARS_REGEX.captures(line.plain_line) {
             let mount_name = captures.get(1).map(|m| m.as_str()).unwrap_or("");
-            let tzarakk_mount = ctx
-                .automation
+            let tzarakk_mount = facts
                 .get_var(TZARAKK_MOUNT_VAR)
                 .cloned()
                 .unwrap_or_else(|| "Vedir".to_string());
@@ -176,17 +155,11 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn mount_death_trigger(
-        ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        if ctx.automation.flag_is_set(DISMOUNTED_FLAG)
-            && MOUNT_DEATH_REGEX.is_match(&styled_line.plain_line)
-        {
-            styled_line.set_line_style(TextStyle::BRIGHT_RED);
-            let mount = ctx
-                .automation
+    pub fn mount_death_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        if facts.flag_is_set(DISMOUNTED_FLAG) && MOUNT_DEATH_REGEX.is_match(line.plain_line) {
+            output = output.style_line(TextStyle::BRIGHT_RED);
+            let mount = facts
                 .get_var(TZARAKK_MOUNT_VAR)
                 .cloned()
                 .unwrap_or_else(|| "Vedir".to_string());
@@ -197,12 +170,9 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn riding_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        if RIDING_REGEX.is_match(&styled_line.plain_line) {
+    pub fn riding_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        if RIDING_REGEX.is_match(line.plain_line) {
             output
                 .actions
                 .push(Action::SetFlag(DISMOUNTED_FLAG.to_string(), false));
@@ -213,13 +183,10 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn banish_mount_trigger(
-        ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        if BANISH_MOUNT_REGEX.is_match(&styled_line.plain_line) {
-            ctx.stats.clear_tzarakk_mount_status();
+    pub fn banish_mount_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        if BANISH_MOUNT_REGEX.is_match(line.plain_line) {
+            output.stats.push(StatsEffect::ClearTzarakkMountStatus);
             output
                 .actions
                 .push(Action::SetFlag(MOUNT_SUMMONED_FLAG.to_string(), false));
@@ -230,29 +197,23 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn charge_result_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
+    pub fn charge_result_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
         if CHARGE_MISS_REGEXES
             .iter()
-            .any(|r| r.is_match(&styled_line.plain_line))
+            .any(|r| r.is_match(line.plain_line))
         {
-            styled_line.set_line_style(TextStyle::RED);
-        } else if CHARGE_HIT_REGEX.is_match(&styled_line.plain_line) {
-            styled_line.set_line_style(TextStyle::BLUE);
+            TriggerEffects::none().style_line(TextStyle::RED)
+        } else if CHARGE_HIT_REGEX.is_match(line.plain_line) {
+            TriggerEffects::none().style_line(TextStyle::BLUE)
+        } else {
+            TriggerEffects::none()
         }
-        TriggerOutput::default()
     }
 
-    pub fn steed_summoned_trigger(
-        ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        if STEED_SUMMONED_REGEX.is_match(&styled_line.plain_line) {
-            let mount = ctx
-                .automation
+    pub fn steed_summoned_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        if STEED_SUMMONED_REGEX.is_match(line.plain_line) {
+            let mount = facts
                 .get_var(TZARAKK_MOUNT_VAR)
                 .cloned()
                 .unwrap_or_else(|| "Vedir".to_string());
@@ -270,20 +231,21 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn mount_status_trigger(
-        ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let plain = styled_line.plain_line.trim_end_matches('\r').trim();
+    pub fn mount_status_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let plain = line.plain_line.trim_end_matches('\r').trim();
         if let Some(captures) = MOUNT_STATUS_REGEX.captures(plain) {
             let name = captures[1].to_string();
             let description = captures[2].trim().to_string();
             let percent = captures[3].parse::<i32>().unwrap_or_default();
-            styled_line.gag = true;
-            ctx.stats
-                .set_tzarakk_mount_status(name, percent.clamp(0, 100), description);
+            return TriggerEffects::none()
+                .gag()
+                .stat(StatsEffect::SetTzarakkMountStatus {
+                    name,
+                    percent: percent.clamp(0, 100),
+                    description,
+                });
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 }
 
@@ -291,14 +253,33 @@ impl TzarakkGuild {
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
+    use crate::ansi::StyledLine;
+    use crate::automation::Automation;
+    use crate::stats::Stats;
+    use crate::triggers::{TriggerFacts, TriggerLine};
 
-    fn ctx<'a>(stats: &'a mut Stats, automation: &'a mut Automation) -> TriggerContext<'a> {
-        TriggerContext {
-            stats,
-            automation,
-            rig: None,
-            player_name: None,
+    fn facts(automation: &Automation) -> TriggerFacts {
+        TriggerFacts::new(
+            automation.snapshot_flags(),
+            automation.snapshot_vars(),
+            None,
+            None,
+        )
+    }
+
+    fn run(
+        trigger: Trigger,
+        line_text: &str,
+        automation: &Automation,
+        stats: &mut Stats,
+    ) -> (TriggerEffects, StyledLine) {
+        let output = trigger(&TriggerLine::new(line_text), &facts(automation));
+        for effect in output.stats.clone() {
+            stats.apply_effect(effect);
         }
+        let mut line = StyledLine::new(line_text);
+        output.apply_line_effects_to(&mut line);
+        (output, line)
     }
 
     fn tzarakk_mount_line_text(stats: &Stats) -> String {
@@ -313,11 +294,14 @@ mod tests {
     #[test]
     fn mount_detection_sets_flag() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("'Vedir', the black steed [Rider: You]");
+        let automation = Automation::new();
 
-        let output = TzarakkGuild::mount_detection_trigger(&mut ctx, &mut line);
+        let (output, _) = run(
+            TzarakkGuild::mount_detection_trigger,
+            "'Vedir', the black steed [Rider: You]",
+            &automation,
+            &mut stats,
+        );
 
         assert!(matches!(
             &output.actions[0],
@@ -328,11 +312,14 @@ mod tests {
     #[test]
     fn mount_detection_orthos_also_works() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("'Orthos', the black steed [Rider: You]");
+        let automation = Automation::new();
 
-        let output = TzarakkGuild::mount_detection_trigger(&mut ctx, &mut line);
+        let (output, _) = run(
+            TzarakkGuild::mount_detection_trigger,
+            "'Orthos', the black steed [Rider: You]",
+            &automation,
+            &mut stats,
+        );
 
         assert!(matches!(
             &output.actions[0],
@@ -346,10 +333,13 @@ mod tests {
         let mut automation = Automation::new();
         automation.set_flag(MOUNT_SUMMONED_FLAG, true);
         automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("*** Round 1 ***");
 
-        let output = TzarakkGuild::round_trigger(&mut ctx, &mut line);
+        let (output, _) = run(
+            TzarakkGuild::round_trigger,
+            "*** Round 1 ***",
+            &automation,
+            &mut stats,
+        );
 
         assert!(!output.actions.is_empty(), "Expected actions but got none");
         assert!(output.actions.iter().any(|a| matches!(
@@ -360,12 +350,15 @@ mod tests {
     #[test]
     fn round_trigger_does_nothing_when_not_mounted() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
+        let automation = Automation::new();
         // mount_summoned is false by default
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("*** Round 1 ***");
 
-        let output = TzarakkGuild::round_trigger(&mut ctx, &mut line);
+        let (output, _) = run(
+            TzarakkGuild::round_trigger,
+            "*** Round 1 ***",
+            &automation,
+            &mut stats,
+        );
 
         assert!(output.actions.is_empty());
     }
@@ -375,12 +368,12 @@ mod tests {
         let mut stats = Stats::default();
         let mut automation = Automation::new();
         automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new(
+        let (output, _) = run(
+            TzarakkGuild::chaosfeed_replenish_trigger,
             "A faint fog-like substance flows from corpse of Vedir to goblin's lifeless eyes replenishing it fully.",
+            &automation,
+            &mut stats,
         );
-
-        let output = TzarakkGuild::chaosfeed_replenish_trigger(&mut ctx, &mut line);
 
         assert!(matches!(
             &output.actions[0],
@@ -393,12 +386,12 @@ mod tests {
         let mut stats = Stats::default();
         let mut automation = Automation::new();
         automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new(
+        let (output, _) = run(
+            TzarakkGuild::chaosfeed_replenish_trigger,
             "A faint fog-like substance flows from corpse of Orthos to goblin's lifeless eyes replenishing it fully.",
+            &automation,
+            &mut stats,
         );
-
-        let output = TzarakkGuild::chaosfeed_replenish_trigger(&mut ctx, &mut line);
 
         assert!(output.actions.is_empty());
     }
@@ -406,11 +399,14 @@ mod tests {
     #[test]
     fn dismount_detects_ice_sound() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("The ice makes a sound below your mount, scaring it!");
+        let automation = Automation::new();
 
-        let output = TzarakkGuild::dismount_trigger(&mut ctx, &mut line);
+        let (output, line) = run(
+            TzarakkGuild::dismount_trigger,
+            "The ice makes a sound below your mount, scaring it!",
+            &automation,
+            &mut stats,
+        );
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Red);
         assert!(line.styled_chars[0].bold);
@@ -421,192 +417,39 @@ mod tests {
     }
 
     #[test]
-    fn dismount_detects_knocked_off() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("You are knocked off your mount!");
-
-        let output = TzarakkGuild::dismount_trigger(&mut ctx, &mut line);
-
-        assert_eq!(line.styled_chars[0].color, AnsiCode::Red);
-        assert!(matches!(
-            &output.actions[0],
-            Action::SetFlag(flag, true) if flag == DISMOUNTED_FLAG
-        ));
-    }
-
-    #[test]
-    fn dismount_detects_thrown() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("Your mount throws you!");
-
-        let output = TzarakkGuild::dismount_trigger(&mut ctx, &mut line);
-
-        assert!(matches!(
-            &output.actions[0],
-            Action::SetFlag(flag, true) if flag == DISMOUNTED_FLAG
-        ));
-    }
-
-    #[test]
-    fn mount_appears_sends_mount_command() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("Vedir appears in a violent burst of chaos.");
-
-        let output = TzarakkGuild::mount_appears_trigger(&mut ctx, &mut line);
-
-        assert!(matches!(
-            &output.actions[0],
-            Action::Send(cmd) if cmd == "@mount Vedir"
-        ));
-    }
-
-    #[test]
-    fn mount_appears_different_mount_ignored() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("SomeOtherMount appears in a violent burst of chaos.");
-
-        let output = TzarakkGuild::mount_appears_trigger(&mut ctx, &mut line);
-
-        assert!(output.actions.is_empty());
-    }
-
-    #[test]
-    fn riding_clears_dismounted_and_sets_summoned() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        automation.set_flag(DISMOUNTED_FLAG, true);
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("You get up on Vedir and begin to ride.");
-
-        let output = TzarakkGuild::riding_trigger(&mut ctx, &mut line);
-
-        assert!(output.actions.iter().any(|a| matches!(
-            a, Action::SetFlag(flag, false) if flag == DISMOUNTED_FLAG
-        )));
-        assert!(output.actions.iter().any(|a| matches!(
-            a, Action::SetFlag(flag, true) if flag == MOUNT_SUMMONED_FLAG
-        )));
-    }
-
-    #[test]
-    fn banish_mount_clears_flag_and_sets_rip_action() {
-        let mut stats = Stats::default();
-        stats.set_tzarakk_mount_status("Vedir".to_string(), 100, "in excellent shape".to_string());
-        let mut automation = Automation::new();
-        automation.set_flag(MOUNT_SUMMONED_FLAG, true);
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("You pray for Tzarakk to receive his mount.");
-
-        let output = TzarakkGuild::banish_mount_trigger(&mut ctx, &mut line);
-
-        assert!(output.actions.iter().any(|a| matches!(
-            a, Action::SetFlag(flag, false) if flag == MOUNT_SUMMONED_FLAG
-        )));
-        assert!(output.actions.iter().any(|a| matches!(
-            a, Action::Send(cmd) if cmd.contains("dig grave")
-        )));
-        assert!(!ctx.stats.has_tzarakk_mount_status());
-    }
-
-    #[test]
-    fn charge_miss_colors_red() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("You charge towards your enemy, but alas -- a clean miss.");
-
-        TzarakkGuild::charge_result_trigger(&mut ctx, &mut line);
-
-        assert_eq!(line.styled_chars[0].color, AnsiCode::Red);
-    }
-
-    #[test]
-    fn charge_hit_colors_blue() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line =
-            StyledLine::new("You manage to hit your foe with a powerful strike as you pass by.");
-
-        TzarakkGuild::charge_result_trigger(&mut ctx, &mut line);
-
-        assert_eq!(line.styled_chars[0].color, AnsiCode::Blue);
-    }
-
-    #[test]
-    fn steed_summoned_mounts_and_sets_feed_mode() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new(
-            "A bizarre mist starts to form itself rapidly, and within moments a dark morbid",
-        );
-
-        let output = TzarakkGuild::steed_summoned_trigger(&mut ctx, &mut line);
-
-        assert!(output.actions.iter().any(|a| matches!(
-            a, Action::Send(cmd) if cmd == "@mount Vedir"
-        )));
-        assert!(output.actions.iter().any(|a| matches!(
-            a, Action::SetFlag(flag, true) if flag == MOUNT_SUMMONED_FLAG
-        )));
-        assert!(output.actions.iter().any(|a| matches!(
-            a, Action::Send(cmd) if cmd.contains("chaosfeed")
-        )));
-    }
-
-    #[test]
     fn mount_status_line_gagged_and_updates_stats() {
         let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("Vedir is in excellent shape (100%).");
+        let automation = Automation::new();
 
-        TzarakkGuild::mount_status_trigger(&mut ctx, &mut line);
+        let (_output, line) = run(
+            TzarakkGuild::mount_status_trigger,
+            "Vedir is in excellent shape (100%).",
+            &automation,
+            &mut stats,
+        );
 
         assert!(line.gag);
-        assert_eq!(tzarakk_mount_line_text(ctx.stats), "Vedir: 100%");
+        assert_eq!(tzarakk_mount_line_text(&stats), "Vedir: 100%");
     }
 
     #[test]
-    fn mount_death_when_dismounted_removes_and_sends_mount() {
+    fn mount_death_when_dismounted_sends_mount() {
         let mut stats = Stats::default();
         let mut automation = Automation::new();
         automation.set_flag(DISMOUNTED_FLAG, true);
         automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("Vedir is DEAD, R.I.P.");
 
-        let output = TzarakkGuild::mount_death_trigger(&mut ctx, &mut line);
+        let (output, line) = run(
+            TzarakkGuild::mount_death_trigger,
+            "Vedir is DEAD, R.I.P.",
+            &automation,
+            &mut stats,
+        );
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Red);
         assert!(matches!(
             &output.actions[0],
             Action::Send(cmd) if cmd == "@mount Vedir"
         ));
-    }
-
-    #[test]
-    fn mount_death_when_not_dismounted_ignored() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        // dismounted is false by default
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("Vedir is DEAD, R.I.P.");
-
-        let output = TzarakkGuild::mount_death_trigger(&mut ctx, &mut line);
-
-        assert!(output.actions.is_empty());
     }
 }

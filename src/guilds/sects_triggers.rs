@@ -1,7 +1,7 @@
 //! Sect cultivation and mantra lines shared by Tiger and Monk.
 
-use crate::ansi::{StyledLine, TextStyle};
-use crate::triggers::{TriggerContext, TriggerOutput};
+use crate::ansi::TextStyle;
+use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -17,38 +17,33 @@ lazy_static! {
 }
 
 pub fn sect_cultivation_hilite_trigger(
-    _ctx: &mut TriggerContext<'_>,
-    styled_line: &mut StyledLine,
-) -> TriggerOutput {
-    let line = &styled_line.plain_line;
+    line: &TriggerLine<'_>,
+    _facts: &TriggerFacts,
+) -> TriggerEffects {
+    let line = line.plain_line;
     if FINISHED_CULTIVATING.is_match(line) {
-        styled_line.set_line_style(TextStyle::GREEN);
+        TriggerEffects::none().style_line(TextStyle::GREEN)
     } else if MANTRA_NO_LONGER_ACTIVE.is_match(line) {
-        styled_line.set_line_style(TextStyle::YELLOW);
+        TriggerEffects::none().style_line(TextStyle::YELLOW)
     } else if RECITE_WITHOUT_CULTIVATION.is_match(line) {
-        styled_line.set_line_style(TextStyle::RED);
+        TriggerEffects::none().style_line(TextStyle::RED)
+    } else {
+        TriggerEffects::none()
     }
-    TriggerOutput::default()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::automation::Automation;
-    use crate::stats::Stats;
+    use crate::ansi::StyledLine;
+    use crate::triggers::{TriggerFacts, TriggerLine};
 
     fn run(line: &str) -> StyledLine {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut automation,
-            rig: None,
-            player_name: None,
-        };
+        let output =
+            sect_cultivation_hilite_trigger(&TriggerLine::new(line), &TriggerFacts::default());
         let mut styled = StyledLine::new(line);
-        sect_cultivation_hilite_trigger(&mut ctx, &mut styled);
+        output.apply_line_effects_to(&mut styled);
         styled
     }
 

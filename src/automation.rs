@@ -39,6 +39,7 @@ impl Automation {
         self.vars.clone()
     }
 
+    #[cfg(test)]
     pub fn flag_is_set(&self, key: &str) -> bool {
         *self.flags.get(key).unwrap_or(&false)
     }
@@ -51,6 +52,7 @@ impl Automation {
         self.vars.insert(key.to_string(), value);
     }
 
+    #[cfg(test)]
     pub fn get_var(&self, key: &str) -> Option<&String> {
         self.vars.get(key)
     }

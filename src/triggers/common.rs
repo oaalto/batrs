@@ -1,10 +1,9 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
-use crate::triggers::{TriggerContext, TriggerOutput};
+use crate::triggers::{LineEffect, TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use std::sync::{Arc, Mutex};
-use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Clone, Copy)]
 enum HiliteTarget {
@@ -69,20 +68,14 @@ impl RuleMatcher {
 }
 
 impl Rule {
-    fn condition_met(&self, ctx: &TriggerContext<'_>) -> bool {
+    fn condition_met(&self, facts: &TriggerFacts) -> bool {
         match self.condition {
-            Some(RuleCondition::FlagSet(key)) => ctx.automation.flag_is_set(key),
+            Some(RuleCondition::FlagSet(key)) => facts.flag_is_set(key),
             None => true,
         }
     }
 
-    fn apply(
-        &self,
-        match_data: &MatchData<'_>,
-        styled_line: &mut StyledLine,
-        output_lines: &mut Vec<StyledLine>,
-        actions: &mut Vec<Action>,
-    ) {
+    fn apply(&self, match_data: &MatchData<'_>, output: &mut TriggerEffects) {
         for action in self.actions.iter().filter(|action| {
             matches!(
                 action,
@@ -92,7 +85,7 @@ impl Rule {
                 }
             )
         }) {
-            apply_rule_action(action, match_data, styled_line, output_lines, actions);
+            apply_rule_action(action, match_data, output);
         }
 
         for action in &self.actions {
@@ -105,56 +98,52 @@ impl Rule {
             ) {
                 continue;
             }
-            apply_rule_action(action, match_data, styled_line, output_lines, actions);
+            apply_rule_action(action, match_data, output);
         }
     }
 }
 
-fn apply_rule_action(
-    action: &RuleAction,
-    match_data: &MatchData<'_>,
-    styled_line: &mut StyledLine,
-    output_lines: &mut Vec<StyledLine>,
-    actions: &mut Vec<Action>,
-) {
+fn apply_rule_action(action: &RuleAction, match_data: &MatchData<'_>, output: &mut TriggerEffects) {
     match action {
         RuleAction::Hilite {
             target: HiliteTarget::Whole,
             style,
         } => {
-            styled_line.set_line_style(*style);
+            output.original.edits.push(LineEffect::StyleLine(*style));
         }
         RuleAction::Hilite {
             target: HiliteTarget::Group(index),
             style,
         } => {
             if let MatchData::Regex(captures) = match_data {
-                apply_capture_hilite(styled_line, captures, *index, *style);
+                apply_capture_hilite(output, captures, *index, *style);
             }
         }
         RuleAction::MoneySummary { list_index } => {
             if let MatchData::Regex(captures) = match_data
                 && let Some(m) = captures.get(*list_index)
             {
-                push_money_summary(m.as_str(), output_lines);
+                push_money_summary(m.as_str(), &mut output.lines);
             }
         }
         RuleAction::Echo { text, style } => {
             let mut line = StyledLine::new(text);
             line.set_line_style(*style);
-            output_lines.push(line);
+            output.lines.push(line);
         }
         RuleAction::Send(template) => {
-            actions.push(Action::Send((*template).to_string()));
+            output.actions.push(Action::Send((*template).to_string()));
         }
         RuleAction::SetFlag { key, value } => {
-            actions.push(Action::SetFlag((*key).to_string(), *value));
+            output
+                .actions
+                .push(Action::SetFlag((*key).to_string(), *value));
         }
     }
 }
 
 fn apply_capture_hilite(
-    styled_line: &mut StyledLine,
+    output: &mut TriggerEffects,
     captures: &Captures<'_>,
     index: usize,
     style: TextStyle,
@@ -162,23 +151,10 @@ fn apply_capture_hilite(
     let Some(m) = captures.get(index) else {
         return;
     };
-
-    let start = byte_to_grapheme_index(&styled_line.plain_line, m.start());
-    let end = byte_to_grapheme_index(&styled_line.plain_line, m.end());
-    let len = styled_line.styled_chars.len();
-    let start = start.min(len);
-    let end = end.min(len);
-
-    for i in start..end {
-        styled_line.styled_chars[i].color = style.color;
-        styled_line.styled_chars[i].bold = style.bold;
-    }
-}
-
-fn byte_to_grapheme_index(text: &str, byte_index: usize) -> usize {
-    text.get(..byte_index)
-        .map(|slice| slice.graphemes(true).count())
-        .unwrap_or_default()
+    output.original.edits.push(LineEffect::StylePlainByteRange {
+        range: m.range(),
+        style,
+    });
 }
 
 fn tf_hilite(code: &str, target: HiliteTarget) -> RuleAction {
@@ -1134,17 +1110,19 @@ lazy_static! {
     };
 }
 
-pub fn trigger(ctx: &mut TriggerContext<'_>, styled_line: &mut StyledLine) -> TriggerOutput {
-    let mut output = TriggerOutput::default();
-    let plain_line = styled_line.plain_line.clone();
-    if let Some(rig) = ctx.rig
+pub fn trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
+    let mut output = TriggerEffects::default();
+    let plain_line = line.plain_line.to_string();
+    if let Some(rig) = facts.rig()
         && !rig.is_empty()
     {
-        ctx.automation.set_var("rig", rig.to_string());
+        output
+            .actions
+            .push(Action::SetVar("rig".to_string(), rig.to_string()));
     }
 
-    let companion_rules = ctx
-        .player_name
+    let companion_rules = facts
+        .player_name()
         .map(companion_rules_arc)
         .unwrap_or_else(|| Arc::new(Vec::new()));
 
@@ -1152,15 +1130,10 @@ pub fn trigger(ctx: &mut TriggerContext<'_>, styled_line: &mut StyledLine) -> Tr
         let Some(match_data) = rule.matcher.match_line(&plain_line) else {
             continue;
         };
-        if !rule.condition_met(ctx) {
+        if !rule.condition_met(facts) {
             continue;
         }
-        rule.apply(
-            &match_data,
-            styled_line,
-            &mut output.lines,
-            &mut output.actions,
-        );
+        rule.apply(&match_data, &mut output);
     }
 
     output
@@ -1171,14 +1144,13 @@ mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
     use crate::automation::Automation;
-    use crate::stats::Stats;
     use unicode_segmentation::UnicodeSegmentation;
 
     fn run_trigger(
         line: &str,
         rig: Option<&str>,
         player_name: Option<&str>,
-    ) -> (TriggerOutput, StyledLine, Automation) {
+    ) -> (TriggerEffects, StyledLine, Automation) {
         run_trigger_with_setup(line, rig, player_name, |_| {})
     }
 
@@ -1187,18 +1159,18 @@ mod tests {
         rig: Option<&str>,
         player_name: Option<&str>,
         setup: impl FnOnce(&mut Automation),
-    ) -> (TriggerOutput, StyledLine, Automation) {
-        let mut stats = Stats::default();
+    ) -> (TriggerEffects, StyledLine, Automation) {
         let mut automation = Automation::new();
         setup(&mut automation);
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut automation,
+        let facts = TriggerFacts::new(
+            automation.snapshot_flags(),
+            automation.snapshot_vars(),
             rig,
             player_name,
-        };
+        );
         let mut styled_line = StyledLine::new(line);
-        let output = trigger(&mut ctx, &mut styled_line);
+        let output = trigger(&TriggerLine::new(line), &facts);
+        output.apply_line_effects_to(&mut styled_line);
 
         (output, styled_line, automation)
     }

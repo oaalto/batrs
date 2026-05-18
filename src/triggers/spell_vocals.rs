@@ -2,7 +2,9 @@
 //! After a quoted vocal `'…'`, inserts ` (Spell name)` (or ` (A, B, …)` when several spells share the
 //! same vocal).
 
+#[cfg(test)]
 use crate::ansi::StyledLine;
+use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -45,22 +47,34 @@ fn format_label(spells: &[String]) -> String {
     format!(" ({})", spells.join(", "))
 }
 
-pub fn annotate(styled_line: &mut StyledLine) {
-    let plain = styled_line.plain_line.clone();
+pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    let plain = line.plain_line;
 
     for rule in CONTEXTUAL_RULES.iter() {
-        if let Some(found) = rule.regex.find(&plain) {
+        if let Some(found) = rule.regex.find(plain) {
             let label = format!(" ({})", rule.spell);
-            styled_line.insert_plain_after_plain_byte_idx(found.end(), &label);
-            return;
+            return TriggerEffects::none().insert_plain_after_plain_byte_idx(found.end(), label);
         }
     }
 
     for rule in QUOTED_VOCAL_RULES.iter() {
-        if let Some(found) = rule.regex.find(&plain) {
-            styled_line.insert_plain_after_plain_byte_idx(found.end(), &format_label(&rule.spells));
-            return;
+        if let Some(found) = rule.regex.find(plain) {
+            return TriggerEffects::none()
+                .insert_plain_after_plain_byte_idx(found.end(), format_label(&rule.spells));
         }
+    }
+
+    TriggerEffects::none()
+}
+
+#[cfg(test)]
+pub fn annotate(styled_line: &mut StyledLine) {
+    let effects = trigger(
+        &TriggerLine::new(&styled_line.plain_line),
+        &TriggerFacts::default(),
+    );
+    for edit in effects.original.edits {
+        edit.apply_to(styled_line);
     }
 }
 

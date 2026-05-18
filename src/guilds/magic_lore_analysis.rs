@@ -1,13 +1,16 @@
 //! "Analysis of magic lore" combat-line highlighting shared by guilds (Civmage, Mage).
 
-use crate::ansi::{StyledLine, TextStyle};
+#[cfg(test)]
+use crate::ansi::StyledLine;
+use crate::ansi::TextStyle;
+use crate::triggers::LineEffect;
 use lazy_static::lazy_static;
-use regex::{Captures, Regex};
+use regex::Regex;
+#[cfg(test)]
 use unicode_segmentation::UnicodeSegmentation;
 
-/// Paints tiered damage-reaction text on `styled_line` when `line` matches an analysis pattern.
-/// Returns `true` when a rule matched.
-pub fn paint_magic_lore_analysis(styled_line: &mut StyledLine, line: &str) -> bool {
+/// Returns a tiered damage-reaction style effect when `line` matches an analysis pattern.
+pub fn magic_lore_analysis_effect(line: &str) -> Option<LineEffect> {
     let tiers: &[(&Regex, TextStyle)] = &[
         (&ANALYSIS_SCREAMS, TextStyle::GREEN),
         (&ANALYSIS_WRITHES, TextStyle::BLUE),
@@ -17,36 +20,31 @@ pub fn paint_magic_lore_analysis(styled_line: &mut StyledLine, line: &str) -> bo
         (&ANALYSIS_SHRUGS, TextStyle::RED),
     ];
     for (regular_expression, style) in tiers {
-        if let Some(captures) = regular_expression.captures(line) {
-            apply_capture_hilite(styled_line, &captures, 2, *style);
-            return true;
+        if let Some(captures) = regular_expression.captures(line)
+            && let Some(matched) = captures.get(2)
+        {
+            return Some(LineEffect::StylePlainByteRange {
+                range: matched.range(),
+                style: *style,
+            });
         }
     }
-    false
+    None
 }
 
-fn apply_capture_hilite(
-    styled_line: &mut StyledLine,
-    captures: &Captures<'_>,
-    index: usize,
-    style: TextStyle,
-) {
-    let Some(matched) = captures.get(index) else {
-        return;
-    };
-
-    let start = byte_to_grapheme_index(&styled_line.plain_line, matched.start());
-    let end = byte_to_grapheme_index(&styled_line.plain_line, matched.end());
-    let length = styled_line.styled_chars.len();
-    let start = start.min(length);
-    let end = end.min(length);
-
-    for grapheme_index in start..end {
-        styled_line.styled_chars[grapheme_index].color = style.color;
-        styled_line.styled_chars[grapheme_index].bold = style.bold;
+/// Paints tiered damage-reaction text on `styled_line` when `line` matches an analysis pattern.
+/// Returns `true` when a rule matched.
+#[cfg(test)]
+pub fn paint_magic_lore_analysis(styled_line: &mut StyledLine, line: &str) -> bool {
+    if let Some(effect) = magic_lore_analysis_effect(line) {
+        effect.apply_to(styled_line);
+        true
+    } else {
+        false
     }
 }
 
+#[cfg(test)]
 fn byte_to_grapheme_index(textual: &str, byte_index: usize) -> usize {
     textual
         .get(..byte_index)

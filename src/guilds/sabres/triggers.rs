@@ -1,8 +1,8 @@
 use crate::abilities;
-use crate::ansi::{StyledLine, TextStyle};
+use crate::ansi::TextStyle;
 use crate::automation::Action;
 use crate::guilds::sabres::{SABRE_WEAPON_VAR, SabresGuild};
-use crate::triggers::{TriggerContext, TriggerOutput};
+use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -41,65 +41,58 @@ impl SabresGuild {
         ]
     }
 
-    fn configured_weapon(ctx: &TriggerContext<'_>) -> Option<String> {
-        let raw = ctx.automation.get_var(SABRE_WEAPON_VAR)?;
+    fn configured_weapon(facts: &TriggerFacts) -> Option<String> {
+        let raw = facts.get_var(SABRE_WEAPON_VAR)?;
         let trimmed = raw.trim();
         (!trimmed.is_empty()).then(|| trimmed.to_string())
     }
 
-    pub fn notify_triggers(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let plain = styled_line.plain_line.as_str();
+    pub fn notify_triggers(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let plain = line.plain_line;
         if plain == *BATTLE_CADENCE {
-            styled_line.set_line_style(TextStyle::BLUE);
+            TriggerEffects::none().style_line(TextStyle::BLUE)
         } else if plain == *LOUNGING_YELLOW {
-            styled_line.set_line_style(TextStyle::BRIGHT_YELLOW);
+            TriggerEffects::none().style_line(TextStyle::BRIGHT_YELLOW)
         } else if plain == *LOUNGING_GREEN {
-            styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
+            TriggerEffects::none().style_line(TextStyle::BRIGHT_GREEN)
         } else if plain == *FUMBLING_LINE {
-            styled_line.set_line_style(TextStyle::BRIGHT_RED);
+            TriggerEffects::none().style_line(TextStyle::BRIGHT_RED)
+        } else {
+            TriggerEffects::none()
         }
-        TriggerOutput::default()
     }
 
-    pub fn fence_hilites_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let plain = styled_line.plain_line.as_str();
+    pub fn fence_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let plain = line.plain_line;
         if FENCE_RED_HILITE.contains(&plain) {
-            styled_line.set_line_style(TextStyle::BRIGHT_RED);
+            TriggerEffects::none().style_line(TextStyle::BRIGHT_RED)
         } else if FENCE_GREEN_HILITE.contains(&plain) {
-            styled_line.set_line_style(TextStyle::BRIGHT_GREEN);
+            TriggerEffects::none().style_line(TextStyle::BRIGHT_GREEN)
+        } else {
+            TriggerEffects::none()
         }
-        TriggerOutput::default()
     }
 
     pub fn proficiency_blue_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if styled_line
-            .plain_line
-            .starts_with("You feel more proficient in")
-        {
-            styled_line.set_line_style(TextStyle::BLUE);
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts,
+    ) -> TriggerEffects {
+        if line.plain_line.starts_with("You feel more proficient in") {
+            return TriggerEffects::none().style_line(TextStyle::BLUE);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 
     pub fn gloveknock_wield_trigger(
-        ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        let plain = styled_line.plain_line.as_str();
+        line: &TriggerLine<'_>,
+        facts: &TriggerFacts,
+    ) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        let plain = line.plain_line;
         let matches_hit = GLOVEKNOCK_WIELD_LINES.iter().any(|re| re.is_match(plain));
         let matches_fail =
             plain == "You frantically try to grab a weapon, but cannot get a grip in time.";
-        match Self::configured_weapon(ctx) {
+        match Self::configured_weapon(facts) {
             Some(weapon) if matches_hit || matches_fail => {
                 output
                     .actions
@@ -112,13 +105,10 @@ impl SabresGuild {
         output
     }
 
-    pub fn green_wield_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        if GREEN_WIELD.is_match(styled_line.plain_line.as_str()) {
-            styled_line.set_line_style(TextStyle::GREEN);
+    pub fn green_wield_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        if GREEN_WIELD.is_match(line.plain_line) {
+            return TriggerEffects::none().style_line(TextStyle::GREEN);
         }
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 }

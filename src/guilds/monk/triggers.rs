@@ -1,4 +1,4 @@
-use crate::ansi::{StyledLine, TextStyle};
+use crate::ansi::TextStyle;
 use crate::automation::Action;
 use crate::guilds::MonkGuild;
 use crate::guilds::monk::commands::reset_current_skill_actions;
@@ -9,7 +9,7 @@ use crate::guilds::monk::{
     DISRUPT_SKILL_3, DOING_MEDITATION_FLAG, KATA_DONE_FLAG,
 };
 use crate::guilds::sects_triggers;
-use crate::triggers::{Trigger, TriggerContext, TriggerOutput};
+use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -28,12 +28,9 @@ impl MonkGuild {
         ]
     }
 
-    pub fn state_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        let line = &styled_line.plain_line;
+    pub fn state_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        let line = line.plain_line;
 
         if KATA_DONE.iter().any(|regex| regex.is_match(line)) {
             output
@@ -66,19 +63,16 @@ impl MonkGuild {
         output
     }
 
-    pub fn skill_result_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let mut output = TriggerOutput::default();
-        let line = styled_line.plain_line.clone();
+    pub fn skill_result_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        let line = line.plain_line.to_string();
 
         for rule in MONK_RULES
             .iter()
             .filter(|rule| rule.pattern.is_match(&line))
         {
             if let Some(style) = rule.color {
-                styled_line.set_line_style(style);
+                output = output.style_line(style);
             }
             if let Some((key, value)) = rule.set_var {
                 output
@@ -426,41 +420,48 @@ fn rule(
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
+    use crate::ansi::StyledLine;
     use crate::automation::Automation;
-    use crate::stats::Stats;
+    use crate::triggers::{TriggerFacts, TriggerLine};
 
-    fn ctx<'a>(stats: &'a mut Stats, automation: &'a mut Automation) -> TriggerContext<'a> {
-        TriggerContext {
-            stats,
-            automation,
-            rig: None,
-            player_name: None,
-        }
+    fn facts(automation: &Automation) -> TriggerFacts {
+        TriggerFacts::new(
+            automation.snapshot_flags(),
+            automation.snapshot_vars(),
+            None,
+            None,
+        )
+    }
+
+    fn run_skill(line_text: &str) -> (TriggerEffects, StyledLine) {
+        let output =
+            MonkGuild::skill_result_trigger(&TriggerLine::new(line_text), &TriggerFacts::default());
+        let mut line = StyledLine::new(line_text);
+        output.apply_line_effects_to(&mut line);
+        (output, line)
     }
 
     #[test]
     fn kata_done_sends_meditation_when_requested() {
-        let mut stats = Stats::default();
         let mut automation = Automation::new();
         automation.set_flag(DOING_MEDITATION_FLAG, true);
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("You perform the kata.");
 
-        let output = MonkGuild::state_trigger(&mut ctx, &mut line);
-        let sends = ctx.automation.apply_actions(output.actions);
+        let output = MonkGuild::state_trigger(
+            &TriggerLine::new("You perform the kata."),
+            &facts(&automation),
+        );
+        let sends = automation.apply_actions(output.actions);
 
         assert_eq!(sends, vec!["@use 'meditation'"]);
-        assert!(ctx.automation.flag_is_set(KATA_DONE_FLAG));
+        assert!(automation.flag_is_set(KATA_DONE_FLAG));
     }
 
     #[test]
     fn interrupt_resets_current_skills() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("You break your skill attempt.");
-
-        let output = MonkGuild::state_trigger(&mut ctx, &mut line);
+        let output = MonkGuild::state_trigger(
+            &TriggerLine::new("You break your skill attempt."),
+            &TriggerFacts::default(),
+        );
 
         assert_eq!(output.actions.len(), 4);
         assert!(matches!(
@@ -471,12 +472,7 @@ mod tests {
 
     #[test]
     fn armour_result_colors_and_updates_current_skill() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("You kick hard, scoring a solid hit!");
-
-        let output = MonkGuild::skill_result_trigger(&mut ctx, &mut line);
+        let (output, line) = run_skill("You kick hard, scoring a solid hit!");
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Blue);
         assert!(matches!(
@@ -487,14 +483,9 @@ mod tests {
 
     #[test]
     fn disrupt_result_colors_and_updates_current_skill() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new(
+        let (output, line) = run_skill(
             "You jump up and kick foe in the ribcage, but don't get enough contact to backflip.",
         );
-
-        let output = MonkGuild::skill_result_trigger(&mut ctx, &mut line);
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Cyan);
         assert!(matches!(
@@ -505,12 +496,7 @@ mod tests {
 
     #[test]
     fn area_result_colors_and_updates_current_skill() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line = StyledLine::new("You knock orc into troll!");
-
-        let output = MonkGuild::skill_result_trigger(&mut ctx, &mut line);
+        let (output, line) = run_skill("You knock orc into troll!");
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Green);
         assert!(matches!(
@@ -521,13 +507,8 @@ mod tests {
 
     #[test]
     fn avoid_result_colors_and_updates_current_skill() {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = ctx(&mut stats, &mut automation);
-        let mut line =
-            StyledLine::new("You claw hard, clawing goblin in the back with curved fingers!");
-
-        let output = MonkGuild::skill_result_trigger(&mut ctx, &mut line);
+        let (output, line) =
+            run_skill("You claw hard, clawing goblin in the back with curved fingers!");
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Yellow);
         assert!(matches!(

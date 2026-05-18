@@ -1,28 +1,22 @@
-use crate::ansi::StyledLine;
 use crate::guilds::MageMagicalGuild;
-use crate::guilds::magic_lore_analysis::paint_magic_lore_analysis;
-use crate::triggers::{Trigger, TriggerContext, TriggerOutput};
+use crate::guilds::magic_lore_analysis::magic_lore_analysis_effect;
+use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 
 impl MageMagicalGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
         vec![Self::mage_magical_trigger]
     }
 
-    pub fn mage_magical_trigger(
-        _ctx: &mut TriggerContext<'_>,
-        styled_line: &mut StyledLine,
-    ) -> TriggerOutput {
-        let line = styled_line
-            .plain_line
-            .trim_end_matches('\r')
-            .trim()
-            .to_string();
+    pub fn mage_magical_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+        let line = line.plain_line.trim_end_matches('\r').trim().to_string();
 
-        if paint_magic_lore_analysis(styled_line, line.as_str()) {
-            return TriggerOutput::default();
+        if let Some(effect) = magic_lore_analysis_effect(line.as_str()) {
+            let mut output = TriggerEffects::none();
+            output.original.edits.push(effect);
+            return output;
         }
 
-        TriggerOutput::default()
+        TriggerEffects::none()
     }
 }
 
@@ -30,21 +24,17 @@ impl MageMagicalGuild {
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::automation::Automation;
-    use crate::stats::Stats;
+    use crate::ansi::StyledLine;
+    use crate::triggers::{TriggerFacts, TriggerLine};
     use unicode_segmentation::UnicodeSegmentation;
 
     fn run_trigger(line: &str) -> StyledLine {
-        let mut stats = Stats::default();
-        let mut automation = Automation::new();
-        let mut ctx = TriggerContext {
-            stats: &mut stats,
-            automation: &mut automation,
-            rig: None,
-            player_name: None,
-        };
+        let output = MageMagicalGuild::mage_magical_trigger(
+            &TriggerLine::new(line),
+            &TriggerFacts::default(),
+        );
         let mut styled = StyledLine::new(line);
-        let _ = MageMagicalGuild::mage_magical_trigger(&mut ctx, &mut styled);
+        output.apply_line_effects_to(&mut styled);
         styled
     }
 
