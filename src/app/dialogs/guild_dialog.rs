@@ -35,6 +35,7 @@ enum DrillRow {
     Toggle { definition_index: usize },
 }
 
+#[cfg(test)]
 pub(crate) fn default_riftwalker_entity_labels() -> [String; 4] {
     std::array::from_fn(|_| "entity".to_string())
 }

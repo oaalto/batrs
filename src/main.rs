@@ -28,6 +28,7 @@ mod command;
 mod config;
 mod generic_commands;
 mod guilds;
+mod player_profile;
 mod stats;
 mod triggers;
 mod ui;

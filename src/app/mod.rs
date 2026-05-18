@@ -17,14 +17,12 @@ use crate::guilds::{
     grouping::{DEFAULT_GUILD_PRIMARY_KEYWORD, thematic_index_for_keyword},
     guild_definitions,
 };
+use crate::player_profile::{self, PlayerRuntimeProfile};
 use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
 use crate::{command, triggers};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use dialogs::{
-    GenericCommandsDialog, GuildDialog, SettingsDialog, apply_guild_dialog_keystroke,
-    default_riftwalker_entity_labels,
-};
+use dialogs::{GenericCommandsDialog, GuildDialog, SettingsDialog, apply_guild_dialog_keystroke};
 use input_state::InputState;
 use libmudtelnet::events::TelnetEvents;
 use player_logger::PlayerLogger;
@@ -33,7 +31,7 @@ use ratatui::text::Line;
 use raw_logger::RawLogger;
 use std::sync::mpsc::{Receiver, Sender};
 use telnet_buffer::TelnetBuffer;
-use util::{filter_known_guilds, show_clock};
+use util::show_clock;
 
 use output_buffer::OutputBuffer;
 use scrollback::Scrollback;
@@ -58,7 +56,7 @@ pub struct BatApp {
     automation: Automation,
     config_manager: Option<ConfigManager>,
     user_config_loaded: bool,
-    user_rig: Option<String>,
+    player_profile: PlayerRuntimeProfile,
     guild_dialog: Option<GuildDialog>,
     generic_commands: GenericCommands,
     generic_commands_dialog: Option<GenericCommandsDialog>,
@@ -69,27 +67,6 @@ pub struct BatApp {
 }
 
 impl BatApp {
-    fn apply_riftwalker_entity_settings_to_automation(
-        automation: &mut Automation,
-        settings: &UserSettings,
-    ) {
-        const KEYS: [&str; 4] = [
-            "riftwalker_entity_fire",
-            "riftwalker_entity_air",
-            "riftwalker_entity_water",
-            "riftwalker_entity_earth",
-        ];
-        for key in KEYS {
-            let raw = settings.get(key).unwrap_or("");
-            let resolved = if raw.is_empty() {
-                "entity".to_string()
-            } else {
-                raw.to_string()
-            };
-            automation.set_var(key, resolved);
-        }
-    }
-
     pub fn new(event_receiver: Receiver<AppEvent>, command_sender: Sender<String>) -> Self {
         let config_manager = match ConfigManager::new() {
             Ok(mut manager) => {
@@ -117,7 +94,7 @@ impl BatApp {
             automation: Automation::new(),
             config_manager,
             user_config_loaded: false,
-            user_rig: None,
+            player_profile: PlayerRuntimeProfile::default(),
             guild_dialog: None,
             generic_commands: GenericCommands::default(),
             generic_commands_dialog: None,
@@ -160,7 +137,7 @@ impl BatApp {
                 let mut ctx = triggers::TriggerContext {
                     stats: &mut self.stats,
                     automation: &mut self.automation,
-                    rig: self.user_rig.as_deref(),
+                    rig: self.player_profile.settings.rig_for_triggers(),
                     player_name: self.session.login_name(),
                 };
                 let result = triggers::process(&mut ctx, &self.selected_guilds, &mut styled_line);
@@ -333,13 +310,7 @@ impl BatApp {
         if !self.user_config_loaded {
             return String::new();
         }
-        let Some(manager) = self.config_manager.as_mut() else {
-            return String::new();
-        };
-        match manager.user_settings() {
-            Ok(settings) => settings.get("sabre_weapon").unwrap_or("").to_string(),
-            Err(_) => String::new(),
-        }
+        self.player_profile.settings.sabre_weapon.clone()
     }
 
     fn submit_input(&mut self) {
@@ -460,10 +431,63 @@ impl BatApp {
         sent_command
     }
 
+    fn apply_player_runtime_profile(
+        &mut self,
+        profile: PlayerRuntimeProfile,
+        apply_selected_guilds: bool,
+    ) {
+        let selected_guild_keys = profile.selected_guild_keys.clone();
+        self.player_profile = profile;
+        if apply_selected_guilds && let Some(keys) = selected_guild_keys {
+            self.apply_selected_guilds(keys);
+        } else {
+            self.apply_player_profile_to_automation();
+        }
+        self.apply_player_profile_to_generic_commands();
+    }
+
+    fn apply_player_profile_to_automation(&mut self) {
+        for (key, value) in &self.player_profile.automation_vars {
+            self.automation.set_var(key, value.clone());
+        }
+        for (key, value) in &self.player_profile.automation_flags {
+            self.automation.set_flag(key, *value);
+        }
+    }
+
+    fn apply_player_profile_to_generic_commands(&mut self) {
+        let config = &self.player_profile.generic_commands_config;
+        self.generic_commands
+            .apply_config(&config.enabled_groups, &config.disabled_commands);
+    }
+
+    fn player_profile_from_config(&mut self) -> Option<PlayerRuntimeProfile> {
+        let manager = self.config_manager.as_mut()?;
+        let settings = match manager.user_settings() {
+            Ok(settings) => settings,
+            Err(e) => {
+                eprintln!("invalid settings config: {e}");
+                std::process::exit(1);
+            }
+        };
+        let generic_config = manager.generic_commands_config();
+        let guild_keys = manager.user_guilds();
+        let primary_background = manager.user_guild_primary_background().map(str::to_string);
+        Some(player_profile::runtime_profile(
+            guild_keys,
+            primary_background.as_deref(),
+            settings,
+            generic_config,
+        ))
+    }
+
+    fn refresh_player_profile_from_config(&mut self, apply_selected_guilds: bool) {
+        if let Some(profile) = self.player_profile_from_config() {
+            self.apply_player_runtime_profile(profile, apply_selected_guilds);
+        }
+    }
+
     fn apply_user_settings(&mut self, settings: UserSettings) {
-        let rig = settings.get("rig").unwrap_or_default().to_string();
-        self.user_rig = Some(rig.clone());
-        self.automation.set_var("rig", rig);
         let Some(manager) = self.config_manager.as_mut() else {
             return;
         };
@@ -471,12 +495,7 @@ impl BatApp {
             eprintln!("failed to save user settings: {e}");
             return;
         }
-        if let Ok(updated) = manager.user_settings() {
-            let weapon = updated.get("sabre_weapon").unwrap_or("").to_string();
-            self.automation.set_var("sabre_weapon", weapon);
-            self.automation
-                .set_flag("is_lich", updated.is_lich_enabled());
-        }
+        self.refresh_player_profile_from_config(false);
     }
 
     fn apply_selected_guilds(&mut self, keys: Vec<String>) {
@@ -487,57 +506,23 @@ impl BatApp {
             guild.register_automation(&mut self.automation);
         }
         self.automation.set_flag("in_battle", false);
-        if let Some(rig) = self.user_rig.as_ref()
-            && !rig.is_empty()
-        {
-            self.automation.set_var("rig", rig.clone());
-        }
-
-        // Set tzarakk mount variable if configured
-        if let Some(manager) = self.config_manager.as_mut()
-            && let Ok(settings) = manager.user_settings()
-            && let Some(mount) = settings.get("tzarakk_mount")
-            && !mount.is_empty()
-        {
-            self.automation.set_var("tzarakk_mount", mount.to_string());
-        }
-
-        if let Some(manager) = self.config_manager.as_mut()
-            && let Ok(settings) = manager.user_settings()
-        {
-            let weapon = settings.get("sabre_weapon").unwrap_or("").to_string();
-            self.automation.set_var("sabre_weapon", weapon);
-        }
-
-        if let Some(manager) = self.config_manager.as_mut()
-            && let Ok(settings) = manager.user_settings()
-        {
-            Self::apply_riftwalker_entity_settings_to_automation(&mut self.automation, &settings);
-        }
-
-        if let Some(manager) = self.config_manager.as_mut()
-            && let Ok(settings) = manager.user_settings()
-        {
-            self.automation
-                .set_flag("is_lich", settings.is_lich_enabled());
-        }
+        self.apply_player_profile_to_automation();
     }
 
     fn open_guilds_dialog(&mut self) {
         if !self.session.is_logged_in() {
             return;
         }
+        if !self.user_config_loaded {
+            self.load_user_config();
+        }
 
-        let primary_kw = self
-            .config_manager
-            .as_ref()
-            .and_then(|manager| {
-                manager
-                    .user_guild_primary_background()
-                    .filter(|candidate| thematic_index_for_keyword(candidate).is_some())
-                    .map(ToString::to_string)
-            })
-            .unwrap_or_else(|| DEFAULT_GUILD_PRIMARY_KEYWORD.to_string());
+        let defaults = &self.player_profile.guild_dialog_defaults;
+        let primary_kw = if thematic_index_for_keyword(&defaults.primary_background).is_some() {
+            defaults.primary_background.as_str()
+        } else {
+            DEFAULT_GUILD_PRIMARY_KEYWORD
+        };
 
         let definitions = guild_definitions();
         let selected = definitions
@@ -549,60 +534,13 @@ impl BatApp {
             })
             .collect();
 
-        // Load mount name and Sabres weapon from config
-        let (mount_name, sabre_weapon, riftwalker_entities) = if self.user_config_loaded {
-            if let Some(manager) = self.config_manager.as_mut() {
-                if let Ok(settings) = manager.user_settings() {
-                    let mount = settings.get("tzarakk_mount").unwrap_or("").to_string();
-                    let sabre = settings.get("sabre_weapon").unwrap_or("").to_string();
-                    let riftwalker = [
-                        settings
-                            .get("riftwalker_entity_fire")
-                            .unwrap_or("")
-                            .to_string(),
-                        settings
-                            .get("riftwalker_entity_air")
-                            .unwrap_or("")
-                            .to_string(),
-                        settings
-                            .get("riftwalker_entity_water")
-                            .unwrap_or("")
-                            .to_string(),
-                        settings
-                            .get("riftwalker_entity_earth")
-                            .unwrap_or("")
-                            .to_string(),
-                    ];
-                    (mount, sabre, riftwalker)
-                } else {
-                    (
-                        String::new(),
-                        String::new(),
-                        default_riftwalker_entity_labels(),
-                    )
-                }
-            } else {
-                (
-                    String::new(),
-                    String::new(),
-                    default_riftwalker_entity_labels(),
-                )
-            }
-        } else {
-            (
-                String::new(),
-                String::new(),
-                default_riftwalker_entity_labels(),
-            )
-        };
-
         self.guild_dialog = Some(GuildDialog::new(
             definitions,
             selected,
-            primary_kw.as_str(),
-            mount_name,
-            sabre_weapon,
-            riftwalker_entities,
+            primary_kw,
+            defaults.tzarakk_mount.clone(),
+            defaults.sabre_weapon.clone(),
+            defaults.riftwalker_entity_labels.clone(),
         ));
     }
 
@@ -613,19 +551,9 @@ impl BatApp {
         if !self.user_config_loaded {
             self.load_user_config();
         }
-        let entries = {
-            let Some(manager) = self.config_manager.as_mut() else {
-                return;
-            };
-            match manager.user_settings() {
-                Ok(settings) => settings.entries,
-                Err(e) => {
-                    eprintln!("invalid settings config: {e}");
-                    std::process::exit(1);
-                }
-            }
-        };
-        self.settings_dialog = Some(SettingsDialog::new(entries));
+        self.settings_dialog = Some(SettingsDialog::new(
+            self.player_profile.settings_entries.clone(),
+        ));
     }
 
     fn handle_guild_dialog_event(&mut self, event: KeyEvent) {
@@ -700,17 +628,6 @@ impl BatApp {
             self.load_user_config();
         }
 
-        // Load saved configuration
-        let config = self
-            .config_manager
-            .as_ref()
-            .map(|m| m.generic_commands_config())
-            .unwrap_or_default();
-
-        // Apply configuration to generic commands
-        self.generic_commands
-            .apply_config(&config.enabled_groups, &config.disabled_commands);
-
         self.generic_commands_dialog = Some(GenericCommandsDialog::new(&self.generic_commands));
     }
 
@@ -751,13 +668,10 @@ impl BatApp {
             disabled_commands,
         };
 
-        // Update in-memory generic commands
-        self.generic_commands
-            .apply_config(&config.enabled_groups, &config.disabled_commands);
-
         if let Err(e) = manager.save_generic_commands(&config) {
             eprintln!("failed to save generic commands config: {e}");
         }
+        self.refresh_player_profile_from_config(false);
     }
 
     fn save_selected_guilds_with_auxiliary(
@@ -781,29 +695,24 @@ impl BatApp {
         }
 
         // Save mount name
-        if let Err(e) = manager.save_user_setting("tzarakk_mount", &mount_name) {
+        if let Err(e) = manager.save_user_setting(player_profile::TZARAKK_MOUNT_KEY, &mount_name) {
             eprintln!("failed to save tzarakk mount name: {e}");
         }
 
-        if let Err(e) = manager.save_user_setting("sabre_weapon", &sabre_weapon) {
+        if let Err(e) = manager.save_user_setting(player_profile::SABRE_WEAPON_KEY, &sabre_weapon) {
             eprintln!("failed to save sabre_weapon: {e}");
         }
 
-        let riftwalker_keys = [
-            "riftwalker_entity_fire",
-            "riftwalker_entity_air",
-            "riftwalker_entity_water",
-            "riftwalker_entity_earth",
-        ];
-        for (label_key, raw) in riftwalker_keys.iter().zip(riftwalker_entity_labels.iter()) {
+        for (label_key, raw) in player_profile::RIFTWALKER_ENTITY_LABEL_KEYS
+            .iter()
+            .zip(riftwalker_entity_labels.iter())
+        {
             if let Err(err) = manager.save_user_setting(label_key, raw) {
                 eprintln!("failed to save {label_key}: {err}");
             }
         }
 
-        if let Ok(settings) = manager.user_settings() {
-            Self::apply_riftwalker_entity_settings_to_automation(&mut self.automation, &settings);
-        }
+        self.refresh_player_profile_from_config(true);
     }
 
     fn send_command(&mut self, command: String) -> bool {
@@ -851,57 +760,14 @@ impl BatApp {
             eprintln!("logged in without a known player name; skipping user config");
             return;
         };
-        let (guild_keys, settings, generic_config) = {
-            let Some(manager) = self.config_manager.as_mut() else {
-                return;
-            };
-            if let Err(e) = manager.load_user(player_name) {
-                eprintln!("failed to load user config for {player_name}: {e}");
-                return;
-            }
-            let settings = match manager.user_settings() {
-                Ok(settings) => Some(settings),
-                Err(e) => {
-                    eprintln!("invalid settings config: {e}");
-                    std::process::exit(1);
-                }
-            };
-            let generic_config = manager.generic_commands_config();
-            (manager.user_guilds(), settings, generic_config)
+        let Some(manager) = self.config_manager.as_mut() else {
+            return;
         };
-
-        if let Some(keys) = guild_keys {
-            self.apply_selected_guilds(filter_known_guilds(keys));
+        if let Err(e) = manager.load_user(player_name) {
+            eprintln!("failed to load user config for {player_name}: {e}");
+            return;
         }
 
-        if let Some(settings) = settings {
-            self.user_rig = settings.get("rig").map(|rig| rig.to_string());
-            if let Some(rig) = self.user_rig.as_ref()
-                && !rig.is_empty()
-            {
-                self.automation.set_var("rig", rig.clone());
-            }
-
-            // Set tzarakk mount variable if configured
-            if let Some(mount) = settings.get("tzarakk_mount")
-                && !mount.is_empty()
-            {
-                self.automation.set_var("tzarakk_mount", mount.to_string());
-            }
-
-            let weapon = settings.get("sabre_weapon").unwrap_or("").to_string();
-            self.automation.set_var("sabre_weapon", weapon);
-
-            Self::apply_riftwalker_entity_settings_to_automation(&mut self.automation, &settings);
-
-            self.automation
-                .set_flag("is_lich", settings.is_lich_enabled());
-        }
-
-        // Apply generic commands configuration
-        self.generic_commands.apply_config(
-            &generic_config.enabled_groups,
-            &generic_config.disabled_commands,
-        );
+        self.refresh_player_profile_from_config(true);
     }
 }
