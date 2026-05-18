@@ -1,3 +1,4 @@
+use crate::player_profile::{self, PlayerRuntimeProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::env;
@@ -131,42 +132,6 @@ impl From<io::Error> for SettingsError {
     }
 }
 
-struct SettingDefinition {
-    key: &'static str,
-    default: &'static str,
-}
-
-const SETTINGS_DEFS: &[SettingDefinition] = &[
-    SettingDefinition {
-        key: "rig",
-        default: "",
-    },
-    SettingDefinition {
-        key: "tzarakk_mount",
-        default: "",
-    },
-    SettingDefinition {
-        key: "sabre_weapon",
-        default: "",
-    },
-    SettingDefinition {
-        key: "riftwalker_entity_fire",
-        default: "entity",
-    },
-    SettingDefinition {
-        key: "riftwalker_entity_air",
-        default: "entity",
-    },
-    SettingDefinition {
-        key: "riftwalker_entity_water",
-        default: "entity",
-    },
-    SettingDefinition {
-        key: "riftwalker_entity_earth",
-        default: "entity",
-    },
-];
-
 #[derive(Debug, Default)]
 pub struct ConfigManager {
     base_dir: PathBuf,
@@ -207,14 +172,16 @@ impl ConfigManager {
         self.user_config_path = Some(player_config_path.clone());
 
         let player = match parse_or_migrate(&contents) {
-            Ok((mut player, legacy_used)) => {
-                let normalized = normalize_player_config(&mut player);
-                if legacy_used || normalized {
-                    if let Err(err) = persist_player_to_path(&player_config_path, &player) {
+            Ok((player, legacy_used)) => {
+                let interpreted = player_profile::interpret_player_toml(player);
+                if legacy_used || interpreted.changed {
+                    if let Err(err) =
+                        persist_player_to_path(&player_config_path, &interpreted.normalized_player)
+                    {
                         eprintln!("failed to rewrite migrated player config: {err}");
                     }
                 }
-                player
+                interpreted.normalized_player
             }
             Err(err) => {
                 eprintln!("invalid player config (using defaults): {err}");
@@ -227,21 +194,8 @@ impl ConfigManager {
         Ok(())
     }
 
-    pub fn user_guilds(&self) -> Option<Vec<String>> {
-        self.player_config.as_ref()?.guilds.clone()
-    }
-
-    pub fn user_settings(&mut self) -> Result<UserSettings, SettingsError> {
-        let Some(player) = self.player_config.as_mut() else {
-            return Ok(UserSettings::default());
-        };
-
-        let changed = normalize_player_config(player);
-        if changed && let Some(path) = self.user_config_path.as_ref() {
-            persist_player_to_path(path, player).map_err(SettingsError::Io)?;
-        }
-
-        Ok(player_to_user_settings(player))
+    pub fn player_runtime_profile(&mut self) -> io::Result<PlayerRuntimeProfile> {
+        self.normalize_loaded_player()
     }
 
     pub fn save_user_guilds(
@@ -266,11 +220,13 @@ impl ConfigManager {
         persist_player_to_path(path, player)
     }
 
-    pub fn user_guild_primary_background(&self) -> Option<&str> {
-        self.player_config
-            .as_ref()?
-            .guild_primary_background
-            .as_deref()
+    pub fn user_settings_entries(&mut self) -> io::Result<Vec<SettingEntry>> {
+        self.normalize_loaded_player()?;
+        Ok(self
+            .player_config
+            .as_ref()
+            .map(player_profile::settings_entries_for_editor)
+            .unwrap_or_default())
     }
 
     pub fn save_user_setting(&mut self, key: &str, value: &str) -> io::Result<()> {
@@ -323,16 +279,8 @@ impl ConfigManager {
                 "player config not loaded",
             ));
         };
-        let (entries, _) = normalize_settings_entries(settings.entries.clone());
-        player.settings = settings_table_from_entries(&entries);
+        player.settings = player_profile::settings_table_from_entries(&settings.entries);
         persist_player_to_path(path, player)
-    }
-
-    pub fn generic_commands_config(&self) -> GenericCommandsConfig {
-        self.player_config
-            .as_ref()
-            .map(|p| p.generic_commands.clone())
-            .unwrap_or_default()
     }
 
     pub fn save_generic_commands(&mut self, config: &GenericCommandsConfig) -> io::Result<()> {
@@ -350,6 +298,21 @@ impl ConfigManager {
         };
         player.generic_commands = config.clone();
         persist_player_to_path(path, player)
+    }
+
+    fn normalize_loaded_player(&mut self) -> io::Result<PlayerRuntimeProfile> {
+        let Some(player) = self.player_config.take() else {
+            return Ok(PlayerRuntimeProfile::default());
+        };
+
+        let interpreted = player_profile::interpret_player_toml(player);
+        if interpreted.changed
+            && let Some(path) = self.user_config_path.as_ref()
+        {
+            persist_player_to_path(path, &interpreted.normalized_player)?;
+        }
+        self.player_config = Some(interpreted.normalized_player);
+        Ok(interpreted.runtime)
     }
 }
 
@@ -392,149 +355,12 @@ fn migrate_legacy_config(raw: &str) -> Result<PlayerToml, SettingsError> {
         None => parse_guilds(raw),
     };
 
-    let (entries, _) = normalize_settings_entries(entry_vec);
     Ok(PlayerToml {
         guilds,
         guild_primary_background: None,
-        settings: settings_table_from_entries(&entries),
+        settings: player_profile::settings_table_from_entries(&entry_vec),
         generic_commands: GenericCommandsConfig::default(),
     })
-}
-
-fn player_to_user_settings(player: &PlayerToml) -> UserSettings {
-    let mut entries = vec![
-        SettingEntry {
-            key: "rig".to_string(),
-            value: player.settings.rig.clone(),
-        },
-        SettingEntry {
-            key: "tzarakk_mount".to_string(),
-            value: player.settings.tzarakk_mount.clone(),
-        },
-        SettingEntry {
-            key: "sabre_weapon".to_string(),
-            value: player.settings.sabre_weapon.clone(),
-        },
-        SettingEntry {
-            key: "riftwalker_entity_fire".to_string(),
-            value: player.settings.riftwalker_entity_fire.clone(),
-        },
-        SettingEntry {
-            key: "riftwalker_entity_air".to_string(),
-            value: player.settings.riftwalker_entity_air.clone(),
-        },
-        SettingEntry {
-            key: "riftwalker_entity_water".to_string(),
-            value: player.settings.riftwalker_entity_water.clone(),
-        },
-        SettingEntry {
-            key: "riftwalker_entity_earth".to_string(),
-            value: player.settings.riftwalker_entity_earth.clone(),
-        },
-    ];
-    let mut keys: Vec<String> = player.settings.extra.keys().cloned().collect();
-    keys.sort();
-    for key in keys {
-        if let Some(value) = player.settings.extra.get(&key) {
-            entries.push(SettingEntry {
-                key,
-                value: value.clone(),
-            });
-        }
-    }
-    UserSettings { entries }
-}
-
-fn settings_table_from_entries(entries: &[SettingEntry]) -> SettingsTable {
-    let mut rig = String::new();
-    let mut tzarakk_mount = String::new();
-    let mut sabre_weapon = String::new();
-    let mut riftwalker_entity_fire = default_riftwalker_entity_label();
-    let mut riftwalker_entity_air = default_riftwalker_entity_label();
-    let mut riftwalker_entity_water = default_riftwalker_entity_label();
-    let mut riftwalker_entity_earth = default_riftwalker_entity_label();
-    let mut extra = HashMap::new();
-    for entry in entries {
-        if entry.key == "rig" {
-            rig.clone_from(&entry.value);
-        } else if entry.key == "tzarakk_mount" {
-            tzarakk_mount.clone_from(&entry.value);
-        } else if entry.key == "sabre_weapon" {
-            sabre_weapon.clone_from(&entry.value);
-        } else if entry.key == "riftwalker_entity_fire" {
-            riftwalker_entity_fire.clone_from(&entry.value);
-        } else if entry.key == "riftwalker_entity_air" {
-            riftwalker_entity_air.clone_from(&entry.value);
-        } else if entry.key == "riftwalker_entity_water" {
-            riftwalker_entity_water.clone_from(&entry.value);
-        } else if entry.key == "riftwalker_entity_earth" {
-            riftwalker_entity_earth.clone_from(&entry.value);
-        } else {
-            extra.insert(entry.key.clone(), entry.value.clone());
-        }
-    }
-    SettingsTable {
-        rig,
-        tzarakk_mount,
-        sabre_weapon,
-        riftwalker_entity_fire,
-        riftwalker_entity_air,
-        riftwalker_entity_water,
-        riftwalker_entity_earth,
-        extra,
-    }
-}
-
-fn normalize_player_config(player: &mut PlayerToml) -> bool {
-    let entries = player_to_user_settings(player).entries;
-    let (normalized, settings_changed) = normalize_settings_entries(entries);
-    let guild_changed = crate::guilds::grouping::normalize_player_guild_toml(player);
-    if settings_changed {
-        player.settings = settings_table_from_entries(&normalized);
-    }
-    settings_changed || guild_changed
-}
-
-fn normalize_settings_entries(entries: Vec<SettingEntry>) -> (Vec<SettingEntry>, bool) {
-    let mut known = HashMap::new();
-    let mut extras = Vec::new();
-    for entry in entries {
-        if SETTINGS_DEFS.iter().any(|def| def.key == entry.key) {
-            known.insert(entry.key, entry.value);
-        } else {
-            extras.push(entry);
-        }
-    }
-
-    let mut changed = false;
-    let mut normalized = Vec::new();
-    for def in SETTINGS_DEFS {
-        if let Some(mut value) = known.remove(def.key) {
-            if matches!(
-                def.key,
-                "riftwalker_entity_fire"
-                    | "riftwalker_entity_air"
-                    | "riftwalker_entity_water"
-                    | "riftwalker_entity_earth"
-            ) && value.is_empty()
-            {
-                value = def.default.to_string();
-                changed = true;
-            }
-            normalized.push(SettingEntry {
-                key: def.key.to_string(),
-                value,
-            });
-        } else {
-            normalized.push(SettingEntry {
-                key: def.key.to_string(),
-                value: def.default.to_string(),
-            });
-            changed = true;
-        }
-    }
-    normalized.extend(extras);
-    (normalized, changed)
 }
 
 fn ensure_empty_file(path: &Path) -> io::Result<()> {
@@ -743,7 +569,7 @@ mod tests {
     }
 
     #[test]
-    fn player_to_user_settings_includes_tzarakk_mount() {
+    fn user_settings_from_player_includes_tzarakk_mount() {
         let player = PlayerToml {
             guilds: None,
             guild_primary_background: None,
@@ -759,7 +585,7 @@ mod tests {
             },
             generic_commands: GenericCommandsConfig::default(),
         };
-        let settings = player_to_user_settings(&player);
+        let settings = player_profile::user_settings_from_player(&player);
         assert_eq!(settings.get("rig"), Some("bag"));
         assert_eq!(settings.get("tzarakk_mount"), Some("Orthos"));
     }
@@ -788,7 +614,7 @@ mod tests {
     }
 
     #[test]
-    fn player_to_user_settings_includes_sabre_weapon() {
+    fn user_settings_from_player_includes_sabre_weapon() {
         let player = PlayerToml {
             guilds: None,
             guild_primary_background: None,
@@ -804,7 +630,7 @@ mod tests {
             },
             generic_commands: GenericCommandsConfig::default(),
         };
-        let settings = player_to_user_settings(&player);
+        let settings = player_profile::user_settings_from_player(&player);
         assert_eq!(settings.get("sabre_weapon"), Some("sabre"));
     }
 

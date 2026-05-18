@@ -463,22 +463,13 @@ impl BatApp {
 
     fn player_profile_from_config(&mut self) -> Option<PlayerRuntimeProfile> {
         let manager = self.config_manager.as_mut()?;
-        let settings = match manager.user_settings() {
-            Ok(settings) => settings,
+        match manager.player_runtime_profile() {
+            Ok(profile) => Some(profile),
             Err(e) => {
-                eprintln!("invalid settings config: {e}");
+                eprintln!("failed to normalize player config: {e}");
                 std::process::exit(1);
             }
-        };
-        let generic_config = manager.generic_commands_config();
-        let guild_keys = manager.user_guilds();
-        let primary_background = manager.user_guild_primary_background().map(str::to_string);
-        Some(player_profile::runtime_profile(
-            guild_keys,
-            primary_background.as_deref(),
-            settings,
-            generic_config,
-        ))
+        }
     }
 
     fn refresh_player_profile_from_config(&mut self, apply_selected_guilds: bool) {
@@ -551,9 +542,17 @@ impl BatApp {
         if !self.user_config_loaded {
             self.load_user_config();
         }
-        self.settings_dialog = Some(SettingsDialog::new(
-            self.player_profile.settings_entries.clone(),
-        ));
+        let Some(manager) = self.config_manager.as_mut() else {
+            return;
+        };
+        let entries = match manager.user_settings_entries() {
+            Ok(entries) => entries,
+            Err(e) => {
+                eprintln!("failed to load settings entries: {e}");
+                return;
+            }
+        };
+        self.settings_dialog = Some(SettingsDialog::new(entries));
     }
 
     fn handle_guild_dialog_event(&mut self, event: KeyEvent) {

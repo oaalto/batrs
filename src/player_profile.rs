@@ -1,6 +1,10 @@
-use crate::config::{GenericCommandsConfig, SettingEntry, UserSettings};
-use crate::guilds::grouping::DEFAULT_GUILD_PRIMARY_KEYWORD;
+use crate::config::{GenericCommandsConfig, PlayerToml, SettingEntry, SettingsTable, UserSettings};
+use crate::guilds::catalog;
+use crate::guilds::grouping::{
+    DEFAULT_GUILD_PRIMARY_KEYWORD, GuildBucketClass, classify_guild_key, thematic_index_for_keyword,
+};
 use crate::guilds::guild_definitions;
+use std::collections::HashMap;
 
 const RIG_KEY: &str = "rig";
 pub const TZARAKK_MOUNT_KEY: &str = "tzarakk_mount";
@@ -19,11 +23,46 @@ pub const RIFTWALKER_ENTITY_LABEL_KEYS: [&str; 4] = [
     RIFTWALKER_ENTITY_EARTH_KEY,
 ];
 
+struct SettingDefinition {
+    key: &'static str,
+    default: &'static str,
+}
+
+const SETTINGS_DEFS: &[SettingDefinition] = &[
+    SettingDefinition {
+        key: RIG_KEY,
+        default: "",
+    },
+    SettingDefinition {
+        key: TZARAKK_MOUNT_KEY,
+        default: "",
+    },
+    SettingDefinition {
+        key: SABRE_WEAPON_KEY,
+        default: "",
+    },
+    SettingDefinition {
+        key: RIFTWALKER_ENTITY_FIRE_KEY,
+        default: DEFAULT_RIFTWALKER_ENTITY_LABEL,
+    },
+    SettingDefinition {
+        key: RIFTWALKER_ENTITY_AIR_KEY,
+        default: DEFAULT_RIFTWALKER_ENTITY_LABEL,
+    },
+    SettingDefinition {
+        key: RIFTWALKER_ENTITY_WATER_KEY,
+        default: DEFAULT_RIFTWALKER_ENTITY_LABEL,
+    },
+    SettingDefinition {
+        key: RIFTWALKER_ENTITY_EARTH_KEY,
+        default: DEFAULT_RIFTWALKER_ENTITY_LABEL,
+    },
+];
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlayerRuntimeProfile {
     pub selected_guild_keys: Option<Vec<String>>,
     pub guild_primary_background: String,
-    pub settings_entries: Vec<SettingEntry>,
     pub generic_commands_config: GenericCommandsConfig,
     pub settings: KnownProfileSettings,
     pub automation_vars: Vec<(String, String)>,
@@ -31,11 +70,17 @@ pub struct PlayerRuntimeProfile {
     pub guild_dialog_defaults: GuildDialogProfileDefaults,
 }
 
+pub struct InterpretedPlayerProfile {
+    pub normalized_player: PlayerToml,
+    pub changed: bool,
+    pub runtime: PlayerRuntimeProfile,
+}
+
 impl Default for PlayerRuntimeProfile {
     fn default() -> Self {
-        runtime_profile(
+        runtime_profile_from_parts(
             None,
-            None,
+            DEFAULT_GUILD_PRIMARY_KEYWORD,
             UserSettings::default(),
             GenericCommandsConfig::default(),
         )
@@ -70,18 +115,42 @@ fn default_riftwalker_entity_labels() -> [String; 4] {
     std::array::from_fn(|_| DEFAULT_RIFTWALKER_ENTITY_LABEL.to_string())
 }
 
-pub fn runtime_profile(
+pub fn interpret_player_toml(player: PlayerToml) -> InterpretedPlayerProfile {
+    let mut normalized_player = player;
+    let changed = normalize_player_toml(&mut normalized_player);
+    let settings = user_settings_from_player(&normalized_player);
+    let guild_primary_background = normalized_player
+        .guild_primary_background
+        .as_deref()
+        .unwrap_or(DEFAULT_GUILD_PRIMARY_KEYWORD);
+    let runtime = runtime_profile_from_parts(
+        normalized_player.guilds.clone(),
+        guild_primary_background,
+        settings,
+        normalized_player.generic_commands.clone(),
+    );
+
+    InterpretedPlayerProfile {
+        normalized_player,
+        changed,
+        runtime,
+    }
+}
+
+fn runtime_profile_from_parts(
     selected_guild_keys: Option<Vec<String>>,
-    guild_primary_background: Option<&str>,
+    guild_primary_background: &str,
     settings: UserSettings,
     generic_commands_config: GenericCommandsConfig,
 ) -> PlayerRuntimeProfile {
     let known_settings = KnownProfileSettings::from_user_settings(&settings);
     let selected_guild_keys = selected_guild_keys.map(filter_known_guilds);
-    let guild_primary_background = guild_primary_background
-        .filter(|background| !background.is_empty())
-        .unwrap_or(DEFAULT_GUILD_PRIMARY_KEYWORD)
-        .to_string();
+    let guild_primary_background = if guild_primary_background.is_empty() {
+        DEFAULT_GUILD_PRIMARY_KEYWORD
+    } else {
+        guild_primary_background
+    }
+    .to_string();
     let automation_vars = automation_vars_for_settings(&known_settings);
     let automation_flags = vec![(IS_LICH_KEY.to_string(), known_settings.is_lich)];
     let guild_dialog_defaults =
@@ -90,13 +159,247 @@ pub fn runtime_profile(
     PlayerRuntimeProfile {
         selected_guild_keys,
         guild_primary_background,
-        settings_entries: settings.entries,
         generic_commands_config,
         settings: known_settings,
         automation_vars,
         automation_flags,
         guild_dialog_defaults,
     }
+}
+
+pub fn settings_entries_for_editor(player: &PlayerToml) -> Vec<SettingEntry> {
+    user_settings_from_player(player).entries
+}
+
+pub fn settings_table_from_entries(entries: &[SettingEntry]) -> SettingsTable {
+    let (normalized, _) = normalize_settings_entries(entries.to_vec());
+    settings_table_from_normalized_entries(&normalized)
+}
+
+pub fn user_settings_from_player(player: &PlayerToml) -> UserSettings {
+    let mut entries = vec![
+        SettingEntry {
+            key: RIG_KEY.to_string(),
+            value: player.settings.rig.clone(),
+        },
+        SettingEntry {
+            key: TZARAKK_MOUNT_KEY.to_string(),
+            value: player.settings.tzarakk_mount.clone(),
+        },
+        SettingEntry {
+            key: SABRE_WEAPON_KEY.to_string(),
+            value: player.settings.sabre_weapon.clone(),
+        },
+        SettingEntry {
+            key: RIFTWALKER_ENTITY_FIRE_KEY.to_string(),
+            value: player.settings.riftwalker_entity_fire.clone(),
+        },
+        SettingEntry {
+            key: RIFTWALKER_ENTITY_AIR_KEY.to_string(),
+            value: player.settings.riftwalker_entity_air.clone(),
+        },
+        SettingEntry {
+            key: RIFTWALKER_ENTITY_WATER_KEY.to_string(),
+            value: player.settings.riftwalker_entity_water.clone(),
+        },
+        SettingEntry {
+            key: RIFTWALKER_ENTITY_EARTH_KEY.to_string(),
+            value: player.settings.riftwalker_entity_earth.clone(),
+        },
+    ];
+    let mut keys: Vec<String> = player.settings.extra.keys().cloned().collect();
+    keys.sort();
+    for key in keys {
+        if let Some(value) = player.settings.extra.get(&key) {
+            entries.push(SettingEntry {
+                key,
+                value: value.clone(),
+            });
+        }
+    }
+    UserSettings { entries }
+}
+
+fn normalize_player_toml(player: &mut PlayerToml) -> bool {
+    let entries = user_settings_from_player(player).entries;
+    let (normalized, settings_changed) = normalize_settings_entries(entries);
+    let guild_changed = normalize_player_guilds(player);
+    if settings_changed {
+        player.settings = settings_table_from_normalized_entries(&normalized);
+    }
+    settings_changed || guild_changed
+}
+
+fn normalize_settings_entries(entries: Vec<SettingEntry>) -> (Vec<SettingEntry>, bool) {
+    let mut known = HashMap::new();
+    let mut extras = Vec::new();
+    for entry in entries {
+        if SETTINGS_DEFS
+            .iter()
+            .any(|definition| definition.key == entry.key)
+        {
+            known.insert(entry.key, entry.value);
+        } else {
+            extras.push(entry);
+        }
+    }
+
+    let mut changed = false;
+    let mut normalized = Vec::new();
+    for definition in SETTINGS_DEFS {
+        if let Some(mut value) = known.remove(definition.key) {
+            if RIFTWALKER_ENTITY_LABEL_KEYS.contains(&definition.key) && value.is_empty() {
+                value = definition.default.to_string();
+                changed = true;
+            }
+            normalized.push(SettingEntry {
+                key: definition.key.to_string(),
+                value,
+            });
+        } else {
+            normalized.push(SettingEntry {
+                key: definition.key.to_string(),
+                value: definition.default.to_string(),
+            });
+            changed = true;
+        }
+    }
+    normalized.extend(extras);
+    (normalized, changed)
+}
+
+fn settings_table_from_normalized_entries(entries: &[SettingEntry]) -> SettingsTable {
+    let mut rig = String::new();
+    let mut tzarakk_mount = String::new();
+    let mut sabre_weapon = String::new();
+    let mut riftwalker_entity_fire = DEFAULT_RIFTWALKER_ENTITY_LABEL.to_string();
+    let mut riftwalker_entity_air = DEFAULT_RIFTWALKER_ENTITY_LABEL.to_string();
+    let mut riftwalker_entity_water = DEFAULT_RIFTWALKER_ENTITY_LABEL.to_string();
+    let mut riftwalker_entity_earth = DEFAULT_RIFTWALKER_ENTITY_LABEL.to_string();
+    let mut extra = HashMap::new();
+    for entry in entries {
+        if entry.key == RIG_KEY {
+            rig.clone_from(&entry.value);
+        } else if entry.key == TZARAKK_MOUNT_KEY {
+            tzarakk_mount.clone_from(&entry.value);
+        } else if entry.key == SABRE_WEAPON_KEY {
+            sabre_weapon.clone_from(&entry.value);
+        } else if entry.key == RIFTWALKER_ENTITY_FIRE_KEY {
+            riftwalker_entity_fire.clone_from(&entry.value);
+        } else if entry.key == RIFTWALKER_ENTITY_AIR_KEY {
+            riftwalker_entity_air.clone_from(&entry.value);
+        } else if entry.key == RIFTWALKER_ENTITY_WATER_KEY {
+            riftwalker_entity_water.clone_from(&entry.value);
+        } else if entry.key == RIFTWALKER_ENTITY_EARTH_KEY {
+            riftwalker_entity_earth.clone_from(&entry.value);
+        } else {
+            extra.insert(entry.key.clone(), entry.value.clone());
+        }
+    }
+    SettingsTable {
+        rig,
+        tzarakk_mount,
+        sabre_weapon,
+        riftwalker_entity_fire,
+        riftwalker_entity_air,
+        riftwalker_entity_water,
+        riftwalker_entity_earth,
+        extra,
+    }
+}
+
+fn normalize_player_guilds(player: &mut PlayerToml) -> bool {
+    let mut changed = false;
+
+    let guilds_owned = player
+        .guilds
+        .clone()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|key| catalog::playable_entry_for_persisted_key(key).is_some())
+        .collect::<Vec<_>>();
+
+    let mut thematic_by_bucket: [Vec<&str>; 5] = std::array::from_fn(|_| Vec::new());
+    let mut multi_keys = Vec::<&str>::new();
+
+    for key in guilds_owned.iter().map(|value| value.as_str()) {
+        match classify_guild_key(key) {
+            Some(GuildBucketClass::Multi) => multi_keys.push(key),
+            Some(GuildBucketClass::Thematic(index)) => thematic_by_bucket[index].push(key),
+            None => {}
+        }
+    }
+
+    let occupied_buckets: Vec<usize> = thematic_by_bucket
+        .iter()
+        .enumerate()
+        .filter_map(|(index, bucket)| (!bucket.is_empty()).then_some(index))
+        .collect();
+
+    let stored_primary_index = player
+        .guild_primary_background
+        .as_deref()
+        .and_then(thematic_index_for_keyword);
+
+    let chosen_primary_index: usize = match occupied_buckets.len() {
+        0 => stored_primary_index.unwrap_or_else(|| {
+            thematic_index_for_keyword(DEFAULT_GUILD_PRIMARY_KEYWORD).expect("civilized index")
+        }),
+        1 => occupied_buckets[0],
+        _ => {
+            if let Some(primary_index) = stored_primary_index
+                && occupied_buckets.contains(&primary_index)
+                && !thematic_by_bucket[primary_index].is_empty()
+            {
+                primary_index
+            } else {
+                *occupied_buckets
+                    .iter()
+                    .min_by_key(|index| **index)
+                    .expect("non-empty occupied_buckets")
+            }
+        }
+    };
+
+    let new_primary_keyword = crate::guilds::grouping::THEMES_UX_ORDER[chosen_primary_index]
+        .0
+        .to_string();
+    if player.guild_primary_background.as_deref() != Some(new_primary_keyword.as_str()) {
+        player.guild_primary_background = Some(new_primary_keyword.clone());
+        changed = true;
+    }
+
+    let mut thematic_keys_kept = Vec::<String>::new();
+
+    if occupied_buckets.len() <= 1 {
+        if let Some(index) = occupied_buckets.first() {
+            thematic_keys_kept.extend(
+                thematic_by_bucket[*index]
+                    .iter()
+                    .copied()
+                    .map(ToString::to_string),
+            );
+        }
+    } else {
+        thematic_keys_kept.extend(
+            thematic_by_bucket[chosen_primary_index]
+                .iter()
+                .copied()
+                .map(ToString::to_string),
+        );
+    }
+
+    let mut union = thematic_keys_kept;
+    union.extend(multi_keys.into_iter().map(|value| value.to_string()));
+    union.sort_unstable();
+    union.dedup();
+
+    if player.guilds.as_ref() != Some(&union) {
+        changed = true;
+    }
+    player.guilds = if union.is_empty() { None } else { Some(union) };
+
+    changed
 }
 
 impl KnownProfileSettings {
@@ -188,9 +491,9 @@ mod tests {
 
     #[test]
     fn profile_uses_defaults_for_missing_settings() {
-        let profile = runtime_profile(
+        let profile = runtime_profile_from_parts(
             None,
-            None,
+            DEFAULT_GUILD_PRIMARY_KEYWORD,
             UserSettings::default(),
             GenericCommandsConfig::default(),
         );
@@ -216,9 +519,9 @@ mod tests {
 
     #[test]
     fn profile_extracts_known_settings() {
-        let profile = runtime_profile(
+        let profile = runtime_profile_from_parts(
             Some(vec!["animist".to_string(), "missing".to_string()]),
-            Some("magical"),
+            "magical",
             settings(&[
                 (RIG_KEY, "bag"),
                 (TZARAKK_MOUNT_KEY, "Vedir"),
@@ -257,9 +560,9 @@ mod tests {
 
     #[test]
     fn empty_riftwalker_labels_become_entity() {
-        let profile = runtime_profile(
+        let profile = runtime_profile_from_parts(
             None,
-            None,
+            DEFAULT_GUILD_PRIMARY_KEYWORD,
             settings(&[
                 (RIFTWALKER_ENTITY_FIRE_KEY, ""),
                 (RIFTWALKER_ENTITY_AIR_KEY, "air"),
@@ -287,13 +590,65 @@ mod tests {
             disabled_commands: vec!["cinv".to_string()],
         };
 
-        let profile = runtime_profile(
+        let profile = runtime_profile_from_parts(
             None,
-            None,
+            DEFAULT_GUILD_PRIMARY_KEYWORD,
             UserSettings::default(),
             generic_commands_config.clone(),
         );
 
         assert_eq!(profile.generic_commands_config, generic_commands_config);
+    }
+
+    #[test]
+    fn interpret_player_toml_filters_unimplemented_and_unknown_guilds() {
+        let player = PlayerToml {
+            guilds: Some(vec![
+                "animist".to_string(),
+                "alchemists".to_string(),
+                "missing".to_string(),
+            ]),
+            ..Default::default()
+        };
+
+        let interpreted = interpret_player_toml(player);
+
+        assert!(interpreted.changed);
+        assert_eq!(
+            interpreted.normalized_player.guilds,
+            Some(vec!["animist".to_string()])
+        );
+        assert_eq!(
+            interpreted.runtime.selected_guild_keys,
+            Some(vec!["animist".to_string()])
+        );
+    }
+
+    #[test]
+    fn interpret_player_toml_normalizes_settings_without_runtime_editor_entries() {
+        let player = PlayerToml {
+            settings: settings_table_from_normalized_entries(
+                &settings(&[
+                    (RIG_KEY, "bag"),
+                    (RIFTWALKER_ENTITY_FIRE_KEY, ""),
+                    (IS_LICH_KEY, "yes"),
+                ])
+                .entries,
+            ),
+            ..Default::default()
+        };
+
+        let interpreted = interpret_player_toml(player);
+
+        assert!(interpreted.changed);
+        assert_eq!(
+            interpreted
+                .normalized_player
+                .settings
+                .riftwalker_entity_fire,
+            "entity"
+        );
+        assert_eq!(interpreted.runtime.settings.rig, "bag");
+        assert!(interpreted.runtime.settings.is_lich);
     }
 }
