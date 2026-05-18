@@ -127,7 +127,7 @@ impl GenericCommandsDialog {
                     let cmd = &group.commands[*cmd_idx];
                     crate::ui::GenericCommandViewModel {
                         alias: cmd.alias.clone(),
-                        command: cmd.command.clone(),
+                        command: cmd.display_command(),
                         selected: cmd.enabled,
                         level: 2,
                     }

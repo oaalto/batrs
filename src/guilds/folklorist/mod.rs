@@ -11,7 +11,7 @@ use std::collections::HashMap;
 /// Folklorist shortcuts aligned with common BatMUD Folklorist automation.
 ///
 /// **Alias overlap:** `cpb`, `upl`, and `chb` are also used by Psionicist, Tiger, and Seminary.
-/// [`crate::command::process`] keeps the handler from the **first** selected guild in the player list.
+/// [`crate::command::dispatch`] keeps the handler from the **first** selected guild in the player list.
 #[derive(Default)]
 pub struct FolkloristGuild {}
 

@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 /// Psionicist guild: slash commands aligned with common BatMUD psionicist automation.
 ///
-/// The **`med`** alias overlaps Monk, Tiger, and Tzarakk; [`crate::command::process`] registers the
+/// The **`med`** alias overlaps Monk, Tiger, and Tzarakk; [`crate::command::dispatch`] registers the
 /// first loaded guild's handler for duplicate keys (`or_insert`).
 #[derive(Default)]
 pub struct PsionicistGuild {}

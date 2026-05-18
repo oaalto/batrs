@@ -26,6 +26,14 @@ impl OutputBuffer {
         remove_gagged_lines(&mut lines);
         self.lines.append(&mut lines);
     }
+
+    #[cfg(test)]
+    pub(crate) fn plain_lines(&self) -> Vec<&str> {
+        self.lines
+            .iter()
+            .map(|line| line.plain_line.as_str())
+            .collect()
+    }
 }
 
 fn remove_gagged_lines(lines: &mut Vec<StyledLine>) {

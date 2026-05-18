@@ -306,13 +306,6 @@ impl BatApp {
         Renderer::render(frame, &view);
     }
 
-    fn sabre_weapon_for_commands(&mut self) -> String {
-        if !self.user_config_loaded {
-            return String::new();
-        }
-        self.player_profile.settings.sabre_weapon.clone()
-    }
-
     fn submit_input(&mut self) {
         if !self.session.is_logged_in() {
             let input = self.input.take_displayed_input();
@@ -321,39 +314,17 @@ impl BatApp {
             }
 
             if input.starts_with('/') {
-                let mut ctx = command::CommandContext::new(
-                    self.automation.snapshot_flags(),
-                    false,
-                    String::new(),
-                );
-                let outcome = command::process(
-                    &input,
-                    &mut ctx,
+                let effects = command::dispatch(
+                    command::CommandDispatchInput::new(
+                        &input,
+                        false,
+                        self.automation.snapshot_flags(),
+                        self.automation.snapshot_vars(),
+                    ),
                     &self.selected_guilds,
                     &self.generic_commands,
                 );
-                if outcome.should_quit {
-                    self.should_quit = true;
-                    return;
-                }
-                if outcome.open_guilds_dialog {
-                    self.open_guilds_dialog();
-                }
-                if outcome.open_generic_commands_dialog {
-                    self.open_generic_commands_dialog();
-                }
-                if outcome.open_settings_dialog {
-                    self.open_settings_dialog();
-                }
-                if outcome.toggle_raw_logs {
-                    self.toggle_raw_logs();
-                }
-                if !outcome.output_lines.is_empty() {
-                    self.output.append_lines(outcome.output_lines);
-                }
-                if let Some(s) = outcome.send
-                    && self.send_command(s)
-                {
+                if self.apply_command_effects(effects) {
                     self.scrollback.follow_latest();
                 }
             } else {
@@ -372,44 +343,18 @@ impl BatApp {
             return;
         }
 
-        let sabre_weapon = self.sabre_weapon_for_commands();
-        let mut ctx =
-            command::CommandContext::new(self.automation.snapshot_flags(), true, sabre_weapon);
-        let outcome = command::process(
-            self.input.displayed_input(),
-            &mut ctx,
+        let effects = command::dispatch(
+            command::CommandDispatchInput::new(
+                self.input.displayed_input(),
+                true,
+                self.automation.snapshot_flags(),
+                self.automation.snapshot_vars(),
+            ),
             &self.selected_guilds,
             &self.generic_commands,
         );
 
-        if outcome.should_quit {
-            self.should_quit = true;
-            return;
-        }
-
-        if outcome.open_guilds_dialog {
-            self.open_guilds_dialog();
-        }
-        if outcome.open_generic_commands_dialog {
-            self.open_generic_commands_dialog();
-        }
-        if outcome.open_settings_dialog {
-            self.open_settings_dialog();
-        }
-        if outcome.toggle_raw_logs {
-            self.toggle_raw_logs();
-        }
-
-        if self.apply_automation_actions(outcome.automation_actions) {
-            self.scrollback.follow_latest();
-        }
-        if !outcome.output_lines.is_empty() {
-            self.output.append_lines(outcome.output_lines);
-        }
-
-        if let Some(s) = outcome.send
-            && self.send_command(s)
-        {
+        if self.apply_command_effects(effects) {
             self.scrollback.follow_latest();
         }
 
@@ -421,6 +366,31 @@ impl BatApp {
         for cmd in self.automation.process_line(line) {
             self.send_command(cmd);
         }
+    }
+
+    fn apply_command_effects(&mut self, effects: Vec<command::CommandEffect>) -> bool {
+        let mut sent_command = false;
+        for effect in effects {
+            match effect {
+                command::CommandEffect::Send(command) => {
+                    sent_command |= self.send_command(command);
+                }
+                command::CommandEffect::Automation(action) => {
+                    sent_command |= self.apply_automation_actions(vec![action]);
+                }
+                command::CommandEffect::Output(line) => {
+                    self.output.append_lines(vec![line]);
+                }
+                command::CommandEffect::OpenDialog(kind) => match kind {
+                    command::DialogKind::Guilds => self.open_guilds_dialog(),
+                    command::DialogKind::GenericCommands => self.open_generic_commands_dialog(),
+                    command::DialogKind::Settings => self.open_settings_dialog(),
+                },
+                command::CommandEffect::ToggleRawLogs => self.toggle_raw_logs(),
+                command::CommandEffect::Quit => self.should_quit = true,
+            }
+        }
+        sent_command
     }
 
     fn apply_automation_actions(&mut self, actions: Vec<Action>) -> bool {
@@ -768,5 +738,114 @@ impl BatApp {
         }
 
         self.refresh_player_profile_from_config(true);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc;
+
+    fn test_app() -> (BatApp, mpsc::Receiver<String>) {
+        let (_event_sender, event_receiver) = mpsc::channel();
+        let (command_sender, command_receiver) = mpsc::channel();
+        let app = BatApp {
+            output: OutputBuffer::new(),
+            input: InputState::new(),
+            session: SessionState::new(),
+            stats: Default::default(),
+            event_receiver,
+            command_sender,
+            telnet_buffer: TelnetBuffer::new(),
+            selected_guilds: Vec::new(),
+            selected_guild_keys: Vec::new(),
+            should_quit: false,
+            automation: Automation::new(),
+            config_manager: None,
+            user_config_loaded: true,
+            player_profile: PlayerRuntimeProfile::default(),
+            guild_dialog: None,
+            generic_commands: GenericCommands::default(),
+            generic_commands_dialog: None,
+            settings_dialog: None,
+            player_logger: None,
+            raw_logger: None,
+            scrollback: Scrollback::new(),
+        };
+        (app, command_receiver)
+    }
+
+    #[test]
+    fn command_effect_send_writes_to_command_sender() {
+        let (mut app, command_receiver) = test_app();
+
+        let followed = app.apply_command_effects(vec![command::CommandEffect::Send("look".into())]);
+
+        assert!(followed);
+        assert_eq!(command_receiver.try_recv().as_deref(), Ok("look"));
+    }
+
+    #[test]
+    fn command_effect_automation_expands_vars_and_sends() {
+        let (mut app, command_receiver) = test_app();
+        app.automation.set_var("rig", "satchel".to_string());
+
+        let followed = app.apply_command_effects(vec![command::CommandEffect::Automation(
+            Action::Send("put all essence in {rig}".to_string()),
+        )]);
+
+        assert!(followed);
+        assert_eq!(
+            command_receiver.try_recv().as_deref(),
+            Ok("put all essence in satchel")
+        );
+    }
+
+    #[test]
+    fn command_effect_output_appends_to_output_buffer() {
+        let (mut app, _command_receiver) = test_app();
+
+        let followed = app.apply_command_effects(vec![command::CommandEffect::Output(
+            StyledLine::new("hello"),
+        )]);
+
+        assert!(!followed);
+        assert_eq!(app.output.plain_lines(), vec!["hello"]);
+    }
+
+    #[test]
+    fn command_effect_open_dialog_opens_selected_dialog() {
+        let (mut app, _command_receiver) = test_app();
+        app.session.set_login_name("tester".to_string());
+        app.session
+            .update_login_state("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >");
+
+        app.apply_command_effects(vec![command::CommandEffect::OpenDialog(
+            command::DialogKind::Guilds,
+        )]);
+
+        assert!(app.guild_dialog.is_some());
+    }
+
+    #[test]
+    fn command_effect_toggle_raw_logs_reports_unavailable_logger() {
+        let (mut app, _command_receiver) = test_app();
+
+        let followed = app.apply_command_effects(vec![command::CommandEffect::ToggleRawLogs]);
+
+        assert!(!followed);
+        assert_eq!(
+            app.output.plain_lines(),
+            vec!["Raw logging unavailable: HOME is not set."]
+        );
+    }
+
+    #[test]
+    fn command_effect_quit_sets_app_quit_flag() {
+        let (mut app, _command_receiver) = test_app();
+
+        app.apply_command_effects(vec![command::CommandEffect::Quit]);
+
+        assert!(app.should_quit());
     }
 }

@@ -35,6 +35,10 @@ impl Automation {
         self.flags.clone()
     }
 
+    pub fn snapshot_vars(&self) -> HashMap<String, String> {
+        self.vars.clone()
+    }
+
     pub fn flag_is_set(&self, key: &str) -> bool {
         *self.flags.get(key).unwrap_or(&false)
     }

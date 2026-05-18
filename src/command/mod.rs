@@ -1,90 +1,142 @@
-mod generic;
-mod guilds;
-mod help;
-mod quit;
-mod raw_logs;
-mod settings;
-
 use crate::ansi::StyledLine;
 use crate::automation::Action;
+use crate::generic_commands::GenericCommands;
 use crate::guilds::Guild;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::mem;
 
 lazy_static! {
-    static ref COMMANDS: HashMap<String, CommandDef> = HashMap::from([
+    static ref BUILTINS: HashMap<String, BuiltinCommand> = HashMap::from([
         (
             "/help".to_string(),
-            CommandDef::new(help::run as Command, false),
+            BuiltinCommand::new(builtin_help, false)
         ),
         (
             "/quit".to_string(),
-            CommandDef::new(quit::run as Command, false),
+            BuiltinCommand::new(builtin_quit, false)
         ),
         (
             "/guilds".to_string(),
-            CommandDef::new(guilds::run as Command, true),
+            BuiltinCommand::new(builtin_open_guilds, true),
         ),
         (
             "/generic".to_string(),
-            CommandDef::new(generic::run as Command, true),
+            BuiltinCommand::new(builtin_open_generic, true),
         ),
         (
             "/settings".to_string(),
-            CommandDef::new(settings::run as Command, true),
+            BuiltinCommand::new(builtin_open_settings, true),
         ),
         (
             "/raw_logs".to_string(),
-            CommandDef::new(raw_logs::run as Command, false),
+            BuiltinCommand::new(builtin_toggle_raw_logs, false),
         ),
     ]);
 }
 
-pub fn process(
-    cmd: &str,
-    ctx: &mut CommandContext,
+const HELP_LINES: [&str; 7] = [
+    "Client slash commands:",
+    "/help - Shows client slash commands.",
+    "/quit - Closes the client.",
+    "/guilds - Opens the guild picker.",
+    "/generic - Opens generic shortcut groups.",
+    "/settings - Opens the settings editor.",
+    "/raw_logs - Toggles raw log capture.",
+];
+
+pub fn dispatch(
+    input: CommandDispatchInput,
     guilds: &[Box<dyn Guild>],
-    generic: &crate::generic_commands::GenericCommands,
-) -> CommandOutcome {
-    let data = Data::new(cmd);
+    generic: &GenericCommands,
+) -> Vec<CommandEffect> {
+    let parsed = ParsedCommand::new(&input.line);
+    if parsed.original().is_empty() {
+        return Vec::new();
+    }
+
+    if let Some(builtin) = BUILTINS.get(parsed.name()) {
+        if builtin.requires_login && !input.logged_in {
+            return Vec::new();
+        }
+        return (builtin.run)(&parsed);
+    }
+
+    if !input.logged_in {
+        return Vec::new();
+    }
+
+    let env = CommandEnvironment::new(input.flags, input.vars);
     let mut guild_cmds: HashMap<String, Command> = HashMap::new();
     for g in guilds {
         for (key, handler) in g.commands() {
             guild_cmds.entry(key).or_insert(handler);
         }
     }
-    let generic_cmds = generic.commands();
 
-    let send = if let Some(cmd) = COMMANDS.get(&data.cmd) {
-        if cmd.requires_login && !ctx.logged_in {
-            None
-        } else {
-            (cmd.handler)(&data, ctx)
-        }
-    } else if let Some(cmd) = guild_cmds.get(&data.cmd) {
-        cmd(&data, ctx)
-    } else if let Some(cmd) = generic_cmds.get(&data.cmd) {
-        // Generic commands checked AFTER guild commands
-        cmd(&data, ctx)
-    } else {
-        Some(cmd.to_string())
-    };
+    if let Some(cmd) = guild_cmds.get(parsed.name()) {
+        return adapt_legacy_handler(*cmd, &parsed, env);
+    }
 
-    CommandOutcome::from_ctx(send, ctx)
+    if let Some(send) = generic.render_command(parsed.name(), &parsed.args) {
+        return vec![CommandEffect::Send(send)];
+    }
+
+    vec![CommandEffect::Send(parsed.original())]
 }
 
-pub type Command = fn(&Data, &mut CommandContext) -> Option<String>;
+pub type Command = fn(&ParsedCommand, &mut CommandContext) -> Option<String>;
 
-pub struct CommandDef {
-    handler: Command,
+pub type Data = ParsedCommand;
+
+pub struct CommandDispatchInput {
+    line: String,
+    logged_in: bool,
+    flags: HashMap<String, bool>,
+    vars: HashMap<String, String>,
+}
+
+impl CommandDispatchInput {
+    pub fn new(
+        line: &str,
+        logged_in: bool,
+        flags: HashMap<String, bool>,
+        vars: HashMap<String, String>,
+    ) -> Self {
+        Self {
+            line: line.to_string(),
+            logged_in,
+            flags,
+            vars,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CommandEffect {
+    Send(String),
+    Automation(Action),
+    Output(StyledLine),
+    OpenDialog(DialogKind),
+    ToggleRawLogs,
+    Quit,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DialogKind {
+    Guilds,
+    GenericCommands,
+    Settings,
+}
+
+struct BuiltinCommand {
+    run: fn(&ParsedCommand) -> Vec<CommandEffect>,
     requires_login: bool,
 }
 
-impl CommandDef {
-    fn new(handler: Command, requires_login: bool) -> Self {
+impl BuiltinCommand {
+    fn new(run: fn(&ParsedCommand) -> Vec<CommandEffect>, requires_login: bool) -> Self {
         Self {
-            handler,
+            run,
             requires_login,
         }
     }
@@ -94,39 +146,47 @@ impl CommandDef {
 pub struct CommandContext {
     pub should_quit: bool,
     pub automation_actions: Vec<Action>,
-    pub automation_flags: HashMap<String, bool>,
+    env: CommandEnvironment,
     pub output_lines: Vec<StyledLine>,
     pub open_guilds_dialog: bool,
     pub open_generic_commands_dialog: bool,
     pub open_settings_dialog: bool,
     pub toggle_raw_logs: bool,
-    pub logged_in: bool,
-    /// Main-hand weapon for Sabres (`/guilds` / `sabre_weapon` in player settings); may be empty.
-    pub sabre_weapon: String,
 }
 
 impl CommandContext {
+    #[cfg(test)]
     pub fn new(
         automation_flags: HashMap<String, bool>,
-        logged_in: bool,
-        sabre_weapon: String,
+        _logged_in: bool,
+        _legacy_setting: String,
+    ) -> Self {
+        Self::with_vars(automation_flags, HashMap::new())
+    }
+
+    #[cfg(test)]
+    pub fn with_vars(
+        automation_flags: HashMap<String, bool>,
+        automation_vars: HashMap<String, String>,
     ) -> Self {
         Self {
             should_quit: false,
             automation_actions: Vec::new(),
-            automation_flags,
+            env: CommandEnvironment::new(automation_flags, automation_vars),
             output_lines: Vec::new(),
             open_guilds_dialog: false,
             open_generic_commands_dialog: false,
             open_settings_dialog: false,
             toggle_raw_logs: false,
-            logged_in,
-            sabre_weapon,
         }
     }
 
     pub fn flag(&self, key: &str) -> bool {
-        self.automation_flags.get(key).copied().unwrap_or(false)
+        self.env.flag(key)
+    }
+
+    pub fn var(&self, key: &str) -> Option<&str> {
+        self.env.var(key)
     }
 
     pub fn push_action(&mut self, action: Action) {
@@ -136,64 +196,153 @@ impl CommandContext {
     pub fn push_output_line(&mut self, line: StyledLine) {
         self.output_lines.push(line);
     }
+}
 
-    pub fn open_guilds_dialog(&mut self) {
-        self.open_guilds_dialog = true;
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CommandEnvironment {
+    flags: HashMap<String, bool>,
+    vars: HashMap<String, String>,
+}
+
+impl CommandEnvironment {
+    pub fn new(flags: HashMap<String, bool>, vars: HashMap<String, String>) -> Self {
+        Self { flags, vars }
     }
 
-    pub fn open_generic_commands_dialog(&mut self) {
-        self.open_generic_commands_dialog = true;
+    pub fn flag(&self, key: &str) -> bool {
+        self.flags.get(key).copied().unwrap_or(false)
     }
 
-    pub fn open_settings_dialog(&mut self) {
-        self.open_settings_dialog = true;
-    }
-
-    pub fn toggle_raw_logs(&mut self) {
-        self.toggle_raw_logs = true;
+    pub fn var(&self, key: &str) -> Option<&str> {
+        self.vars.get(key).map(String::as_str)
     }
 }
 
-pub struct Data {
+pub struct ParsedCommand {
+    #[cfg(not(test))]
+    pub original: String,
+    #[cfg(not(test))]
+    pub name: String,
+    #[cfg(test)]
     pub cmd: String,
     pub args: String,
 }
 
-impl Data {
+impl ParsedCommand {
     pub fn new(line: &str) -> Self {
-        let index = line.find(' ').unwrap_or(line.len());
+        let original = line.trim().to_string();
+        let index = original.find(char::is_whitespace).unwrap_or(original.len());
+        let name = original[..index].to_ascii_lowercase();
+        let args = original[index..].trim().to_owned();
 
         Self {
-            cmd: line[..index].to_ascii_lowercase(),
-            args: line[index..].trim().to_owned(),
+            #[cfg(not(test))]
+            original,
+            #[cfg(test)]
+            cmd: name.clone(),
+            #[cfg(not(test))]
+            name,
+            args,
+        }
+    }
+
+    pub fn original(&self) -> String {
+        #[cfg(test)]
+        {
+            if self.args.is_empty() {
+                self.cmd.clone()
+            } else {
+                format!("{} {}", self.cmd, self.args)
+            }
+        }
+        #[cfg(not(test))]
+        {
+            self.original.clone()
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        #[cfg(test)]
+        {
+            &self.cmd
+        }
+        #[cfg(not(test))]
+        {
+            &self.name
         }
     }
 }
 
-pub struct CommandOutcome {
-    pub send: Option<String>,
-    pub should_quit: bool,
-    pub automation_actions: Vec<Action>,
-    pub output_lines: Vec<StyledLine>,
-    pub open_guilds_dialog: bool,
-    pub open_generic_commands_dialog: bool,
-    pub open_settings_dialog: bool,
-    pub toggle_raw_logs: bool,
+fn builtin_help(_data: &ParsedCommand) -> Vec<CommandEffect> {
+    HELP_LINES
+        .into_iter()
+        .map(|line| CommandEffect::Output(StyledLine::new(line)))
+        .collect()
 }
 
-impl CommandOutcome {
-    fn from_ctx(send: Option<String>, ctx: &mut CommandContext) -> Self {
-        Self {
-            send,
-            should_quit: ctx.should_quit,
-            automation_actions: mem::take(&mut ctx.automation_actions),
-            output_lines: mem::take(&mut ctx.output_lines),
-            open_guilds_dialog: ctx.open_guilds_dialog,
-            open_generic_commands_dialog: ctx.open_generic_commands_dialog,
-            open_settings_dialog: ctx.open_settings_dialog,
-            toggle_raw_logs: ctx.toggle_raw_logs,
-        }
+fn builtin_quit(_data: &ParsedCommand) -> Vec<CommandEffect> {
+    vec![CommandEffect::Quit]
+}
+
+fn builtin_open_guilds(_data: &ParsedCommand) -> Vec<CommandEffect> {
+    vec![CommandEffect::OpenDialog(DialogKind::Guilds)]
+}
+
+fn builtin_open_generic(_data: &ParsedCommand) -> Vec<CommandEffect> {
+    vec![CommandEffect::OpenDialog(DialogKind::GenericCommands)]
+}
+
+fn builtin_open_settings(_data: &ParsedCommand) -> Vec<CommandEffect> {
+    vec![CommandEffect::OpenDialog(DialogKind::Settings)]
+}
+
+fn builtin_toggle_raw_logs(_data: &ParsedCommand) -> Vec<CommandEffect> {
+    vec![CommandEffect::ToggleRawLogs]
+}
+
+fn adapt_legacy_handler(
+    handler: Command,
+    data: &ParsedCommand,
+    env: CommandEnvironment,
+) -> Vec<CommandEffect> {
+    let mut ctx = CommandContext {
+        should_quit: false,
+        automation_actions: Vec::new(),
+        env,
+        output_lines: Vec::new(),
+        open_guilds_dialog: false,
+        open_generic_commands_dialog: false,
+        open_settings_dialog: false,
+        toggle_raw_logs: false,
+    };
+
+    let send = handler(data, &mut ctx);
+    let mut effects = Vec::new();
+    if ctx.should_quit {
+        effects.push(CommandEffect::Quit);
     }
+    effects.extend(
+        ctx.automation_actions
+            .into_iter()
+            .map(CommandEffect::Automation),
+    );
+    effects.extend(ctx.output_lines.into_iter().map(CommandEffect::Output));
+    if ctx.open_guilds_dialog {
+        effects.push(CommandEffect::OpenDialog(DialogKind::Guilds));
+    }
+    if ctx.open_generic_commands_dialog {
+        effects.push(CommandEffect::OpenDialog(DialogKind::GenericCommands));
+    }
+    if ctx.open_settings_dialog {
+        effects.push(CommandEffect::OpenDialog(DialogKind::Settings));
+    }
+    if ctx.toggle_raw_logs {
+        effects.push(CommandEffect::ToggleRawLogs);
+    }
+    if let Some(send) = send {
+        effects.push(CommandEffect::Send(send));
+    }
+    effects
 }
 
 #[cfg(test)]
@@ -223,46 +372,63 @@ mod tests {
         }
     }
 
-    #[test]
-    fn data_parses_command_and_args() {
-        let data = Data::new("TeSt arg1 arg2");
+    fn dispatch_line(line: &str, logged_in: bool, guilds: &[Box<dyn Guild>]) -> Vec<CommandEffect> {
+        dispatch(
+            CommandDispatchInput::new(line, logged_in, HashMap::new(), HashMap::new()),
+            guilds,
+            &GenericCommands::default(),
+        )
+    }
 
-        assert_eq!(data.cmd, "test");
+    fn send_effects(effects: &[CommandEffect]) -> Vec<&str> {
+        effects
+            .iter()
+            .filter_map(|effect| match effect {
+                CommandEffect::Send(line) => Some(line.as_str()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn parsed_command_trims_and_parses_command_and_args() {
+        let data = ParsedCommand::new("  TeSt arg1 arg2  ");
+
+        assert_eq!(data.original(), "test arg1 arg2");
+        assert_eq!(data.name(), "test");
         assert_eq!(data.args, "arg1 arg2");
     }
 
     #[test]
-    fn process_handles_builtin_quit() {
-        let mut ctx = CommandContext::new(HashMap::new(), false, String::new());
-        let generic = GenericCommands::default();
-        let outcome = process("/quit", &mut ctx, &[], &generic);
-
-        assert!(outcome.should_quit);
-        assert!(outcome.send.is_none());
+    fn dispatch_ignores_empty_input() {
+        assert!(dispatch_line("  ", true, &[]).is_empty());
     }
 
     #[test]
-    fn process_handles_raw_logs_toggle() {
-        let mut ctx = CommandContext::new(HashMap::new(), false, String::new());
-        let generic = GenericCommands::default();
-        let outcome = process("/raw_logs", &mut ctx, &[], &generic);
+    fn dispatch_handles_builtin_quit() {
+        let effects = dispatch_line("/quit", false, &[]);
 
-        assert!(outcome.toggle_raw_logs);
-        assert!(outcome.send.is_none());
+        assert!(matches!(effects.as_slice(), [CommandEffect::Quit]));
     }
 
     #[test]
-    fn process_handles_builtin_help() {
-        let mut ctx = CommandContext::new(HashMap::new(), false, String::new());
-        let generic = GenericCommands::default();
-        let outcome = process("/help", &mut ctx, &[], &generic);
-        let lines: Vec<&str> = outcome
-            .output_lines
+    fn dispatch_handles_raw_logs_toggle() {
+        let effects = dispatch_line("/raw_logs", false, &[]);
+
+        assert!(matches!(effects.as_slice(), [CommandEffect::ToggleRawLogs]));
+    }
+
+    #[test]
+    fn dispatch_handles_builtin_help() {
+        let effects = dispatch_line("/help", false, &[]);
+        let lines: Vec<&str> = effects
             .iter()
-            .map(|line| line.plain_line.as_str())
+            .filter_map(|effect| match effect {
+                CommandEffect::Output(line) => Some(line.plain_line.as_str()),
+                _ => None,
+            })
             .collect();
 
-        assert!(outcome.send.is_none());
         assert!(lines.contains(&"/help - Shows client slash commands."));
         assert!(lines.contains(&"/quit - Closes the client."));
         assert!(lines.contains(&"/guilds - Opens the guild picker."));
@@ -272,49 +438,54 @@ mod tests {
     }
 
     #[test]
-    fn process_respects_login_requirements() {
-        let mut ctx = CommandContext::new(HashMap::new(), false, String::new());
-        let generic = GenericCommands::default();
-        let outcome = process("/guilds", &mut ctx, &[], &generic);
+    fn dispatch_respects_builtin_login_requirements() {
+        let effects = dispatch_line("/guilds", false, &[]);
 
-        assert!(!outcome.open_guilds_dialog);
+        assert!(effects.is_empty());
 
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
-        let outcome = process("/guilds", &mut ctx, &[], &generic);
+        let effects = dispatch_line("/guilds", true, &[]);
 
-        assert!(outcome.open_guilds_dialog);
+        assert!(matches!(
+            effects.as_slice(),
+            [CommandEffect::OpenDialog(DialogKind::Guilds)]
+        ));
     }
 
     #[test]
-    fn process_runs_guild_commands() {
+    fn dispatch_requires_login_for_guild_commands() {
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
-        let generic = GenericCommands::default();
-        let outcome = process("ping world", &mut ctx, &guilds, &generic);
+        let effects = dispatch_line("ping world", false, &guilds);
 
-        assert_eq!(outcome.send, Some("pong world".to_string()));
+        assert!(effects.is_empty());
     }
 
     #[test]
-    fn process_runs_generic_commands_after_guild() {
-        // Test that guild commands take priority over generic commands
+    fn dispatch_runs_guild_commands() {
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
+        let effects = dispatch_line("ping world", true, &guilds);
 
-        // Create a generic command that would conflict with "ping" if it existed
-        let generic = GenericCommands::default();
-        let outcome = process("ping world", &mut ctx, &guilds, &generic);
-
-        // Guild command should win
-        assert_eq!(outcome.send, Some("pong world".to_string()));
+        assert_eq!(send_effects(&effects), vec!["pong world"]);
     }
 
     #[test]
-    fn process_echoes_unknown_commands() {
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
-        let generic = GenericCommands::default();
-        let outcome = process("some raw text", &mut ctx, &[], &generic);
+    fn dispatch_runs_generic_commands_after_guild_commands() {
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
+        let effects = dispatch_line("ping world", true, &guilds);
 
-        assert_eq!(outcome.send, Some("some raw text".to_string()));
+        assert_eq!(send_effects(&effects), vec!["pong world"]);
+    }
+
+    #[test]
+    fn dispatch_runs_generic_commands() {
+        let effects = dispatch_line("clw", true, &[]);
+
+        assert_eq!(send_effects(&effects), vec!["@cast 'cure light wounds' me"]);
+    }
+
+    #[test]
+    fn dispatch_trims_unknown_command_passthrough() {
+        let effects = dispatch_line("  some raw text  ", true, &[]);
+
+        assert_eq!(send_effects(&effects), vec!["some raw text"]);
     }
 }

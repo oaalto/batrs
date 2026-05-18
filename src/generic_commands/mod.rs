@@ -1,22 +1,83 @@
-use crate::abilities::{self, catalog::names};
-use crate::command::{Command, CommandContext, Data};
-use std::collections::HashMap;
+use crate::abilities;
 
-/// An individual generic command with an alias and command template
+/// An individual generic command with an alias and structured execution shape.
 #[derive(Debug, Clone)]
 pub struct GenericCommand {
     pub alias: String,
-    pub command: String,
+    execution: GenericCommandExecution,
     pub enabled: bool,
 }
 
 impl GenericCommand {
-    pub fn new(alias: &str, command: &str) -> Self {
+    fn new(alias: &str, execution: GenericCommandExecution) -> Self {
         Self {
             alias: alias.to_string(),
-            command: command.to_string(),
+            execution,
             enabled: true,
         }
+    }
+
+    pub fn display_command(&self) -> String {
+        self.execution.display_command()
+    }
+
+    fn render(&self, args: &str) -> String {
+        self.execution.render(args)
+    }
+}
+
+#[derive(Debug, Clone)]
+enum GenericCommandExecution {
+    Fixed(&'static str),
+    AppendArgs {
+        prefix: &'static str,
+    },
+    AppendArgsDefault {
+        prefix: &'static str,
+        default: &'static str,
+    },
+}
+
+impl GenericCommandExecution {
+    fn fixed(command: &'static str) -> Self {
+        Self::Fixed(command)
+    }
+
+    fn append_args(prefix: &'static str) -> Self {
+        Self::AppendArgs { prefix }
+    }
+
+    fn append_args_default(prefix: &'static str, default: &'static str) -> Self {
+        Self::AppendArgsDefault { prefix, default }
+    }
+
+    fn display_command(&self) -> String {
+        match self {
+            GenericCommandExecution::Fixed(command) => (*command).to_string(),
+            GenericCommandExecution::AppendArgs { prefix } => format!("{prefix} {{args}}"),
+            GenericCommandExecution::AppendArgsDefault { prefix, .. } => {
+                format!("{prefix} {{args}}")
+            }
+        }
+    }
+
+    fn render(&self, args: &str) -> String {
+        let args = args.trim();
+        let logical = match self {
+            GenericCommandExecution::Fixed(command) => (*command).to_string(),
+            GenericCommandExecution::AppendArgs { prefix } => {
+                if args.is_empty() {
+                    (*prefix).to_string()
+                } else {
+                    format!("{prefix} {args}")
+                }
+            }
+            GenericCommandExecution::AppendArgsDefault { prefix, default } => {
+                let target = if args.is_empty() { *default } else { args };
+                format!("{prefix} {target}")
+            }
+        };
+        abilities::client_send_line(&logical)
     }
 }
 
@@ -77,45 +138,12 @@ impl GenericCommands {
         }
     }
 
-    /// Returns only enabled commands as a HashMap for command processing
-    pub fn commands(&self) -> HashMap<String, Command> {
-        let mut result = HashMap::new();
-        for group in &self.groups {
-            for cmd in &group.commands {
-                if cmd.enabled {
-                    let handler = Self::get_handler(&cmd.alias);
-                    result.insert(cmd.alias.clone(), handler);
-                }
-            }
-        }
-        result
-    }
-
-    /// Get the handler function for a given command alias
-    fn get_handler(alias: &str) -> Command {
-        match alias {
-            // cure_spells
-            "clw" => cast_cure_light_wounds,
-            "csw" => cast_cure_serious_wounds,
-            "clwf" => cast_cure_light_wounds_full,
-            "cswf" => cast_cure_serious_wounds_full,
-            // common_spells
-            "cww" => cast_water_walking,
-            "cinv" => cast_invisibility,
-            "cinf" => cast_infravision,
-            // navigator
-            "ctwe" => cast_teleport_with_error,
-            "ctw" => cast_teleport_without_error,
-            "cr" => cast_relocate,
-            "chw" => cast_heavy_weight,
-            // common_skills
-            "ufb" => use_fire_building,
-            "camp" => use_camping,
-            // misc
-            "lich_rip" => rip_lich,
-            "normal_rip" | "dig_rip" => rip_dig_grave,
-            _ => unknown_command,
-        }
+    pub fn render_command(&self, alias: &str, args: &str) -> Option<String> {
+        self.groups
+            .iter()
+            .flat_map(|group| group.commands.iter())
+            .find(|command| command.enabled && command.alias == alias)
+            .map(|command| command.render(args))
     }
 
     /// Apply configuration to enable/disable groups and specific commands
@@ -145,10 +173,31 @@ impl GenericCommands {
             "cure_spells",
             "Cure Spells",
             vec![
-                GenericCommand::new("clw", "cast 'cure light wounds' {args}"),
-                GenericCommand::new("csw", "cast 'cure serious wounds' {args}"),
-                GenericCommand::new("clwf", "repeat inf cast 'cure light wounds' {args}"),
-                GenericCommand::new("cswf", "repeat inf cast 'cure serious wounds' {args}"),
+                GenericCommand::new(
+                    "clw",
+                    GenericCommandExecution::append_args_default("cast 'cure light wounds'", "me"),
+                ),
+                GenericCommand::new(
+                    "csw",
+                    GenericCommandExecution::append_args_default(
+                        "cast 'cure serious wounds'",
+                        "me",
+                    ),
+                ),
+                GenericCommand::new(
+                    "clwf",
+                    GenericCommandExecution::append_args_default(
+                        "repeat inf cast 'cure light wounds'",
+                        "me",
+                    ),
+                ),
+                GenericCommand::new(
+                    "cswf",
+                    GenericCommandExecution::append_args_default(
+                        "repeat inf cast 'cure serious wounds'",
+                        "me",
+                    ),
+                ),
             ],
         )
     }
@@ -158,9 +207,18 @@ impl GenericCommands {
             "common_spells",
             "Common Spells",
             vec![
-                GenericCommand::new("cww", "cast 'water walking' {args}"),
-                GenericCommand::new("cinv", "cast 'invisibility' {args}"),
-                GenericCommand::new("cinf", "cast 'infravision' {args}"),
+                GenericCommand::new(
+                    "cww",
+                    GenericCommandExecution::append_args_default("cast 'water walking'", "me"),
+                ),
+                GenericCommand::new(
+                    "cinv",
+                    GenericCommandExecution::append_args_default("cast 'invisibility'", "me"),
+                ),
+                GenericCommand::new(
+                    "cinf",
+                    GenericCommandExecution::append_args_default("cast 'infravision'", "me"),
+                ),
             ],
         )
     }
@@ -170,10 +228,22 @@ impl GenericCommands {
             "navigator",
             "Navigator",
             vec![
-                GenericCommand::new("ctwe", "cast 'teleport with error'"),
-                GenericCommand::new("ctw", "cast 'teleport without error'"),
-                GenericCommand::new("cr", "cast 'relocate' {args}"),
-                GenericCommand::new("chw", "cast 'heavy weight' {args}"),
+                GenericCommand::new(
+                    "ctwe",
+                    GenericCommandExecution::fixed("cast 'teleport with error'"),
+                ),
+                GenericCommand::new(
+                    "ctw",
+                    GenericCommandExecution::fixed("cast 'teleport without error'"),
+                ),
+                GenericCommand::new(
+                    "cr",
+                    GenericCommandExecution::append_args("cast 'relocate'"),
+                ),
+                GenericCommand::new(
+                    "chw",
+                    GenericCommandExecution::append_args_default("cast 'heavy weight'", "me"),
+                ),
             ],
         )
     }
@@ -183,8 +253,8 @@ impl GenericCommands {
             "common_skills",
             "Common Skills",
             vec![
-                GenericCommand::new("ufb", &abilities::targeted_use(names::FIRE_BUILDING, "")),
-                GenericCommand::new("camp", &abilities::targeted_use(names::CAMPING, "")),
+                GenericCommand::new("ufb", GenericCommandExecution::fixed("use 'fire building'")),
+                GenericCommand::new("camp", GenericCommandExecution::fixed("use 'camping'")),
             ],
         )
     }
@@ -196,158 +266,25 @@ impl GenericCommands {
             vec![
                 GenericCommand::new(
                     "lich_rip",
-                    "rip_action set get all from corpse;drop zinc;drop mowgles",
+                    GenericCommandExecution::fixed(
+                        "rip_action set get all from corpse;drop zinc;drop mowgles",
+                    ),
                 ),
                 GenericCommand::new(
                     "normal_rip",
-                    "rip_action set get all from corpse;dig grave;drop zinc;drop mowgles",
+                    GenericCommandExecution::fixed(
+                        "rip_action set get all from corpse;dig grave;drop zinc;drop mowgles",
+                    ),
                 ),
                 GenericCommand::new(
                     "dig_rip",
-                    "rip_action set get all from corpse;dig grave;drop zinc;drop mowgles",
+                    GenericCommandExecution::fixed(
+                        "rip_action set get all from corpse;dig grave;drop zinc;drop mowgles",
+                    ),
                 ),
             ],
         )
     }
-}
-
-// Command handler functions
-
-fn cast_cure_light_wounds(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    if data.args.is_empty() {
-        Some(abilities::client_send_line("cast 'cure light wounds' me"))
-    } else {
-        Some(abilities::client_send_line(&format!(
-            "cast 'cure light wounds' {}",
-            data.args
-        )))
-    }
-}
-
-fn cast_cure_serious_wounds(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    if data.args.is_empty() {
-        Some(abilities::client_send_line("cast 'cure serious wounds' me"))
-    } else {
-        Some(abilities::client_send_line(&format!(
-            "cast 'cure serious wounds' {}",
-            data.args
-        )))
-    }
-}
-
-fn cast_cure_light_wounds_full(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    if data.args.is_empty() {
-        Some(abilities::client_send_line(
-            "repeat inf cast 'cure light wounds' me",
-        ))
-    } else {
-        Some(abilities::client_send_line(&format!(
-            "repeat inf cast 'cure light wounds' {}",
-            data.args
-        )))
-    }
-}
-
-fn cast_cure_serious_wounds_full(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    if data.args.is_empty() {
-        Some(abilities::client_send_line(
-            "repeat inf cast 'cure serious wounds' me",
-        ))
-    } else {
-        Some(abilities::client_send_line(&format!(
-            "repeat inf cast 'cure serious wounds' {}",
-            data.args
-        )))
-    }
-}
-
-fn cast_water_walking(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    if data.args.is_empty() {
-        Some(abilities::client_send_line("cast 'water walking' me"))
-    } else {
-        Some(abilities::client_send_line(&format!(
-            "cast 'water walking' {}",
-            data.args
-        )))
-    }
-}
-
-fn cast_invisibility(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    if data.args.is_empty() {
-        Some(abilities::client_send_line("cast 'invisibility' me"))
-    } else {
-        Some(abilities::client_send_line(&format!(
-            "cast 'invisibility' {}",
-            data.args
-        )))
-    }
-}
-
-fn cast_infravision(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    if data.args.is_empty() {
-        Some(abilities::client_send_line("cast 'infravision' me"))
-    } else {
-        Some(abilities::client_send_line(&format!(
-            "cast 'infravision' {}",
-            data.args
-        )))
-    }
-}
-
-fn cast_teleport_with_error(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    Some(abilities::client_send_line("cast 'teleport with error'"))
-}
-
-fn cast_teleport_without_error(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    Some(abilities::client_send_line("cast 'teleport without error'"))
-}
-
-fn cast_relocate(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    Some(abilities::client_send_line(&format!(
-        "cast 'relocate' {}",
-        data.args
-    )))
-}
-
-fn cast_heavy_weight(data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    if data.args.is_empty() {
-        Some(abilities::client_send_line("cast 'heavy weight' me"))
-    } else {
-        Some(abilities::client_send_line(&format!(
-            "cast 'heavy weight' {}",
-            data.args
-        )))
-    }
-}
-
-fn use_fire_building(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    Some(abilities::client_send_line(&abilities::targeted_use(
-        names::FIRE_BUILDING,
-        "",
-    )))
-}
-
-fn use_camping(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    Some(abilities::client_send_line(&abilities::targeted_use(
-        names::CAMPING,
-        "",
-    )))
-}
-
-fn rip_lich(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    Some(abilities::client_send_line(
-        "rip_action set get all from corpse;drop zinc;drop mowgles",
-    ))
-}
-
-fn rip_dig_grave(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    Some(abilities::client_send_line(
-        "rip_action set get all from corpse;dig grave;drop zinc;drop mowgles",
-    ))
-}
-
-fn unknown_command(_data: &Data, _ctx: &mut CommandContext) -> Option<String> {
-    None
 }
 
 #[cfg(test)]
@@ -366,13 +303,15 @@ mod tests {
     }
 
     #[test]
-    fn commands_returns_only_enabled() {
+    fn render_command_returns_only_enabled() {
         let mut generic = GenericCommands::default();
         generic.groups[0].commands[0].enabled = false; // Disable clw
 
-        let commands = generic.commands();
-        assert!(!commands.contains_key("clw"));
-        assert!(commands.contains_key("csw"));
+        assert!(generic.render_command("clw", "orc").is_none());
+        assert_eq!(
+            generic.render_command("csw", "orc"),
+            Some("@cast 'cure serious wounds' orc".to_string())
+        );
     }
 
     #[test]
@@ -401,8 +340,8 @@ mod tests {
             "test",
             "Test",
             vec![
-                GenericCommand::new("a", "cmd a"),
-                GenericCommand::new("b", "cmd b"),
+                GenericCommand::new("a", GenericCommandExecution::fixed("cmd a")),
+                GenericCommand::new("b", GenericCommandExecution::fixed("cmd b")),
             ],
         );
         assert_eq!(group.selection_state(), Some(true));
@@ -414,8 +353,8 @@ mod tests {
             "test",
             "Test",
             vec![
-                GenericCommand::new("a", "cmd a"),
-                GenericCommand::new("b", "cmd b"),
+                GenericCommand::new("a", GenericCommandExecution::fixed("cmd a")),
+                GenericCommand::new("b", GenericCommandExecution::fixed("cmd b")),
             ],
         );
         group.commands[0].enabled = false;
@@ -424,71 +363,133 @@ mod tests {
 
     #[test]
     fn cast_cure_light_wounds_with_target() {
-        let data = Data::new("clw orc");
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
-        let result = cast_cure_light_wounds(&data, &mut ctx);
-        assert_eq!(result, Some("@cast 'cure light wounds' orc".to_string()));
+        let generic = GenericCommands::default();
+        assert_eq!(
+            generic.render_command("clw", "orc"),
+            Some("@cast 'cure light wounds' orc".to_string())
+        );
     }
 
     #[test]
     fn cast_cure_light_wounds_without_target() {
-        let data = Data::new("clw");
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
-        let result = cast_cure_light_wounds(&data, &mut ctx);
-        assert_eq!(result, Some("@cast 'cure light wounds' me".to_string()));
+        let generic = GenericCommands::default();
+        assert_eq!(
+            generic.render_command("clw", ""),
+            Some("@cast 'cure light wounds' me".to_string())
+        );
     }
 
     #[test]
     fn cast_teleport_without_error_no_args() {
-        let data = Data::new("ctwe");
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
-        let result = cast_teleport_with_error(&data, &mut ctx);
-        assert_eq!(result, Some("@cast 'teleport with error'".to_string()));
+        let generic = GenericCommands::default();
+        assert_eq!(
+            generic.render_command("ctwe", ""),
+            Some("@cast 'teleport with error'".to_string())
+        );
     }
 
     #[test]
     fn cast_relocate_uses_args() {
-        let data = Data::new("cr orthos");
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
-        let result = cast_relocate(&data, &mut ctx);
-        assert_eq!(result, Some("@cast 'relocate' orthos".to_string()));
+        let generic = GenericCommands::default();
+        assert_eq!(
+            generic.render_command("cr", "orthos"),
+            Some("@cast 'relocate' orthos".to_string())
+        );
     }
 
     #[test]
     fn use_fire_building_fixed_output() {
-        let data = Data::new("ufb");
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
-        let result = use_fire_building(&data, &mut ctx);
-        assert_eq!(result, Some("@use 'fire building'".to_string()));
+        let generic = GenericCommands::default();
+        assert_eq!(
+            generic.render_command("ufb", ""),
+            Some("@use 'fire building'".to_string())
+        );
     }
 
     #[test]
     fn use_camping_fixed_output() {
-        let data = Data::new("camp");
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
-        let result = use_camping(&data, &mut ctx);
-        assert_eq!(result, Some("@use 'camping'".to_string()));
+        let generic = GenericCommands::default();
+        assert_eq!(
+            generic.render_command("camp", ""),
+            Some("@use 'camping'".to_string())
+        );
     }
 
     #[test]
     fn rip_lich_matches_expected() {
-        let data = Data::new("lich_rip");
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
-        let result = rip_lich(&data, &mut ctx);
         assert_eq!(
-            result,
+            GenericCommands::default().render_command("lich_rip", ""),
             Some("@rip_action set get all from corpse;drop zinc;drop mowgles".to_string())
         );
     }
 
     #[test]
     fn rip_dig_grave_matches_expected() {
-        let data = Data::new("normal_rip");
-        let mut ctx = CommandContext::new(HashMap::new(), true, String::new());
         let expected =
             "@rip_action set get all from corpse;dig grave;drop zinc;drop mowgles".to_string();
-        assert_eq!(rip_dig_grave(&data, &mut ctx), Some(expected.clone()));
-        let data_alias = Data::new("dig_rip");
-        assert_eq!(rip_dig_grave(&data_alias, &mut ctx), Some(expected));
+        let generic = GenericCommands::default();
+        assert_eq!(
+            generic.render_command("normal_rip", ""),
+            Some(expected.clone())
+        );
+        assert_eq!(generic.render_command("dig_rip", ""), Some(expected));
+    }
+
+    #[test]
+    fn predefined_commands_render_expected_send_lines() {
+        let generic = GenericCommands::default();
+        let cases = [
+            ("clw", "", "@cast 'cure light wounds' me"),
+            ("clw", "ally", "@cast 'cure light wounds' ally"),
+            ("csw", "", "@cast 'cure serious wounds' me"),
+            ("clwf", "", "@repeat inf cast 'cure light wounds' me"),
+            (
+                "cswf",
+                "ally",
+                "@repeat inf cast 'cure serious wounds' ally",
+            ),
+            ("cww", "", "@cast 'water walking' me"),
+            ("cinv", "ally", "@cast 'invisibility' ally"),
+            ("cinf", "", "@cast 'infravision' me"),
+            ("ctwe", "ignored", "@cast 'teleport with error'"),
+            ("ctw", "", "@cast 'teleport without error'"),
+            ("cr", "orthos", "@cast 'relocate' orthos"),
+            ("chw", "", "@cast 'heavy weight' me"),
+            ("ufb", "ignored", "@use 'fire building'"),
+            ("camp", "", "@use 'camping'"),
+            (
+                "lich_rip",
+                "",
+                "@rip_action set get all from corpse;drop zinc;drop mowgles",
+            ),
+            (
+                "normal_rip",
+                "",
+                "@rip_action set get all from corpse;dig grave;drop zinc;drop mowgles",
+            ),
+            (
+                "dig_rip",
+                "",
+                "@rip_action set get all from corpse;dig grave;drop zinc;drop mowgles",
+            ),
+        ];
+
+        for (alias, args, expected) in cases {
+            assert_eq!(
+                generic.render_command(alias, args).as_deref(),
+                Some(expected),
+                "alias {alias}"
+            );
+        }
+    }
+
+    #[test]
+    fn display_command_is_derived_from_execution_shape() {
+        let generic = GenericCommands::default();
+        let clw = &generic.groups[0].commands[0];
+        let ctwe = &generic.groups[2].commands[0];
+
+        assert_eq!(clw.display_command(), "cast 'cure light wounds' {args}");
+        assert_eq!(ctwe.display_command(), "cast 'teleport with error'");
     }
 }

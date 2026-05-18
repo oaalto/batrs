@@ -2,6 +2,7 @@ use crate::abilities;
 use crate::ansi::StyledLine;
 use crate::command;
 use crate::command::Command;
+use crate::guilds::sabres::SABRE_WEAPON_VAR;
 use crate::guilds::{SabresGuild, use_skill};
 use std::collections::HashMap;
 
@@ -19,7 +20,7 @@ impl SabresGuild {
     }
 
     fn sabre_weapon_trimmed(ctx: &command::CommandContext) -> Option<&str> {
-        let trimmed = ctx.sabre_weapon.trim();
+        let trimmed = ctx.var(SABRE_WEAPON_VAR).unwrap_or_default().trim();
         (!trimmed.is_empty()).then_some(trimmed)
     }
 
@@ -89,7 +90,10 @@ mod tests {
     }
 
     fn ctx(sabre_weapon: &str) -> command::CommandContext {
-        command::CommandContext::new(HashMap::new(), true, sabre_weapon.to_string())
+        command::CommandContext::with_vars(
+            HashMap::new(),
+            HashMap::from([(SABRE_WEAPON_VAR.to_string(), sabre_weapon.to_string())]),
+        )
     }
 
     fn empty_ctx() -> command::CommandContext {
