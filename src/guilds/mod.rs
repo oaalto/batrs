@@ -1,13 +1,13 @@
 mod aelena;
 mod animist;
 mod barbarian;
+pub mod catalog;
 mod channellers;
 mod civmage;
 mod curate;
 mod disciple;
 mod folklorist;
 pub mod grouping;
-mod grouping_catalog;
 mod inner_circle;
 mod kharim;
 mod liberator;
@@ -79,137 +79,19 @@ pub trait Guild {
 
 #[derive(Clone, Debug)]
 pub struct GuildDefinition {
+    pub guild_key: catalog::GuildKey,
     pub key: &'static str,
     pub name: &'static str,
 }
 
 pub fn guild_definitions() -> Vec<GuildDefinition> {
-    vec![
-        GuildDefinition {
-            key: "animist",
-            name: "Animist",
-        },
-        GuildDefinition {
-            key: "reaver",
-            name: "Reaver",
-        },
-        GuildDefinition {
-            key: "disciple",
-            name: "Disciple",
-        },
-        GuildDefinition {
-            key: "monk",
-            name: "Monk",
-        },
-        GuildDefinition {
-            key: "tzarakk",
-            name: "Tzarakk",
-        },
-        GuildDefinition {
-            key: "tiger",
-            name: "Tiger",
-        },
-        GuildDefinition {
-            key: "riftwalker",
-            name: "Riftwalker",
-        },
-        GuildDefinition {
-            key: "ranger",
-            name: "Ranger",
-        },
-        GuildDefinition {
-            key: "sabres",
-            name: "Sabres",
-        },
-        GuildDefinition {
-            key: "aelena",
-            name: "Aelena",
-        },
-        GuildDefinition {
-            key: "barbarian",
-            name: "Barbarian",
-        },
-        GuildDefinition {
-            key: "channellers",
-            name: "Channeller",
-        },
-        GuildDefinition {
-            key: "inner_circle",
-            name: "Inner Circle",
-        },
-        GuildDefinition {
-            key: "mage",
-            name: "Mage",
-        },
-        GuildDefinition {
-            key: "mage_acid",
-            name: "Mage Acid",
-        },
-        GuildDefinition {
-            key: "mage_asphyxiation",
-            name: "Mage Asphyxiation",
-        },
-        GuildDefinition {
-            key: "mage_cold",
-            name: "Mage Cold",
-        },
-        GuildDefinition {
-            key: "mage_electricity",
-            name: "Mage Electricity",
-        },
-        GuildDefinition {
-            key: "mage_fire",
-            name: "Mage Fire",
-        },
-        GuildDefinition {
-            key: "mage_magical",
-            name: "Mage Magical",
-        },
-        GuildDefinition {
-            key: "mage_poison",
-            name: "Mage Poison",
-        },
-        GuildDefinition {
-            key: "civmage",
-            name: "Civmage",
-        },
-        GuildDefinition {
-            key: "folklorist",
-            name: "Folklorist",
-        },
-        GuildDefinition {
-            key: "kharim",
-            name: "Kharim",
-        },
-        GuildDefinition {
-            key: "liberator",
-            name: "Liberator",
-        },
-        GuildDefinition {
-            key: "curate",
-            name: "Curate",
-        },
-        GuildDefinition {
-            key: "psionicist",
-            name: "Psionicist",
-        },
-        GuildDefinition {
-            key: "nergal",
-            name: "Nergal",
-        },
-        GuildDefinition {
-            key: "seminary",
-            name: "Seminary",
-        },
-        GuildDefinition {
-            key: "spider",
-            name: "Spider",
-        },
-        GuildDefinition {
-            key: "triad",
-            name: "Triad",
-        },
-    ]
+    catalog::playable_entries()
+        .map(|entry| GuildDefinition {
+            guild_key: entry.key,
+            key: entry.persisted_key,
+            name: entry.display_name,
+        })
+        .collect()
 }
 
 pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
@@ -217,101 +99,13 @@ pub fn build_guilds(keys: &[String]) -> Vec<Box<dyn Guild>> {
     let mut seen = HashSet::new();
 
     for key in keys {
-        if !seen.insert(key.to_string()) {
+        let Some(entry) = catalog::playable_entry_for_persisted_key(key) else {
             continue;
-        }
-        if key.as_str() == "reaver" {
-            guilds.push(Box::new(ReaverGuild::default()));
-        }
-        if key.as_str() == "animist" {
-            guilds.push(Box::new(AnimistGuild::default()));
-        }
-        if key.as_str() == "disciple" {
-            guilds.push(Box::new(DiscipleGuild::default()));
-        }
-        if key.as_str() == "monk" {
-            guilds.push(Box::new(MonkGuild::default()));
-        }
-        if key.as_str() == "tzarakk" {
-            guilds.push(Box::new(TzarakkGuild::default()));
-        }
-        if key.as_str() == "tiger" {
-            guilds.push(Box::new(TigerGuild::default()));
-        }
-        if key.as_str() == "riftwalker" {
-            guilds.push(Box::new(RiftwalkerGuild::default()));
-        }
-        if key.as_str() == "ranger" {
-            guilds.push(Box::new(RangerGuild::default()));
-        }
-        if key.as_str() == "sabres" {
-            guilds.push(Box::new(SabresGuild::default()));
-        }
-        if key.as_str() == "aelena" {
-            guilds.push(Box::new(AelenaGuild::default()));
-        }
-        if key.as_str() == "barbarian" {
-            guilds.push(Box::new(BarbarianGuild::default()));
-        }
-        if key.as_str() == "channellers" {
-            guilds.push(Box::new(ChannellersGuild::default()));
-        }
-        if key.as_str() == "inner_circle" {
-            guilds.push(Box::new(InnerCircleGuild::default()));
-        }
-        if key.as_str() == "mage" {
-            guilds.push(Box::new(MageGuild::default()));
-        }
-        if key.as_str() == "mage_acid" {
-            guilds.push(Box::new(MageAcidGuild::default()));
-        }
-        if key.as_str() == "mage_asphyxiation" {
-            guilds.push(Box::new(MageAsphyxiationGuild::default()));
-        }
-        if key.as_str() == "mage_cold" {
-            guilds.push(Box::new(MageColdGuild::default()));
-        }
-        if key.as_str() == "mage_electricity" {
-            guilds.push(Box::new(MageElectricityGuild::default()));
-        }
-        if key.as_str() == "mage_fire" {
-            guilds.push(Box::new(MageFireGuild::default()));
-        }
-        if key.as_str() == "mage_magical" {
-            guilds.push(Box::new(MageMagicalGuild::default()));
-        }
-        if key.as_str() == "mage_poison" {
-            guilds.push(Box::new(MagePoisonGuild::default()));
-        }
-        if key.as_str() == "civmage" {
-            guilds.push(Box::new(CivmageGuild::default()));
-        }
-        if key.as_str() == "folklorist" {
-            guilds.push(Box::new(FolkloristGuild::default()));
-        }
-        if key.as_str() == "kharim" {
-            guilds.push(Box::new(KharimGuild::default()));
-        }
-        if key.as_str() == "liberator" {
-            guilds.push(Box::new(LiberatorGuild::default()));
-        }
-        if key.as_str() == "curate" {
-            guilds.push(Box::new(CurateGuild::default()));
-        }
-        if key.as_str() == "psionicist" {
-            guilds.push(Box::new(PsionicistGuild::default()));
-        }
-        if key.as_str() == "nergal" {
-            guilds.push(Box::new(NergalGuild::default()));
-        }
-        if key.as_str() == "seminary" {
-            guilds.push(Box::new(SeminaryGuild::default()));
-        }
-        if key.as_str() == "spider" {
-            guilds.push(Box::new(SpiderGuild::default()));
-        }
-        if key.as_str() == "triad" {
-            guilds.push(Box::new(TriadGuild::default()));
+        };
+        if seen.insert(entry.key)
+            && let Some(guild) = entry.build()
+        {
+            guilds.push(guild);
         }
     }
 
@@ -367,350 +161,29 @@ mod tests {
     }
 
     #[test]
-    fn animist_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "animist" && definition.name == "Animist")
-        );
+    fn guild_definitions_are_catalog_playable_entries() {
+        let definitions = guild_definitions();
+        let playable_count = catalog::playable_entries().count();
 
-        let guilds = build_guilds(&["animist".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
+        assert_eq!(definitions.len(), playable_count);
+        for definition in definitions {
+            let entry = catalog::entry_for_key(definition.guild_key).expect("catalog entry");
+            assert!(entry.is_playable());
+            assert_eq!(definition.key, entry.persisted_key);
+            assert_eq!(definition.name, entry.display_name);
+        }
     }
 
     #[test]
-    fn tzarakk_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "tzarakk" && definition.name == "Tzarakk")
-        );
-
-        let guilds = build_guilds(&["tzarakk".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn tiger_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "tiger" && definition.name == "Tiger")
-        );
-
-        let guilds = build_guilds(&["tiger".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn riftwalker_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "riftwalker" && definition.name == "Riftwalker")
-        );
-
-        let guilds = build_guilds(&["riftwalker".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn ranger_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "ranger" && definition.name == "Ranger")
-        );
-
-        let guilds = build_guilds(&["ranger".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn sabres_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "sabres" && definition.name == "Sabres")
-        );
-
-        let guilds = build_guilds(&["sabres".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn aelena_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "aelena" && definition.name == "Aelena")
-        );
-
-        let guilds = build_guilds(&["aelena".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn barbarian_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "barbarian" && definition.name == "Barbarian")
-        );
-
-        let guilds = build_guilds(&["barbarian".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn channellers_is_registered_and_builds() {
-        assert!(guild_definitions().iter().any(|definition| {
-            definition.key == "channellers" && definition.name == "Channeller"
-        }));
-
-        let guilds = build_guilds(&["channellers".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn inner_circle_is_registered_and_builds() {
-        assert!(guild_definitions().iter().any(
-            |definition| definition.key == "inner_circle" && definition.name == "Inner Circle"
-        ));
-
-        let guilds = build_guilds(&["inner_circle".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn civmage_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| { definition.key == "civmage" && definition.name == "Civmage" })
-        );
-
-        let guilds = build_guilds(&["civmage".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn mage_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "mage" && definition.name == "Mage")
-        );
-
-        let guilds = build_guilds(&["mage".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn mage_acid_is_registered_and_builds() {
-        assert!(
-            guild_definitions().iter().any(|definition| {
-                definition.key == "mage_acid" && definition.name == "Mage Acid"
-            })
-        );
-
-        let guilds = build_guilds(&["mage_acid".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn mage_asphyxiation_is_registered_and_builds() {
-        assert!(guild_definitions().iter().any(|definition| {
-            definition.key == "mage_asphyxiation" && definition.name == "Mage Asphyxiation"
-        }));
-
-        let guilds = build_guilds(&["mage_asphyxiation".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn mage_cold_is_registered_and_builds() {
-        assert!(
-            guild_definitions().iter().any(|definition| {
-                definition.key == "mage_cold" && definition.name == "Mage Cold"
-            })
-        );
-
-        let guilds = build_guilds(&["mage_cold".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn mage_electricity_is_registered_and_builds() {
-        assert!(guild_definitions().iter().any(|definition| {
-            definition.key == "mage_electricity" && definition.name == "Mage Electricity"
-        }));
-
-        let guilds = build_guilds(&["mage_electricity".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn mage_fire_is_registered_and_builds() {
-        assert!(
-            guild_definitions().iter().any(|definition| {
-                definition.key == "mage_fire" && definition.name == "Mage Fire"
-            })
-        );
-
-        let guilds = build_guilds(&["mage_fire".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn mage_magical_is_registered_and_builds() {
-        assert!(guild_definitions().iter().any(|definition| {
-            definition.key == "mage_magical" && definition.name == "Mage Magical"
-        }));
-
-        let guilds = build_guilds(&["mage_magical".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn mage_poison_is_registered_and_builds() {
-        assert!(guild_definitions().iter().any(|definition| {
-            definition.key == "mage_poison" && definition.name == "Mage Poison"
-        }));
-
-        let guilds = build_guilds(&["mage_poison".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn curate_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "curate" && definition.name == "Curate")
-        );
-
-        let guilds = build_guilds(&["curate".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn psionicist_is_registered_and_builds() {
-        assert!(guild_definitions().iter().any(|definition| {
-            definition.key == "psionicist" && definition.name == "Psionicist"
-        }));
-
-        let guilds = build_guilds(&["psionicist".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn nergal_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "nergal" && definition.name == "Nergal")
-        );
-
-        let guilds = build_guilds(&["nergal".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn seminary_is_registered_and_builds() {
-        assert!(
-            guild_definitions().iter().any(|definition| {
-                definition.key == "seminary" && definition.name == "Seminary"
-            })
-        );
-
-        let guilds = build_guilds(&["seminary".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn spider_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "spider" && definition.name == "Spider")
-        );
-
-        let guilds = build_guilds(&["spider".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn triad_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "triad" && definition.name == "Triad")
-        );
-
-        let guilds = build_guilds(&["triad".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn folklorist_is_registered_and_builds() {
-        assert!(guild_definitions().iter().any(|definition| {
-            definition.key == "folklorist" && definition.name == "Folklorist"
-        }));
-
-        let guilds = build_guilds(&["folklorist".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn kharim_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "kharim" && definition.name == "Kharim")
-        );
-
-        let guilds = build_guilds(&["kharim".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
-    }
-
-    #[test]
-    fn liberator_is_registered_and_builds() {
-        assert!(
-            guild_definitions()
-                .iter()
-                .any(|definition| definition.key == "liberator" && definition.name == "Liberator")
-        );
-
-        let guilds = build_guilds(&["liberator".to_string()]);
-
-        assert_eq!(guilds.len(), 1);
+    fn build_guilds_ignores_unknown_unimplemented_and_duplicate_keys() {
+        let guilds = build_guilds(&[
+            "animist".to_string(),
+            "alchemists".to_string(),
+            "missing".to_string(),
+            "animist".to_string(),
+            "kharim".to_string(),
+        ]);
+
+        assert_eq!(guilds.len(), 2);
     }
 }

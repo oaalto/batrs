@@ -1,9 +1,13 @@
-//! Guild membership groups derived from canonical keyword lists in [`super::grouping_catalog`].
+//! Guild membership groups derived from the typed Guild Catalog.
 //! Thematic buckets are mutually exclusive for saved preferences; `background_multi` guilds overlap every thematic drill.
 
 use std::sync::OnceLock;
 
-use super::{GuildDefinition, grouping_catalog, guild_definitions};
+use super::{
+    GuildDefinition, catalog,
+    catalog::{GuildGroupingClass, GuildKey},
+    guild_definitions,
+};
 use crate::config::PlayerToml;
 
 pub const MULTI_BACKGROUND_LABEL: &str = "Multi-Background";
@@ -23,27 +27,23 @@ pub fn thematic_index_for_keyword(keyword: &str) -> Option<usize> {
         .position(|(canonical, _)| *canonical == keyword)
 }
 
-fn keyword_is_implemented(csv_keyword: &str, defs: &[GuildDefinition]) -> bool {
-    defs.iter().any(|definition| definition.key == csv_keyword)
-}
-
-fn playable_indices_for_keywords(guild_keywords: &[&str], defs: &[GuildDefinition]) -> Vec<usize> {
-    let mut out: Vec<usize> = guild_keywords
+fn playable_indices_for_grouping(
+    grouping: GuildGroupingClass,
+    defs: &[GuildDefinition],
+) -> Vec<usize> {
+    let mut out: Vec<usize> = defs
         .iter()
-        .filter_map(|keyword| {
-            if !keyword_is_implemented(keyword, defs) {
-                return None;
-            }
-            defs.iter()
-                .position(|definition| definition.key == *keyword)
+        .enumerate()
+        .filter_map(|(index, definition)| {
+            let entry = catalog::entry_for_key(definition.guild_key)?;
+            (entry.grouping == grouping && entry.is_playable()).then_some(index)
         })
         .collect();
     out.sort_unstable();
-    out.dedup();
     out
 }
 
-/// Static grouping data from [`super::grouping_catalog`] intersected with [`guild_definitions`].
+/// Static grouping data from playable Guild Catalog entries.
 pub struct GuildGrouping {
     pub thematic: [ThematicBucket; 5],
     pub multi_playable_indices: Vec<usize>,
@@ -61,18 +61,17 @@ pub fn guild_grouping() -> &'static GuildGrouping {
         let defs = guild_definitions();
         let thematic = std::array::from_fn(|index| {
             let (_, label) = THEMES_UX_ORDER[index];
-            let guild_keywords = grouping_catalog::THEMATIC_GUILD_KEYWORDS[index];
             ThematicBucket {
                 label,
-                playable_def_indices: playable_indices_for_keywords(guild_keywords, &defs),
+                playable_def_indices: playable_indices_for_grouping(
+                    GuildGroupingClass::Thematic(index),
+                    &defs,
+                ),
             }
         });
         GuildGrouping {
             thematic,
-            multi_playable_indices: playable_indices_for_keywords(
-                grouping_catalog::MULTI_BACKGROUND_GUILD_KEYWORDS,
-                &defs,
-            ),
+            multi_playable_indices: playable_indices_for_grouping(GuildGroupingClass::Multi, &defs),
         }
     })
 }
@@ -85,24 +84,17 @@ pub enum GuildBucketClass {
 
 /// Classify a guild definition key (batrs implementation keyword) for exclusivity rules.
 pub fn classify_guild_key(def_key: &str) -> Option<GuildBucketClass> {
-    let grouping = guild_grouping();
-    if grouping
-        .multi_playable_indices
-        .iter()
-        .any(|&ix| guild_definitions()[ix].key == def_key)
-    {
-        return Some(GuildBucketClass::Multi);
+    match catalog::entry_for_persisted_key(def_key)?.grouping {
+        GuildGroupingClass::Multi => Some(GuildBucketClass::Multi),
+        GuildGroupingClass::Thematic(index) => Some(GuildBucketClass::Thematic(index)),
     }
-    for (index, bucket) in grouping.thematic.iter().enumerate() {
-        if bucket
-            .playable_def_indices
-            .iter()
-            .any(|&ix| guild_definitions()[ix].key == def_key)
-        {
-            return Some(GuildBucketClass::Thematic(index));
-        }
+}
+
+pub fn classify_guild_key_typed(guild_key: GuildKey) -> Option<GuildBucketClass> {
+    match catalog::entry_for_key(guild_key)?.grouping {
+        GuildGroupingClass::Multi => Some(GuildBucketClass::Multi),
+        GuildGroupingClass::Thematic(index) => Some(GuildBucketClass::Thematic(index)),
     }
-    None
 }
 
 pub fn visible_indices_multi_drill() -> Vec<usize> {
@@ -116,7 +108,7 @@ pub fn clear_selected_outside_thematic_bucket(
     active_thematic: usize,
 ) {
     for (index, definition) in definitions.iter().enumerate() {
-        let Some(class) = classify_guild_key(definition.key) else {
+        let Some(class) = classify_guild_key_typed(definition.guild_key) else {
             selected[index] = false;
             continue;
         };
@@ -135,7 +127,6 @@ pub const DEFAULT_GUILD_PRIMARY_KEYWORD: &str = "civilized";
 
 /// Normalize guild list and `guild_primary_background` for one player TOML. Returns whether data changed.
 pub fn normalize_player_guild_toml(player: &mut PlayerToml) -> bool {
-    let defs = guild_definitions();
     let mut changed = false;
 
     let guilds_owned = player
@@ -143,7 +134,7 @@ pub fn normalize_player_guild_toml(player: &mut PlayerToml) -> bool {
         .clone()
         .unwrap_or_default()
         .into_iter()
-        .filter(|key| defs.iter().any(|definition| definition.key == key))
+        .filter(|key| catalog::playable_entry_for_persisted_key(key).is_some())
         .collect::<Vec<_>>();
 
     let mut thematic_by_bucket: [Vec<&str>; 5] = std::array::from_fn(|_| Vec::new());
@@ -259,5 +250,20 @@ mod tests {
                 .iter()
                 .any(|&ix| defs[ix].key == "kharim")
         );
+    }
+
+    #[test]
+    fn normalize_player_guild_toml_filters_unimplemented_and_unknown_keys() {
+        let mut player = PlayerToml {
+            guilds: Some(vec![
+                "animist".to_string(),
+                "alchemists".to_string(),
+                "missing".to_string(),
+            ]),
+            ..Default::default()
+        };
+
+        assert!(normalize_player_guild_toml(&mut player));
+        assert_eq!(player.guilds, Some(vec!["animist".to_string()]));
     }
 }

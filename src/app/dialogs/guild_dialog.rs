@@ -1,6 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::guilds::GuildDefinition;
+use crate::guilds::catalog::GuildKey;
 use crate::guilds::grouping::DEFAULT_GUILD_PRIMARY_KEYWORD;
 use crate::guilds::grouping::{
     MULTI_BACKGROUND_LABEL, THEMES_UX_ORDER, clear_selected_outside_thematic_bucket,
@@ -299,37 +300,27 @@ impl GuildDialog {
             .collect()
     }
 
-    pub(crate) fn is_tzarakk_selected(&self) -> bool {
+    fn is_guild_selected(&self, guild_key: GuildKey) -> bool {
         let Some(position) = self
             .definitions
             .iter()
-            .position(|definition| definition.key == "tzarakk")
+            .position(|definition| definition.guild_key == guild_key)
         else {
             return false;
         };
         self.selected.get(position).is_some_and(|value| *value)
+    }
+
+    pub(crate) fn is_tzarakk_selected(&self) -> bool {
+        self.is_guild_selected(GuildKey::Tzarakk)
     }
 
     pub(crate) fn is_sabres_selected(&self) -> bool {
-        let Some(position) = self
-            .definitions
-            .iter()
-            .position(|definition| definition.key == "sabres")
-        else {
-            return false;
-        };
-        self.selected.get(position).is_some_and(|value| *value)
+        self.is_guild_selected(GuildKey::Sabres)
     }
 
     pub(crate) fn is_riftwalker_selected(&self) -> bool {
-        let Some(position) = self
-            .definitions
-            .iter()
-            .position(|definition| definition.key == "riftwalker")
-        else {
-            return false;
-        };
-        self.selected.get(position).is_some_and(|value| *value)
+        self.is_guild_selected(GuildKey::Riftwalker)
     }
 
     fn adjust_focus_targets(&mut self) {
@@ -729,6 +720,7 @@ pub(crate) fn apply_guild_dialog_keystroke(dialog: &mut GuildDialog, event: KeyE
 #[cfg(test)]
 mod guild_dialog_keystroke_tests {
     use super::{GuildDialog, GuildDialogFocus, apply_guild_dialog_keystroke};
+    use crate::guilds::catalog::GuildKey;
     use crate::guilds::grouping::{DEFAULT_GUILD_PRIMARY_KEYWORD, THEMES_UX_ORDER};
     use crate::guilds::guild_definitions;
     use crate::ui::{GuildDialogPresentation, GuildDrillLineVm};
@@ -826,7 +818,7 @@ mod guild_dialog_keystroke_tests {
         let definitions = guild_definitions();
         let selected = definitions
             .iter()
-            .map(|definition| definition.key == "tzarakk")
+            .map(|definition| definition.guild_key == GuildKey::Tzarakk)
             .collect();
         let mut dialog = GuildDialog::new(
             definitions,
@@ -863,7 +855,7 @@ mod guild_dialog_keystroke_tests {
         let definitions = guild_definitions();
         let selected = definitions
             .iter()
-            .map(|definition| definition.key == "tzarakk")
+            .map(|definition| definition.guild_key == GuildKey::Tzarakk)
             .collect();
         let mut dialog = GuildDialog::new(
             definitions,
@@ -887,7 +879,7 @@ mod guild_dialog_keystroke_tests {
         let definitions = guild_definitions();
         let selected = definitions
             .iter()
-            .map(|definition| definition.key == "riftwalker")
+            .map(|definition| definition.guild_key == GuildKey::Riftwalker)
             .collect();
         let empty_riftwalker = std::array::from_fn(|_| String::new());
         let mut dialog = GuildDialog::new(
@@ -925,7 +917,7 @@ mod guild_dialog_keystroke_tests {
         let definitions = guild_definitions();
         let selected = definitions
             .iter()
-            .map(|definition| definition.key == "tzarakk")
+            .map(|definition| definition.guild_key == GuildKey::Tzarakk)
             .collect();
         let mut dialog = GuildDialog::new(
             definitions,
