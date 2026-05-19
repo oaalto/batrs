@@ -16,6 +16,10 @@ lazy_static! {
             BuiltinCommand::new(builtin_quit, false)
         ),
         (
+            "/connect".to_string(),
+            BuiltinCommand::new(builtin_connect, false)
+        ),
+        (
             "/guilds".to_string(),
             BuiltinCommand::new(builtin_open_guilds, true),
         ),
@@ -34,10 +38,11 @@ lazy_static! {
     ]);
 }
 
-const HELP_LINES: [&str; 7] = [
+const HELP_LINES: [&str; 8] = [
     "Client slash commands:",
     "/help - Shows client slash commands.",
     "/quit - Closes the client.",
+    "/connect - Starts a fresh BatMUD connection.",
     "/guilds - Opens the guild picker.",
     "/generic - Opens generic shortcut groups.",
     "/settings - Opens the settings editor.",
@@ -121,6 +126,7 @@ pub enum CommandEffect {
     Automation(Action),
     Output(StyledLine),
     OpenDialog(DialogKind),
+    Reconnect,
     ToggleRawLogs,
     Quit,
 }
@@ -258,6 +264,10 @@ fn builtin_quit(_data: &ParsedCommand) -> Vec<CommandEffect> {
     vec![CommandEffect::Quit]
 }
 
+fn builtin_connect(_data: &ParsedCommand) -> Vec<CommandEffect> {
+    vec![CommandEffect::Reconnect]
+}
+
 fn builtin_open_guilds(_data: &ParsedCommand) -> Vec<CommandEffect> {
     vec![CommandEffect::OpenDialog(DialogKind::Guilds)]
 }
@@ -343,6 +353,23 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_handles_connect_before_login_as_client_reconnect() {
+        let effects = dispatch_line("/connect", false, &[]);
+
+        assert!(matches!(effects.as_slice(), [CommandEffect::Reconnect]));
+        assert!(send_effects(&effects).is_empty());
+    }
+
+    #[test]
+    fn dispatch_handles_connect_after_login_as_client_reconnect() {
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
+        let effects = dispatch_line("/connect", true, &guilds);
+
+        assert!(matches!(effects.as_slice(), [CommandEffect::Reconnect]));
+        assert!(send_effects(&effects).is_empty());
+    }
+
+    #[test]
     fn dispatch_handles_raw_logs_toggle() {
         let effects = dispatch_line("/raw_logs", false, &[]);
 
@@ -362,6 +389,7 @@ mod tests {
 
         assert!(lines.contains(&"/help - Shows client slash commands."));
         assert!(lines.contains(&"/quit - Closes the client."));
+        assert!(lines.contains(&"/connect - Starts a fresh BatMUD connection."));
         assert!(lines.contains(&"/guilds - Opens the guild picker."));
         assert!(lines.contains(&"/generic - Opens generic shortcut groups."));
         assert!(lines.contains(&"/settings - Opens the settings editor."));

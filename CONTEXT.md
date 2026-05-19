@@ -21,3 +21,13 @@ Command Dispatch returns effects for the application to apply. It does not own t
 Command Dispatch owns command precedence and login gating for command input. It does not own the login conversation, guild ability definitions, or Player Profile persistence.
 
 Command Dispatch may use command environment facts, such as runtime flags and variables, but those facts are snapshots supplied by the application rather than Player Profile data owned by Command Dispatch.
+
+The Connect Command is the client slash command, available before and after login, that starts a fresh BatMUD login session after the existing game connection is unusable.
+
+The Connect Command has relaunch semantics for login-dependent state: it clears active runtime state immediately, and Player Profile loading happens again only after the next successful login.
+
+If the Connect Command cannot open a fresh BatMUD connection, the client remains in the fresh-session state and reports the failure rather than preserving the previous session.
+
+The Connect Command is consumed by Command Dispatch as a client command and is never sent to BatMUD as game input.
+
+Only one Connect Command attempt may be active at a time; repeated requests report that reconnect is already in progress.

@@ -2,3 +2,6 @@
 .idea
 .venv-docs
 /site
+docs/*prd*.md
+docs/*PRD*.md
+docs/issues

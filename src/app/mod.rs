@@ -37,9 +37,33 @@ use output_buffer::OutputBuffer;
 use scrollback::Scrollback;
 use session_state::{LoginState, SessionState};
 
+pub type ConnectionId = u64;
+
+pub const INITIAL_CONNECTION_ID: ConnectionId = 0;
+
 pub enum AppEvent {
-    RawInput(Vec<u8>),
-    Telnet(TelnetEvents),
+    RawInput {
+        connection_id: ConnectionId,
+        bytes: Vec<u8>,
+    },
+    Telnet {
+        connection_id: ConnectionId,
+        event: TelnetEvents,
+    },
+}
+
+pub struct ConnectionChannels {
+    pub event_receiver: Receiver<AppEvent>,
+    pub command_sender: Sender<String>,
+}
+
+pub enum ReconnectResult {
+    Connected(ConnectionChannels),
+    Failed(String),
+}
+
+pub trait ConnectionCoordinator {
+    fn reconnect(&mut self, connection_id: ConnectionId) -> ReconnectResult;
 }
 
 pub struct BatApp {
@@ -49,6 +73,9 @@ pub struct BatApp {
     stats: Stats,
     event_receiver: Receiver<AppEvent>,
     command_sender: Sender<String>,
+    connection_coordinator: Box<dyn ConnectionCoordinator>,
+    active_connection_id: ConnectionId,
+    reconnect_in_progress: bool,
     telnet_buffer: TelnetBuffer,
     selected_guilds: Vec<Box<dyn Guild>>,
     guild_selection: GuildSelection,
@@ -67,7 +94,11 @@ pub struct BatApp {
 }
 
 impl BatApp {
-    pub fn new(event_receiver: Receiver<AppEvent>, command_sender: Sender<String>) -> Self {
+    pub fn new(
+        event_receiver: Receiver<AppEvent>,
+        command_sender: Sender<String>,
+        connection_coordinator: Box<dyn ConnectionCoordinator>,
+    ) -> Self {
         let config_manager = match ConfigManager::new() {
             Ok(mut manager) => {
                 if let Err(e) = manager.init_base() {
@@ -87,6 +118,9 @@ impl BatApp {
             stats: Default::default(),
             event_receiver,
             command_sender,
+            connection_coordinator,
+            active_connection_id: INITIAL_CONNECTION_ID,
+            reconnect_in_progress: false,
             telnet_buffer: TelnetBuffer::new(),
             selected_guilds: Vec::new(),
             guild_selection: GuildSelection::default(),
@@ -165,15 +199,27 @@ impl BatApp {
     pub fn read_input(&mut self) {
         while let Ok(event) = self.event_receiver.try_recv() {
             match event {
-                AppEvent::RawInput(bytes) => {
+                AppEvent::RawInput {
+                    connection_id,
+                    bytes,
+                } => {
+                    if connection_id != self.active_connection_id {
+                        continue;
+                    }
                     if let Some(logger) = self.raw_logger.as_mut()
                         && let Err(e) = logger.write_bytes(&bytes)
                     {
                         eprintln!("failed to write raw log: {e}");
                     }
                 }
-                AppEvent::Telnet(telnet_event) => {
-                    let lines = self.telnet_buffer.handle_event(&telnet_event);
+                AppEvent::Telnet {
+                    connection_id,
+                    event,
+                } => {
+                    if connection_id != self.active_connection_id {
+                        continue;
+                    }
+                    let lines = self.telnet_buffer.handle_event(&event);
                     if !lines.is_empty() {
                         self.process_input_lines(lines);
                     }
@@ -373,11 +419,60 @@ impl BatApp {
                     command::DialogKind::GenericCommands => self.open_generic_commands_dialog(),
                     command::DialogKind::Settings => self.open_settings_dialog(),
                 },
+                command::CommandEffect::Reconnect => self.start_reconnect(),
                 command::CommandEffect::ToggleRawLogs => self.toggle_raw_logs(),
                 command::CommandEffect::Quit => self.should_quit = true,
             }
         }
         sent_command
+    }
+
+    fn start_reconnect(&mut self) {
+        if self.reconnect_in_progress {
+            self.output
+                .append_lines(vec![StyledLine::new("Reconnect already in progress.")]);
+            return;
+        }
+
+        let next_connection_id = self.active_connection_id.saturating_add(1);
+        self.prepare_fresh_session(next_connection_id);
+        self.reconnect_in_progress = true;
+        self.output
+            .append_lines(vec![StyledLine::new("Reconnect started.")]);
+
+        match self.connection_coordinator.reconnect(next_connection_id) {
+            ReconnectResult::Connected(channels) => {
+                self.install_connection(channels);
+                self.reconnect_in_progress = false;
+            }
+            ReconnectResult::Failed(error) => {
+                self.output
+                    .append_lines(vec![StyledLine::new(&format!("Reconnect failed: {error}"))]);
+                self.reconnect_in_progress = false;
+            }
+        }
+    }
+
+    fn prepare_fresh_session(&mut self, connection_id: ConnectionId) {
+        self.active_connection_id = connection_id;
+        self.session.reset();
+        self.stats = Stats::default();
+        self.telnet_buffer = TelnetBuffer::new();
+        self.selected_guilds.clear();
+        self.guild_selection = GuildSelection::default();
+        self.automation = Automation::new();
+        self.automation.set_flag("in_battle", false);
+        self.user_config_loaded = false;
+        self.player_profile = PlayerRuntimeProfile::default();
+        self.generic_commands = GenericCommands::default();
+        self.guild_dialog = None;
+        self.generic_commands_dialog = None;
+        self.settings_dialog = None;
+    }
+
+    fn install_connection(&mut self, channels: ConnectionChannels) {
+        self.event_receiver = channels.event_receiver;
+        self.command_sender = channels.command_sender;
     }
 
     fn apply_automation_actions(&mut self, actions: Vec<Action>) -> bool {
@@ -746,18 +841,87 @@ impl BatApp {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
+    use std::collections::VecDeque;
+    use std::rc::Rc;
     use std::sync::mpsc;
 
-    fn test_app() -> (BatApp, mpsc::Receiver<String>) {
-        let (_event_sender, event_receiver) = mpsc::channel();
+    type SharedReconnectCalls = Rc<RefCell<Vec<ConnectionId>>>;
+    type SharedReconnectResults = Rc<RefCell<VecDeque<ReconnectResult>>>;
+    type FakeConnectionCoordinatorParts = (
+        FakeConnectionCoordinator,
+        SharedReconnectCalls,
+        SharedReconnectResults,
+    );
+
+    #[derive(Default)]
+    struct FakeConnectionCoordinator {
+        calls: SharedReconnectCalls,
+        results: SharedReconnectResults,
+    }
+
+    impl FakeConnectionCoordinator {
+        fn new(results: Vec<ReconnectResult>) -> FakeConnectionCoordinatorParts {
+            let calls = Rc::new(RefCell::new(Vec::new()));
+            let results = Rc::new(RefCell::new(results.into()));
+            (
+                Self {
+                    calls: Rc::clone(&calls),
+                    results: Rc::clone(&results),
+                },
+                calls,
+                results,
+            )
+        }
+    }
+
+    impl ConnectionCoordinator for FakeConnectionCoordinator {
+        fn reconnect(&mut self, connection_id: ConnectionId) -> ReconnectResult {
+            self.calls.borrow_mut().push(connection_id);
+            self.results
+                .borrow_mut()
+                .pop_front()
+                .unwrap_or_else(|| ReconnectResult::Failed("no fake reconnect result".to_string()))
+        }
+    }
+
+    fn connection_channels() -> (
+        ConnectionChannels,
+        mpsc::Receiver<String>,
+        mpsc::Sender<AppEvent>,
+    ) {
+        let (event_sender, event_receiver) = mpsc::channel();
         let (command_sender, command_receiver) = mpsc::channel();
+        (
+            ConnectionChannels {
+                event_receiver,
+                command_sender,
+            },
+            command_receiver,
+            event_sender,
+        )
+    }
+
+    fn test_app() -> (BatApp, mpsc::Receiver<String>) {
+        let (app, command_receiver, _event_sender) =
+            test_app_with_coordinator(Box::new(FakeConnectionCoordinator::default()));
+        (app, command_receiver)
+    }
+
+    fn test_app_with_coordinator(
+        connection_coordinator: Box<dyn ConnectionCoordinator>,
+    ) -> (BatApp, mpsc::Receiver<String>, mpsc::Sender<AppEvent>) {
+        let (channels, command_receiver, event_sender) = connection_channels();
         let app = BatApp {
             output: OutputBuffer::new(),
             input: InputState::new(),
             session: SessionState::new(),
             stats: Default::default(),
-            event_receiver,
-            command_sender,
+            event_receiver: channels.event_receiver,
+            command_sender: channels.command_sender,
+            connection_coordinator,
+            active_connection_id: INITIAL_CONNECTION_ID,
+            reconnect_in_progress: false,
             telnet_buffer: TelnetBuffer::new(),
             selected_guilds: Vec::new(),
             guild_selection: GuildSelection::default(),
@@ -774,7 +938,7 @@ mod tests {
             raw_logger: None,
             scrollback: Scrollback::new(),
         };
-        (app, command_receiver)
+        (app, command_receiver, event_sender)
     }
 
     #[test]
@@ -870,5 +1034,194 @@ mod tests {
         app.apply_command_effects(vec![command::CommandEffect::Quit]);
 
         assert!(app.should_quit());
+    }
+
+    #[test]
+    fn reconnect_effect_starts_fresh_connection_and_replaces_command_sender() {
+        let (new_channels, new_command_receiver, _new_event_sender) = connection_channels();
+        let (coordinator, calls, _results) =
+            FakeConnectionCoordinator::new(vec![ReconnectResult::Connected(new_channels)]);
+        let (mut app, old_command_receiver, _event_sender) =
+            test_app_with_coordinator(Box::new(coordinator));
+        app.session.set_login_name("tester".to_string());
+        app.session
+            .update_login_state("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >");
+
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+        app.apply_command_effects(vec![command::CommandEffect::Send("look".into())]);
+
+        assert_eq!(*calls.borrow(), vec![1]);
+        assert_eq!(app.output.plain_lines(), vec!["Reconnect started."]);
+        assert!(!app.session.is_logged_in());
+        assert!(old_command_receiver.try_recv().is_err());
+        assert_eq!(new_command_receiver.try_recv().as_deref(), Ok("look"));
+    }
+
+    #[test]
+    fn reconnect_failure_reports_error_keeps_fresh_state_and_allows_retry() {
+        let (new_channels, _new_command_receiver, _new_event_sender) = connection_channels();
+        let (coordinator, calls, _results) = FakeConnectionCoordinator::new(vec![
+            ReconnectResult::Failed("socket refused".to_string()),
+            ReconnectResult::Connected(new_channels),
+        ]);
+        let (mut app, _command_receiver, _event_sender) =
+            test_app_with_coordinator(Box::new(coordinator));
+        app.session.set_login_name("tester".to_string());
+        app.session
+            .update_login_state("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >");
+
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+
+        assert_eq!(*calls.borrow(), vec![1, 2]);
+        assert_eq!(
+            app.output.plain_lines(),
+            vec![
+                "Reconnect started.",
+                "Reconnect failed: socket refused",
+                "Reconnect started."
+            ]
+        );
+        assert!(!app.session.is_logged_in());
+    }
+
+    #[test]
+    fn reconnect_rejects_duplicate_attempt_while_pending() {
+        let (coordinator, calls, _results) = FakeConnectionCoordinator::new(Vec::new());
+        let (mut app, _command_receiver, _event_sender) =
+            test_app_with_coordinator(Box::new(coordinator));
+        app.reconnect_in_progress = true;
+
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+
+        assert!(calls.borrow().is_empty());
+        assert_eq!(
+            app.output.plain_lines(),
+            vec!["Reconnect already in progress."]
+        );
+    }
+
+    #[test]
+    fn reconnect_completion_clears_duplicate_guard() {
+        let (new_channels, _new_command_receiver, _new_event_sender) = connection_channels();
+        let (coordinator, calls, _results) =
+            FakeConnectionCoordinator::new(vec![ReconnectResult::Connected(new_channels)]);
+        let (mut app, _command_receiver, _event_sender) =
+            test_app_with_coordinator(Box::new(coordinator));
+
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+
+        assert_eq!(*calls.borrow(), vec![1, 2]);
+    }
+
+    #[test]
+    fn reconnect_resets_login_dependent_runtime_state_but_keeps_visible_history() {
+        let (new_channels, _new_command_receiver, _new_event_sender) = connection_channels();
+        let (coordinator, _calls, _results) =
+            FakeConnectionCoordinator::new(vec![ReconnectResult::Connected(new_channels)]);
+        let (mut app, _command_receiver, _event_sender) =
+            test_app_with_coordinator(Box::new(coordinator));
+        app.output.append_lines(vec![StyledLine::new("old output")]);
+        app.input.push_history("look".to_string());
+        app.session.set_login_name("tester".to_string());
+        app.session
+            .update_login_state("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >");
+        app.apply_guild_selection(GuildSelection::from_playable_keys(
+            [GuildKey::Disciple],
+            Some("magical"),
+        ));
+        app.generic_commands
+            .apply_config(&["cure_spells".to_string()], &["clw".to_string()]);
+        app.automation.set_var("rig", "satchel".to_string());
+        app.automation.set_flag("in_battle", true);
+        app.stats
+            .apply_effect(crate::stats::StatsEffect::SetTzarakkMountStatus {
+                name: "horse".to_string(),
+                percent: 100,
+                description: "healthy".to_string(),
+            });
+        app.guild_dialog = Some(GuildDialog::new(
+            catalog::playable_entries_list(),
+            Vec::new(),
+            DEFAULT_GUILD_PRIMARY_KEYWORD,
+            String::new(),
+            String::new(),
+            Default::default(),
+        ));
+
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+
+        assert_eq!(
+            app.output.plain_lines(),
+            vec!["old output", "Reconnect started."]
+        );
+        app.input.move_history(-1);
+        assert_eq!(app.input.displayed_input(), "look");
+        assert_eq!(app.session.login_state(), LoginState::Choice);
+        assert!(app.selected_guilds.is_empty());
+        assert_eq!(
+            app.generic_commands.render_command("clw", ""),
+            Some("@cast 'cure light wounds' me".to_string())
+        );
+        assert!(app.automation.get_var("rig").is_none());
+        assert!(!app.automation.flag_is_set("in_battle"));
+        assert!(!app.stats.has_tzarakk_mount_status());
+        assert!(app.guild_dialog.is_none());
+    }
+
+    #[test]
+    fn reconnect_defers_profile_reload_until_next_login() {
+        let (new_channels, _new_command_receiver, _new_event_sender) = connection_channels();
+        let (coordinator, _calls, _results) =
+            FakeConnectionCoordinator::new(vec![ReconnectResult::Connected(new_channels)]);
+        let (mut app, _command_receiver, _event_sender) =
+            test_app_with_coordinator(Box::new(coordinator));
+        app.user_config_loaded = true;
+        app.session.set_login_name("tester".to_string());
+        app.session
+            .update_login_state("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >");
+
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+
+        assert!(!app.user_config_loaded);
+
+        app.session.set_login_name("tester".to_string());
+        app.process_input_lines(vec!["Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >".to_string()]);
+
+        assert!(app.user_config_loaded);
+    }
+
+    #[test]
+    fn reconnect_ignores_stale_connection_events() {
+        let (coordinator, _calls, _results) =
+            FakeConnectionCoordinator::new(vec![ReconnectResult::Failed("offline".to_string())]);
+        let (mut app, _command_receiver, event_sender) =
+            test_app_with_coordinator(Box::new(coordinator));
+
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+        event_sender
+            .send(AppEvent::Telnet {
+                connection_id: INITIAL_CONNECTION_ID,
+                event: TelnetEvents::DataReceive(bytes::Bytes::from_static(b"stale output\r\n")),
+            })
+            .unwrap();
+        event_sender
+            .send(AppEvent::Telnet {
+                connection_id: 1,
+                event: TelnetEvents::DataReceive(bytes::Bytes::from_static(b"fresh output\r\n")),
+            })
+            .unwrap();
+
+        app.read_input();
+
+        assert_eq!(
+            app.output.plain_lines(),
+            vec![
+                "Reconnect started.",
+                "Reconnect failed: offline",
+                "fresh output"
+            ]
+        );
     }
 }

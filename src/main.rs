@@ -1,7 +1,10 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use crate::app::{AppEvent, BatApp};
+use crate::app::{
+    AppEvent, BatApp, ConnectionChannels, ConnectionCoordinator, ConnectionId,
+    INITIAL_CONNECTION_ID, ReconnectResult,
+};
 use crossterm::event::{self, Event};
 use crossterm::execute;
 use crossterm::terminal::{
@@ -13,7 +16,6 @@ use libmudtelnet::Parser;
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -36,7 +38,7 @@ mod ui;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
-    let (event_receiver, command_sender) = setup_connection();
+    let channels = setup_connection(INITIAL_CONNECTION_ID).map_err(std::io::Error::other)?;
 
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
@@ -45,7 +47,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-    let app = BatApp::new(event_receiver, command_sender);
+    let app = BatApp::new(
+        channels.event_receiver,
+        channels.command_sender,
+        Box::new(TcpConnectionCoordinator),
+    );
     let result = run_app(&mut terminal, app);
 
     disable_raw_mode()?;
@@ -90,11 +96,22 @@ fn run_app(
     Ok(())
 }
 
-fn setup_connection() -> (Receiver<AppEvent>, Sender<String>) {
-    let rt = Runtime::new().expect("Unable to create Runtime");
+struct TcpConnectionCoordinator;
 
-    // Enter the runtime so that `tokio::spawn` is available immediately.
-    let _enter = rt.enter();
+impl ConnectionCoordinator for TcpConnectionCoordinator {
+    fn reconnect(&mut self, connection_id: ConnectionId) -> ReconnectResult {
+        match setup_connection(connection_id) {
+            Ok(channels) => ReconnectResult::Connected(channels),
+            Err(error) => ReconnectResult::Failed(error),
+        }
+    }
+}
+
+fn setup_connection(connection_id: ConnectionId) -> Result<ConnectionChannels, String> {
+    let rt = Runtime::new().map_err(|e| format!("unable to create runtime: {e}"))?;
+    let stream = rt
+        .block_on(TcpStream::connect("95.175.124.84:23"))
+        .map_err(|e| format!("unable to connect to BatMUD: {e}"))?;
 
     let (event_sender, event_receiver) = mpsc::channel();
     let (command_sender, command_receiver) = mpsc::channel::<String>();
@@ -102,9 +119,6 @@ fn setup_connection() -> (Receiver<AppEvent>, Sender<String>) {
     // Execute the runtime in its own thread.
     std::thread::spawn(move || {
         rt.block_on(async {
-            let stream = TcpStream::connect("95.175.124.84:23")
-                .await
-                .expect("connection to succeed");
             let (reader, mut writer) = stream.into_split();
 
             tokio::spawn(async move {
@@ -122,13 +136,19 @@ fn setup_connection() -> (Receiver<AppEvent>, Sender<String>) {
 
                         async move {
                             sender
-                                .send(AppEvent::RawInput(data.to_vec()))
+                                .send(AppEvent::RawInput {
+                                    connection_id,
+                                    bytes: data.to_vec(),
+                                })
                                 .expect("failed to send raw input to channel");
                             let mut parser = Parser::new();
                             let events = parser.receive(&data);
                             for event in events {
                                 sender
-                                    .send(AppEvent::Telnet(event))
+                                    .send(AppEvent::Telnet {
+                                        connection_id,
+                                        event,
+                                    })
                                     .expect("failed to send telnet event to channel");
                             }
                         }
@@ -148,5 +168,8 @@ fn setup_connection() -> (Receiver<AppEvent>, Sender<String>) {
         })
     });
 
-    (event_receiver, command_sender)
+    Ok(ConnectionChannels {
+        event_receiver,
+        command_sender,
+    })
 }

@@ -33,6 +33,10 @@ impl SessionState {
         self.login_state == LoginState::LoggedIn
     }
 
+    pub fn reset(&mut self) {
+        *self = Self::new();
+    }
+
     pub fn update_login_state(&mut self, line: &str) -> bool {
         let line = line.trim_end();
         if line == "You entered a wrong password!" {
