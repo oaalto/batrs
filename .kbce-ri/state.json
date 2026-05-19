@@ -97,15 +97,15 @@
       "provider_kind": "cursor",
       "target_template_path": "/home/oaalto/batrs/.cursor/rules/code-format.mdc",
       "managed_block_id": "rule:code-format",
-      "template_source_hash": "6c8088c37726964ce763811ad6782a98f72966b027aaca6939e2901072921b20",
+      "template_source_hash": "1cae6e8135c7bab9949449319a716b7cb6753433ccb53d0d1360adcb862632db",
       "template_installed_hash": "6c8088c37726964ce763811ad6782a98f72966b027aaca6939e2901072921b20",
       "support_source_hashes": {},
       "support_installed_hashes": {},
       "render_vars": {
-        "rule__code__format__globs": "**/*.rs"
+        "rule__code__format__globs": "**/*"
       },
-      "render_vars_hash": "7e00adbaf3da572e4eb5e0d538f743926cd97595ebab201f38f031736c29d7e5",
-      "installed_at_unix": 1778237103
+      "render_vars_hash": "e63078816727741e3cc1e7de72bfdb0ef3fd304d7363e35f9ffc9f31a083ba25",
+      "installed_at_unix": 1779185645
     },
     "cursor:rule:commit": {
       "package_id": "rule:commit",
@@ -203,105 +203,106 @@
       "provider_kind": "cursor",
       "target_template_path": "/home/oaalto/batrs/.cursor/rules/role.mdc",
       "managed_block_id": "rule:role",
-      "template_source_hash": "44b1d72d3066529f0c6c34f5584f4b0b6e6ec3487feee00949b642b9dde35120",
+      "template_source_hash": "5ed2e4584c40c0e865b907e1c49af803c19c22b382e892f52e8f43e9f0e8c316",
       "template_installed_hash": "44b1d72d3066529f0c6c34f5584f4b0b6e6ec3487feee00949b642b9dde35120",
       "support_source_hashes": {},
       "support_installed_hashes": {},
       "render_vars": {
-        "rule__role__always__apply": "true"
+        "rule__role__globs": "**/*",
+        "rule__role__always__apply": "false"
       },
-      "render_vars_hash": "3fe65d6045059a63214320ba7333ff1b8e10bc5ec78611122bfa21e989a38d8b",
-      "installed_at_unix": 1778237103
+      "render_vars_hash": "322f6bbbc92ad2ff5314a826daa6b36eae6c2357fa4b0df111f2a76504fa48da",
+      "installed_at_unix": 1779185645
     },
     "cursor:rule:rust-api-semver": {
       "package_id": "rule:rust-api-semver",
       "provider_kind": "cursor",
       "target_template_path": "/home/oaalto/batrs/.cursor/rules/rust-api-semver.mdc",
       "managed_block_id": "rule:rust-api-semver",
-      "template_source_hash": "c914f828561b2ccd363e392db988c519b24eedb519d914710eb714c7d2e74b5a",
+      "template_source_hash": "98023fe8cc0ec6f82fe66048a41f607a572bf34a7886ffd0f15c31984972b322",
       "template_installed_hash": "c914f828561b2ccd363e392db988c519b24eedb519d914710eb714c7d2e74b5a",
       "support_source_hashes": {},
       "support_installed_hashes": {},
       "render_vars": {
-        "rule__rust__api__semver__globs": "**/*.rs"
+        "rule__rust__api__semver__globs": "**/*"
       },
-      "render_vars_hash": "1546950d4754c985276565b785c595e4278969f71aec89cc151eb2dd338e9574",
-      "installed_at_unix": 1778237103
+      "render_vars_hash": "7fa783f18d2a1c443af0bdc12eda9c325f8c6219980bc36e81b6c34521dd967b",
+      "installed_at_unix": 1779185645
     },
     "cursor:rule:rust-dependency-hygiene": {
       "package_id": "rule:rust-dependency-hygiene",
       "provider_kind": "cursor",
       "target_template_path": "/home/oaalto/batrs/.cursor/rules/rust-dependency-hygiene.mdc",
       "managed_block_id": "rule:rust-dependency-hygiene",
-      "template_source_hash": "8390f88337c484337ef7a7c76b025d17697ab3a579d6b11c7328296a77d51e03",
+      "template_source_hash": "a6fd76682b707b7695a25ae14488e1461f2219635945df5653352cc5226c4d11",
       "template_installed_hash": "8390f88337c484337ef7a7c76b025d17697ab3a579d6b11c7328296a77d51e03",
       "support_source_hashes": {},
       "support_installed_hashes": {},
       "render_vars": {
-        "rule__rust__dependency__hygiene__globs": "**/*.rs"
+        "rule__rust__dependency__hygiene__globs": "**/*"
       },
-      "render_vars_hash": "c36dbe60d737b075aaf6eb5a7c6238ef1cfc65cb2878dff97deec57f70165e41",
-      "installed_at_unix": 1778237103
+      "render_vars_hash": "54535079f2f2b8f8656b62a81fb748d0dbd47f266a9df1c1bc8a42a39d4a590d",
+      "installed_at_unix": 1779185645
     },
     "cursor:rule:rust-error-handling": {
       "package_id": "rule:rust-error-handling",
       "provider_kind": "cursor",
       "target_template_path": "/home/oaalto/batrs/.cursor/rules/rust-error-handling.mdc",
       "managed_block_id": "rule:rust-error-handling",
-      "template_source_hash": "80c4dfa97650d40e7e77299e51fd04247f76bbec3131eb9771fab44833221ba7",
+      "template_source_hash": "0257cab2a8ffcde8d452bbccc00d94e26e6d94da59a4c732f1243993159216ac",
       "template_installed_hash": "80c4dfa97650d40e7e77299e51fd04247f76bbec3131eb9771fab44833221ba7",
       "support_source_hashes": {},
       "support_installed_hashes": {},
       "render_vars": {
-        "rule__rust__error__handling__globs": "**/*.rs"
+        "rule__rust__error__handling__globs": "**/*"
       },
-      "render_vars_hash": "fdf8f00320f16675c9d5eb4e429123f294753a8dee8dee95a5a5ba837fb15dc4",
-      "installed_at_unix": 1778237103
+      "render_vars_hash": "9fd5b23a0d80a694f2cdb53d1155f16138e1e26825e82f0de23f14e67f09d0e0",
+      "installed_at_unix": 1779185645
     },
     "cursor:rule:rust-observability": {
       "package_id": "rule:rust-observability",
       "provider_kind": "cursor",
       "target_template_path": "/home/oaalto/batrs/.cursor/rules/rust-observability.mdc",
       "managed_block_id": "rule:rust-observability",
-      "template_source_hash": "7357295508f9a238dee6470be62dabedb9b371ae09afc22ce9f4b564c9797e36",
+      "template_source_hash": "2334a0d037ac00c1156fca04ae459fd24ff83e12fa49a6e888e02ab23f0713a4",
       "template_installed_hash": "7357295508f9a238dee6470be62dabedb9b371ae09afc22ce9f4b564c9797e36",
       "support_source_hashes": {},
       "support_installed_hashes": {},
       "render_vars": {
-        "rule__rust__observability__globs": "**/*.rs"
+        "rule__rust__observability__globs": "**/*"
       },
-      "render_vars_hash": "6d478c6eaa167834c8e866d4cdb49ff27a12593b98afa0f0c9e264641b159123",
-      "installed_at_unix": 1778237103
+      "render_vars_hash": "590639edc4fd32726e7718d4a0d4a5bc2a35e8926b0b298a600ae77de820d548",
+      "installed_at_unix": 1779185645
     },
     "cursor:rule:rust-testing-strategy": {
       "package_id": "rule:rust-testing-strategy",
       "provider_kind": "cursor",
       "target_template_path": "/home/oaalto/batrs/.cursor/rules/rust-testing-strategy.mdc",
       "managed_block_id": "rule:rust-testing-strategy",
-      "template_source_hash": "145e60621df9add4d3e4a449153ebdeb7b711a827a45c5b511d1bcf6c721c643",
+      "template_source_hash": "b45b654ad3ca9de767f1dbfce7655e9d1061a8e3c712ce7b6157852f64e8bc9d",
       "template_installed_hash": "145e60621df9add4d3e4a449153ebdeb7b711a827a45c5b511d1bcf6c721c643",
       "support_source_hashes": {},
       "support_installed_hashes": {},
       "render_vars": {
-        "rule__rust__testing__strategy__globs": "**/*.rs"
+        "rule__rust__testing__strategy__globs": "**/*"
       },
-      "render_vars_hash": "cc73bfd0fdc2c3a8b15e93e7e3217163991a51954fca35116bf5885f16d6d378",
-      "installed_at_unix": 1778237103
+      "render_vars_hash": "24a80a447c4e2e153f53a5fcd9b5c356c9b623d2755f701f41e2476472e919c7",
+      "installed_at_unix": 1779185645
     },
     "cursor:rule:rust-workflow-gates": {
       "package_id": "rule:rust-workflow-gates",
       "provider_kind": "cursor",
       "target_template_path": "/home/oaalto/batrs/.cursor/rules/rust-workflow-gates.mdc",
       "managed_block_id": "rule:rust-workflow-gates",
-      "template_source_hash": "9b765ec26b2d0395362aca6fda80f4c72949e867a6fa68614af1e067ca5d5d58",
+      "template_source_hash": "eac38f25b7212948480fa87a9eec95de3f90263e7df1129e50c246fb8b839506",
       "template_installed_hash": "4d723e30cd6265f918cfcb76fc5540cff4bb5c7f9a0dad032663fb13ba16bd3f",
       "support_source_hashes": {},
       "support_installed_hashes": {},
       "render_vars": {
-        "rule__rust__workflow__gates__globs": "**/*.rs"
+        "rule__rust__workflow__gates__globs": "**/*"
       },
-      "render_vars_hash": "59ffea16f011c04718a18c94dd2f0122829c102a4549f0c05ac08d2b246cbdb3",
-      "installed_at_unix": 1778675897
+      "render_vars_hash": "69d5d8780fc5541e3fadf9f057c5aca79145f030ef8116ea1db09f07275d76d7",
+      "installed_at_unix": 1779185645
     },
     "cursor:rule:signature": {
       "package_id": "rule:signature",
@@ -321,30 +322,30 @@
       "provider_kind": "cursor",
       "target_template_path": "/home/oaalto/batrs/.cursor/rules/snake-case.mdc",
       "managed_block_id": "rule:snake-case",
-      "template_source_hash": "d5bb17136d512f47fc263e709b6713dc516baaebb65f5e13ff035861b986f108",
+      "template_source_hash": "6c6d195cd3e1ad35c322b7cd51d83b9d4c50aa2aa8745cc7f1bf79927c30471a",
       "template_installed_hash": "d5bb17136d512f47fc263e709b6713dc516baaebb65f5e13ff035861b986f108",
       "support_source_hashes": {},
       "support_installed_hashes": {},
       "render_vars": {
-        "rule__snake__case__globs": "**/*.rs"
+        "rule__snake__case__globs": "**/*"
       },
-      "render_vars_hash": "e9b090d8e3820327e2581283c922f23fb774a9a1379047ef117b1dc8df93f20c",
-      "installed_at_unix": 1778237103
+      "render_vars_hash": "d9de90cacbd260190beb202b0aed014b9f745c3e567f486d699c6b58d586496a",
+      "installed_at_unix": 1779185645
     },
     "cursor:rule:testing": {
       "package_id": "rule:testing",
       "provider_kind": "cursor",
       "target_template_path": "/home/oaalto/batrs/.cursor/rules/testing.mdc",
       "managed_block_id": "rule:testing",
-      "template_source_hash": "31bbec0950193f3f3d78413d2be9d9e9584aea9d2e4b2ac60f8fdcbc9dbbb3c3",
+      "template_source_hash": "71c523f34d8aee6f2da2d5597fff77504433d346c000da5ea5e4c69c7da8c30a",
       "template_installed_hash": "31bbec0950193f3f3d78413d2be9d9e9584aea9d2e4b2ac60f8fdcbc9dbbb3c3",
       "support_source_hashes": {},
       "support_installed_hashes": {},
       "render_vars": {
-        "rule__testing__globs": "**/test/**"
+        "rule__testing__globs": "**/*"
       },
-      "render_vars_hash": "eb7576b991f728ee5e22913e77fc31c07a54071e38311a10506b63c8d6924d9a",
-      "installed_at_unix": 1778836264
+      "render_vars_hash": "b1c59f90eb79cb6ad653a0fb717fa46025fcae68b7478bd9fb3f2afa2b6e4509",
+      "installed_at_unix": 1779185645
     },
     "cursor:rule:warning-hygiene": {
       "package_id": "rule:warning-hygiene",
@@ -436,6 +437,19 @@
       "render_vars": {},
       "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "installed_at_unix": 1779085196
+    },
+    "cursor:skill:to-issues": {
+      "package_id": "skill:to-issues",
+      "provider_kind": "cursor",
+      "target_template_path": "/home/oaalto/batrs",
+      "managed_block_id": "skill:to-issues",
+      "template_source_hash": "a8084acca3752323952e4fb65ccafc04e283fef333a048a24eb4292c60d0c51e",
+      "template_installed_hash": "a8084acca3752323952e4fb65ccafc04e283fef333a048a24eb4292c60d0c51e",
+      "support_source_hashes": {},
+      "support_installed_hashes": {},
+      "render_vars": {},
+      "render_vars_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_at_unix": 1779185645
     },
     "cursor:skill:to-prd": {
       "package_id": "skill:to-prd",
