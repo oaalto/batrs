@@ -300,10 +300,6 @@ impl BatApp {
     fn submit_input(&mut self) {
         if !self.session.is_logged_in() {
             let input = self.input.take_displayed_input();
-            if input.is_empty() {
-                return;
-            }
-
             if input.starts_with('/') {
                 let effects = command::dispatch(
                     command::CommandDispatchInput::new(
@@ -319,10 +315,10 @@ impl BatApp {
                     self.scrollback.follow_latest();
                 }
             } else {
-                if self.session.login_state() == LoginState::Name {
+                if !input.is_empty() && self.session.login_state() == LoginState::Name {
                     self.session.set_login_name(input.clone());
                 }
-                if self.session.login_state() == LoginState::Choice {
+                if !input.is_empty() && self.session.login_state() == LoginState::Choice {
                     self.session.set_last_login_input(input.clone());
                 }
                 if self.send_command(input) {
@@ -789,6 +785,27 @@ mod tests {
 
         assert!(followed);
         assert_eq!(command_receiver.try_recv().as_deref(), Ok("look"));
+    }
+
+    #[test]
+    fn enter_on_empty_logged_in_input_sends_empty_command() {
+        let (mut app, command_receiver) = test_app();
+        app.session.set_login_name("tester".to_string());
+        app.session
+            .update_login_state("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >");
+
+        app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+        assert_eq!(command_receiver.try_recv().as_deref(), Ok(""));
+    }
+
+    #[test]
+    fn enter_on_empty_pre_login_input_sends_empty_command() {
+        let (mut app, command_receiver) = test_app();
+
+        app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+        assert_eq!(command_receiver.try_recv().as_deref(), Ok(""));
     }
 
     #[test]

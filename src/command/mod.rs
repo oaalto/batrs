@@ -51,7 +51,11 @@ pub fn dispatch(
 ) -> Vec<CommandEffect> {
     let parsed = ParsedCommand::new(&input.line);
     if parsed.original().is_empty() {
-        return Vec::new();
+        return if input.logged_in {
+            vec![CommandEffect::Send(String::new())]
+        } else {
+            Vec::new()
+        };
     }
 
     if let Some(builtin) = BUILTINS.get(parsed.name()) {
@@ -325,8 +329,10 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_ignores_empty_input() {
-        assert!(dispatch_line("  ", true, &[]).is_empty());
+    fn dispatch_sends_empty_input_when_logged_in() {
+        let effects = dispatch_line("  ", true, &[]);
+
+        assert_eq!(send_effects(&effects), vec![""]);
     }
 
     #[test]
