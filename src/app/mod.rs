@@ -276,6 +276,24 @@ impl BatApp {
         }
     }
 
+    pub fn handle_paste_event(&mut self, text: String) {
+        if self.guild_dialog.is_some()
+            || self.generic_commands_dialog.is_some()
+            || self.settings_dialog.is_some()
+        {
+            return;
+        }
+
+        let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+        let mut lines = normalized.split('\n').peekable();
+        while let Some(line) = lines.next() {
+            self.input.insert_str(line);
+            if lines.peek().is_some() {
+                self.submit_input();
+            }
+        }
+    }
+
     pub fn draw(&mut self, frame: &mut Frame<'_>) {
         let show_stats = self.session.is_logged_in();
         let soul_supported = self.guild_selection.is_selected(GuildKey::Animist)
@@ -1223,5 +1241,28 @@ mod tests {
                 "fresh output"
             ]
         );
+    }
+
+    #[test]
+    fn paste_inserts_text_into_current_input() {
+        let (mut app, _command_receiver) = test_app();
+
+        app.handle_paste_event("look very carefully".to_string());
+
+        assert_eq!(app.input.displayed_input(), "look very carefully");
+    }
+
+    #[test]
+    fn multiline_paste_submits_completed_lines_and_keeps_remainder() {
+        let (mut app, command_receiver) = test_app();
+        app.session.set_login_name("tester".to_string());
+        app.session
+            .update_login_state("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >");
+
+        app.handle_paste_event("look\r\nsay hello\nnorth".to_string());
+
+        assert_eq!(command_receiver.try_recv().as_deref(), Ok("look"));
+        assert_eq!(command_receiver.try_recv().as_deref(), Ok("say hello"));
+        assert_eq!(app.input.displayed_input(), "north");
     }
 }

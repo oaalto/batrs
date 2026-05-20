@@ -21,6 +21,16 @@ impl InputState {
         self.sync_current_typed_input();
     }
 
+    pub fn insert_str(&mut self, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+
+        self.displayed_input.insert_str(self.cursor_position, text);
+        self.cursor_position += text.len();
+        self.sync_current_typed_input();
+    }
+
     pub fn backspace(&mut self) {
         if self.cursor_position == 0 {
             return;
@@ -230,6 +240,19 @@ mod tests {
         state.backspace();
         assert_eq!(state.displayed_input(), "hi");
         assert_eq!(state.cursor_offset(false), 2);
+    }
+
+    #[test]
+    fn insert_str_inserts_text_at_cursor_once() {
+        let mut state = InputState::new();
+        state.insert_str("hello");
+        state.move_cursor_left();
+        state.move_cursor_left();
+
+        state.insert_str("yy");
+
+        assert_eq!(state.displayed_input(), "helyylo");
+        assert_eq!(state.cursor_offset(false), 6);
     }
 
     #[test]

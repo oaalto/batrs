@@ -5,7 +5,7 @@ use crate::app::{
     AppEvent, BatApp, ConnectionChannels, ConnectionCoordinator, ConnectionId,
     INITIAL_CONNECTION_ID, ReconnectResult,
 };
-use crossterm::event::{self, Event};
+use crossterm::event::{self, DisableBracketedPaste, EnableBracketedPaste, Event};
 use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen, EnableBracketedPaste)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
@@ -55,7 +55,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = run_app(&mut terminal, app);
 
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    execute!(
+        terminal.backend_mut(),
+        DisableBracketedPaste,
+        LeaveAlternateScreen
+    )?;
     terminal.show_cursor()?;
 
     result?;
@@ -76,10 +80,11 @@ fn run_app(
             .checked_sub(last_tick.elapsed())
             .unwrap_or(Duration::from_millis(0));
 
-        if event::poll(timeout)?
-            && let Event::Key(key) = event::read()?
-        {
-            app.handle_key_event(key);
+        if event::poll(timeout)? {
+            handle_terminal_event(event::read()?, &mut app);
+            while event::poll(Duration::ZERO)? {
+                handle_terminal_event(event::read()?, &mut app);
+            }
         }
 
         app.read_input();
@@ -94,6 +99,14 @@ fn run_app(
     }
 
     Ok(())
+}
+
+fn handle_terminal_event(event: Event, app: &mut BatApp) {
+    match event {
+        Event::Key(key) => app.handle_key_event(key),
+        Event::Paste(text) => app.handle_paste_event(text),
+        _ => {}
+    }
 }
 
 struct TcpConnectionCoordinator;
