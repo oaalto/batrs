@@ -47,6 +47,17 @@ fn format_label(spells: &[String]) -> String {
     format!(" ({})", spells.join(", "))
 }
 
+fn has_quoted_vocal_boundary_after(plain: &str, quote_end_byte_idx: usize) -> bool {
+    plain[quote_end_byte_idx..]
+        .chars()
+        .next()
+        .is_none_or(|next| !is_word_continuation(next))
+}
+
+fn is_word_continuation(ch: char) -> bool {
+    ch.is_alphanumeric() || ch == '_'
+}
+
 pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
     let plain = line.plain_line;
 
@@ -58,7 +69,11 @@ pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects 
     }
 
     for rule in QUOTED_VOCAL_RULES.iter() {
-        if let Some(found) = rule.regex.find(plain) {
+        if let Some(found) = rule
+            .regex
+            .find_iter(plain)
+            .find(|found| has_quoted_vocal_boundary_after(plain, found.end()))
+        {
             return TriggerEffects::none()
                 .insert_plain_after_plain_byte_idx(found.end(), format_label(&rule.spells));
         }
@@ -146,6 +161,24 @@ mod tests {
             line.plain_line.contains("Tiger claw"),
             "{}",
             line.plain_line
+        );
+    }
+
+    #[test]
+    fn does_not_annotate_single_letter_vocal_inside_contraction() {
+        let original = "You tell Farliss (*<|   W & T   |>*) 'I'd like a reinc'";
+        let mut line = StyledLine::new(original);
+        annotate(&mut line);
+        assert_eq!(line.plain_line, original);
+    }
+
+    #[test]
+    fn annotates_standalone_single_letter_vocal() {
+        let mut line = StyledLine::new("You chant 'I' loudly.");
+        annotate(&mut line);
+        assert_eq!(
+            line.plain_line,
+            "You chant 'I' (Blessing of intoxication, Spirit drain) loudly."
         );
     }
 }
