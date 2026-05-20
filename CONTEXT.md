@@ -31,3 +31,9 @@ If the Connect Command cannot open a fresh BatMUD connection, the client remains
 The Connect Command is consumed by Command Dispatch as a client command and is never sent to BatMUD as game input.
 
 Only one Connect Command attempt may be active at a time; repeated requests report that reconnect is already in progress.
+
+## Combat Awareness
+
+Combat Awareness is batrs' interpretation of whether the player is currently in BatMUD combat. It begins when combat round output is observed and ends when BatMUD reports that the player is not in combat.
+
+A Combat Scan Snapshot is the latest observed set of combatants and their health from a completed scan result. Each completed scan result replaces the previous snapshot rather than appending to it.

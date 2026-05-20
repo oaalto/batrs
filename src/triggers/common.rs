@@ -528,7 +528,6 @@ lazy_static! {
             10000,
             None,
             vec![
-                RuleAction::Send("@scan all"),
                 RuleAction::Send("@sc"),
                 RuleAction::SetFlag {
                     key: "in_battle",
@@ -1178,20 +1177,17 @@ mod tests {
     #[test]
     fn battle_round_sets_actions_and_flag() {
         let (output, _line, _automation) = run_trigger("*** Round 1 ***", None, None);
-        let mut saw_scan_all = false;
         let mut saw_sc = false;
         let mut saw_flag = false;
 
         for action in &output.actions {
             match action {
-                Action::Send(cmd) if cmd == "@scan all" => saw_scan_all = true,
                 Action::Send(cmd) if cmd == "@sc" => saw_sc = true,
                 Action::SetFlag(key, value) if key == "in_battle" && *value => saw_flag = true,
                 _ => {}
             }
         }
 
-        assert!(saw_scan_all);
         assert!(saw_sc);
         assert!(saw_flag);
     }

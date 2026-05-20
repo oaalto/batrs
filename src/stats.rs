@@ -777,7 +777,7 @@ fn bold_white_style() -> Style {
         .add_modifier(Modifier::BOLD)
 }
 
-fn progress_color(value: f32) -> Color {
+pub(crate) fn progress_color(value: f32) -> Color {
     if value < 0.1 {
         Color::Rgb(139, 0, 0)
     } else if value < 0.2 {

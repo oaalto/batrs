@@ -1,3 +1,4 @@
+mod combat_scan;
 mod dialogs;
 mod input_state;
 mod output_buffer;
@@ -21,6 +22,7 @@ use crate::player_profile::{self, PlayerRuntimeProfile};
 use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
 use crate::{command, triggers};
+use combat_scan::{CombatScanState, IncomingCombatScanLine};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use dialogs::{GenericCommandsDialog, GuildDialog, SettingsDialog, apply_guild_dialog_keystroke};
 use input_state::InputState;
@@ -71,6 +73,7 @@ pub struct BatApp {
     input: InputState,
     session: SessionState,
     stats: Stats,
+    combat_scan: CombatScanState,
     event_receiver: Receiver<AppEvent>,
     command_sender: Sender<String>,
     connection_coordinator: Box<dyn ConnectionCoordinator>,
@@ -116,6 +119,7 @@ impl BatApp {
             input: InputState::new(),
             session: SessionState::new(),
             stats: Default::default(),
+            combat_scan: CombatScanState::default(),
             event_receiver,
             command_sender,
             connection_coordinator,
@@ -145,6 +149,7 @@ impl BatApp {
 
     fn process_input_lines(&mut self, lines: Vec<String>) {
         let mut output_lines = Vec::new();
+        let mut automation_lines = Vec::new();
 
         for line in lines {
             let mut styled_line = StyledLine::new(&line);
@@ -168,6 +173,25 @@ impl BatApp {
             }
 
             if self.session.is_logged_in() {
+                match self
+                    .combat_scan
+                    .handle_incoming_line(&styled_line.plain_line)
+                {
+                    IncomingCombatScanLine::InternalProbe => {
+                        styled_line.gag = true;
+                        output_lines.push(styled_line);
+                        continue;
+                    }
+                    IncomingCombatScanLine::CombatEnded { internal_probe } => {
+                        self.apply_global_combat_end();
+                        if internal_probe {
+                            styled_line.gag = true;
+                            output_lines.push(styled_line);
+                            continue;
+                        }
+                    }
+                    IncomingCombatScanLine::Visible => {}
+                }
                 let facts = triggers::TriggerFacts::new(
                     self.automation.snapshot_flags(),
                     self.automation.snapshot_vars(),
@@ -180,6 +204,8 @@ impl BatApp {
                 self.apply_automation_actions(result.actions);
                 let mut new_lines = result.lines;
                 self.apply_original_line_effects(&mut styled_line, result.original);
+                automation_lines.extend(new_lines.iter().map(|line| line.plain_line.clone()));
+                automation_lines.push(styled_line.plain_line.clone());
                 new_lines.push(styled_line);
                 output_lines.extend(new_lines);
             } else {
@@ -188,8 +214,8 @@ impl BatApp {
         }
 
         if self.session.is_logged_in() {
-            for line in &output_lines {
-                self.run_automation(&line.plain_line);
+            for line in &automation_lines {
+                self.run_automation(line);
             }
         }
 
@@ -306,6 +332,9 @@ impl BatApp {
             || self.stats.has_tzarakk_mount_status();
 
         let mut secondary_status_lines: Vec<Line<'static>> = Vec::new();
+        if show_stats {
+            secondary_status_lines.extend(self.combat_scan.render_lines(frame.area().width));
+        }
         if show_stats && soul_supported {
             secondary_status_lines.push(self.stats.render_soul_inline());
         }
@@ -405,7 +434,7 @@ impl BatApp {
             &self.generic_commands,
         );
 
-        if self.apply_command_effects(effects) {
+        if self.apply_user_command_effects(effects) {
             self.scrollback.follow_latest();
         }
 
@@ -420,11 +449,31 @@ impl BatApp {
     }
 
     fn apply_command_effects(&mut self, effects: Vec<command::CommandEffect>) -> bool {
+        self.apply_command_effects_inner(effects, false)
+    }
+
+    fn apply_user_command_effects(&mut self, effects: Vec<command::CommandEffect>) -> bool {
+        self.apply_command_effects_inner(effects, true)
+    }
+
+    fn apply_command_effects_inner(
+        &mut self,
+        effects: Vec<command::CommandEffect>,
+        count_user_game_sends: bool,
+    ) -> bool {
         let mut sent_command = false;
         for effect in effects {
             match effect {
                 command::CommandEffect::Send(command) => {
-                    sent_command |= self.send_command(command);
+                    let count_for_probe = count_user_game_sends && !command.trim().is_empty();
+                    if self.send_command(command) {
+                        sent_command = true;
+                        if count_for_probe
+                            && let Some(probe) = self.combat_scan.observe_user_game_command()
+                        {
+                            sent_command |= self.send_command(probe.to_string());
+                        }
+                    }
                 }
                 command::CommandEffect::Automation(action) => {
                     sent_command |= self.apply_automation_actions(vec![action]);
@@ -475,6 +524,7 @@ impl BatApp {
         self.active_connection_id = connection_id;
         self.session.reset();
         self.stats = Stats::default();
+        self.combat_scan = CombatScanState::default();
         self.telnet_buffer = TelnetBuffer::new();
         self.selected_guilds.clear();
         self.guild_selection = GuildSelection::default();
@@ -503,8 +553,24 @@ impl BatApp {
 
     fn apply_stats_effects(&mut self, effects: Vec<crate::stats::StatsEffect>) {
         for effect in effects {
+            match &effect {
+                crate::stats::StatsEffect::StartCombatRound => {
+                    if let Some(probe) = self.combat_scan.start_combat_round() {
+                        self.send_command(probe.to_string());
+                    }
+                }
+                crate::stats::StatsEffect::EndCombat => self.combat_scan.end_combat(),
+                _ => {}
+            }
             self.stats.apply_effect(effect);
         }
+    }
+
+    fn apply_global_combat_end(&mut self) {
+        self.combat_scan.end_combat();
+        self.stats
+            .apply_effect(crate::stats::StatsEffect::EndCombat);
+        self.automation.set_flag("in_battle", false);
     }
 
     fn apply_original_line_effects(
@@ -859,6 +925,8 @@ impl BatApp {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::automation::Waiter;
+    use regex::Regex;
     use std::cell::RefCell;
     use std::collections::VecDeque;
     use std::rc::Rc;
@@ -926,6 +994,20 @@ mod tests {
         (app, command_receiver)
     }
 
+    fn log_in(app: &mut BatApp) {
+        app.session.set_login_name("tester".to_string());
+        app.session
+            .update_login_state("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >");
+    }
+
+    fn drain_commands(command_receiver: &mpsc::Receiver<String>) -> Vec<String> {
+        let mut commands = Vec::new();
+        while let Ok(command) = command_receiver.try_recv() {
+            commands.push(command);
+        }
+        commands
+    }
+
     fn test_app_with_coordinator(
         connection_coordinator: Box<dyn ConnectionCoordinator>,
     ) -> (BatApp, mpsc::Receiver<String>, mpsc::Sender<AppEvent>) {
@@ -935,6 +1017,7 @@ mod tests {
             input: InputState::new(),
             session: SessionState::new(),
             stats: Default::default(),
+            combat_scan: CombatScanState::default(),
             event_receiver: channels.event_receiver,
             command_sender: channels.command_sender,
             connection_coordinator,
@@ -957,6 +1040,161 @@ mod tests {
             scrollback: Scrollback::new(),
         };
         (app, command_receiver, event_sender)
+    }
+
+    #[test]
+    fn combat_round_starts_correlated_probe_before_short_score() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+
+        app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
+
+        assert_eq!(drain_commands(&command_receiver), vec!["#scan all", "@sc"]);
+        assert!(app.combat_scan.is_active());
+        assert!(app.automation.flag_is_set("in_battle"));
+    }
+
+    #[test]
+    fn correlated_scan_rows_are_gagged_and_kept_out_of_automation() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+        app.automation.add_waiter(Waiter {
+            pattern: Regex::new("Guard").unwrap(),
+            actions: vec![Action::Send("waiter fired".to_string())],
+            consume: true,
+        });
+        app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
+        drain_commands(&command_receiver);
+
+        app.process_input_lines(vec![
+            "scan all".to_string(),
+            "Guard is noticeably hurt (50%).".to_string(),
+            "The rain falls.".to_string(),
+        ]);
+
+        assert_eq!(drain_commands(&command_receiver), Vec::<String>::new());
+        assert_eq!(
+            app.output.plain_lines(),
+            vec!["*** Round 1 ***", "The rain falls."]
+        );
+        assert_eq!(app.combat_scan.snapshot().len(), 1);
+    }
+
+    #[test]
+    fn scan_capture_completes_when_next_round_header_arrives() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+
+        app.process_input_lines(vec![
+            "********************** Round 1 **********************".to_string(),
+            "Guard misses.".to_string(),
+            "scan all".to_string(),
+            "Guard is slightly hurt (70%).".to_string(),
+            "********************** Round 2 **********************".to_string(),
+        ]);
+        drain_commands(&command_receiver);
+
+        let rendered_scan: String = app
+            .combat_scan
+            .render_lines(120)
+            .into_iter()
+            .flat_map(|line| line.spans.into_iter())
+            .map(|span| span.content.to_string())
+            .collect();
+        assert_eq!(
+            rendered_scan, "Guard is slightly hurt (70%).",
+            "scan row should remain visible in the combat panel after the next round header"
+        );
+        assert_eq!(
+            app.output.plain_lines(),
+            vec![
+                "********************** Round 1 **********************",
+                "Guard misses.",
+                "********************** Round 2 **********************"
+            ]
+        );
+    }
+
+    #[test]
+    fn gagged_prompt_before_scan_echo_does_not_cancel_probe() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+
+        app.process_input_lines(vec![
+            "********************** Round 1 **********************".to_string(),
+            "Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >".to_string(),
+            "scan all".to_string(),
+            "Guard is slightly hurt (70%).".to_string(),
+            "********************** Round 2 **********************".to_string(),
+        ]);
+        drain_commands(&command_receiver);
+
+        let rendered_scan: String = app
+            .combat_scan
+            .render_lines(120)
+            .into_iter()
+            .flat_map(|line| line.spans.into_iter())
+            .map(|span| span.content.to_string())
+            .collect();
+        assert_eq!(rendered_scan, "Guard is slightly hurt (70%).");
+        assert_eq!(
+            app.output.plain_lines(),
+            vec![
+                "********************** Round 1 **********************",
+                "********************** Round 2 **********************"
+            ],
+            "prompt, scan echo, and captured scan row should stay gagged"
+        );
+    }
+
+    #[test]
+    fn user_game_commands_probe_every_other_send_after_user_command() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+        app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
+        app.process_input_lines(vec![
+            "scan all".to_string(),
+            "Guard is noticeably hurt (50%).".to_string(),
+            "The rain falls.".to_string(),
+        ]);
+        drain_commands(&command_receiver);
+
+        app.input.insert_str("look");
+        app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        app.input.insert_str("north");
+        app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+        assert_eq!(
+            drain_commands(&command_receiver),
+            vec!["look", "north", "#scan all"]
+        );
+    }
+
+    #[test]
+    fn global_not_in_combat_clears_scan_state_and_stops_diff_accumulation() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+        app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
+        app.process_input_lines(vec![
+            "H:1/2 [+10] S:3/4 [] E:5/6 [] $:7 [] exp:8 []".to_string(),
+            "You are not in combat right now.".to_string(),
+            "H:1/2 [] S:3/4 [] E:5/6 [] $:7 [] exp:8 []".to_string(),
+        ]);
+        drain_commands(&command_receiver);
+
+        let rendered: String = app
+            .stats
+            .render_inline()
+            .spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect();
+        assert!(!app.combat_scan.is_active());
+        assert!(!app.automation.flag_is_set("in_battle"));
+        assert!(
+            !rendered.contains("+10"),
+            "post-combat short score should replace accumulated diffs; got {rendered:?}"
+        );
     }
 
     #[test]
