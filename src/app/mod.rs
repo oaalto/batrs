@@ -1092,7 +1092,10 @@ mod tests {
             "Guard is slightly hurt (70%).".to_string(),
             "********************** Round 2 **********************".to_string(),
         ]);
-        drain_commands(&command_receiver);
+        assert_eq!(
+            drain_commands(&command_receiver),
+            vec!["#scan all", "@sc", "#scan all", "@sc"]
+        );
 
         let rendered_scan: String = app
             .combat_scan
@@ -1127,7 +1130,10 @@ mod tests {
             "Guard is slightly hurt (70%).".to_string(),
             "********************** Round 2 **********************".to_string(),
         ]);
-        drain_commands(&command_receiver);
+        assert_eq!(
+            drain_commands(&command_receiver),
+            vec!["#scan all", "@sc", "#scan all", "@sc"]
+        );
 
         let rendered_scan: String = app
             .combat_scan

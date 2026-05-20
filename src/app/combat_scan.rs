@@ -106,13 +106,8 @@ impl Default for CombatScanState {
 
 impl CombatScanState {
     pub(crate) fn start_combat_round(&mut self) -> Option<&'static str> {
-        let was_inactive = !self.active;
         self.active = true;
-        if was_inactive {
-            self.request_probe()
-        } else {
-            None
-        }
+        self.request_probe()
     }
 
     pub(crate) fn end_combat(&mut self) {
@@ -317,6 +312,17 @@ mod tests {
 
         assert_eq!(state.start_combat_round(), Some(PROBE_COMMAND));
         assert_eq!(state.start_combat_round(), None);
+    }
+
+    #[test]
+    fn later_combat_round_requests_probe_after_previous_probe_completed() {
+        let mut state = CombatScanState::default();
+        state.start_combat_round();
+        state.handle_incoming_line("scan all");
+        state.handle_incoming_line("Guard is slightly hurt (70%).");
+        state.handle_incoming_line("round output");
+
+        assert_eq!(state.start_combat_round(), Some(PROBE_COMMAND));
     }
 
     #[test]
