@@ -23,6 +23,7 @@ pub struct Stats {
     tzarakk_mount: Option<TzarakkMountStatus>,
     riftwalker_entity: Option<RiftwalkerEntityStatus>,
     pub(crate) nergal_minions: [Option<NergalMinion>; 3],
+    nergal_resource_status: Option<NergalResourceStatus>,
     /// Green `c` in the recovery bracket: on when the MUD hints you may want to camp; off while resting (lie-down line).
     recovery_bracket_camping: bool,
     /// Yellow `m`: on after meditation harmony line, off when meditation starts.
@@ -55,6 +56,7 @@ pub enum StatsEffect {
     },
     ClearRiftwalkerEntityStatus,
     UpsertNergalMinion(NergalMinion),
+    SetNergalResourceStatus(NergalResourceStatus),
     ClearNergalMinions,
 }
 
@@ -81,6 +83,15 @@ pub struct NergalMinion {
     pub max_sp: i32,
     pub ep: i32,
     pub max_ep: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct NergalResourceStatus {
+    pub vitae: i32,
+    pub max_vitae: i32,
+    pub potentia: i32,
+    pub max_potentia: i32,
+    pub evolution_points: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -167,6 +178,7 @@ impl Stats {
             ),
             StatsEffect::ClearRiftwalkerEntityStatus => self.clear_riftwalker_entity_status(),
             StatsEffect::UpsertNergalMinion(minion) => self.upsert_nergal_minion(minion),
+            StatsEffect::SetNergalResourceStatus(status) => self.set_nergal_resource_status(status),
             StatsEffect::ClearNergalMinions => self.clear_nergal_minions(),
         }
     }
@@ -182,6 +194,7 @@ impl Stats {
         let tzarakk_mount = self.tzarakk_mount.clone();
         let riftwalker_entity = self.riftwalker_entity.clone();
         let nergal_minions = self.nergal_minions.clone();
+        let nergal_resource_status = self.nergal_resource_status.clone();
         let money = self.money;
         let recovery_bracket_camping = self.recovery_bracket_camping;
         let recovery_bracket_meditation = self.recovery_bracket_meditation;
@@ -196,6 +209,7 @@ impl Stats {
         self.tzarakk_mount = tzarakk_mount;
         self.riftwalker_entity = riftwalker_entity;
         self.nergal_minions = nergal_minions;
+        self.nergal_resource_status = nergal_resource_status;
         self.money = money;
         self.recovery_bracket_camping = recovery_bracket_camping;
         self.recovery_bracket_meditation = recovery_bracket_meditation;
@@ -212,6 +226,7 @@ impl Stats {
         let tzarakk_mount = self.tzarakk_mount.clone();
         let riftwalker_entity = self.riftwalker_entity.clone();
         let nergal_minions = self.nergal_minions.clone();
+        let nergal_resource_status = self.nergal_resource_status.clone();
         let recovery_bracket_camping = self.recovery_bracket_camping;
         let recovery_bracket_meditation = self.recovery_bracket_meditation;
         *self = Self::new_from_sc(stats);
@@ -227,6 +242,7 @@ impl Stats {
         self.tzarakk_mount = tzarakk_mount;
         self.riftwalker_entity = riftwalker_entity;
         self.nergal_minions = nergal_minions;
+        self.nergal_resource_status = nergal_resource_status;
         self.recovery_bracket_camping = recovery_bracket_camping;
         self.recovery_bracket_meditation = recovery_bracket_meditation;
     }
@@ -419,6 +435,14 @@ impl Stats {
         self.nergal_minions.iter().any(|slot| slot.is_some())
     }
 
+    pub fn set_nergal_resource_status(&mut self, status: NergalResourceStatus) {
+        self.nergal_resource_status = Some(status);
+    }
+
+    pub fn has_nergal_resource_status(&self) -> bool {
+        self.nergal_resource_status.is_some()
+    }
+
     /// Slot update rules mirroring legacy `save_minion_stats`: update slot with same name, else first empty;
     /// no-op if all three occupied and name is new.
     pub fn upsert_nergal_minion(&mut self, minion: NergalMinion) {
@@ -494,6 +518,14 @@ impl Stats {
         lines.into_iter().map(Line::from).collect()
     }
 
+    pub fn render_nergal_status_lines(&self, width: u16) -> Vec<Line<'static>> {
+        let mut lines = self.render_nergal_minion_lines(width);
+        if let Some(status) = &self.nergal_resource_status {
+            lines.push(Line::from(self.nergal_resource_status_spans(status)));
+        }
+        lines
+    }
+
     fn minion_stat_spans(&self, minion: &NergalMinion) -> Vec<Span<'static>> {
         let mut out = vec![Span::raw(format!("{}: ", minion.name))];
         out.extend(self.inline_stat_spans("Hp", minion.hp, minion.max_hp, 0));
@@ -501,6 +533,28 @@ impl Stats {
         out.extend(self.inline_stat_spans("Sp", minion.sp, minion.max_sp, 0));
         out.push(Span::raw(" "));
         out.extend(self.inline_stat_spans("Ep", minion.ep, minion.max_ep, 0));
+        out
+    }
+
+    fn nergal_resource_status_spans(&self, status: &NergalResourceStatus) -> Vec<Span<'static>> {
+        let mut out = Vec::new();
+        out.extend(nergal_resource_stat_spans(
+            "Vitae",
+            status.vitae,
+            status.max_vitae,
+        ));
+        out.push(Span::raw(" "));
+        out.extend(nergal_resource_stat_spans(
+            "Potentia",
+            status.potentia,
+            status.max_potentia,
+        ));
+        out.push(Span::raw(", "));
+        out.push(Span::styled("Evolution points: ", bold_white_style()));
+        out.push(Span::styled(
+            status.evolution_points.to_string(),
+            bold_white_style(),
+        ));
         out
     }
 
@@ -662,6 +716,23 @@ fn soul_description_spans(description: &str) -> Vec<Span<'static>> {
 
 fn spans_display_width(spans: &[Span<'_>]) -> usize {
     spans.iter().map(|span| span.content.width()).sum()
+}
+
+fn nergal_resource_stat_spans(label: &str, value: i32, max_value: i32) -> Vec<Span<'static>> {
+    let progress = if value == 0 || max_value == 0 {
+        0.0
+    } else {
+        value as f32 / max_value as f32
+    };
+    vec![
+        Span::styled(format!("{label}: "), bold_white_style()),
+        Span::styled(
+            value.to_string(),
+            Style::default().fg(progress_color(progress)),
+        ),
+        Span::raw("/"),
+        Span::styled(max_value.to_string(), bold_white_style()),
+    ]
 }
 
 fn riftwalker_bracket_delim_style() -> Style {
@@ -1397,6 +1468,73 @@ mod tests {
     }
 
     #[test]
+    fn nergal_status_lines_render_resource_status_below_minions() {
+        let mut stats = Stats::default();
+        stats.upsert_nergal_minion(sample_minion_a());
+        stats.set_nergal_resource_status(NergalResourceStatus {
+            vitae: 22,
+            max_vitae: 1000,
+            potentia: 752,
+            max_potentia: 1000,
+            evolution_points: 0,
+        });
+
+        let lines = stats.render_nergal_status_lines(200);
+
+        assert_eq!(lines.len(), 2);
+        assert!(line_text(&lines[0]).starts_with("X: Hp: 1/10"));
+        assert_eq!(
+            line_text(&lines[1]),
+            "Vitae: 22/1000 Potentia: 752/1000, Evolution points: 0"
+        );
+    }
+
+    #[test]
+    fn nergal_resource_status_line_uses_requested_styles() {
+        let mut stats = Stats::default();
+        stats.set_nergal_resource_status(NergalResourceStatus {
+            vitae: 22,
+            max_vitae: 1000,
+            potentia: 752,
+            max_potentia: 1000,
+            evolution_points: 0,
+        });
+
+        let lines = stats.render_nergal_status_lines(200);
+        let line = lines.last().expect("resource line");
+        let vitae_label = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "Vitae: ")
+            .expect("vitae label span");
+        assert!(vitae_label.style.add_modifier.contains(Modifier::BOLD));
+        assert_eq!(vitae_label.style.fg, Some(palette::BOLD_WHITE));
+
+        let vitae = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "22")
+            .expect("vitae value span");
+        assert_eq!(vitae.style.fg, Some(progress_color(22.0 / 1000.0)));
+
+        let max_vitae = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "1000")
+            .expect("max vitae span");
+        assert!(max_vitae.style.add_modifier.contains(Modifier::BOLD));
+        assert_eq!(max_vitae.style.fg, Some(palette::BOLD_WHITE));
+
+        let evolution_points = line
+            .spans
+            .iter()
+            .find(|s| s.content.as_ref() == "0")
+            .expect("evolution points span");
+        assert!(evolution_points.style.add_modifier.contains(Modifier::BOLD));
+        assert_eq!(evolution_points.style.fg, Some(palette::BOLD_WHITE));
+    }
+
+    #[test]
     fn prompt_updates_preserve_nergal_minions() {
         let mut stats = Stats::default();
         stats.upsert_nergal_minion(sample_minion_a());
@@ -1411,6 +1549,26 @@ mod tests {
     }
 
     #[test]
+    fn prompt_updates_preserve_nergal_resource_status() {
+        let mut stats = Stats::default();
+        stats.set_nergal_resource_status(NergalResourceStatus {
+            vitae: 22,
+            max_vitae: 1000,
+            potentia: 752,
+            max_potentia: 1000,
+            evolution_points: 0,
+        });
+
+        stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
+
+        let lines = stats.render_nergal_status_lines(200);
+        assert_eq!(
+            line_text(lines.last().expect("resource line")),
+            "Vitae: 22/1000 Potentia: 752/1000, Evolution points: 0"
+        );
+    }
+
+    #[test]
     fn short_score_updates_preserve_nergal_minions() {
         let mut stats = Stats::default();
         stats.upsert_nergal_minion(sample_minion_b());
@@ -1420,6 +1578,27 @@ mod tests {
         assert_eq!(
             stats.nergal_minions[0].as_ref().map(|m| m.name.as_str()),
             Some("Y")
+        );
+    }
+
+    #[test]
+    fn short_score_updates_preserve_nergal_resource_status() {
+        let mut stats = Stats::default();
+        stats.set_nergal_resource_status(NergalResourceStatus {
+            vitae: 22,
+            max_vitae: 1000,
+            potentia: 752,
+            max_potentia: 1000,
+            evolution_points: 0,
+        });
+
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
+
+        assert!(stats.has_nergal_resource_status());
+        let lines = stats.render_nergal_status_lines(200);
+        assert_eq!(
+            line_text(lines.last().expect("resource line")),
+            "Vitae: 22/1000 Potentia: 752/1000, Evolution points: 0"
         );
     }
 

@@ -1,7 +1,7 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::NergalGuild;
-use crate::stats::{NergalMinion, StatsEffect};
+use crate::stats::{NergalMinion, NergalResourceStatus, StatsEffect};
 use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -26,6 +26,19 @@ impl NergalGuild {
                 max_ep: captures[7].parse().unwrap_or(0),
             };
             return output.gag().stat(StatsEffect::UpsertNergalMinion(minion));
+        }
+
+        if let Some(captures) = RESOURCE_STATUS.captures(line) {
+            let status = NergalResourceStatus {
+                vitae: captures[1].parse().unwrap_or(0),
+                max_vitae: captures[2].parse().unwrap_or(0),
+                potentia: captures[3].parse().unwrap_or(0),
+                max_potentia: captures[4].parse().unwrap_or(0),
+                evolution_points: captures[5].parse().unwrap_or(0),
+            };
+            return output
+                .gag()
+                .stat(StatsEffect::SetNergalResourceStatus(status));
         }
 
         if UNSUMMON_CONNECTION.is_match(line) || UNSUMMON_END.is_match(line) {
@@ -106,6 +119,10 @@ lazy_static! {
         r"^::\.\.:\. (.+) \[Hp: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*, Sp: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*, Ep: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*\]$",
     )
     .unwrap();
+    static ref RESOURCE_STATUS: Regex = Regex::new(
+        r"^::\.\.:\. \[Vitae: ([0-9]+)/([0-9]+)  Potentia: ([0-9]+)/([0-9]+), Evolution points: ([0-9]+)\]$",
+    )
+    .unwrap();
     static ref UNSUMMON_CONNECTION: Regex = Regex::new(
         r"^Your connection to your parasite is severed completely\. (.+) jerks violently couple of times and collapses\.$",
     )
@@ -168,6 +185,41 @@ mod tests {
         assert_eq!(first.max_sp, 1);
         assert_eq!(first.ep, 200);
         assert_eq!(first.max_ep, 200);
+    }
+
+    #[test]
+    fn resource_status_gags_and_updates_stats() {
+        let mut stats = Stats::default();
+        let line = "::..:. [Vitae: 22/1000  Potentia: 752/1000, Evolution points: 0]";
+
+        let (out, styled) = run(line, &mut stats);
+
+        assert!(styled.gag);
+        assert!(out.actions.is_empty());
+        assert!(out.lines.is_empty());
+        assert_eq!(
+            out.stats,
+            vec![StatsEffect::SetNergalResourceStatus(NergalResourceStatus {
+                vitae: 22,
+                max_vitae: 1000,
+                potentia: 752,
+                max_potentia: 1000,
+                evolution_points: 0,
+            })]
+        );
+        assert!(stats.has_nergal_resource_status());
+    }
+
+    #[test]
+    fn resource_status_requires_strict_field_order() {
+        let mut stats = Stats::default();
+        let line = "::..:. [Potentia: 752/1000 Vitae: 22/1000, Evolution points: 0]";
+
+        let (out, styled) = run(line, &mut stats);
+
+        assert!(!styled.gag);
+        assert!(out.stats.is_empty());
+        assert!(!stats.has_nergal_resource_status());
     }
 
     #[test]

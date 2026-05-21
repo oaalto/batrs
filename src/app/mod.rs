@@ -327,8 +327,9 @@ impl BatApp {
             || self.stats.has_soul_companion_status();
         let riftwalker_supported = self.guild_selection.is_selected(GuildKey::Riftwalker)
             || self.stats.has_riftwalker_entity_status();
-        let nergal_supported =
-            self.guild_selection.is_selected(GuildKey::Nergal) || self.stats.has_nergal_minions();
+        let nergal_supported = self.guild_selection.is_selected(GuildKey::Nergal)
+            || self.stats.has_nergal_minions()
+            || self.stats.has_nergal_resource_status();
         let tzarakk_supported = self.guild_selection.is_selected(GuildKey::Tzarakk)
             || self.stats.has_tzarakk_mount_status();
 
@@ -347,7 +348,7 @@ impl BatApp {
         }
         if show_stats && nergal_supported {
             secondary_status_lines
-                .extend(self.stats.render_nergal_minion_lines(frame.area().width));
+                .extend(self.stats.render_nergal_status_lines(frame.area().width));
         }
 
         let reserved_rows = 2 + secondary_status_lines.len() as u16;
@@ -1080,6 +1081,56 @@ mod tests {
             vec!["*** Round 1 ***", "The rain falls."]
         );
         assert_eq!(app.combat_scan.snapshot().len(), 1);
+    }
+
+    #[test]
+    fn nergal_resource_status_line_is_gagged_and_updates_stats() {
+        let (mut app, _command_receiver) = test_app();
+        log_in(&mut app);
+        app.apply_guild_selection(GuildSelection::from_playable_keys(
+            [GuildKey::Nergal],
+            Some("evil_religious"),
+        ));
+
+        app.process_input_lines(vec![
+            "::..:. [Vitae: 22/1000  Potentia: 752/1000, Evolution points: 0]".to_string(),
+        ]);
+
+        let rendered_status: String = app
+            .stats
+            .render_nergal_status_lines(200)
+            .into_iter()
+            .flat_map(|line| line.spans.into_iter())
+            .map(|span| span.content.to_string())
+            .collect();
+        assert!(app.output.plain_lines().is_empty());
+        assert_eq!(
+            rendered_status,
+            "Vitae: 22/1000 Potentia: 752/1000, Evolution points: 0"
+        );
+    }
+
+    #[test]
+    fn nergal_resource_status_line_is_gagged_without_selected_nergal_guild() {
+        let (mut app, _command_receiver) = test_app();
+        log_in(&mut app);
+
+        app.process_input_lines(vec![
+            "::..:. [Vitae: 22/1000  Potentia: 752/1000, Evolution points: 0]".to_string(),
+        ]);
+
+        let rendered_status: String = app
+            .stats
+            .render_nergal_status_lines(200)
+            .into_iter()
+            .flat_map(|line| line.spans.into_iter())
+            .map(|span| span.content.to_string())
+            .collect();
+        assert!(app.output.plain_lines().is_empty());
+        assert_eq!(
+            rendered_status,
+            "Vitae: 22/1000 Potentia: 752/1000, Evolution points: 0"
+        );
     }
 
     #[test]
