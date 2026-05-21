@@ -431,6 +431,10 @@ impl GuildDialog {
         }
     }
 
+    fn mount_delete(&mut self) {
+        delete_char_at_cursor(&mut self.mount_name, self.mount_cursor);
+    }
+
     fn mount_cursor_left(&mut self) {
         if self.mount_cursor > 0 {
             self.mount_cursor -= 1;
@@ -454,6 +458,10 @@ impl GuildDialog {
             self.sabre_weapon_cursor -= 1;
             self.sabre_weapon.remove(self.sabre_weapon_cursor);
         }
+    }
+
+    fn sabre_weapon_delete(&mut self) {
+        delete_char_at_cursor(&mut self.sabre_weapon, self.sabre_weapon_cursor);
     }
 
     fn sabre_weapon_cursor_left(&mut self) {
@@ -485,6 +493,16 @@ impl GuildDialog {
             symbols.remove(cursor_slot - 1);
             self.riftwalker_labels[row] = symbols.into_iter().collect();
             self.riftwalker_cursors[row] -= 1;
+        }
+    }
+
+    fn riftwalker_delete(&mut self) {
+        let row = self.riftwalker_row;
+        let cursor_slot = self.riftwalker_cursors[row];
+        let mut symbols: Vec<char> = self.riftwalker_labels[row].chars().collect();
+        if cursor_slot < symbols.len() {
+            symbols.remove(cursor_slot);
+            self.riftwalker_labels[row] = symbols.into_iter().collect();
         }
     }
 
@@ -580,6 +598,17 @@ impl GuildDialog {
             }
         })
     }
+}
+
+fn delete_char_at_cursor(value: &mut String, cursor: usize) {
+    let Some(remainder) = value.get(cursor..) else {
+        return;
+    };
+    let Some(character) = remainder.chars().next() else {
+        return;
+    };
+
+    value.drain(cursor..cursor + character.len_utf8());
 }
 
 fn closest_toggle_relative(rows: &[DrillRow], from: usize, delta: i32) -> Option<usize> {
@@ -680,6 +709,7 @@ pub(crate) fn apply_guild_dialog_keystroke(dialog: &mut GuildDialog, event: KeyE
                 dialog.insert_mount_char(character);
             }
             KeyCode::Backspace => dialog.mount_backspace(),
+            KeyCode::Delete => dialog.mount_delete(),
             KeyCode::Left => dialog.mount_cursor_left(),
             KeyCode::Right => dialog.mount_cursor_right(),
             _ => {}
@@ -689,6 +719,7 @@ pub(crate) fn apply_guild_dialog_keystroke(dialog: &mut GuildDialog, event: KeyE
                 dialog.insert_sabre_weapon_char(character);
             }
             KeyCode::Backspace => dialog.sabre_weapon_backspace(),
+            KeyCode::Delete => dialog.sabre_weapon_delete(),
             KeyCode::Left => dialog.sabre_weapon_cursor_left(),
             KeyCode::Right => dialog.sabre_weapon_cursor_right(),
             _ => {}
@@ -704,6 +735,7 @@ pub(crate) fn apply_guild_dialog_keystroke(dialog: &mut GuildDialog, event: KeyE
                 dialog.insert_riftwalker_char(character);
             }
             KeyCode::Backspace => dialog.riftwalker_backspace(),
+            KeyCode::Delete => dialog.riftwalker_delete(),
             KeyCode::Left => dialog.riftwalker_cursor_left(),
             KeyCode::Right => dialog.riftwalker_cursor_right(),
             _ => {}
@@ -866,6 +898,33 @@ mod guild_dialog_keystroke_tests {
             KeyEvent::new_with_kind(KeyCode::Tab, KeyModifiers::empty(), KeyEventKind::Press),
         );
         assert_eq!(dialog.focus(), GuildDialogFocus::MountName);
+    }
+
+    #[test]
+    fn delete_removes_character_after_mount_cursor() {
+        let entries = catalog::playable_entries_list();
+        let selected = entries
+            .iter()
+            .map(|entry| entry.key == GuildKey::Tzarakk)
+            .collect();
+        let mut dialog = GuildDialog::new(
+            entries,
+            selected,
+            evil_keyword(),
+            "wolf".to_string(),
+            String::new(),
+            super::default_riftwalker_entity_labels(),
+        );
+        dialog.open_drill_from_browse_cursor();
+        apply_guild_dialog_keystroke(
+            &mut dialog,
+            KeyEvent::new_with_kind(KeyCode::Tab, KeyModifiers::empty(), KeyEventKind::Press),
+        );
+        apply_guild_dialog_keystroke(&mut dialog, key_code(KeyCode::Left));
+
+        apply_guild_dialog_keystroke(&mut dialog, key_code(KeyCode::Delete));
+
+        assert_eq!(dialog.mount_name(), "wol");
     }
 
     #[test]

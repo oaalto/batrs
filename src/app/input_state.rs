@@ -48,6 +48,22 @@ impl InputState {
         self.sync_current_typed_input();
     }
 
+    pub fn delete(&mut self) {
+        if self.cursor_position >= self.displayed_input.len() {
+            return;
+        }
+
+        let remainder = &self.displayed_input[self.cursor_position..];
+        let Some((offset, grapheme)) = remainder.grapheme_indices(true).next() else {
+            return;
+        };
+
+        let start = self.cursor_position + offset;
+        let end = start + grapheme.len();
+        self.displayed_input.drain(start..end);
+        self.sync_current_typed_input();
+    }
+
     pub fn move_cursor_left(&mut self) {
         if let Some((index, _)) = self.displayed_input[..self.cursor_position]
             .grapheme_indices(true)
@@ -239,6 +255,21 @@ mod tests {
 
         state.backspace();
         assert_eq!(state.displayed_input(), "hi");
+        assert_eq!(state.cursor_offset(false), 2);
+    }
+
+    #[test]
+    fn delete_removes_grapheme_after_cursor() {
+        let mut state = InputState::new();
+        for character in "aéb".chars() {
+            state.insert_char(character);
+        }
+        state.move_cursor_left();
+        state.move_cursor_left();
+
+        state.delete();
+
+        assert_eq!(state.displayed_input(), "ab");
         assert_eq!(state.cursor_offset(false), 2);
     }
 

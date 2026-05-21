@@ -276,6 +276,7 @@ impl BatApp {
             KeyCode::PageUp => self.scrollback.page_up(),
             KeyCode::PageDown => self.scrollback.page_down(),
             KeyCode::Backspace => self.input.backspace(),
+            KeyCode::Delete => self.input.delete(),
             KeyCode::Home => self.input.move_cursor_to_start(),
             KeyCode::End => self.input.move_cursor_to_end(),
             KeyCode::Left if event.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -750,6 +751,7 @@ impl BatApp {
             KeyCode::Up => dialog.move_cursor(-1),
             KeyCode::Down => dialog.move_cursor(1),
             KeyCode::Backspace => dialog.backspace(),
+            KeyCode::Delete => dialog.backspace(),
             KeyCode::Char(c)
                 if !event.modifiers.contains(KeyModifiers::CONTROL)
                     && !event.modifiers.contains(KeyModifiers::ALT) =>
@@ -1232,6 +1234,31 @@ mod tests {
         app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
 
         assert_eq!(command_receiver.try_recv().as_deref(), Ok(""));
+    }
+
+    #[test]
+    fn delete_removes_character_after_command_input_cursor() {
+        let (mut app, _command_receiver) = test_app();
+        app.input.insert_str("look");
+        app.input.move_cursor_left();
+
+        app.handle_key_event(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
+
+        assert_eq!(app.input.displayed_input(), "loo");
+    }
+
+    #[test]
+    fn delete_removes_character_from_settings_dialog_value() {
+        let (mut app, _command_receiver) = test_app();
+        app.settings_dialog = Some(SettingsDialog::new(vec![crate::config::SettingEntry {
+            key: "mount".to_string(),
+            value: "wolf".to_string(),
+        }]));
+
+        app.handle_key_event(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
+
+        let dialog = app.settings_dialog.as_ref().expect("settings dialog");
+        assert_eq!(dialog.entries()[0].value, "wol");
     }
 
     #[test]
