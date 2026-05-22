@@ -23,7 +23,7 @@ use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
 use crate::{command, triggers};
 use combat_scan::{CombatScanState, IncomingCombatScanLine};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use dialogs::{GenericCommandsDialog, GuildDialog, SettingsDialog, apply_guild_dialog_keystroke};
 use input_state::InputState;
 use libmudtelnet::events::TelnetEvents;
@@ -42,6 +42,7 @@ use session_state::{LoginState, SessionState};
 pub type ConnectionId = u64;
 
 pub const INITIAL_CONNECTION_ID: ConnectionId = 0;
+const MOUSE_WHEEL_SCROLL_LINES: usize = 3;
 
 pub enum AppEvent {
     RawInput {
@@ -299,6 +300,21 @@ impl BatApp {
             {
                 self.input.insert_char(c);
             }
+            _ => {}
+        }
+    }
+
+    pub fn handle_mouse_event(&mut self, event: MouseEvent) {
+        if self.guild_dialog.is_some()
+            || self.generic_commands_dialog.is_some()
+            || self.settings_dialog.is_some()
+        {
+            return;
+        }
+
+        match event.kind {
+            MouseEventKind::ScrollUp => self.scrollback.scroll_up(MOUSE_WHEEL_SCROLL_LINES),
+            MouseEventKind::ScrollDown => self.scrollback.scroll_down(MOUSE_WHEEL_SCROLL_LINES),
             _ => {}
         }
     }
@@ -1314,6 +1330,25 @@ mod tests {
 
         let dialog = app.settings_dialog.as_ref().expect("settings dialog");
         assert_eq!(dialog.entries()[0].value, "wol");
+    }
+
+    #[test]
+    fn mouse_wheel_scrolls_output_without_changing_command_history() {
+        let (mut app, _command_receiver) = test_app();
+        log_in(&mut app);
+        app.input.push_history("look".to_string());
+        app.input.insert_str("current");
+        app.scrollback.update_viewport(100, 20);
+
+        app.handle_mouse_event(MouseEvent {
+            kind: MouseEventKind::ScrollUp,
+            column: 0,
+            row: 0,
+            modifiers: KeyModifiers::NONE,
+        });
+
+        assert_eq!(app.scrollback.offset(), 77);
+        assert_eq!(app.input.displayed_input(), "current");
     }
 
     #[test]

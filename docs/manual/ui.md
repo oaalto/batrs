@@ -5,7 +5,7 @@ The client fills the terminal. The **main area** is game text (scrolls as new li
 ## Game text and typing
 
 - Text wraps to the width of your terminal.
-- Use **PageUp** and **PageDown** to review earlier game text. When you type a command and send it to the game with **Enter**, the view jumps back to the newest output.
+- Use **PageUp**, **PageDown**, or the mouse wheel to review earlier game text. When you type a command and send it to the game with **Enter**, the view jumps back to the newest output.
 - After login, the prompt looks like `> ` plus what you are typing. During password entry the prompt behaves differently for privacy.
 - The **clock** shows the current local time (`HH:MM:SS`).
 
