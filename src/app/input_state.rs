@@ -173,6 +173,11 @@ impl InputState {
     }
 
     pub fn push_history(&mut self, input: String) {
+        if input.is_empty() || self.history.last() == Some(&input) {
+            self.cur_history_pos = self.history.len();
+            return;
+        }
+
         self.history.push(input);
         self.cur_history_pos = self.history.len();
     }
@@ -213,6 +218,25 @@ mod tests {
 
         state.insert_char('!');
         assert_eq!(state.displayed_input(), "bye!");
+    }
+
+    #[test]
+    fn history_skips_empty_entries_and_consecutive_duplicates() {
+        let mut state = InputState::new();
+
+        state.push_history(String::new());
+        state.push_history("look".to_string());
+        state.push_history("look".to_string());
+        state.push_history("north".to_string());
+
+        state.move_history(-1);
+        assert_eq!(state.displayed_input(), "north");
+
+        state.move_history(-1);
+        assert_eq!(state.displayed_input(), "look");
+
+        state.move_history(-1);
+        assert_eq!(state.displayed_input(), "look");
     }
 
     #[test]
