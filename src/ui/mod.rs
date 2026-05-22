@@ -11,6 +11,8 @@ pub struct ViewModel<'a> {
     pub scroll_offset: u16,
     pub show_stats: bool,
     pub stats_line: Line<'static>,
+    /// Combat scan rows shown above the main stats line.
+    pub combat_status_lines: Vec<Line<'static>>,
     /// Guild-specific HUD rows below the main stats line, such as Soul, Tzarakk mount, and Nergal minions.
     pub secondary_status_lines: Vec<Line<'static>>,
     pub clock: String,
@@ -93,7 +95,11 @@ pub struct Renderer;
 
 impl Renderer {
     pub fn render(frame: &mut Frame<'_>, view: &ViewModel<'_>) {
-        let mut constraints = vec![Constraint::Min(1), Constraint::Length(1)];
+        let mut constraints = vec![Constraint::Min(1)];
+        for _ in &view.combat_status_lines {
+            constraints.push(Constraint::Length(1));
+        }
+        constraints.push(Constraint::Length(1));
         for _ in &view.secondary_status_lines {
             constraints.push(Constraint::Length(1));
         }
@@ -105,13 +111,20 @@ impl Renderer {
             .split(frame.area());
 
         let output_area = root[0];
-        let stats_area = root[1];
+        let combat_count = view.combat_status_lines.len();
+        let stats_area = root[1 + combat_count];
         let secondary_count = view.secondary_status_lines.len();
-        let input_area = root[1 + secondary_count + 1];
+        let input_area = root[1 + combat_count + 1 + secondary_count];
 
         let output =
             Paragraph::new(Text::from(view.output_lines.clone())).scroll((view.scroll_offset, 0));
         frame.render_widget(output, output_area);
+
+        for index in 0..combat_count {
+            let line = view.combat_status_lines[index].clone();
+            let row_area = root[1 + index];
+            frame.render_widget(Paragraph::new(line), row_area);
+        }
 
         if view.show_stats {
             let stats_chunks = Layout::default()
@@ -131,7 +144,7 @@ impl Renderer {
 
         for index in 0..secondary_count {
             let line = view.secondary_status_lines[index].clone();
-            let row_area = root[2 + index];
+            let row_area = root[1 + combat_count + 1 + index];
             frame.render_widget(Paragraph::new(line), row_area);
         }
 
@@ -537,4 +550,52 @@ fn centered_rect(percent_x: u16, percent_y: u16, rect: Rect) -> Rect {
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(popup_layout[1])[1]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+    use ratatui::buffer::Buffer;
+
+    #[test]
+    fn render_places_combat_status_above_stats() {
+        let backend = TestBackend::new(40, 5);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let view = ViewModel {
+            output_lines: vec!["output".into()],
+            scroll_offset: 0,
+            show_stats: true,
+            stats_line: "player stats".into(),
+            combat_status_lines: vec!["enemy status".into()],
+            secondary_status_lines: vec!["guild status".into()],
+            clock: "12:34".to_string(),
+            input_text: ">look".to_string(),
+            cursor_offset: 5,
+            show_cursor: false,
+            guild_dialog: None,
+            generic_commands_dialog: None,
+            settings_dialog: None,
+        };
+
+        terminal
+            .draw(|frame| Renderer::render(frame, &view))
+            .unwrap();
+        let buffer = terminal.backend().buffer();
+
+        assert_eq!(row_text(buffer, 0), "output");
+        assert_eq!(row_text(buffer, 1), "enemy status");
+        assert!(row_text(buffer, 2).starts_with("player stats"));
+        assert_eq!(row_text(buffer, 3), "guild status");
+        assert_eq!(row_text(buffer, 4), ">look");
+    }
+
+    fn row_text(buffer: &Buffer, y: u16) -> String {
+        (0..buffer.area.width)
+            .map(|x| buffer[(x, y)].symbol())
+            .collect::<String>()
+            .trim_end()
+            .to_string()
+    }
 }

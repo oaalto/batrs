@@ -226,7 +226,7 @@ fn parse_scan_row(line: &str) -> Option<CombatScanRow> {
 
 fn row_spans(row: &CombatScanRow) -> Vec<Span<'static>> {
     vec![
-        Span::styled(row.name.clone(), bold_white_style()),
+        Span::styled(row.name.clone(), enemy_name_style()),
         Span::styled(" is ", normal_text_style()),
         Span::styled(
             row.condition.label().to_string(),
@@ -282,9 +282,9 @@ fn normal_text_style() -> Style {
     Style::default().fg(palette::TEXT)
 }
 
-fn bold_white_style() -> Style {
+fn enemy_name_style() -> Style {
     Style::default()
-        .fg(palette::BOLD_WHITE)
+        .fg(palette::BOLD_RED)
         .add_modifier(Modifier::BOLD)
 }
 
@@ -431,6 +431,13 @@ mod tests {
 
         let lines = state.render_lines(120);
         assert_eq!(line_text(&lines[0]), "Guard is noticeably hurt (50%).");
+        let name = lines[0]
+            .spans
+            .iter()
+            .find(|span| span.content.as_ref() == "Guard")
+            .expect("name span");
+        assert_eq!(name.style.fg, Some(palette::BOLD_RED));
+        assert!(name.style.add_modifier.contains(Modifier::BOLD));
         let condition = lines[0]
             .spans
             .iter()

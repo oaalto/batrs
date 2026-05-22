@@ -333,10 +333,12 @@ impl BatApp {
         let tzarakk_supported = self.guild_selection.is_selected(GuildKey::Tzarakk)
             || self.stats.has_tzarakk_mount_status();
 
+        let combat_status_lines = if show_stats {
+            self.combat_scan.render_lines(frame.area().width)
+        } else {
+            Vec::new()
+        };
         let mut secondary_status_lines: Vec<Line<'static>> = Vec::new();
-        if show_stats {
-            secondary_status_lines.extend(self.combat_scan.render_lines(frame.area().width));
-        }
         if show_stats && soul_supported {
             secondary_status_lines.push(self.stats.render_soul_inline());
         }
@@ -351,7 +353,8 @@ impl BatApp {
                 .extend(self.stats.render_nergal_status_lines(frame.area().width));
         }
 
-        let reserved_rows = 2 + secondary_status_lines.len() as u16;
+        let reserved_rows =
+            2 + combat_status_lines.len() as u16 + secondary_status_lines.len() as u16;
         let output_area_height = frame.area().height.saturating_sub(reserved_rows);
         let output_area_width = frame.area().width;
         let visible_height = output_area_height as usize;
@@ -371,6 +374,7 @@ impl BatApp {
             scroll_offset,
             show_stats,
             stats_line,
+            combat_status_lines,
             secondary_status_lines,
             clock: show_clock(),
             input_text,
