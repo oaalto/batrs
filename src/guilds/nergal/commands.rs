@@ -1,12 +1,13 @@
 use crate::abilities;
 use crate::command;
 use crate::command::Command;
-use crate::guilds::NergalGuild;
+use crate::guilds::{NergalGuild, use_skill};
 use std::collections::HashMap;
 
 impl NergalGuild {
     pub fn get_commands(&self) -> HashMap<String, Command> {
         HashMap::from([
+            ("cere".to_string(), Self::use_ceremony as Command),
             (
                 "cep".to_string(),
                 Self::cast_enthralling_parasite as Command,
@@ -24,6 +25,13 @@ impl NergalGuild {
             ("udh".to_string(), Self::use_dreary_hibernation),
             ("us".to_string(), Self::use_stab),
         ])
+    }
+
+    fn use_ceremony(
+        data: &command::Data,
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("ceremony", data))
     }
 
     fn cast_enthralling_parasite(
@@ -212,6 +220,30 @@ mod tests {
             NergalGuild::cast_enthralling_parasite(&data, &command::CommandEnvironment::empty())
                 .as_deref(),
             command::send("@cast 'enthralling parasite' goblin")
+        );
+    }
+
+    #[test]
+    fn cere_uses_ceremony() {
+        let data = Data {
+            cmd: "cere".into(),
+            args: "".into(),
+        };
+        assert_eq!(
+            NergalGuild::use_ceremony(&data, &command::CommandEnvironment::empty()).as_deref(),
+            command::send("@use 'ceremony'")
+        );
+    }
+
+    #[test]
+    fn cere_with_target_uses_ceremony_at_target() {
+        let data = Data {
+            cmd: "cere".into(),
+            args: "altar".into(),
+        };
+        assert_eq!(
+            NergalGuild::use_ceremony(&data, &command::CommandEnvironment::empty()).as_deref(),
+            command::send("@target altar;use 'ceremony' altar")
         );
     }
 
