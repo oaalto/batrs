@@ -41,7 +41,7 @@ impl NergalGuild {
                 .stat(StatsEffect::SetNergalResourceStatus(status));
         }
 
-        if UNSUMMON_CONNECTION.is_match(line) || UNSUMMON_END.is_match(line) {
+        if unsummon_clears_minions(line) {
             return output.stat(StatsEffect::ClearNergalMinions);
         }
 
@@ -104,6 +104,13 @@ impl NergalGuild {
     }
 }
 
+fn unsummon_clears_minions(line: &str) -> bool {
+    UNSUMMON_CONNECTION.is_match(line)
+        || UNSUMMON_END.is_match(line)
+        || UNSUMMON_ORDER_DORMANT.is_match(line)
+        || UNSUMMON_RELEASE_HOST.is_match(line)
+}
+
 fn echo_notice(text: &str, green: bool) -> StyledLine {
     let mut line = StyledLine::new(text);
     line.set_line_style(if green {
@@ -124,11 +131,19 @@ lazy_static! {
     )
     .unwrap();
     static ref UNSUMMON_CONNECTION: Regex = Regex::new(
-        r"^Your connection to your parasite is severed completely\. (.+) jerks violently couple of times and collapses\.$",
+        r"Your connection to your parasite is severed completely\. .+ jerks violently couple of times and collapses",
     )
     .unwrap();
     static ref UNSUMMON_END: Regex = Regex::new(
-        r"^You end the connection to your parasite, making the host jerk couple of times violently\. After couple of seconds (.+) collapses and stops moving at all\.$",
+        r"You end the connection to your parasite, making the host jerk couple of times violently\. After couple of seconds .+ collapses and stops moving at all",
+    )
+    .unwrap();
+    static ref UNSUMMON_ORDER_DORMANT: Regex = Regex::new(
+        r"You order the parasite to return .+ and lay dormant there until you have use for it again\.",
+    )
+    .unwrap();
+    static ref UNSUMMON_RELEASE_HOST: Regex = Regex::new(
+        r"You 'release' the host from the parasites influence\. The host jerks violently couple of times",
     )
     .unwrap();
     static ref HARVEST_VITAE: Regex =
@@ -223,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    fn unsummon_clears_minions() {
+    fn unsummon_connection_clears_minions() {
         let mut stats = Stats::default();
         stats.upsert_nergal_minion(NergalMinion {
             name: "a".into(),
@@ -235,6 +250,63 @@ mod tests {
             max_ep: 1,
         });
         let line = "Your connection to your parasite is severed completely. Host jerks violently couple of times and collapses.";
+
+        let _ = run(line, &mut stats);
+
+        assert!(!stats.has_nergal_minions());
+    }
+
+    #[test]
+    fn unsummon_end_clears_minions() {
+        let mut stats = Stats::default();
+        stats.upsert_nergal_minion(NergalMinion {
+            name: "Tick".into(),
+            hp: 1,
+            max_hp: 1,
+            sp: 1,
+            max_sp: 1,
+            ep: 1,
+            max_ep: 1,
+        });
+        let line = "You end the connection to your parasite, making the host jerk couple of times violently. After couple of seconds Tick collapses and stops moving at all.";
+
+        let _ = run(line, &mut stats);
+
+        assert!(!stats.has_nergal_minions());
+    }
+
+    #[test]
+    fn unsummon_order_dormant_clears_minions() {
+        let mut stats = Stats::default();
+        stats.upsert_nergal_minion(NergalMinion {
+            name: "Balrog".into(),
+            hp: 1,
+            max_hp: 1,
+            sp: 1,
+            max_sp: 1,
+            ep: 1,
+            max_ep: 1,
+        });
+        let line = "You order the parasite to return the corrupted lands of blue flamed Tree and lay dormant there until you have use for it again.";
+
+        let _ = run(line, &mut stats);
+
+        assert!(!stats.has_nergal_minions());
+    }
+
+    #[test]
+    fn unsummon_release_host_clears_minions() {
+        let mut stats = Stats::default();
+        stats.upsert_nergal_minion(NergalMinion {
+            name: "Weeping pixie".into(),
+            hp: 1,
+            max_hp: 1,
+            sp: 1,
+            max_sp: 1,
+            ep: 1,
+            max_ep: 1,
+        });
+        let line = "More thoughts infiltrate your mind. As you are evaluating your minions, one of them seems sub optimal for the servitude of the lord Nergal. You 'release' the host from the parasites influence. The host jerks violently couple of times as if regaining its free will but without the parasite the host is too weak to survive and collapses.";
 
         let _ = run(line, &mut stats);
 

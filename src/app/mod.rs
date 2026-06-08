@@ -1154,6 +1154,35 @@ mod tests {
     }
 
     #[test]
+    fn nergal_unsummon_clears_minion_status_with_selected_nergal_guild() {
+        use crate::stats::NergalMinion;
+
+        let (mut app, _command_receiver) = test_app();
+        log_in(&mut app);
+        app.apply_guild_selection(GuildSelection::from_playable_keys(
+            [GuildKey::Nergal],
+            Some("evil_religious"),
+        ));
+        app.stats.upsert_nergal_minion(NergalMinion {
+            name: "Weeping pixie".into(),
+            hp: 364,
+            max_hp: 425,
+            sp: 447,
+            max_sp: 467,
+            ep: 138,
+            max_ep: 155,
+        });
+        assert!(!app.stats.render_nergal_minion_lines(200).is_empty());
+
+        app.process_input_lines(vec![
+            "More thoughts infiltrate your mind. As you are evaluating your minions, one of them seems sub optimal for the servitude of the lord Nergal. You 'release' the host from the parasites influence. The host jerks violently couple of times as if regaining its free will but without the parasite the host is too weak to survive and collapses.".to_string(),
+        ]);
+
+        assert!(!app.stats.has_nergal_minions());
+        assert!(app.stats.render_nergal_minion_lines(200).is_empty());
+    }
+
+    #[test]
     fn scan_capture_completes_when_next_round_header_arrives() {
         let (mut app, command_receiver) = test_app();
         log_in(&mut app);
