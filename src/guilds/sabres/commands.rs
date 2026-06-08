@@ -40,7 +40,7 @@ impl SabresGuild {
             command::send(abilities::client_send_line("use 'sabre fence'"))
         } else {
             command::send(abilities::client_send_line(&format!(
-                "target {args};use sabre fence at {args}"
+                "target {args};use 'sabre fence' {args}"
             )))
         }
     }
@@ -59,7 +59,7 @@ impl SabresGuild {
         command::send(abilities::compound_send(&[
             &format!("remove {weapon} from right hand"),
             &format!("target {target}"),
-            &format!("use gloveknock at {target}"),
+            &abilities::use_quoted_tail("gloveknock", target),
         ]))
     }
 
@@ -123,7 +123,7 @@ mod tests {
         let result = SabresGuild::use_sabre_fence(&data("usf", "orc"), &empty_ctx());
         assert_eq!(
             result,
-            command::send("@target orc;use sabre fence at orc".to_string())
+            command::send("@target orc;use 'sabre fence' orc".to_string())
         );
     }
 
@@ -148,7 +148,7 @@ mod tests {
         assert_eq!(
             result,
             command::send(
-                "@remove sabre from right hand;target orc;use gloveknock at orc".to_string()
+                "@remove sabre from right hand;target orc;use 'gloveknock' orc".to_string()
             )
         );
     }

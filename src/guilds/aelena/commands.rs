@@ -97,7 +97,7 @@ impl AelenaGuild {
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line("cast command blade"))
+        command::send(abilities::cast_quoted_with_suffix("command blade", ""))
     }
 
     pub fn use_wound(
@@ -124,10 +124,10 @@ impl AelenaGuild {
                 "Need two arguments for dissection (see in-game help).",
             ))];
         }
-        command::send(abilities::client_send_line(&format!(
-            "use dissection at corpse try {} {}",
-            parts[0], parts[1]
-        )))
+        command::send(abilities::use_quoted_with_suffix(
+            "dissection",
+            &format!("corpse try {} {}", parts[0], parts[1]),
+        ))
     }
 
     pub fn familiar_consume(
@@ -278,7 +278,7 @@ mod tests {
         let result = AelenaGuild::use_dissection(&data("ud", "lung left"), &empty_ctx());
         assert_eq!(
             result,
-            command::send("@use dissection at corpse try lung left".to_string())
+            command::send("@use 'dissection' corpse try lung left".to_string())
         );
     }
 

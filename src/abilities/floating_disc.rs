@@ -3,9 +3,9 @@
 
 use super::client_send_line;
 
-/// `@cast floating disc`
+/// `@cast 'floating disc'`
 pub fn send_cast_floating_disc() -> String {
-    client_send_line("cast floating disc")
+    super::cast_quoted_with_suffix("floating disc", "")
 }
 
 /// `@get all from my disc`
@@ -34,7 +34,7 @@ mod tests {
 
     #[test]
     fn sends_match_expected_aliases() {
-        assert_eq!(send_cast_floating_disc(), "@cast floating disc");
+        assert_eq!(send_cast_floating_disc(), "@cast 'floating disc'");
         assert_eq!(send_get_all_from_disc(), "@get all from my disc");
         assert_eq!(
             send_get_all_armour_from_disc(),

@@ -66,9 +66,10 @@ impl MagePoisonGuild {
     ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        command::send(abilities::client_send_line(&format!(
-            "cast shield of detoxification at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix(
+            "shield of detoxification",
+            at,
+        ))
     }
 }
 
@@ -108,7 +109,7 @@ mod tests {
     fn shield_of_detoxification_defaults_to_me() {
         assert_eq!(
             MagePoisonGuild::cast_shield_of_detoxification(&data("cdetoxsh", ""), &empty_ctx()),
-            command::send("@cast shield of detoxification at me".to_string())
+            command::send("@cast 'shield of detoxification' me".to_string())
         );
     }
 
@@ -116,7 +117,7 @@ mod tests {
     fn shield_of_detoxification_with_target() {
         assert_eq!(
             MagePoisonGuild::cast_shield_of_detoxification(&data("cdetoxsh", "ally"), &empty_ctx()),
-            command::send("@cast shield of detoxification at ally".to_string())
+            command::send("@cast 'shield of detoxification' ally".to_string())
         );
     }
 }

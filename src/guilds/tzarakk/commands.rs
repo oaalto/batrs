@@ -61,7 +61,7 @@ impl TzarakkGuild {
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
         command::send(abilities::client_send_line(
-            "use 'create hunting trophy' at corpse",
+            "use 'create hunting trophy' corpse",
         ))
     }
 
@@ -69,7 +69,7 @@ impl TzarakkGuild {
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line("use 'harvest soul' at corpse"))
+        command::send(abilities::client_send_line("use 'harvest soul' corpse"))
     }
 
     // Spell handlers
@@ -77,9 +77,7 @@ impl TzarakkGuild {
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line(
-            "cast 'preserve corpse' at corpse",
-        ))
+        command::send(abilities::client_send_line("cast 'preserve corpse' corpse"))
     }
 
     pub fn cast_steed_of_tzarakk(
@@ -100,7 +98,7 @@ impl TzarakkGuild {
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line("cast summon dire boar"))
+        command::send(abilities::cast_quoted_with_suffix("summon dire boar", ""))
     }
 
     // Utility handlers
@@ -123,11 +121,11 @@ impl TzarakkGuild {
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
         let logical = match data.args.trim() {
-            "hp" => "use dark meditation at sacrifice health",
-            "sp" => "use dark meditation at sacrifice power",
-            _ => "use dark meditation at sacrifice endurance",
+            "hp" => abilities::use_quoted_tail("dark meditation", "sacrifice health"),
+            "sp" => abilities::use_quoted_tail("dark meditation", "sacrifice power"),
+            _ => abilities::use_quoted_tail("dark meditation", "sacrifice endurance"),
         };
-        remount_then_send(abilities::compound_send(&["dismount", logical]))
+        remount_then_send(abilities::compound_send(&["dismount", &logical]))
     }
 
     // Mode handlers
@@ -143,7 +141,7 @@ impl TzarakkGuild {
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
         command::send(
-            "@rip_action set get all from corpse;use 'harvest soul' at corpse;drop zinc;drop mowgles"
+            "@rip_action set get all from corpse;use 'harvest soul' corpse;drop zinc;drop mowgles"
                 .to_string(),
         )
     }
@@ -223,7 +221,7 @@ mod tests {
         let result = TzarakkGuild::use_create_hunting_trophy(&data("uht", ""), &empty_ctx());
         assert_eq!(
             result,
-            command::send("@use 'create hunting trophy' at corpse".to_string())
+            command::send("@use 'create hunting trophy' corpse".to_string())
         );
     }
 
@@ -232,7 +230,7 @@ mod tests {
         let result = TzarakkGuild::use_harvest_soul(&data("uhs", ""), &empty_ctx());
         assert_eq!(
             result,
-            command::send("@use 'harvest soul' at corpse".to_string())
+            command::send("@use 'harvest soul' corpse".to_string())
         );
     }
 
@@ -241,7 +239,7 @@ mod tests {
         let result = TzarakkGuild::cast_preserve_corpse(&data("cpc", ""), &empty_ctx());
         assert_eq!(
             result,
-            command::send("@cast 'preserve corpse' at corpse".to_string())
+            command::send("@cast 'preserve corpse' corpse".to_string())
         );
     }
 
@@ -263,7 +261,10 @@ mod tests {
     #[test]
     fn summon_dire_boar() {
         let result = TzarakkGuild::cast_summon_dire_boar(&data("csdb", ""), &empty_ctx());
-        assert_eq!(result, command::send("@cast summon dire boar".to_string()));
+        assert_eq!(
+            result,
+            command::send("@cast 'summon dire boar'".to_string())
+        );
     }
 
     #[test]
@@ -279,19 +280,19 @@ mod tests {
     fn dark_meditation_includes_dismount() {
         let hp = TzarakkGuild::use_dark_meditation(&data("dmed", "hp"), &empty_ctx());
         assert!(hp.contains(&command::CommandEffect::Send(
-            "@dismount;use dark meditation at sacrifice health".to_string()
+            "@dismount;use 'dark meditation' sacrifice health".to_string()
         )));
         assert!(sets_mount_summoned(&hp));
 
         let sp = TzarakkGuild::use_dark_meditation(&data("dmed", "sp"), &empty_ctx());
         assert!(sp.contains(&command::CommandEffect::Send(
-            "@dismount;use dark meditation at sacrifice power".to_string()
+            "@dismount;use 'dark meditation' sacrifice power".to_string()
         )));
         assert!(sets_mount_summoned(&sp));
 
         let endurance = TzarakkGuild::use_dark_meditation(&data("dmed", ""), &empty_ctx());
         assert!(endurance.contains(&command::CommandEffect::Send(
-            "@dismount;use dark meditation at sacrifice endurance".to_string()
+            "@dismount;use 'dark meditation' sacrifice endurance".to_string()
         )));
         assert!(sets_mount_summoned(&endurance));
     }
@@ -312,7 +313,7 @@ mod tests {
     #[test]
     fn heal_mode_sets_correct_rip_action() {
         let result = TzarakkGuild::set_heal_mode(&data("heal_mode", ""), &empty_ctx());
-        assert_eq!(result, command::send("@rip_action set get all from corpse;use 'harvest soul' at corpse;drop zinc;drop mowgles".to_string()));
+        assert_eq!(result, command::send("@rip_action set get all from corpse;use 'harvest soul' corpse;drop zinc;drop mowgles".to_string()));
     }
 
     #[test]

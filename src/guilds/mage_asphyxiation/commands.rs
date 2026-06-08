@@ -40,9 +40,7 @@ impl MageAsphyxiationGuild {
     ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        command::send(abilities::client_send_line(&format!(
-            "cast air shield at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("air shield", at))
     }
 
     mage_asphyxiation_cast!(cast_aura_of_wind, "aura of wind");
@@ -76,7 +74,7 @@ mod tests {
     fn air_shield_defaults_to_me() {
         assert_eq!(
             MageAsphyxiationGuild::cast_air_shield(&data("cairshield", ""), &empty_ctx()),
-            command::send("@cast air shield at me".to_string())
+            command::send("@cast 'air shield' me".to_string())
         );
     }
 
@@ -84,7 +82,7 @@ mod tests {
     fn air_shield_with_target() {
         assert_eq!(
             MageAsphyxiationGuild::cast_air_shield(&data("cairshield", "ally"), &empty_ctx()),
-            command::send("@cast air shield at ally".to_string())
+            command::send("@cast 'air shield' ally".to_string())
         );
     }
 

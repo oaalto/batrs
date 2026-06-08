@@ -81,19 +81,25 @@ impl PsionicistGuild {
         if !args.is_empty() {
             return command::send(cast_spell("force shield", data));
         }
-        let logical = if ctx.flag(RIFTWALKER_HAS_ENTITY_FLAG) {
-            "cast force shield at entity"
+        let at = if ctx.flag(RIFTWALKER_HAS_ENTITY_FLAG) {
+            "entity"
         } else {
-            "cast force shield at me"
+            "me"
         };
-        command::send(crate::abilities::client_send_line(logical))
+        command::send(crate::abilities::cast_quoted_with_suffix(
+            "force shield",
+            at,
+        ))
     }
 
     pub fn cast_psionic_shield(
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(crate::abilities::client_send_line("cast psionic shield"))
+        command::send(crate::abilities::cast_quoted_with_suffix(
+            "psionic shield",
+            "",
+        ))
     }
 
     pub fn cast_mind_development(
@@ -114,7 +120,7 @@ impl PsionicistGuild {
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(crate::abilities::client_send_line("use meditation"))
+        command::send(crate::abilities::use_quoted_with_suffix("meditation", ""))
     }
 
     pub fn repeat_heal_self(
@@ -195,23 +201,23 @@ mod tests {
 
         assert_eq!(
             PsionicistGuild::cast_force_shield(&data("cfs", ""), &ctx_with_entity_flag(true)),
-            command::send("@cast force shield at entity".to_string())
+            command::send("@cast 'force shield' entity".to_string())
         );
         assert_eq!(
             PsionicistGuild::cast_force_shield(&data("cfs", ""), &ctx_with_entity_flag(false)),
-            command::send("@cast force shield at me".to_string())
+            command::send("@cast 'force shield' me".to_string())
         );
     }
 
     #[test]
-    fn psionic_shield_unquoted_meditation() {
+    fn psionic_shield_and_meditation() {
         assert_eq!(
             PsionicistGuild::cast_psionic_shield(&data("cpshield", ""), &empty_ctx()),
-            command::send("@cast psionic shield".to_string())
+            command::send("@cast 'psionic shield'".to_string())
         );
         assert_eq!(
             PsionicistGuild::use_meditation(&data("med", ""), &empty_ctx()),
-            command::send("@use meditation".to_string())
+            command::send("@use 'meditation'".to_string())
         );
     }
 

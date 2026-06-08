@@ -58,9 +58,7 @@ impl MageAcidGuild {
     ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        command::send(abilities::client_send_line(&format!(
-            "cast corrosion shield at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("corrosion shield", at))
     }
 
     pub fn cast_acid_shield(
@@ -69,9 +67,7 @@ impl MageAcidGuild {
     ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        command::send(abilities::client_send_line(&format!(
-            "cast acid shield at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("acid shield", at))
     }
 }
 
@@ -131,7 +127,7 @@ mod tests {
     fn corrosion_shield_defaults_to_me() {
         assert_eq!(
             MageAcidGuild::cast_corrosion_shield(&data("ccshield", ""), &empty_ctx()),
-            command::send("@cast corrosion shield at me".to_string())
+            command::send("@cast 'corrosion shield' me".to_string())
         );
     }
 
@@ -139,7 +135,7 @@ mod tests {
     fn corrosion_shield_with_target() {
         assert_eq!(
             MageAcidGuild::cast_corrosion_shield(&data("ccshield", "ally"), &empty_ctx()),
-            command::send("@cast corrosion shield at ally".to_string())
+            command::send("@cast 'corrosion shield' ally".to_string())
         );
     }
 
@@ -147,7 +143,7 @@ mod tests {
     fn acid_shield_defaults_to_me() {
         assert_eq!(
             MageAcidGuild::cast_acid_shield(&data("cashield", ""), &empty_ctx()),
-            command::send("@cast acid shield at me".to_string())
+            command::send("@cast 'acid shield' me".to_string())
         );
     }
 

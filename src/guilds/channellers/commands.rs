@@ -13,7 +13,7 @@ impl ChannellersGuild {
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line("cast drain room"))
+        command::send(abilities::cast_quoted_with_suffix("drain room", ""))
     }
 }
 
@@ -36,6 +36,6 @@ mod tests {
     #[test]
     fn drain_room_matches_expected_line() {
         let result = ChannellersGuild::cast_drain_room(&data("cdr", ""), &empty_ctx());
-        assert_eq!(result, command::send("@cast drain room".to_string()));
+        assert_eq!(result, command::send("@cast 'drain room'".to_string()));
     }
 }

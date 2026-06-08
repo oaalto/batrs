@@ -46,15 +46,34 @@ pub fn targeted_cast(spell: &str, target_args: &str) -> String {
     }
 }
 
-/// Cast with an extra tail after the quoted name (`cast 'spark birth' troll`).
-pub fn cast_quoted_with_suffix(spell: &str, suffix: &str) -> String {
+/// Logical `cast '<spell>'` with optional tail (no `@` prefix).
+pub fn cast_quoted_tail(spell: &str, suffix: &str) -> String {
     let suffix = suffix.trim();
-    let logical = if suffix.is_empty() {
+    if suffix.is_empty() {
         format!("cast '{spell}'")
     } else {
         format!("cast '{spell}' {suffix}")
-    };
-    client_send_line(&logical)
+    }
+}
+
+/// Logical `use '<skill>'` with optional tail (no `@` prefix).
+pub fn use_quoted_tail(skill: &str, suffix: &str) -> String {
+    let suffix = suffix.trim();
+    if suffix.is_empty() {
+        format!("use '{skill}'")
+    } else {
+        format!("use '{skill}' {suffix}")
+    }
+}
+
+/// Cast with an extra tail after the quoted name (`cast 'spark birth' troll`).
+pub fn cast_quoted_with_suffix(spell: &str, suffix: &str) -> String {
+    client_send_line(&cast_quoted_tail(spell, suffix))
+}
+
+/// Use with an extra tail after the quoted name (`use 'dark meditation' sacrifice health`).
+pub fn use_quoted_with_suffix(skill: &str, suffix: &str) -> String {
+    client_send_line(&use_quoted_tail(skill, suffix))
 }
 
 pub fn use_skill(skill_name: &str, data: &Data) -> String {
@@ -113,6 +132,22 @@ mod tests {
         assert_eq!(
             use_skill("scythe swipe", &with_args),
             "@target orc;use 'scythe swipe' orc"
+        );
+    }
+
+    #[test]
+    fn quoted_tails_and_suffix_helpers() {
+        assert_eq!(
+            cast_quoted_tail("flame shield", "me"),
+            "cast 'flame shield' me"
+        );
+        assert_eq!(
+            use_quoted_tail("dark meditation", ""),
+            "use 'dark meditation'"
+        );
+        assert_eq!(
+            use_quoted_with_suffix("study creature", "wolf"),
+            "@use 'study creature' wolf"
         );
     }
 

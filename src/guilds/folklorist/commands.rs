@@ -37,9 +37,7 @@ impl FolkloristGuild {
             Ok(target) => target,
             Err(effect) => return vec![effect],
         };
-        command::send(abilities::client_send_line(&format!(
-            "use study creature at {target}"
-        )))
+        command::send(abilities::use_quoted_with_suffix("study creature", target))
     }
 
     pub fn use_eye_of_loraen(
@@ -50,9 +48,7 @@ impl FolkloristGuild {
             Ok(target) => target,
             Err(effect) => return vec![effect],
         };
-        command::send(abilities::client_send_line(&format!(
-            "use eye of loraen at {target}"
-        )))
+        command::send(abilities::use_quoted_with_suffix("eye of loraen", target))
     }
 
     pub fn use_plant_lore(
@@ -63,9 +59,7 @@ impl FolkloristGuild {
             Ok(target) => target,
             Err(effect) => return vec![effect],
         };
-        command::send(abilities::client_send_line(&format!(
-            "use plant lore at {target}"
-        )))
+        command::send(abilities::use_quoted_with_suffix("plant lore", target))
     }
 
     pub fn cast_poison_blast(
@@ -78,7 +72,7 @@ impl FolkloristGuild {
         } else {
             command::send(abilities::compound_send(&[
                 &format!("target {args}"),
-                &format!("cast poison blast at {args}"),
+                &abilities::cast_quoted_tail("poison blast", args),
             ]))
         }
     }
@@ -93,7 +87,7 @@ impl FolkloristGuild {
         } else {
             command::send(abilities::compound_send(&[
                 &format!("target {args}"),
-                &format!("cast venom strike at {args}"),
+                &abilities::cast_quoted_tail("venom strike", args),
             ]))
         }
     }
@@ -161,7 +155,7 @@ impl FolkloristGuild {
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line("cast field of poison"))
+        command::send(abilities::cast_quoted_with_suffix("field of poison", ""))
     }
 }
 
@@ -186,7 +180,7 @@ mod tests {
         let result = FolkloristGuild::use_study_creature(&data("usc", "wolf"), &empty_ctx());
         assert_eq!(
             result,
-            command::send("@use study creature at wolf".to_string())
+            command::send("@use 'study creature' wolf".to_string())
         );
     }
 
@@ -207,10 +201,10 @@ mod tests {
     }
 
     #[test]
-    fn poison_blast_targeted_unquoted_mid_form() {
+    fn poison_blast_targeted() {
         assert_eq!(
             FolkloristGuild::cast_poison_blast(&data("cpb", "orc"), &empty_ctx()),
-            command::send("@target orc;cast poison blast at orc".to_string())
+            command::send("@target orc;cast 'poison blast' orc".to_string())
         );
     }
 
@@ -278,7 +272,7 @@ mod tests {
     fn field_of_poison() {
         assert_eq!(
             FolkloristGuild::cast_field_of_poison(&data("cfp", ""), &empty_ctx()),
-            command::send("@cast field of poison".to_string())
+            command::send("@cast 'field of poison'".to_string())
         );
     }
 }

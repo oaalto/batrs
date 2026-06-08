@@ -40,11 +40,11 @@ impl CurateGuild {
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
         let logical = match data.args.trim() {
-            "hp" => "use dark meditation at sacrifice health",
-            "sp" => "use dark meditation at sacrifice power",
-            _ => "use dark meditation at sacrifice endurance",
+            "hp" => abilities::use_quoted_tail("dark meditation", "sacrifice health"),
+            "sp" => abilities::use_quoted_tail("dark meditation", "sacrifice power"),
+            _ => abilities::use_quoted_tail("dark meditation", "sacrifice endurance"),
         };
-        command::send(abilities::client_send_line(logical))
+        command::send(abilities::client_send_line(&logical))
     }
 }
 
@@ -114,7 +114,7 @@ mod tests {
         let result = CurateGuild::use_dark_meditation(&data("dmed", "hp"), &empty_ctx());
         assert_eq!(
             result,
-            command::send("@use dark meditation at sacrifice health".to_string())
+            command::send("@use 'dark meditation' sacrifice health".to_string())
         );
     }
 
@@ -123,7 +123,7 @@ mod tests {
         let result = CurateGuild::use_dark_meditation(&data("dmed", "sp"), &empty_ctx());
         assert_eq!(
             result,
-            command::send("@use dark meditation at sacrifice power".to_string())
+            command::send("@use 'dark meditation' sacrifice power".to_string())
         );
     }
 
@@ -132,13 +132,13 @@ mod tests {
         let empty = CurateGuild::use_dark_meditation(&data("dmed", ""), &empty_ctx());
         assert_eq!(
             empty,
-            command::send("@use dark meditation at sacrifice endurance".to_string())
+            command::send("@use 'dark meditation' sacrifice endurance".to_string())
         );
 
         let unknown = CurateGuild::use_dark_meditation(&data("dmed", "xy"), &empty_ctx());
         assert_eq!(
             unknown,
-            command::send("@use dark meditation at sacrifice endurance".to_string())
+            command::send("@use 'dark meditation' sacrifice endurance".to_string())
         );
     }
 }

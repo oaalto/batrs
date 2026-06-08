@@ -25,9 +25,7 @@ impl InnerCircleGuild {
         ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
         let at = resolve_at_entity_style(data, ctx);
-        command::send(abilities::client_send_line(&format!(
-            "cast blurred image at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("blurred image", &at))
     }
 
     pub fn cast_feather_weight(
@@ -35,9 +33,7 @@ impl InnerCircleGuild {
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
         let at = resolve_at_feather_weight(data);
-        command::send(abilities::client_send_line(&format!(
-            "cast feather weight at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("feather weight", &at))
     }
 
     pub fn cast_shield_of_protection(
@@ -45,9 +41,10 @@ impl InnerCircleGuild {
         ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
         let at = resolve_at_entity_style(data, ctx);
-        command::send(abilities::client_send_line(&format!(
-            "cast shield of protection at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix(
+            "shield of protection",
+            &at,
+        ))
     }
 
     pub fn cast_armour_of_aether(
@@ -55,9 +52,7 @@ impl InnerCircleGuild {
         ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
         let at = resolve_at_entity_style(data, ctx);
-        command::send(abilities::client_send_line(&format!(
-            "cast armour of aether at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("armour of aether", &at))
     }
 }
 
@@ -107,7 +102,7 @@ mod tests {
     fn blurred_image_with_explicit_target() {
         assert_eq!(
             InnerCircleGuild::cast_blurred_image(&data("cbi", "orc"), &ctx_default()),
-            command::send("@cast blurred image at orc".to_string())
+            command::send("@cast 'blurred image' orc".to_string())
         );
     }
 
@@ -115,7 +110,7 @@ mod tests {
     fn blurred_image_defaults_to_me_without_entity_flag() {
         assert_eq!(
             InnerCircleGuild::cast_blurred_image(&data("cbi", ""), &ctx_default()),
-            command::send("@cast blurred image at me".to_string())
+            command::send("@cast 'blurred image' me".to_string())
         );
     }
 
@@ -123,7 +118,7 @@ mod tests {
     fn blurred_image_targets_entity_when_flag_set_and_no_args() {
         assert_eq!(
             InnerCircleGuild::cast_blurred_image(&data("cbi", ""), &ctx_with_entity(true)),
-            command::send("@cast blurred image at entity".to_string())
+            command::send("@cast 'blurred image' entity".to_string())
         );
     }
 
@@ -131,7 +126,7 @@ mod tests {
     fn feather_weight_defaults_to_me() {
         assert_eq!(
             InnerCircleGuild::cast_feather_weight(&data("cfw", ""), &ctx_default()),
-            command::send("@cast feather weight at me".to_string())
+            command::send("@cast 'feather weight' me".to_string())
         );
     }
 
@@ -139,7 +134,7 @@ mod tests {
     fn feather_weight_with_target() {
         assert_eq!(
             InnerCircleGuild::cast_feather_weight(&data("cfw", "ally"), &ctx_default()),
-            command::send("@cast feather weight at ally".to_string())
+            command::send("@cast 'feather weight' ally".to_string())
         );
     }
 
@@ -147,7 +142,7 @@ mod tests {
     fn shield_of_protection_uses_entity_when_flag_set() {
         assert_eq!(
             InnerCircleGuild::cast_shield_of_protection(&data("csp", ""), &ctx_with_entity(true)),
-            command::send("@cast shield of protection at entity".to_string())
+            command::send("@cast 'shield of protection' entity".to_string())
         );
     }
 
@@ -155,7 +150,7 @@ mod tests {
     fn armour_of_aether_with_explicit_target() {
         assert_eq!(
             InnerCircleGuild::cast_armour_of_aether(&data("caoa", "golem"), &ctx_default()),
-            command::send("@cast armour of aether at golem".to_string())
+            command::send("@cast 'armour of aether' golem".to_string())
         );
     }
 }

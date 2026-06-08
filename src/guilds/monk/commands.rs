@@ -42,7 +42,7 @@ impl MonkGuild {
             effects
         } else {
             effects.extend(command::send(abilities::client_send_line(&format!(
-                "target {};use kiai-cry at {}",
+                "target {};use 'kiai-cry' {}",
                 data.args, data.args
             ))));
             effects
@@ -124,7 +124,7 @@ impl MonkGuild {
             )));
         } else {
             effects.extend(command::send(abilities::client_send_line(&format!(
-                "use 'mind over body' at {}",
+                "use 'mind over body' {}",
                 data.args
             ))));
         }
@@ -275,7 +275,7 @@ mod tests {
         let result = MonkGuild::use_kiai_cry(&data("cs", "orc"), &ctx);
 
         assert!(result.contains(&command::CommandEffect::Send(
-            "@target orc;use kiai-cry at orc".to_string()
+            "@target orc;use 'kiai-cry' orc".to_string()
         )));
         assert_eq!(automation_actions(&result).len(), 4);
     }

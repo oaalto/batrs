@@ -42,7 +42,7 @@ impl DiscipleGuild {
             Vec::new()
         } else {
             command::send(abilities::client_send_line(&format!(
-                "target {};use 'kiss of death' at {}",
+                "target {};use 'kiss of death' {}",
                 data.args, data.args
             )))
         }

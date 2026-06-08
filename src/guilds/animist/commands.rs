@@ -55,7 +55,7 @@ impl AnimistGuild {
         cast_after_ceremony(
             ctx,
             DISMISSING_MOUNT_FLAG,
-            "cast 'animal soul link' at dismiss",
+            "cast 'animal soul link' dismiss",
         )
     }
 }

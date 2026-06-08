@@ -34,7 +34,7 @@ impl TigerGuild {
             vec![command::output(StyledLine::new("No target!"))]
         } else {
             command::send(abilities::client_send_line(&format!(
-                "target {};use 'dim mak' at {}",
+                "target {};use 'dim mak' {}",
                 data.args, data.args
             )))
         }
@@ -59,7 +59,7 @@ impl TigerGuild {
             vec![command::output(StyledLine::new("No target!"))]
         } else {
             command::send(abilities::client_send_line(&format!(
-                "target {};use 'pick locks' at {}",
+                "target {};use 'pick locks' {}",
                 data.args, data.args
             )))
         }
@@ -136,7 +136,7 @@ mod tests {
         let result = TigerGuild::use_dim_mak(&data("dm", "orc"), &empty_ctx());
         assert_eq!(
             result,
-            command::send("@target orc;use 'dim mak' at orc".to_string())
+            command::send("@target orc;use 'dim mak' orc".to_string())
         );
     }
 
@@ -166,7 +166,7 @@ mod tests {
         let result = TigerGuild::use_pick_locks(&data("upl", "chest"), &empty_ctx());
         assert_eq!(
             result,
-            command::send("@target chest;use 'pick locks' at chest".to_string())
+            command::send("@target chest;use 'pick locks' chest".to_string())
         );
     }
 

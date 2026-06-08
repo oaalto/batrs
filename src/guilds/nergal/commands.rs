@@ -58,7 +58,7 @@ impl NergalGuild {
         _: &command::Data,
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line("cast corrupt ground"))
+        command::send(abilities::cast_quoted_with_suffix("corrupt ground", ""))
     }
 
     fn cast_evaluate_host(
@@ -98,10 +98,10 @@ impl NergalGuild {
         if data.args.trim().is_empty() {
             return Vec::new();
         }
-        command::send(abilities::client_send_line(&format!(
-            "cast end enthrallment at {}",
-            data.args
-        )))
+        command::send(abilities::cast_quoted_with_suffix(
+            "end enthrallment",
+            data.args.trim(),
+        ))
     }
 
     fn cast_nourish_enthralled(
@@ -118,19 +118,20 @@ impl NergalGuild {
         let Some(third) = parts.next() else {
             return Vec::new();
         };
-        command::send(abilities::client_send_line(&format!(
-            "cast nourish enthralled at {first} consume {second} {third}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix(
+            "nourish enthralled",
+            &format!("{first} consume {second} {third}"),
+        ))
     }
 
     fn cast_call_forth_enthralled(
         data: &command::Data,
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line(&format!(
-            "cast call forth enthralled at {}",
-            data.args
-        )))
+        command::send(abilities::cast_quoted_with_suffix(
+            "call forth enthralled",
+            data.args.trim(),
+        ))
     }
 
     fn use_embrace_the_gifts_aura(
@@ -140,10 +141,10 @@ impl NergalGuild {
         if data.args.trim().is_empty() {
             return Vec::new();
         }
-        command::send(abilities::client_send_line(&format!(
-            "use embrace the gifts at start aura {}",
-            data.args
-        )))
+        command::send(abilities::use_quoted_with_suffix(
+            "embrace the gifts",
+            &format!("start aura {}", data.args.trim()),
+        ))
     }
 
     fn use_embrace_the_gifts_mutation(
@@ -153,17 +154,17 @@ impl NergalGuild {
         if data.args.trim().is_empty() {
             return Vec::new();
         }
-        command::send(abilities::client_send_line(&format!(
-            "use embrace the gifts at start mutation {}",
-            data.args
-        )))
+        command::send(abilities::use_quoted_with_suffix(
+            "embrace the gifts",
+            &format!("start mutation {}", data.args.trim()),
+        ))
     }
 
     fn use_dreary_hibernation(
         _: &command::Data,
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line("use dreary hibernation"))
+        command::send(abilities::use_quoted_with_suffix("dreary hibernation", ""))
     }
 
     fn use_stab(
@@ -267,7 +268,7 @@ mod tests {
         };
         let out = NergalGuild::cast_end_enthrallment(&data, &command::CommandEnvironment::empty())
             .unwrap();
-        assert_eq!(out, "@cast end enthrallment at host1");
+        assert_eq!(out, "@cast 'end enthrallment' host1");
     }
 
     #[test]
@@ -291,7 +292,7 @@ mod tests {
         let out =
             NergalGuild::cast_nourish_enthralled(&data, &command::CommandEnvironment::empty())
                 .unwrap();
-        assert_eq!(out, "@cast nourish enthralled at host consume minor vitae");
+        assert_eq!(out, "@cast 'nourish enthralled' host consume minor vitae");
     }
 
     #[test]

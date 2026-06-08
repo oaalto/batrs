@@ -54,7 +54,7 @@ impl Guild for AnimistGuild {
                 queued_cast(SEPARATING_SOUL_FLAG, "cast 'separate soul'"),
                 queued_cast(JOINING_SOUL_FLAG, "cast 'join soul'"),
                 queued_cast(CONJURING_MOUNT_FLAG, "cast 'conjure animal soul'"),
-                queued_cast(DISMISSING_MOUNT_FLAG, "cast 'animal soul link' at dismiss"),
+                queued_cast(DISMISSING_MOUNT_FLAG, "cast 'animal soul link' dismiss"),
             ],
         });
     }

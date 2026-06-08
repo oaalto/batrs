@@ -58,7 +58,7 @@ impl TriadGuild {
         _: &command::Data,
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line("cast aura of hate"))
+        command::send(abilities::cast_quoted_with_suffix("aura of hate", ""))
     }
 }
 
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn aura_of_hate_no_quotes() {
         let result = TriadGuild::cast_aura_of_hate(&data("caoh", ""), &empty_ctx()).unwrap();
-        assert_eq!(result, "@cast aura of hate");
+        assert_eq!(result, "@cast 'aura of hate'");
     }
 
     #[test]

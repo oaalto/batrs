@@ -51,7 +51,7 @@ impl SpiderGuild {
         }
         command::send(abilities::compound_send(&[
             &format!("target {args}"),
-            &format!("cast hunger of the spider at {args}"),
+            &abilities::cast_quoted_tail("hunger of the spider", args),
         ]))
     }
 
@@ -59,18 +59,19 @@ impl SpiderGuild {
         data: &command::Data,
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line(&format!(
-            "cast spider demon conjuration at me with {}",
-            data.args
-        )))
+        command::send(abilities::cast_quoted_with_suffix(
+            "spider demon conjuration",
+            &format!("me with {}", data.args),
+        ))
     }
 
     fn cast_spider_demon_control(
         _: &command::Data,
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line(
-            "cast spider demon control at me",
+        command::send(abilities::cast_quoted_with_suffix(
+            "spider demon control",
+            "me",
         ))
     }
 
@@ -78,18 +79,19 @@ impl SpiderGuild {
         data: &command::Data,
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line(&format!(
-            "cast spider demon sacrifice at {}",
-            data.args.trim()
-        )))
+        command::send(abilities::cast_quoted_with_suffix(
+            "spider demon sacrifice",
+            data.args.trim(),
+        ))
     }
 
     fn cast_spider_demon_banishment(
         _: &command::Data,
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line(
-            "cast spider demon banishment at me",
+        command::send(abilities::cast_quoted_with_suffix(
+            "spider demon banishment",
+            "me",
         ))
     }
 
@@ -97,8 +99,9 @@ impl SpiderGuild {
         _: &command::Data,
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line(
-            "cast spider demon inquiry at me",
+        command::send(abilities::cast_quoted_with_suffix(
+            "spider demon inquiry",
+            "me",
         ))
     }
 
@@ -106,8 +109,9 @@ impl SpiderGuild {
         _: &command::Data,
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line(
-            "cast spider demon channeling at me",
+        command::send(abilities::cast_quoted_with_suffix(
+            "spider demon channeling",
+            "me",
         ))
     }
 
@@ -117,7 +121,7 @@ impl SpiderGuild {
     ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            command::send(abilities::client_send_line("cast toxic dilution at me"))
+            command::send(abilities::cast_quoted_with_suffix("toxic dilution", "me"))
         } else {
             command::send(abilities::cast_quoted_with_suffix("toxic dilution", args))
         }
@@ -142,7 +146,7 @@ impl SpiderGuild {
     ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            command::send(abilities::client_send_line("cast spider walk at me"))
+            command::send(abilities::cast_quoted_with_suffix("spider walk", "me"))
         } else {
             command::send(abilities::cast_quoted_with_suffix("spider walk", args))
         }
@@ -154,7 +158,7 @@ impl SpiderGuild {
     ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            command::send(abilities::client_send_line("cast heavy weight at me"))
+            command::send(abilities::cast_quoted_with_suffix("heavy weight", "me"))
         } else {
             command::send(abilities::cast_quoted_with_suffix("heavy weight", args))
         }
@@ -164,8 +168,9 @@ impl SpiderGuild {
         _: &command::Data,
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line(
-            "cast spider demon mass sacrifice",
+        command::send(abilities::cast_quoted_with_suffix(
+            "spider demon mass sacrifice",
+            "",
         ))
     }
 
@@ -173,8 +178,9 @@ impl SpiderGuild {
         _: &command::Data,
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line(
-            "cast prayer to the spider queen",
+        command::send(abilities::cast_quoted_with_suffix(
+            "prayer to the spider queen",
+            "",
         ))
     }
 
@@ -184,11 +190,9 @@ impl SpiderGuild {
     ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            command::send(abilities::client_send_line("cast remove poison at me"))
+            command::send(abilities::cast_quoted_with_suffix("remove poison", "me"))
         } else {
-            command::send(abilities::client_send_line(&format!(
-                "cast remove poison at {args}"
-            )))
+            command::send(abilities::cast_quoted_with_suffix("remove poison", args))
         }
     }
 
@@ -269,7 +273,7 @@ mod tests {
             args: "  troll  ".into(),
         };
         let out = send_line(SpiderGuild::cast_hunger_of_the_spider(&data, &ctx())).unwrap();
-        assert_eq!(out, "@target troll;cast hunger of the spider at troll");
+        assert_eq!(out, "@target troll;cast 'hunger of the spider' troll");
     }
 
     #[test]
@@ -279,7 +283,7 @@ mod tests {
             args: "".into(),
         };
         let out = send_line(SpiderGuild::cast_spider_demon_conjuration(&data, &ctx())).unwrap();
-        assert_eq!(out, "@cast spider demon conjuration at me with ");
+        assert_eq!(out, "@cast 'spider demon conjuration' me with");
     }
 
     #[test]
@@ -289,7 +293,7 @@ mod tests {
             args: "thing".into(),
         };
         let out = send_line(SpiderGuild::cast_spider_demon_conjuration(&data, &ctx())).unwrap();
-        assert_eq!(out, "@cast spider demon conjuration at me with thing");
+        assert_eq!(out, "@cast 'spider demon conjuration' me with thing");
     }
 
     #[test]
@@ -299,7 +303,7 @@ mod tests {
             args: "ignored".into(),
         };
         let out = send_line(SpiderGuild::cast_spider_demon_control(&data, &ctx())).unwrap();
-        assert_eq!(out, "@cast spider demon control at me");
+        assert_eq!(out, "@cast 'spider demon control' me");
     }
 
     #[test]
@@ -309,7 +313,7 @@ mod tests {
             args: "".into(),
         };
         let out = send_line(SpiderGuild::cast_toxic_dilution(&data, &ctx())).unwrap();
-        assert_eq!(out, "@cast toxic dilution at me");
+        assert_eq!(out, "@cast 'toxic dilution' me");
     }
 
     #[test]
@@ -358,7 +362,7 @@ mod tests {
                 &cx
             )
             .as_deref(),
-            command::send("@cast spider walk at me")
+            command::send("@cast 'spider walk' me")
         );
         assert_eq!(
             SpiderGuild::cast_spider_walk(
@@ -380,7 +384,7 @@ mod tests {
                 &cx,
             )
             .as_deref(),
-            command::send("@cast heavy weight at me")
+            command::send("@cast 'heavy weight' me")
         );
         assert_eq!(
             SpiderGuild::cast_heavy_weight(
@@ -407,7 +411,7 @@ mod tests {
                 &cx,
             )
             .as_deref(),
-            command::send("@cast spider demon mass sacrifice")
+            command::send("@cast 'spider demon mass sacrifice'")
         );
         assert_eq!(
             SpiderGuild::cast_prayer_to_the_spider_queen(
@@ -418,7 +422,7 @@ mod tests {
                 &cx,
             )
             .as_deref(),
-            command::send("@cast prayer to the spider queen")
+            command::send("@cast 'prayer to the spider queen'")
         );
     }
 
@@ -434,7 +438,7 @@ mod tests {
                 &cx,
             )
             .as_deref(),
-            command::send("@cast remove poison at me")
+            command::send("@cast 'remove poison' me")
         );
         assert_eq!(
             SpiderGuild::cast_remove_poison(
@@ -445,7 +449,7 @@ mod tests {
                 &cx,
             )
             .as_deref(),
-            command::send("@cast remove poison at ally")
+            command::send("@cast 'remove poison' ally")
         );
     }
 

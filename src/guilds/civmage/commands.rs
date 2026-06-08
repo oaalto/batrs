@@ -32,9 +32,7 @@ impl CivmageGuild {
     ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        command::send(abilities::client_send_line(&format!(
-            "cast lift of load at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("lift of load", at))
     }
 
     pub fn cast_identify(
@@ -43,9 +41,7 @@ impl CivmageGuild {
     ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        command::send(abilities::client_send_line(&format!(
-            "cast identify at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("identify", at))
     }
 
     pub fn cast_floating_disc(
@@ -103,9 +99,7 @@ impl CivmageGuild {
     ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        command::send(abilities::client_send_line(&format!(
-            "cast mirror image at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("mirror image", at))
     }
 }
 
@@ -129,7 +123,7 @@ mod tests {
     fn lift_of_load_default_me() {
         assert_eq!(
             CivmageGuild::cast_lift_of_load(&data("cld", ""), &empty_ctx()),
-            command::send("@cast lift of load at me".to_string())
+            command::send("@cast 'lift of load' me".to_string())
         );
     }
 
@@ -137,7 +131,7 @@ mod tests {
     fn lift_of_load_with_target() {
         assert_eq!(
             CivmageGuild::cast_lift_of_load(&data("cld", "orc"), &empty_ctx()),
-            command::send("@cast lift of load at orc".to_string())
+            command::send("@cast 'lift of load' orc".to_string())
         );
     }
 
@@ -145,7 +139,7 @@ mod tests {
     fn identify_defaults_to_me_when_no_args() {
         assert_eq!(
             CivmageGuild::cast_identify(&data("cid", ""), &empty_ctx()),
-            command::send("@cast identify at me".to_string())
+            command::send("@cast 'identify' me".to_string())
         );
     }
 
@@ -153,7 +147,7 @@ mod tests {
     fn identify_with_target() {
         assert_eq!(
             CivmageGuild::cast_identify(&data("cid", "sword"), &empty_ctx()),
-            command::send("@cast identify at sword".to_string())
+            command::send("@cast 'identify' sword".to_string())
         );
     }
 
@@ -161,7 +155,7 @@ mod tests {
     fn floating_disc() {
         assert_eq!(
             CivmageGuild::cast_floating_disc(&data("cfd", ""), &empty_ctx()),
-            command::send("@cast floating disc".to_string())
+            command::send("@cast 'floating disc'".to_string())
         );
     }
 
@@ -209,7 +203,7 @@ mod tests {
     fn mirror_image_default_me() {
         assert_eq!(
             CivmageGuild::cast_mirror_image(&data("cmi", ""), &empty_ctx()),
-            command::send("@cast mirror image at me".to_string())
+            command::send("@cast 'mirror image' me".to_string())
         );
     }
 
@@ -217,7 +211,7 @@ mod tests {
     fn mirror_image_with_target() {
         assert_eq!(
             CivmageGuild::cast_mirror_image(&data("cmi", "gripe"), &empty_ctx()),
-            command::send("@cast mirror image at gripe".to_string())
+            command::send("@cast 'mirror image' gripe".to_string())
         );
     }
 }

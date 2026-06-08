@@ -163,7 +163,7 @@ impl ReaverGuild {
     ) -> Vec<command::CommandEffect> {
         if !data.args.is_empty() {
             return command::send(abilities::client_send_line(&format!(
-                "use 'prayer to destruction' at {}",
+                "use 'prayer to destruction' {}",
                 &data.args
             )));
         }
@@ -215,7 +215,7 @@ impl ReaverGuild {
             Vec::new()
         } else {
             command::send(abilities::client_send_line(&format!(
-                "cast 'word of attrition' at {}",
+                "cast 'word of attrition' {}",
                 &data.args
             )))
         }
@@ -227,13 +227,13 @@ impl ReaverGuild {
     ) -> Vec<command::CommandEffect> {
         if ctx.flag("prayer_done") {
             return command::send(abilities::client_send_line(
-                "cast 'shattered feast' at amount 100",
+                "cast 'shattered feast' amount 100",
             ));
         }
 
         let mut effects = prayer_flag_effects("cast_shattered_feast");
         effects.extend(command::send(abilities::client_send_line(
-            "use 'prayer to destruction' at spell",
+            "use 'prayer to destruction' spell",
         )));
         effects
     }
@@ -248,7 +248,7 @@ impl ReaverGuild {
 
         let mut effects = prayer_flag_effects("cast_black_hole");
         effects.extend(command::send(abilities::client_send_line(
-            "use 'prayer to destruction' at spell",
+            "use 'prayer to destruction' spell",
         )));
         effects
     }
@@ -259,13 +259,13 @@ impl ReaverGuild {
     ) -> Vec<command::CommandEffect> {
         if ctx.flag("prayer_done") {
             return command::send(abilities::client_send_line(
-                "cast 'blood seeker' at amount 100",
+                "cast 'blood seeker' amount 100",
             ));
         }
 
         let mut effects = prayer_flag_effects("cast_blood_seeker");
         effects.extend(command::send(abilities::client_send_line(
-            "use 'prayer to destruction' at spell",
+            "use 'prayer to destruction' spell",
         )));
         effects
     }
@@ -286,7 +286,7 @@ impl ReaverGuild {
         } else {
             if ctx.flag("prayer_done") {
                 return command::send(abilities::client_send_line(&format!(
-                    "cast 'call armour' at amount {}",
+                    "cast 'call armour' amount {}",
                     &data.args
                 )));
             }
@@ -297,7 +297,7 @@ impl ReaverGuild {
             ))];
             effects.extend(prayer_flag_effects("cast_call_armour"));
             effects.extend(command::send(abilities::client_send_line(
-                "use 'prayer to destruction' at spell",
+                "use 'prayer to destruction' spell",
             )));
             effects
         }
@@ -312,7 +312,7 @@ impl ReaverGuild {
         } else {
             if ctx.flag("prayer_done") {
                 return command::send(abilities::client_send_line(&format!(
-                    "cast 'spirit drain' at {} amount 100",
+                    "cast 'spirit drain' {} amount 100",
                     &data.args
                 )));
             }
@@ -323,7 +323,7 @@ impl ReaverGuild {
             ))];
             effects.extend(prayer_flag_effects("cast_spirit_drain"));
             effects.extend(command::send(abilities::client_send_line(
-                "use 'prayer to destruction' at spell",
+                "use 'prayer to destruction' spell",
             )));
             effects
         }

@@ -56,9 +56,7 @@ impl MageElectricityGuild {
     ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        command::send(abilities::client_send_line(&format!(
-            "cast lightning shield at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("lightning shield", at))
     }
 }
 
@@ -98,7 +96,7 @@ mod tests {
     fn lightning_shield_defaults_to_me() {
         assert_eq!(
             MageElectricityGuild::cast_lightning_shield(&data("cltshield", ""), &empty_ctx()),
-            command::send("@cast lightning shield at me".to_string())
+            command::send("@cast 'lightning shield' me".to_string())
         );
     }
 
@@ -106,7 +104,7 @@ mod tests {
     fn lightning_shield_with_target() {
         assert_eq!(
             MageElectricityGuild::cast_lightning_shield(&data("cltshield", "ally"), &empty_ctx()),
-            command::send("@cast lightning shield at ally".to_string())
+            command::send("@cast 'lightning shield' ally".to_string())
         );
     }
 

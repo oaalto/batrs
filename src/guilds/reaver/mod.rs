@@ -32,7 +32,7 @@ impl Guild for ReaverGuild {
                     flag: "cast_shattered_feast".to_string(),
                     actions: vec![
                         Action::Send(abilities::client_send_line(
-                            "cast 'shattered feast' at amount 100",
+                            "cast 'shattered feast' amount 100",
                         )),
                         Action::ClearFlag("cast_shattered_feast".to_string()),
                     ],
@@ -41,7 +41,7 @@ impl Guild for ReaverGuild {
                     flag: "cast_blood_seeker".to_string(),
                     actions: vec![
                         Action::Send(abilities::client_send_line(
-                            "cast 'blood seeker' at amount 100",
+                            "cast 'blood seeker' amount 100",
                         )),
                         Action::ClearFlag("cast_blood_seeker".to_string()),
                     ],
@@ -50,7 +50,7 @@ impl Guild for ReaverGuild {
                     flag: "cast_call_armour".to_string(),
                     actions: vec![
                         Action::Send(abilities::client_send_line(
-                            "cast 'call armour' at amount {call_armour_amount}",
+                            "cast 'call armour' amount {call_armour_amount}",
                         )),
                         Action::ClearFlag("cast_call_armour".to_string()),
                     ],
@@ -59,7 +59,7 @@ impl Guild for ReaverGuild {
                     flag: "cast_spirit_drain".to_string(),
                     actions: vec![
                         Action::Send(abilities::client_send_line(
-                            "cast 'spirit drain' at {spirit_drain_target} amount 100",
+                            "cast 'spirit drain' {spirit_drain_target} amount 100",
                         )),
                         Action::ClearFlag("cast_spirit_drain".to_string()),
                     ],

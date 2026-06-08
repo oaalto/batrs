@@ -96,33 +96,36 @@ impl KharimGuild {
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line("use Chaotic circulation at me"))
+        command::send(abilities::use_quoted_with_suffix(
+            "chaotic circulation",
+            "me",
+        ))
     }
 
     pub fn cast_flame_arrow(
         data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        let logical = if data.args.trim().is_empty() {
-            "cast flame arrow at device".to_string()
+        let suffix = if data.args.trim().is_empty() {
+            "device".to_string()
         } else {
-            format!("cast flame arrow at {}", data.args.trim())
+            data.args.trim().to_string()
         };
-        command::send(abilities::client_send_line(&logical))
+        command::send(abilities::cast_quoted_with_suffix("flame arrow", &suffix))
     }
 
     pub fn cast_blade_of_fire(
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line("cast blade of fire"))
+        command::send(abilities::cast_quoted_with_suffix("blade of fire", ""))
     }
 
     pub fn cast_aura_of_chaos(
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line("cast aura of chaos"))
+        command::send(abilities::cast_quoted_with_suffix("aura of chaos", ""))
     }
 
     pub fn rip_action(
@@ -404,30 +407,24 @@ mod tests {
     }
 
     #[test]
-    fn chaotic_circulation_exact_casing() {
+    fn chaotic_circulation_at_me() {
         let out = KharimGuild::use_chaotic_circulation(&data("ucc", ""), &empty_ctx());
         assert_eq!(
             out,
-            command::send("@use Chaotic circulation at me".to_string())
+            command::send("@use 'chaotic circulation' me".to_string())
         );
     }
 
     #[test]
     fn flame_arrow_defaults_to_device() {
         let out = KharimGuild::cast_flame_arrow(&data("cfa", ""), &empty_ctx());
-        assert_eq!(
-            out,
-            command::send("@cast flame arrow at device".to_string())
-        );
+        assert_eq!(out, command::send("@cast 'flame arrow' device".to_string()));
     }
 
     #[test]
     fn flame_arrow_with_target() {
         let out = KharimGuild::cast_flame_arrow(&data("cfa", "goblin"), &empty_ctx());
-        assert_eq!(
-            out,
-            command::send("@cast flame arrow at goblin".to_string())
-        );
+        assert_eq!(out, command::send("@cast 'flame arrow' goblin".to_string()));
     }
 
     #[test]

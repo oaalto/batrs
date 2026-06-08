@@ -97,7 +97,7 @@ impl LiberatorGuild {
     ) -> Vec<command::CommandEffect> {
         command::send(abilities::compound_send(&[
             "liberator select weakest armoursmith",
-            "cast ghost armour",
+            "cast 'ghost armour'",
         ]))
     }
 
@@ -111,7 +111,7 @@ impl LiberatorGuild {
         }
         command::send(abilities::compound_send(&[
             "liberator select weakest weaponsmith",
-            &format!("cast ghost sword at {tail}"),
+            &abilities::cast_quoted_tail("ghost sword", tail),
         ]))
     }
 
@@ -121,7 +121,7 @@ impl LiberatorGuild {
     ) -> Vec<command::CommandEffect> {
         command::send(abilities::compound_send(&[
             "liberator select weakest guardian",
-            "cast ghost companion",
+            "cast 'ghost companion'",
         ]))
     }
 
@@ -132,7 +132,7 @@ impl LiberatorGuild {
         let select = liberator_select_non_specialist();
         command::send(abilities::compound_send(&[
             select.as_str(),
-            "cast ghost link at me",
+            "cast 'ghost link' me",
         ]))
     }
 
@@ -143,9 +143,9 @@ impl LiberatorGuild {
         let tail = data.args.trim();
         let select = liberator_select_non_specialist();
         let logical = if tail.is_empty() {
-            format!("{select};cast restful sleep")
+            format!("{select};cast 'restful sleep'")
         } else {
-            format!("{select};cast restful sleep {tail}")
+            format!("{select};cast 'restful sleep' {tail}")
         };
         command::send(abilities::client_send_line(&logical))
     }
@@ -154,7 +154,7 @@ impl LiberatorGuild {
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        command::send(abilities::client_send_line("cast holy glow"))
+        command::send(abilities::cast_quoted_with_suffix("holy glow", ""))
     }
 
     pub fn use_slash(
@@ -263,7 +263,7 @@ mod tests {
         let out = LiberatorGuild::cast_ghost_armour(&data("cga", ""), &empty_ctx());
         assert_eq!(
             out,
-            command::send("@liberator select weakest armoursmith;cast ghost armour".to_string())
+            command::send("@liberator select weakest armoursmith;cast 'ghost armour'".to_string())
         );
     }
 
@@ -277,7 +277,7 @@ mod tests {
         assert_eq!(
             out,
             command::send(
-                "@liberator select weakest weaponsmith;cast ghost sword at troll".to_string()
+                "@liberator select weakest weaponsmith;cast 'ghost sword' troll".to_string()
             )
         );
     }
@@ -292,9 +292,9 @@ mod tests {
     }
 
     #[test]
-    fn holy_glow_unquoted() {
+    fn holy_glow() {
         let out = LiberatorGuild::cast_holy_glow(&data("chg", ""), &empty_ctx());
-        assert_eq!(out, command::send("@cast holy glow".to_string()));
+        assert_eq!(out, command::send("@cast 'holy glow'".to_string()));
     }
 
     #[test]

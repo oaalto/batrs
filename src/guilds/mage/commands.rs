@@ -79,9 +79,7 @@ impl MageGuild {
     ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        command::send(abilities::client_send_line(&format!(
-            "cast identify at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("identify", at))
     }
 
     pub fn cast_mirror_image(
@@ -90,9 +88,7 @@ impl MageGuild {
     ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        command::send(abilities::client_send_line(&format!(
-            "cast mirror image at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("mirror image", at))
     }
 
     pub fn repeat_heal_self(
@@ -182,7 +178,7 @@ mod tests {
     fn identify_defaults_to_me() {
         assert_eq!(
             MageGuild::cast_identify(&data("ci", ""), &empty_ctx()),
-            command::send("@cast identify at me".to_string())
+            command::send("@cast 'identify' me".to_string())
         );
     }
 
@@ -190,7 +186,7 @@ mod tests {
     fn identify_with_target() {
         assert_eq!(
             MageGuild::cast_identify(&data("ci", "sword"), &empty_ctx()),
-            command::send("@cast identify at sword".to_string())
+            command::send("@cast 'identify' sword".to_string())
         );
     }
 
@@ -198,7 +194,7 @@ mod tests {
     fn mirror_image_defaults_to_me() {
         assert_eq!(
             MageGuild::cast_mirror_image(&data("cmi", ""), &empty_ctx()),
-            command::send("@cast mirror image at me".to_string())
+            command::send("@cast 'mirror image' me".to_string())
         );
     }
 
@@ -206,7 +202,7 @@ mod tests {
     fn mirror_image_with_target() {
         assert_eq!(
             MageGuild::cast_mirror_image(&data("cmi", "ally"), &empty_ctx()),
-            command::send("@cast mirror image at ally".to_string())
+            command::send("@cast 'mirror image' ally".to_string())
         );
     }
 

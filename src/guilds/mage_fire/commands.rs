@@ -50,9 +50,7 @@ impl MageFireGuild {
     ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        command::send(abilities::client_send_line(&format!(
-            "cast flame shield at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("flame shield", at))
     }
 }
 
@@ -108,7 +106,7 @@ mod tests {
     fn flame_shield_defaults_to_me() {
         assert_eq!(
             MageFireGuild::cast_flame_shield(&data("cflshield", ""), &empty_ctx()),
-            command::send("@cast flame shield at me".to_string())
+            command::send("@cast 'flame shield' me".to_string())
         );
     }
 
@@ -116,7 +114,7 @@ mod tests {
     fn flame_shield_with_target() {
         assert_eq!(
             MageFireGuild::cast_flame_shield(&data("cflshield", "ally"), &empty_ctx()),
-            command::send("@cast flame shield at ally".to_string())
+            command::send("@cast 'flame shield' ally".to_string())
         );
     }
 

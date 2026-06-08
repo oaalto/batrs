@@ -58,9 +58,7 @@ impl MageColdGuild {
     ) -> Vec<command::CommandEffect> {
         let target = data.args.trim();
         let at = if target.is_empty() { "me" } else { target };
-        command::send(abilities::client_send_line(&format!(
-            "cast frost shield at {at}"
-        )))
+        command::send(abilities::cast_quoted_with_suffix("frost shield", at))
     }
 }
 
@@ -100,7 +98,7 @@ mod tests {
     fn frost_shield_defaults_to_me() {
         assert_eq!(
             MageColdGuild::cast_frost_shield(&data("cfrshield", ""), &empty_ctx()),
-            command::send("@cast frost shield at me".to_string())
+            command::send("@cast 'frost shield' me".to_string())
         );
     }
 
@@ -108,7 +106,7 @@ mod tests {
     fn frost_shield_with_target() {
         assert_eq!(
             MageColdGuild::cast_frost_shield(&data("cfrshield", "ally"), &empty_ctx()),
-            command::send("@cast frost shield at ally".to_string())
+            command::send("@cast 'frost shield' ally".to_string())
         );
     }
 }
