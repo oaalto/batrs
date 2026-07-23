@@ -2,86 +2,141 @@
 
 ## Status
 
-draft — initial exploration for grilling
+ready-for-agent — grilled 2026-07-23
 
 ## Problem Statement
 
-Guild-specific HUD rows (Animist soul, Riftwalker entity, Tzarakk mount, Nergal minions + resource status) are stored, updated, and rendered inside `stats.rs`, while `app/mod.rs` `draw` assembles `secondary_status_lines` with guild-selection guards and calls multiple `render_*` methods. Stats is shallow for this concern: its interface includes many unrelated effects (short score, prompt, recovery brackets) plus four guild HUD domains. UI layout logic (which rows appear, ordering, width) leaks into the application shell.
+Guild-specific HUD rows below the main stats line (Animist soul companion, Riftwalker entity, Tzarakk mount, Nergal resource status and minions) are stored, updated, and rendered inside the stats module, while the application shell assembles `secondary_status_lines` with per-guild visibility guards and multiple render calls. Stats therefore exposes an interface mixing unrelated concerns (prompt, short score, recovery brackets, combat-round semantics) with four guild HUD domains. UI layout logic (which rows appear and in what order) leaks into the application draw path.
 
-Combat status was recently split above stats (`combat_status_lines`); secondary status below stats repeats the pattern incompletely — combat scan rendering left its state module, guild rows did not.
+Combat status was extracted above stats with dedicated state and a separate effect path; secondary status repeats the problem incompletely below stats — guild HUD state and rendering never left stats.
 
-## Initial exploration
+Additionally, soul, Riftwalker, and Tzarakk rows use “show if guild selected **or** data already observed” semantics, while Nergal uses guild-selected-only visibility and clear-on-deselect. That inconsistency leaves stale guild HUD data in memory after deselecting Animist, Riftwalker, or Tzarakk.
 
-**HUD layout (top to bottom, when logged in):**
+## Solution
 
-1. `combat_status_lines` — from `CombatScanState.render_lines` (not Stats)
-2. `stats_line` — `stats.render_inline()` (HP/SP/EP/exp + combat diffs)
-3. `secondary_status_lines` — assembled in `app/mod.rs`:
-   - Soul if Animist selected OR `has_soul_companion_status()`
-   - Riftwalker entity if selected OR `has_riftwalker_entity_status()`
-   - Tzarakk mount if selected OR `has_tzarakk_mount_status()`
-   - Nergal lines if selected OR minions OR resource status
+Extract a **Secondary Status** module that owns all four guild HUD domains end to end: state, `SecondaryStatusEffect` application, guild-selected rendering, and lifecycle (clear on deselect, reset on Connect Command). Guild triggers emit `SecondaryStatusEffect` via a new `TriggerEffects.secondary_status` vector; stats sheds all guild HUD types and effect variants.
 
-**Stats module holds:**
+Tighten visibility for all guild HUD rows to **guild-selected only** (matching Nergal). Clear stored state immediately when a guild is deselected via `sync_guild_selection`.
 
-| Domain | State fields | StatsEffect variants | Render method |
-| --- | --- | --- | --- |
-| Tzarakk mount | `tzarakk_mount: Option<...>` | Set/Clear | `render_tzarakk_mount_inline` |
-| Riftwalker entity | `riftwalker_entity: Option<...>` | Merge/Clear | `render_riftwalker_entity_inline` |
-| Nergal | `nergal_minions`, `nergal_resource_status` | Upsert/Clear/Set | `render_nergal_status_lines` |
-| Animist soul | (soul fields) | (soul effects) | `render_soul_inline` |
+Absorb the storage/render scope from the Nergal Resource Status ownership feature: include Nergal parsing cleanup (remove any duplicate core resource trigger if present) and move Nergal HUD state into Secondary Status in one vertical slice.
 
-**Preservation behavior:** Prompt and short-score updates intentionally preserve secondary status (many tests in `stats.rs`).
-
-**Trigger path:** Guild triggers and core triggers emit `StatsEffect` variants; `app/mod.rs` `apply_stats_effects` applies to `Stats`.
-
-## Solution (proposed direction)
-
-Extract a **secondary status** module (or **guild HUD** module) with a small interface: apply status effects, render lines for a given `GuildSelection` + observed state, query whether rows would show. Stats keeps short-score/combat-round/prompt concerns. Triggers might emit into the new module directly or via redirected `StatsEffect` variants — grilling decides.
-
-Alternative shallow fix: only move `draw` assembly into a helper — less leverage, smaller diff.
+The application draw path calls a single `render_lines(width, guild_selection)` on Secondary Status. `ViewModel.secondary_status_lines` keeps its name; only the producer changes.
 
 ## User Stories
 
-1. As a player, I want guild-specific HUD rows below my main stats line, so that mount/minion/soul info stays visible during play.
-2. As a maintainer adding a new guild HUD row, I want one module to extend, so that `stats.rs` does not grow further.
-3. As a maintainer, I want guild-selection gating in one place, so that `draw` does not list per-guild conditions.
-4. As a test author, I want to render secondary status given guild selection and effect history, so that UI tests do not need full Stats.
-5. As a player, I want short-score and prompt updates not to clear my mount/minion display, so that HUD stays stable within a session.
-6. As a maintainer, I want secondary status cleared on Connect Command fresh session, so that reconnect does not show stale guild HUD.
+1. As a player, I want guild-specific HUD rows below my main stats line, so that mount, minion, and soul info stays visible during play.
+2. As a player with a guild selected, I want HUD rows for that guild only when the guild is in my selection, so that unrelated guild data never appears.
+3. As a player who deselects a guild mid-session, I want that guild’s HUD rows to disappear immediately, so that stale data does not linger on screen.
+4. As a player who deselects a guild mid-session, I want that guild’s stored HUD state cleared from memory, so that re-selecting does not flash outdated values before the next game line.
+5. As a player, I want short-score and prompt updates not to clear my guild HUD display, so that the HUD stays stable within a session.
+6. As a player who uses Connect Command, I want secondary status cleared on fresh session, so that reconnect does not show stale guild HUD from the prior session.
+7. As a maintainer adding a new guild HUD row, I want one module to extend, so that stats does not grow further.
+8. As a maintainer, I want guild-selection gating in one place, so that draw does not list per-guild conditions.
+9. As a maintainer, I want guild HUD effects separate from stats effects, so that the trigger pipeline mirrors combat awareness.
+10. As a maintainer, I want Animist soul, Riftwalker entity, Tzarakk mount, and Nergal resource/minions colocated in Secondary Status, so that the guild HUD band has one owner.
+11. As a maintainer, I want deselect clearing centralized in Secondary Status, so that the application does not special-case each guild.
+12. As a test author, I want to apply `SecondaryStatusEffect` and render lines without constructing full Stats, so that guild HUD behavior is testable in isolation.
+13. As a test author, I want integration tests for guild-selected-only visibility and clear-on-deselect for all four guild domains, so that lifecycle regressions are caught.
+14. As a Nergal player, I want Vitae/Potentia/Evolution status and minion rows in the HUD when Nergal is selected, so that resource tracking stays visible without scrollback spam.
+15. As a Nergal player, I want the Nergal resource status line gagged when Nergal is selected, so that automation output stays clean.
+16. As a player without Nergal selected, I want no Nergal resource line parsed into HUD state and no Nergal rows rendered, so that unrelated play stays clean.
+17. As a maintainer, I want one regex owner for the Nergal resource status line (guild module only), so that BatMUD format changes require one edit.
+18. As a maintainer, I want Connect Command’s fresh-session manifest to include Secondary Status explicitly, so that session reset boundaries stay honest after the stats split.
+19. As a maintainer, I want domain docs updated to record Secondary Status ownership, so that future readers do not look for guild HUD state in stats.
 
-## Open questions (for grilling)
+## Implementation Decisions
 
-1. **Depth vs. move:** Full extraction from Stats, or only extract render+gate assembly leaving state in Stats?
-2. **Effect routing:** Keep `StatsEffect::SetTzarakkMountStatus` etc., or introduce `HudEffect` / per-guild effect enums?
-3. **Soul exception:** Animist soul is guild-related but not in Guild Catalog the same way — same module or separate?
-4. **Ordering:** Fixed order (soul → riftwalker → tzarakk → nergal) — configurable or hardcoded?
-5. **Width wrapping:** Nergal minion multi-line wrapping stays with Nergal renderer — module owns width param?
-6. **Relation to Nergal PRD:** If Nergal resource moves to guild module, does secondary status module compose Nergal render output?
+### Module ownership
 
-## Implementation Decisions (tentative)
+- Introduce a **Secondary Status** module on the application shell (parallel to Combat Awareness).
+- Move guild HUD state types from stats: soul companion, Tzarakk mount, Riftwalker entity, Nergal minion, Nergal resource status.
+- Move render helpers for all four domains into Secondary Status; expose `render_lines(width, &GuildSelection) -> Vec<Line>`.
+- Stats retains only main-line concerns: prompt, short score, recovery brackets, combat-round diff semantics.
 
-- Mirror combat_status pattern: dedicated state + `render_lines(width, guild_selection, fallback_observed_state)`.
-- `app/mod.rs` `draw` calls one `secondary_status.render(...)` instead of four blocks.
-- Preserve OR guards (show if guild selected OR data already observed) unless grilling tightens.
-- Stats shedding: move types `TzarakkMountStatus`, `RiftwalkerEntityStatus`, `NergalMinion`, `NergalResourceStatus` with their render helpers.
-- Connect Command reset clears secondary status module in session lifecycle manifest.
+### Effect routing
+
+- Introduce `SecondaryStatusEffect` enum owned by Secondary Status (soul set, Tzarakk set/clear, Riftwalker merge/clear, Nergal upsert/set/clear variants — migrated from current stats effect shapes).
+- Add `secondary_status: Vec<SecondaryStatusEffect>` to `TriggerEffects`; add a builder helper mirroring `.stat()`.
+- Guild trigger modules emit `SecondaryStatusEffect` via `.secondary_status(...)` instead of `StatsEffect` guild variants.
+- Remove all guild HUD variants from `StatsEffect`.
+- Application applies `apply_secondary_status_effects` separately from `apply_stats_effects` (mirrors combat awareness fan-out).
+
+### Visibility and lifecycle
+
+- **Guild-selected only:** render a guild’s rows only when that `GuildKey` is in `GuildSelection`. Remove OR fallback on “data already observed” for soul, Riftwalker, and Tzarakk.
+- **Clear on deselect:** `secondary_status.sync_guild_selection(&GuildSelection)` clears stored state for any guild no longer selected. Application calls this once from guild selection application; remove per-guild clear blocks from the application shell.
+- **Parsing:** guild triggers already run only for selected guilds; no guild-agnostic parse path for soul/mount/entity. Nergal resource parsing remains guild-module-owned; remove any duplicate core/global Nergal resource trigger if still registered.
+
+### Render and layout
+
+- `render_lines` accepts terminal width for Nergal minion multi-line wrapping (same behavior as today).
+- Row order is not a product concern (BatMUD guild membership is exclusive); keep a stable hardcoded order in code (soul → riftwalker → tzarakk → nergal) for predictability.
+- `ViewModel.secondary_status_lines` name unchanged.
+
+### Session lifecycle
+
+- Add `FreshSessionReset::SecondaryStatus` to the Connect Command reset manifest.
+- Application owns a `secondary_status` field reset to default when that manifest entry runs (parallel to Combat Awareness).
+
+### Nergal PRD absorption
+
+- This feature **supersedes** `docs/features/nergal-resource-status-ownership/prd.md` for storage, effect routing, render, and lifecycle decisions.
+- Still in scope from that PRD: guild-only Nergal resource parsing/gagging, no duplicate core trigger, strict field-order rejection, combined Nergal resource + minion render block when Nergal selected.
+- Do not implement the superseded PRD’s “keep Nergal in stats” decisions.
+
+### Delivery
+
+- **Single vertical slice:** introduce Secondary Status, rewire triggers and application, delete guild HUD from stats, include Nergal cleanup, land only when fully green. No phased dual-ownership in stats.
+
+### Documentation
+
+- Add **Secondary Status** bounded context to `CONTEXT.md`.
+- Update **Nergal Status** in `CONTEXT.md` to record guild-owned parsing and Secondary-Status-owned storage/render/lifecycle.
+- Mark `nergal-resource-status-ownership` PRD as superseded by this feature.
 
 ## Testing Decisions
 
-- **Good tests:** Render empty when no guild and no data; render mount when Tzarakk selected; render when data exists but guild deselected (if keeping OR semantics); prompt update preserves rows.
-- **Prior art:** `stats.rs` preservation tests; `app/mod.rs` draw-related integration tests.
-- **Avoid:** Snapshot-testing ratatui spans unless already established pattern.
+### Testing seams (primary verification points)
+
+1. **Secondary Status module tests** (highest seam for render + effect application) — apply `SecondaryStatusEffect` history, call `render_lines` with guild selection; assert row presence, gating, and span content. Migrate relevant unit tests from stats.
+2. **Guild trigger tests** — emit `SecondaryStatusEffect` (not `StatsEffect`) for soul, mount, entity, Nergal resource/minion paths; preserve gag and field-order cases.
+3. **Application integration tests** (lifecycle seam) — guild selected: lines update HUD; guild not selected: no HUD rows; deselect clears state and hides rows; Connect Command reset clears secondary status.
+
+Prefer these seams over new test infrastructure. One module test file is sufficient.
+
+### Good tests (external behavior)
+
+- Render empty when no selected guild has HUD data.
+- Render soul when Animist selected and soul effect applied; empty when Animist not selected.
+- Same selected-only pattern for Riftwalker, Tzarakk, Nergal.
+- Deselect guild after populated state → rows hidden and state cleared for that guild.
+- Prompt and short-score updates do not clear secondary status (verified via Secondary Status or app integration, not stats preservation clones).
+- Nergal resource line gagged with Nergal selected; not parsed into HUD without Nergal selected.
+- Connect Command fresh session clears secondary status.
+
+### Prior art
+
+- Stats preservation tests for guild HUD (migrate non-duplicative cases to Secondary Status).
+- Application Nergal integration tests in app module tests.
+- Guild trigger tests for Animist soul, Riftwalker, Tzarakk, Nergal.
+
+### Avoid
+
+- Snapshot-testing ratatui spans unless already established pattern.
+- Tests that assert OR “show when data observed but guild deselected” — that behavior is removed.
 
 ## Out of Scope
 
-- Main stats line (short score, recovery brackets, combat diffs).
-- Combat scan rows (separate PRD: combat-awareness-cohesion).
-- Guild dialog profile inputs (mount name, sabre, riftwalker labels).
-- New guild HUD types not already in Stats.
+- Main stats line (short score, recovery brackets, combat diffs on the primary stats row).
+- Combat scan rows (separate feature: combat-awareness-cohesion).
+- Guild dialog profile inputs (mount name, sabre, riftwalker entity labels).
+- New guild HUD types not already in stats.
+- Configurable per-player HUD row ordering.
+- Per-guild render modules (render stays inside Secondary Status, not delegated to each guild package).
 
 ## Further Notes
 
-- Recommendation strength: **Worth exploring** — payoff grows with each new guild HUD row.
-- Depends conceptually on decisions in nergal-resource-status-ownership PRD but can proceed independently.
-- `ui/mod.rs` `ViewModel.secondary_status_lines` name may stay; producer changes.
+- Recommendation strength: **Strong** — mirrors proven combat-awareness extraction; payoff grows with each new guild HUD row.
+- Grilled decisions locked 2026-07-23; all open questions from initial exploration resolved.
+- BatMUD guild membership is exclusive; batrs multi-guild selection in the guild dialog is a config quirk, not a product scenario to optimize row ordering for.
+- `nergal-resource-status-ownership` tickets should not be implemented separately; fold parsing cleanup into this slice.

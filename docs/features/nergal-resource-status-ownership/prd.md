@@ -2,7 +2,7 @@
 
 ## Status
 
-ready-for-agent — grilled 2026-07-23
+superseded — absorbed by `docs/features/secondary-status-extraction/prd.md` (grilled 2026-07-23). Do not implement separately; Nergal parsing/gagging cleanup ships in the Secondary Status extraction slice.
 
 ## Problem Statement
 

@@ -48,8 +48,16 @@ A Combat Scan Snapshot is the latest observed set of combatants and their health
 
 Combat Awareness owns canonical round-header and combat-end line matching, probe orchestration, and snapshot state in `src/combat_awareness.rs`. The application calls Combat Awareness once per incoming line and fans out `CombatAwarenessEffect` values: `RoundStarted` (stats round semantics and `in_battle`), `CombatEnded` (stats end-combat and clear `in_battle`), `SendShortScore` (`@sc`), and `SendProbe` (`#scan all`). Stats retains short-score round diff semantics; the UI layer renders combat status rows from snapshot data via `ui::render_combat_status_lines`.
 
+## Secondary Status
+
+Secondary Status is the guild-specific HUD row band rendered below the main stats line. It covers Animist soul companion, Riftwalker entity, Tzarakk mount, and Nergal resource status plus minions.
+
+Secondary Status owns guild HUD state, `SecondaryStatusEffect` application, guild-selected rendering via `render_lines`, and lifecycle: clear stored state for deselected guilds (`sync_guild_selection`) and reset on Connect Command (`FreshSessionReset::SecondaryStatus`). Guild trigger modules emit `SecondaryStatusEffect` values; the application applies them separately from stats effects.
+
+A guild HUD row renders only when that guild's `GuildKey` is in the player's guild selection. Deselecting a guild clears its stored secondary status immediately. Stats retains prompt, short score, recovery brackets, and combat-round diff semantics only.
+
 ## Nergal Status
 
 Nergal Resource Status is the player's current Nergal-specific resource state: Vitae, Potentia, and Evolution points.
 
-The Nergal guild module owns parsing and gagging of the Nergal resource status line. Parsing runs only when `GuildKey::Nergal` is in the player's guild selection. The stats module owns `NergalResourceStatus` storage, `StatsEffect::SetNergalResourceStatus`, and HUD rendering. The application shows Nergal HUD rows only when Nergal is selected and clears Nergal resource status and minions from stats when Nergal is removed from guild selection.
+The Nergal guild module owns parsing and gagging of the Nergal resource status line. Parsing runs only when `GuildKey::Nergal` is in the player's guild selection. Secondary Status owns `NergalResourceStatus` and minion storage, Nergal `SecondaryStatusEffect` variants, and Nergal HUD rendering. The application shows Nergal HUD rows only when Nergal is selected; deselecting Nergal clears Nergal secondary status via `sync_guild_selection`.
