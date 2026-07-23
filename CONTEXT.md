@@ -32,6 +32,12 @@ The Connect Command is consumed by Command Dispatch as a client command and is n
 
 Only one Connect Command attempt may be active at a time; repeated requests report that reconnect is already in progress.
 
+## Session Lifecycle
+
+Session Lifecycle is the application-owned bounded context for fresh-session transitions triggered by the Connect Command. It owns the reset manifest for session-scoped runtime state, the reconnect-in-progress guard, the active connection generation counter, stale-event filtering for superseded connections, and reconnect orchestration against an injected connection coordinator.
+
+Session Lifecycle does not own Player Profile disk I/O, login conversation parsing, UI rendering, output scrollback buffers, or the production telnet adapter. Command Dispatch emits reconnect effects; Session Lifecycle applies Connect Command semantics. The application shell applies the fresh-session plan to its fields, reloads Player Profile after the next successful login, and clears output scrollback on post-connect login when the login name differs from the pre-connect character.
+
 ## Combat Awareness
 
 Combat Awareness is batrs' interpretation of whether the player is currently in BatMUD combat. It begins when combat round output is observed and ends when BatMUD reports that the player is not in combat.
