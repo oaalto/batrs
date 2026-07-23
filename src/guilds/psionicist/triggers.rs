@@ -3,35 +3,46 @@ use crate::ansi::TextStyle;
 use crate::automation::Action;
 use crate::guilds::PsionicistGuild;
 use crate::triggers::{LineEffect, TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref NEED_UNIMAGINABLE_AMOUNT: Regex = Regex::new(
+static NEED_UNIMAGINABLE_AMOUNT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"You still need (an unimaginable amount) of more knowledge of how the mind works before you can improve your knowledge of mental defence\."
-    ).unwrap();
-    static ref NEED_EXTREMELY_MUCH_MORE: Regex = Regex::new(
+    ).unwrap()
+});
+static NEED_EXTREMELY_MUCH_MORE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"You still need (extremely much more) knowledge of how the mind works before you can improve your knowledge of mental defence\."
-    ).unwrap();
-    static ref NEED_MUCH_MORE: Regex = Regex::new(
+    ).unwrap()
+});
+static NEED_MUCH_MORE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"You still need (much more) knowledge of how the mind works before you can improve your knowledge of mental defence\."
-    ).unwrap();
-    static ref NEED_A_LITTLE_MORE: Regex = Regex::new(
+    ).unwrap()
+});
+static NEED_A_LITTLE_MORE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"You still need (a little more) knowledge of how the mind works before you can improve your knowledge of mental defence\."
-    ).unwrap();
-    static ref NEED_MORE: Regex = Regex::new(
+    ).unwrap()
+});
+static NEED_MORE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"You still need (more) knowledge of how the mind works before you can improve your knowledge of mental defence\."
-    ).unwrap();
-    static ref ONLY_NEED_VERY_LITTLE_MORE: Regex = Regex::new(
+    ).unwrap()
+});
+static ONLY_NEED_VERY_LITTLE_MORE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"You only need (very little more) knowledge of how the mind works before you can improve your knowledge of mental defence\."
-    ).unwrap();
-    static ref STILL_NEED_KNOWLEDGE_BLUE: Regex = Regex::new(
+    ).unwrap()
+});
+static STILL_NEED_KNOWLEDGE_BLUE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"You still need (.+) knowledge of how the mind works before you can improve your knowledge of mental defence\."
-    ).unwrap();
-    static ref STUNNED_INTRUSION: Regex = Regex::new(
-        r"(.+) is stunned from the intrusion into (.+) mind\."
-    ).unwrap();
-}
+    ).unwrap()
+});
+static STUNNED_INTRUSION: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(.+) is stunned from the intrusion into (.+) mind\.").unwrap());
 
 impl PsionicistGuild {
     pub fn psionicist_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {

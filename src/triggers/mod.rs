@@ -2,9 +2,9 @@ use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::Guild;
 use crate::stats::StatsEffect;
-use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::ops::Range;
+use std::sync::LazyLock;
 
 mod common;
 mod prompt;
@@ -13,14 +13,14 @@ mod short_score;
 mod spell_vocal_data;
 mod spell_vocals;
 
-lazy_static! {
-    static ref COMMON_TRIGGERS: Vec<Trigger> = vec![common::trigger];
-    static ref CORE_TRIGGERS: Vec<Trigger> = vec![
+static COMMON_TRIGGERS: LazyLock<Vec<Trigger>> = LazyLock::new(|| vec![common::trigger]);
+static CORE_TRIGGERS: LazyLock<Vec<Trigger>> = LazyLock::new(|| {
+    vec![
         prompt::trigger,
         short_score::trigger,
         recovery_bracket::trigger,
-    ];
-}
+    ]
+});
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TriggerLine<'a> {

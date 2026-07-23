@@ -1,13 +1,11 @@
 use crate::stats::StatsEffect;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
-lazy_static! {
-    //H:571/802 [+20] S:635/635 [] E:311/311 [] $:2786 [] exp:21657 []
-    pub static ref SC_REGEX: Regex =
-        Regex::new(r"^H:(.+)/(.+) \[(.*)\] S:(.+)/(.+) \[(.*)\] E:(.+)/(.+) \[(.*)\] \$:(.+) \[(.*)\] exp:(.+) \[(.*)\]$").unwrap();
-}
+pub static SC_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^H:(.+)/(.+) \[(.*)\] S:(.+)/(.+) \[(.*)\] E:(.+)/(.+) \[(.*)\] \$:(.+) \[(.*)\] exp:(.+) \[(.*)\]$").unwrap()
+});
 
 pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
     if let Some(captures) = SC_REGEX.captures(line.plain_line) {

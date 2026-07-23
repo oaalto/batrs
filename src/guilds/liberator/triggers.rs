@@ -3,13 +3,11 @@
 use crate::ansi::TextStyle;
 use crate::guilds::LiberatorGuild;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref GHOST_FAREWELL: Regex =
-        Regex::new(r"Ghost of (.+) whispers 'I must leave now. Good luck.'").unwrap();
-}
+static GHOST_FAREWELL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"Ghost of (.+) whispers 'I must leave now. Good luck.'").unwrap());
 
 impl LiberatorGuild {
     pub fn get_triggers(&self) -> Vec<crate::triggers::Trigger> {

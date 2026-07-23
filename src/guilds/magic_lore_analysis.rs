@@ -4,8 +4,8 @@
 use crate::ansi::StyledLine;
 use crate::ansi::TextStyle;
 use crate::triggers::LineEffect;
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 #[cfg(test)]
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -52,16 +52,18 @@ fn byte_to_grapheme_index(textual: &str, byte_index: usize) -> usize {
         .unwrap_or_default()
 }
 
-lazy_static! {
-    static ref ANALYSIS_SCREAMS: Regex = Regex::new(r"(.+) (screams in pain\.)").unwrap();
-    static ref ANALYSIS_WRITHES: Regex = Regex::new(r"(.+) (writhes in agony\.)").unwrap();
-    static ref ANALYSIS_SHUDDERS: Regex =
-        Regex::new(r"(.+) (shudders from the force of the attack\.)").unwrap();
-    static ref ANALYSIS_GRUNTS: Regex = Regex::new(r"(.+) (grunts from the pain\.)").unwrap();
-    static ref ANALYSIS_WINCES: Regex =
-        Regex::new(r"(.+) (winces a little from the pain\.)").unwrap();
-    static ref ANALYSIS_SHRUGS: Regex = Regex::new(r"(.+) (shrugs off the attack\.)").unwrap();
-}
+static ANALYSIS_SCREAMS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(.+) (screams in pain\.)").unwrap());
+static ANALYSIS_WRITHES: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(.+) (writhes in agony\.)").unwrap());
+static ANALYSIS_SHUDDERS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(.+) (shudders from the force of the attack\.)").unwrap());
+static ANALYSIS_GRUNTS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(.+) (grunts from the pain\.)").unwrap());
+static ANALYSIS_WINCES: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(.+) (winces a little from the pain\.)").unwrap());
+static ANALYSIS_SHRUGS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(.+) (shrugs off the attack\.)").unwrap());
 
 #[cfg(test)]
 mod tests {

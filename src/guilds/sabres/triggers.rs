@@ -3,8 +3,8 @@ use crate::ansi::TextStyle;
 use crate::automation::Action;
 use crate::guilds::sabres::{SABRE_WEAPON_VAR, SabresGuild};
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
 const FENCE_RED_HILITE: &[&str] = &[
     "Your attack is skillfully avoided by your enemy, an elegant move!",
@@ -14,21 +14,20 @@ const FENCE_RED_HILITE: &[&str] = &[
 const FENCE_GREEN_HILITE: &[&str] =
     &["Your superb skill allows you to execute your technique faster!"];
 
-lazy_static! {
-    static ref LOUNGING_YELLOW: &'static str = "You are in a mood for a bit of lounging again.";
-    static ref LOUNGING_GREEN: &'static str =
-        "You are done with your lounging for now, you feel better!";
-    static ref BATTLE_CADENCE: &'static str = "Your battle cadence grants you another attack!";
-    static ref FUMBLING_LINE: &'static str =
-        "You are still fumbling with your weapon. It is one slippery thing!";
-    static ref GLOVEKNOCK_WIELD_LINES: Vec<Regex> = vec![
+const LOUNGING_YELLOW: &str = "You are in a mood for a bit of lounging again.";
+const LOUNGING_GREEN: &str = "You are done with your lounging for now, you feel better!";
+const BATTLE_CADENCE: &str = "Your battle cadence grants you another attack!";
+const FUMBLING_LINE: &str = "You are still fumbling with your weapon. It is one slippery thing!";
+static GLOVEKNOCK_WIELD_LINES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new(r"^You swing your arm and hit (.+) straight on the nose, bloodying it bad!$")
             .unwrap(),
         Regex::new(r"^You slam (.+) on the jaw very hard making (.+) cry out in pain!$").unwrap(),
         Regex::new(r"^With a swift and precise punch you strike (.+) on his face,$").unwrap(),
-    ];
-    static ref GREEN_WIELD: Regex = Regex::new(r"^You wield (.+) in your right (.+)\.$").unwrap();
-}
+    ]
+});
+static GREEN_WIELD: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^You wield (.+) in your right (.+)\.$").unwrap());
 
 impl SabresGuild {
     pub fn get_triggers(&self) -> Vec<crate::triggers::Trigger> {
@@ -49,13 +48,13 @@ impl SabresGuild {
 
     pub fn notify_triggers(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
         let plain = line.plain_line;
-        if plain == *BATTLE_CADENCE {
+        if plain == BATTLE_CADENCE {
             TriggerEffects::none().style_line(TextStyle::BLUE)
-        } else if plain == *LOUNGING_YELLOW {
+        } else if plain == LOUNGING_YELLOW {
             TriggerEffects::none().style_line(TextStyle::BRIGHT_YELLOW)
-        } else if plain == *LOUNGING_GREEN {
+        } else if plain == LOUNGING_GREEN {
             TriggerEffects::none().style_line(TextStyle::BRIGHT_GREEN)
-        } else if plain == *FUMBLING_LINE {
+        } else if plain == FUMBLING_LINE {
             TriggerEffects::none().style_line(TextStyle::BRIGHT_RED)
         } else {
             TriggerEffects::none()

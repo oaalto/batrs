@@ -2,19 +2,19 @@
 
 use crate::ansi::TextStyle;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref FINISHED_CULTIVATING: Regex =
-        Regex::new(r"^You have finished cultivating (.+)\.$").unwrap();
-    static ref MANTRA_NO_LONGER_ACTIVE: Regex =
-        Regex::new(r"^Your mantra of (.+) is no longer active\.$").unwrap();
-    static ref RECITE_WITHOUT_CULTIVATION: Regex = Regex::new(
+static FINISHED_CULTIVATING: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^You have finished cultivating (.+)\.$").unwrap());
+static MANTRA_NO_LONGER_ACTIVE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^Your mantra of (.+) is no longer active\.$").unwrap());
+static RECITE_WITHOUT_CULTIVATION: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"^You decide not to recite the (.+) as you are not actively cultivating anything\.$",
     )
-    .unwrap();
-}
+    .unwrap()
+});
 
 pub fn sect_cultivation_hilite_trigger(
     line: &TriggerLine<'_>,

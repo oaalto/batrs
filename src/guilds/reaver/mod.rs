@@ -6,9 +6,9 @@ use crate::automation::{Action, Automation, Waiter};
 use crate::command::Command;
 use crate::guilds::Guild;
 use crate::triggers::Trigger;
-use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 #[derive(Default)]
 pub struct ReaverGuild {}
@@ -96,12 +96,13 @@ impl Guild for ReaverGuild {
     }
 }
 
-lazy_static! {
-    static ref PRAYER_DONE_REGEX: Regex = Regex::new(
-        "You bow your head and concentrate on the destructive energies you have collected\\."
+static PRAYER_DONE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        "You bow your head and concentrate on the destructive energies you have collected\\.",
     )
-    .unwrap();
-    static ref START_CHANT_REGEX: Regex = Regex::new("You start chanting\\.").unwrap();
-    static ref MEDITATION_RESET_REGEX: Regex =
-        Regex::new("That I have set free, return to me").unwrap();
-}
+    .unwrap()
+});
+static START_CHANT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new("You start chanting\\.").unwrap());
+static MEDITATION_RESET_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new("That I have set free, return to me").unwrap());

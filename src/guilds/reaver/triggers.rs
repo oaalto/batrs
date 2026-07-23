@@ -2,33 +2,43 @@ use crate::ansi::TextStyle;
 use crate::guilds::ReaverGuild;
 use crate::triggers::Trigger;
 use crate::triggers::{LineEffect, TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref SCYTHE_SWIPE_REGEX: Regex =
-        Regex::new("You make a quick slash across (.+) body with your weapon.").unwrap();
-    static ref RAMPANT_CUTTING_REGEXS: Vec<Regex> = vec![
+static SCYTHE_SWIPE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new("You make a quick slash across (.+) body with your weapon.").unwrap()
+});
+static RAMPANT_CUTTING_REGEXS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new("You slash upwards across (.+) torso with great force.").unwrap(),
-        Regex::new("...and then strike again with a downwards blow!").unwrap()
-    ];
-    static ref REAVER_STRIKE_REGEXS: Vec<Regex> = vec![
+        Regex::new("...and then strike again with a downwards blow!").unwrap(),
+    ]
+});
+static REAVER_STRIKE_REGEXS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new("You score a nasty cut on (.+) shoulder.").unwrap(),
         Regex::new("You attack and swing again").unwrap(),
-        Regex::new("You attack and swing a THIRD time").unwrap()
-    ];
-    static ref ATTACK_FAILS: Vec<Regex> = vec![
+        Regex::new("You attack and swing a THIRD time").unwrap(),
+    ]
+});
+static ATTACK_FAILS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new("(.+) shifts position and you cannot hit the (.+) time.").unwrap(),
-        Regex::new("Your frenzied attempts to destroy (.+) are easily deflected.").unwrap()
-    ];
-    static ref KILLING_BLOW: Regex =
-        Regex::new("You score a \\(?KILLING BLOW\\)? on (.+)!?").unwrap();
-    static ref SPEAK_ANCIENT: Regex = Regex::new("You speak the ancient (.+) '(.+)'").unwrap();
-    static ref DESTRUCTIVE_ENERGY: Vec<Regex> = vec![
+        Regex::new("Your frenzied attempts to destroy (.+) are easily deflected.").unwrap(),
+    ]
+});
+static KILLING_BLOW: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new("You score a \\(?KILLING BLOW\\)? on (.+)!?").unwrap());
+static SPEAK_ANCIENT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new("You speak the ancient (.+) '(.+)'").unwrap());
+static DESTRUCTIVE_ENERGY: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new("You feel you have released (.+) amount of destructive energy.").unwrap(),
         Regex::new("You feel you have released (.+) amounts of destructive energy.").unwrap(),
-    ];
-    static ref BLUE_HILITES: Vec<Regex> = vec![
+    ]
+});
+static BLUE_HILITES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new("You make a quick slash across (.+) body with your weapon.").unwrap(),
         Regex::new("You slash upwards across (.+) torso with great force.").unwrap(),
         Regex::new("...and then strike again with a downwards blow!").unwrap(),
@@ -43,12 +53,16 @@ lazy_static! {
         Regex::new("You FINALLY shove your weapon right through (.+) chest!").unwrap(),
         Regex::new("You rake your weapon across (.+)").unwrap(),
         Regex::new("You slam your weapon into (.+)").unwrap(),
-    ];
-    static ref MAGENTA_HILITES: Vec<Regex> = vec![
+    ]
+});
+static MAGENTA_HILITES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new("You feel the power slip from (.+).").unwrap(),
         Regex::new("You see (.+) revert to its normal shape.").unwrap(),
-    ];
-    static ref GREEN_HILITES: Vec<Regex> = vec![
+    ]
+});
+static GREEN_HILITES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new("(.+) has been blighted!").unwrap(),
         Regex::new("Targets of race (.+) are added to your list.").unwrap(),
         Regex::new("Targets of type (.+) are added to your list.").unwrap(),
@@ -56,10 +70,10 @@ lazy_static! {
         Regex::new("Clothing type (.+) added to your list.").unwrap(),
         Regex::new("The (.+) is destroyed in a mass of sparks!").unwrap(),
         Regex::new("The (.+) is smashed into a million pieces!").unwrap(),
-    ];
-    static ref RED_HILITES: Vec<Regex> =
-        vec![Regex::new("You strike at (.+) but do no significant damage.").unwrap(),];
-}
+    ]
+});
+static RED_HILITES: LazyLock<Vec<Regex>> =
+    LazyLock::new(|| vec![Regex::new("You strike at (.+) but do no significant damage.").unwrap()]);
 
 impl ReaverGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {

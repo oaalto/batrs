@@ -1,22 +1,25 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::guilds::DiscipleGuild;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref SPAWN_GOING_DOWN: Regex =
-        Regex::new("You feel like the pulse of chaos inside you is slowing down!").unwrap();
-    static ref RED_HILITES: Vec<Regex> = vec![
+static SPAWN_GOING_DOWN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new("You feel like the pulse of chaos inside you is slowing down!").unwrap()
+});
+static RED_HILITES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new("You feel exhausted, being here in the light.").unwrap(),
         Regex::new("You try to attack your enemy but fall over your own feet.").unwrap(),
-    ];
-    static ref GREEN_HILITES: Vec<Regex> = vec![
+    ]
+});
+static GREEN_HILITES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new("You feel the chaos pulse inside you!").unwrap(),
         Regex::new("Your (.+) tentacle strikes (.+).").unwrap(),
         Regex::new("You force yourself deeper into the chaos frenzy!").unwrap(),
-    ];
-}
+    ]
+});
 
 impl DiscipleGuild {
     pub fn get_triggers(&self) -> Vec<crate::triggers::Trigger> {

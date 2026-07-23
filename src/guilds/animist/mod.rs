@@ -6,9 +6,9 @@ use crate::automation::{Action, Automation, Waiter};
 use crate::command::Command;
 use crate::guilds::Guild;
 use crate::triggers::Trigger;
-use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 pub const CEREMONY_DONE_FLAG: &str = "animist_ceremony_done";
 pub const SEPARATING_SOUL_FLAG: &str = "animist_separating_soul";
@@ -84,11 +84,12 @@ fn queued_cast(flag: &str, logical_command: &str) -> Action {
     }
 }
 
-lazy_static! {
-    static ref START_CHANTING_REGEX: Regex = Regex::new(r"^You start chanting\.$").unwrap();
-    static ref CHANT_DONE_REGEX: Regex = Regex::new(r"^You are done with the chant\.$").unwrap();
-    static ref CEREMONY_DONE_REGEX: Regex = Regex::new(r"^You perform the ceremony\.$").unwrap();
-}
+static START_CHANTING_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^You start chanting\.$").unwrap());
+static CHANT_DONE_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^You are done with the chant\.$").unwrap());
+static CEREMONY_DONE_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^You perform the ceremony\.$").unwrap());
 
 #[cfg(test)]
 mod tests {

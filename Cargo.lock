@@ -108,7 +108,6 @@ dependencies = [
  "crossterm 0.29.0",
  "env_logger",
  "futures",
- "lazy_static",
  "libmudtelnet",
  "log",
  "num-derive",

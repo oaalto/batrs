@@ -1,5 +1,5 @@
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
 pub const PROBE_COMMAND: &str = "#scan all";
 const PROBE_ECHO: &str = "scan all";
@@ -262,14 +262,14 @@ fn parse_scan_row(line: &str) -> Option<CombatScanRow> {
     })
 }
 
-lazy_static! {
-    static ref ROUND_HEADER_REGEX: Regex =
-        Regex::new(r"^[\*]+ Round .* [\*]+$").unwrap();
-    static ref SCAN_ROW_REGEX: Regex = Regex::new(
+static ROUND_HEADER_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[\*]+ Round .* [\*]+$").unwrap());
+static SCAN_ROW_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"^(?P<name>.+) is (?P<condition>in excellent shape|in a good shape|slightly hurt|noticeably hurt|not in a good shape|in bad shape|in very bad shape|near death) \((?P<percent>[0-9]+)%\)\.$"
     )
-    .unwrap();
-}
+    .unwrap()
+});
 
 #[cfg(test)]
 mod tests {

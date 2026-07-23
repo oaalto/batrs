@@ -4,64 +4,49 @@ use crate::guilds::TzarakkGuild;
 use crate::guilds::tzarakk::{DISMOUNTED_FLAG, MOUNT_SUMMONED_FLAG, TZARAKK_MOUNT_VAR};
 use crate::stats::StatsEffect;
 use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
-lazy_static! {
-    // Mount detection - when mount is already summoned and ridden
-    static ref MOUNT_DETECTION_REGEX: Regex =
-        Regex::new(r"^'(Vedir|Orthos)', .+ \[Rider: You\]$").unwrap();
-
-    // Round tracking
-    static ref ROUND_REGEX: Regex = Regex::new(r"^\*+ Round .+ \*+$").unwrap();
-
-    // Mount feeding
-    static ref CHAOSFEED_REPLENISH_REGEX: Regex = Regex::new(
+static MOUNT_DETECTION_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^'(Vedir|Orthos)', .+ \[Rider: You\]$").unwrap());
+static ROUND_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\*+ Round .+ \*+$").unwrap());
+static CHAOSFEED_REPLENISH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"^A faint fog-like substance flows from corpse of (.+) to (.+)'s lifeless eyes replenishing it (.+)\.$"
     )
-    .unwrap();
-
-    // Dismount detection
-    static ref DISMOUNT_REGEXES: Vec<Regex> = vec![
+    .unwrap()
+});
+static DISMOUNT_REGEXES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new(r"The ice makes a sound below your mount, scaring it!").unwrap(),
         Regex::new(r"You are knocked off your mount!").unwrap(),
         Regex::new(r"Your mount throws you!").unwrap(),
-    ];
-
-    // Mount appears
-    static ref MOUNT_APPEARS_REGEX: Regex =
-        Regex::new(r"(.+) appears in a violent burst of chaos\.").unwrap();
-
-    // Mount death
-    static ref MOUNT_DEATH_REGEX: Regex = Regex::new(r"^(.+) is DEAD, R\.I\.P\.$").unwrap();
-
-    // Riding
-    static ref RIDING_REGEX: Regex =
-        Regex::new(r"^You get up on (.+) and begin to ride\.$").unwrap();
-
-    // Banish mount
-    static ref BANISH_MOUNT_REGEX: Regex =
-        Regex::new(r"You pray for Tzarakk to receive his mount\.").unwrap();
-
-    // Charge hit/miss
-    static ref CHARGE_MISS_REGEXES: Vec<Regex> = vec![
+    ]
+});
+static MOUNT_APPEARS_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(.+) appears in a violent burst of chaos\.").unwrap());
+static MOUNT_DEATH_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(.+) is DEAD, R\.I\.P\.$").unwrap());
+static RIDING_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^You get up on (.+) and begin to ride\.$").unwrap());
+static BANISH_MOUNT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"You pray for Tzarakk to receive his mount\.").unwrap());
+static CHARGE_MISS_REGEXES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new(r"You fail to hit your foe with (.+)").unwrap(),
         Regex::new(r"You charge towards your enemy, but alas -- a clean miss\.").unwrap(),
         Regex::new(r"Your mount snorts and does not respond\.").unwrap(),
         Regex::new(r"Your mount is too confused to comply\.").unwrap(),
-    ];
-
-    static ref CHARGE_HIT_REGEX: Regex =
-        Regex::new(r"You manage to hit your foe with (.+) as you pass by\.").unwrap();
-
-    // Steed summoned
-    static ref STEED_SUMMONED_REGEX: Regex =
-        Regex::new(r"A bizarre mist starts to form itself rapidly, and within moments a dark morbid").unwrap();
-
-    // Mount status
-    static ref MOUNT_STATUS_REGEX: Regex =
-        Regex::new(r"^(Orthos|Vedir) is (.+) \((\d+)%\)\.?$").unwrap();
-}
+    ]
+});
+static CHARGE_HIT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"You manage to hit your foe with (.+) as you pass by\.").unwrap());
+static STEED_SUMMONED_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"A bizarre mist starts to form itself rapidly, and within moments a dark morbid")
+        .unwrap()
+});
+static MOUNT_STATUS_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(Orthos|Vedir) is (.+) \((\d+)%\)\.?$").unwrap());
 
 impl TzarakkGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {

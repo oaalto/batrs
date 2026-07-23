@@ -1,8 +1,8 @@
 use crate::ansi::TextStyle;
 use crate::guilds::TriadGuild;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
 impl TriadGuild {
     pub fn get_triggers(&self) -> Vec<crate::triggers::Trigger> {
@@ -25,12 +25,13 @@ impl TriadGuild {
     }
 }
 
-lazy_static! {
-    static ref CURSE_FADE: Regex = Regex::new(r"^The curse on your (.+) fades away\.$").unwrap();
-    static ref FAIL_REACH: Regex = Regex::new(r"^You fail to reach (.+)\.$").unwrap();
-    static ref HARM: Regex =
-        Regex::new(r"^You harm (.+) (a little|some|a good bit|a lot|really much)\.$",).unwrap();
-}
+static CURSE_FADE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^The curse on your (.+) fades away\.$").unwrap());
+static FAIL_REACH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^You fail to reach (.+)\.$").unwrap());
+static HARM: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^You harm (.+) (a little|some|a good bit|a lot|really much)\.$").unwrap()
+});
 
 #[cfg(test)]
 mod tests {

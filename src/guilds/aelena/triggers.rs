@@ -3,15 +3,13 @@ use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::AelenaGuild;
 use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref CHAOS_UNPOWERED: Regex =
-        Regex::new(r"^Your (.+) is no longer powered by Chaos!$").unwrap();
-    static ref WOUNDS_SPILL: Regex =
-        Regex::new(r"^(.+)'s wounds spill blood onto the floor\.$").unwrap();
-}
+static CHAOS_UNPOWERED: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^Your (.+) is no longer powered by Chaos!$").unwrap());
+static WOUNDS_SPILL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(.+)'s wounds spill blood onto the floor\.$").unwrap());
 
 impl AelenaGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {

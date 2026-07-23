@@ -1,12 +1,12 @@
 use crate::ansi::styled_text_block::StyledChar;
 use crate::ansi::{TextStyle, palette};
-use lazy_static::lazy_static;
 use log::debug;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use regex::Regex;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
+use std::sync::LazyLock;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
@@ -222,9 +222,8 @@ impl Display for StyledLine {
     }
 }
 
-lazy_static! {
-    pub static ref ANSI_CODE_REGEX: Regex = Regex::new(r"\u{1b}\[(.*)m").unwrap();
-}
+pub static ANSI_CODE_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\u{1b}\[(.*)m").unwrap());
 
 fn parse_ansi_code_block(block: &[u8]) -> Vec<u8> {
     match std::str::from_utf8(block) {

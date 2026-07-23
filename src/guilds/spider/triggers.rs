@@ -1,8 +1,8 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::guilds::SpiderGuild;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
 const HEAVY_WEIGHT_EXPIRY: &str = "You feel lighter, but it doesn't seem to affect your weight!";
 const QUEEN_SMILES_HELPS: &str = "Spider Queen smiles upon you and helps you control the demon.";
@@ -63,44 +63,32 @@ fn heavy_weight_banner() -> StyledLine {
     banner
 }
 
-lazy_static! {
-    static ref DEMON_HELP_YELLOW: Regex = Regex::new(
-        r"^(.+)'s demon feels easier to control than usual\.$",
-    ).unwrap();
-
-    /// Intentional regex quirk: `\(.+)s spider demon` matches `'s'` without an apostrophe.
-    static ref DEMON_POWER_BRIGHTRED: Regex = Regex::new(
-        r"^(.+)s spider demon draws power from you\.$",
-    ).unwrap();
-
-    static ref BLOOD_PALM_GREEN: Regex = Regex::new(
-        r"^A wound opens on your palm and you guide the (.+) blood at (.+)!$",
-    ).unwrap();
-
-    static ref SHOWER_PALM_GREEN: Regex = Regex::new(
-        r"^A shower of (.+) blood flies from (.+)'s palm at (.+)!$",
-    ).unwrap();
-
-    static ref BLOOD_REFRESH_GREEN: Regex = Regex::new(
-        r"^Stream of blood from (.+)'s wound flies to you, tasting refreshing!$",
-    ).unwrap();
-
-    static ref STAB_BLOOD_GREEN: Regex =
-        Regex::new(r"^You stab with (.+) causing blood to fly everywhere!$").unwrap();
-
-    static ref TWIST_BLADE_GREEN: Regex =
-        Regex::new(r"^You twist your blade inside (.+)'s belly!$").unwrap();
-
-    static ref VENOM_CRINGE_GREEN: Regex = Regex::new(
-        r"^(.+) cringes from pain as your venomed blade bites into (.+) flesh!$",
-    ).unwrap();
-
-    static ref POISON_FLOW_GREEN: Regex = Regex::new(
-        r"^(.+) suffers as poison from your blade flows into (.+) system!$",
-    ).unwrap();
-
-    static ref FAIL_STAB_RED: Regex = Regex::new(r"^You fail to stab (.+) with (.+)!$").unwrap();
-}
+static DEMON_HELP_YELLOW: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(.+)'s demon feels easier to control than usual\.$").unwrap());
+/// Intentional regex quirk: `\(.+)s spider demon` matches `'s'` without an apostrophe.
+static DEMON_POWER_BRIGHTRED: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(.+)s spider demon draws power from you\.$").unwrap());
+static BLOOD_PALM_GREEN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^A wound opens on your palm and you guide the (.+) blood at (.+)!$").unwrap()
+});
+static SHOWER_PALM_GREEN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^A shower of (.+) blood flies from (.+)'s palm at (.+)!$").unwrap()
+});
+static BLOOD_REFRESH_GREEN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^Stream of blood from (.+)'s wound flies to you, tasting refreshing!$").unwrap()
+});
+static STAB_BLOOD_GREEN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^You stab with (.+) causing blood to fly everywhere!$").unwrap());
+static TWIST_BLADE_GREEN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^You twist your blade inside (.+)'s belly!$").unwrap());
+static VENOM_CRINGE_GREEN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(.+) cringes from pain as your venomed blade bites into (.+) flesh!$").unwrap()
+});
+static POISON_FLOW_GREEN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(.+) suffers as poison from your blade flows into (.+) system!$").unwrap()
+});
+static FAIL_STAB_RED: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^You fail to stab (.+) with (.+)!$").unwrap());
 
 #[cfg(test)]
 mod tests {

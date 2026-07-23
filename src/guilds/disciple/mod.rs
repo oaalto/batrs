@@ -5,9 +5,9 @@ use crate::automation::{Action, Automation, Waiter};
 use crate::command::Command;
 use crate::guilds::Guild;
 use crate::triggers::Trigger;
-use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 #[derive(Default)]
 pub struct DiscipleGuild {}
@@ -30,12 +30,12 @@ impl Guild for DiscipleGuild {
     }
 }
 
-lazy_static! {
-    static ref CHAOTIC_SPAWN_TRANSFORM_REGEX: Regex = Regex::new(
+static CHAOTIC_SPAWN_TRANSFORM_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         "The pain increases as your body starts to push out organs and limbs that should not be there."
     )
-    .unwrap();
-}
+    .unwrap()
+});
 
 #[cfg(test)]
 mod tests {

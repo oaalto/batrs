@@ -3,8 +3,8 @@ use crate::automation::Action;
 use crate::guilds::NergalGuild;
 use crate::stats::{NergalMinion, NergalResourceStatus, StatsEffect};
 use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
 impl NergalGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
@@ -121,48 +121,64 @@ fn echo_notice(text: &str, green: bool) -> StyledLine {
     line
 }
 
-lazy_static! {
-    static ref MINION_STATUS: Regex = Regex::new(
+static MINION_STATUS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"^::\.\.:\. (.+) \[Hp: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*, Sp: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*, Ep: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*\]$",
     )
-    .unwrap();
-    static ref RESOURCE_STATUS: Regex = Regex::new(
+    .unwrap()
+});
+static RESOURCE_STATUS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"^::\.\.:\. \[Vitae: ([0-9]+)/([0-9]+)  Potentia: ([0-9]+)/([0-9]+), Evolution points: ([0-9]+)\]$",
     )
-    .unwrap();
-    static ref UNSUMMON_CONNECTION: Regex = Regex::new(
+    .unwrap()
+});
+static UNSUMMON_CONNECTION: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"Your connection to your parasite is severed completely\. .+ jerks violently couple of times and collapses",
     )
-    .unwrap();
-    static ref UNSUMMON_END: Regex = Regex::new(
+    .unwrap()
+});
+static UNSUMMON_END: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"You end the connection to your parasite, making the host jerk couple of times violently\. After couple of seconds .+ collapses and stops moving at all",
     )
-    .unwrap();
-    static ref UNSUMMON_ORDER_DORMANT: Regex = Regex::new(
+    .unwrap()
+});
+static UNSUMMON_ORDER_DORMANT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"You order the parasite to return .+ and lay dormant there until you have use for it again\.",
     )
-    .unwrap();
-    static ref UNSUMMON_RELEASE_HOST: Regex = Regex::new(
+    .unwrap()
+});
+static UNSUMMON_RELEASE_HOST: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"You 'release' the host from the parasites influence\. The host jerks violently couple of times",
     )
-    .unwrap();
-    static ref HARVEST_VITAE: Regex =
-        Regex::new(r"You feel you harvest (.+) amount of vitae\.\.").unwrap();
-    static ref HARVEST_POTENTIA: Regex =
-        Regex::new(r"You feel you harvest (.+) amount of potentia\.\.").unwrap();
-    static ref AURA_SCRATCH: Regex = Regex::new(
+    .unwrap()
+});
+static HARVEST_VITAE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"You feel you harvest (.+) amount of vitae\.\.").unwrap());
+static HARVEST_POTENTIA: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"You feel you harvest (.+) amount of potentia\.\.").unwrap());
+static AURA_SCRATCH: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"(.*) manages to scratch (.*) skin infecting the tissue under the skin with nasty disease",
     )
-    .unwrap();
-    static ref AURA_PLUNGES: Regex = Regex::new(
+    .unwrap()
+});
+static AURA_PLUNGES: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"(.*) plunges towards (.*) and manages to sink its disease infecting nails into (.*) flesh!",
     )
-    .unwrap();
-    static ref AURA_ESSENCE: Regex = Regex::new(
+    .unwrap()
+});
+static AURA_ESSENCE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"You can feel essence flowing into you from (.*) as (.*) sinks its nails into its victim!",
     )
-    .unwrap();
-}
+    .unwrap()
+});
 
 #[cfg(test)]
 mod tests {

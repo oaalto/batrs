@@ -3,8 +3,8 @@ use crate::automation::Action;
 use crate::guilds::AnimistGuild;
 use crate::stats::StatsEffect;
 use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
 impl AnimistGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
@@ -66,17 +66,15 @@ impl AnimistGuild {
     }
 }
 
-lazy_static! {
-    /// Percent may use non-ASCII digits; trailing status text (e.g. `+`) is optional.
-    static ref SOUL_COMPANION_STATUS: Regex = Regex::new(
-        r"(?i)^Your\s+soul\s+companion\s*:\s*(.+?)\s+\((\d+)%\)\s*(.*?)\s*$",
-    )
-    .unwrap();
-    static ref SPIRIT_APPEARS: Regex =
-        Regex::new(r"^(.+) spirit slowly appears, answering your call\.$").unwrap();
-    static ref SOUL_COMPANION_SWORD_HIT: Regex =
-        Regex::new(r"^(.+)'s soul companion swings his sword in (.+) arc, and hits.*$").unwrap();
-}
+/// Percent may use non-ASCII digits; trailing status text (e.g. `+`) is optional.
+static SOUL_COMPANION_STATUS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)^Your\s+soul\s+companion\s*:\s*(.+?)\s+\((\d+)%\)\s*(.*?)\s*$").unwrap()
+});
+static SPIRIT_APPEARS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(.+) spirit slowly appears, answering your call\.$").unwrap());
+static SOUL_COMPANION_SWORD_HIT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(.+)'s soul companion swings his sword in (.+) arc, and hits.*$").unwrap()
+});
 
 #[cfg(test)]
 mod tests {

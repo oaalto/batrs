@@ -3,17 +3,16 @@
 use crate::ansi::TextStyle;
 use crate::guilds::KharimGuild;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref CHAOS_AURA: Regex =
-        Regex::new(r"Your chaos aura of (.+) reacts to the assault!").unwrap();
-    static ref FOUL_INTENTIONS: Regex =
-        Regex::new(r"(.+) notices your foul intentions and evades your attempt\.",).unwrap();
-    static ref ATTACK_FUTILE: Regex =
-        Regex::new(r"Your attempts to attack (.+) become futile\.").unwrap();
-}
+static CHAOS_AURA: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"Your chaos aura of (.+) reacts to the assault!").unwrap());
+static FOUL_INTENTIONS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(.+) notices your foul intentions and evades your attempt\.").unwrap()
+});
+static ATTACK_FUTILE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"Your attempts to attack (.+) become futile\.").unwrap());
 
 impl KharimGuild {
     pub fn get_triggers(&self) -> Vec<crate::triggers::Trigger> {

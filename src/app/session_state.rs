@@ -1,5 +1,5 @@
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoginState {
@@ -87,6 +87,13 @@ impl SessionState {
     }
 }
 
+static PROMPT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^Hp:(.+)/(.+) Sp:(.+)/(.+) Ep:(.+)/(.+) Exp:(.+) >$").unwrap());
+static SHORT_SCORE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^H:(.+)/(.+) \[(.*)\] S:(.+)/(.+) \[(.*)\] E:(.+)/(.+) \[(.*)\] \\$:(.+) \[(.*)\] exp:(.+) \[(.*)\]$")
+        .unwrap()
+});
+
 #[cfg(test)]
 mod tests {
     use super::{LoginState, SessionState};
@@ -113,12 +120,4 @@ mod tests {
         assert!(!session.update_login_state("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >"));
         assert!(session.is_logged_in());
     }
-}
-
-lazy_static! {
-    static ref PROMPT_REGEX: Regex =
-        Regex::new(r"^Hp:(.+)/(.+) Sp:(.+)/(.+) Ep:(.+)/(.+) Exp:(.+) >$").unwrap();
-    static ref SHORT_SCORE_REGEX: Regex =
-        Regex::new(r"^H:(.+)/(.+) \[(.*)\] S:(.+)/(.+) \[(.*)\] E:(.+)/(.+) \[(.*)\] \\$:(.+) \[(.*)\] exp:(.+) \[(.*)\]$")
-            .unwrap();
 }

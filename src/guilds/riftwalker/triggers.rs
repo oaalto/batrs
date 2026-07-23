@@ -8,17 +8,16 @@ use crate::guilds::riftwalker::{
 };
 use crate::stats::StatsEffect;
 use crate::triggers::{LineEffect, Trigger, TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// Battle listen entity HP (TinyFugue `riftwalker.tf`); requires `battle listen` on the MUD.
-    /// Lines may end with extra fields and `  =--`; optional three bracket segments after `HP:n(max)`.
-    static ref RIFTWALKER_BATTLE_HP: Regex =
-        Regex::new(r"(?i)^--=\s+(.+?)\s+HP:([0-9]+)\(([^)]+)\)(?:\s+(\[[^\]]*\]))?(?:\s+(\[[^\]]*\]))?(?:\s+(\[[^\]]*\]))?").unwrap();
-    static ref RIFTWALKER_BATTLE_LABEL: Regex =
-        Regex::new(r"(?i)^--=\s+(.+?)\s+=--\s*$").unwrap();
-}
+/// Battle listen entity HP (TinyFugue `riftwalker.tf`); requires `battle listen` on the MUD.
+/// Lines may end with extra fields and `  =--`; optional three bracket segments after `HP:n(max)`.
+static RIFTWALKER_BATTLE_HP: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)^--=\s+(.+?)\s+HP:([0-9]+)\(([^)]+)\)(?:\s+(\[[^\]]*\]))?(?:\s+(\[[^\]]*\]))?(?:\s+(\[[^\]]*\]))?").unwrap()
+});
+static RIFTWALKER_BATTLE_LABEL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)^--=\s+(.+?)\s+=--\s*$").unwrap());
 
 impl RiftwalkerGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {

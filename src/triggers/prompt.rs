@@ -1,12 +1,10 @@
 use crate::stats::StatsEffect;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
-lazy_static! {
-    pub static ref REGEX: Regex =
-        Regex::new(r"^Hp:(.+)/(.+) Sp:(.+)/(.+) Ep:(.+)/(.+) Exp:(.+) >$").unwrap();
-}
+pub static REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^Hp:(.+)/(.+) Sp:(.+)/(.+) Ep:(.+)/(.+) Exp:(.+) >$").unwrap());
 
 pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
     if let Some(captures) = REGEX.captures(line.plain_line) {

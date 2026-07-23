@@ -10,8 +10,8 @@ use crate::guilds::monk::{
 };
 use crate::guilds::sects_triggers;
 use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
 struct MonkRule {
     pattern: Regex,
@@ -87,12 +87,14 @@ impl MonkGuild {
     }
 }
 
-lazy_static! {
-    static ref KATA_DONE: Vec<Regex> = vec![
+static KATA_DONE: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new(r"^You perform the kata\.$").unwrap(),
         Regex::new(r"^You perform the peaceful (.+) kata\.$").unwrap(),
-    ];
-    static ref INTERRUPTS: Vec<Regex> = vec![
+    ]
+});
+static INTERRUPTS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
         Regex::new(r"^Your movement prevents you from doing the skill\.$").unwrap(),
         Regex::new(r"^GgrTF:  ---- SKILL STOPPED ----$").unwrap(),
         Regex::new(r"^You lose your concentration and cannot do the skill\.$").unwrap(),
@@ -102,11 +104,25 @@ lazy_static! {
         )
         .unwrap(),
         Regex::new(r"^You start chanting\.$").unwrap(),
-    ];
-    static ref MONK_RULES: Vec<MonkRule> = vec![
-        rule(r"You do a complex attack maneuver but miss\.", Some(TextStyle::BRIGHT_RED), None),
-        rule(r"You fail to reach the state of inner harmony\.", Some(TextStyle::RED), None),
-        rule(r"Your training is starting to pay off!", Some(TextStyle::BLUE), None),
+    ]
+});
+static MONK_RULES: LazyLock<Vec<MonkRule>> = LazyLock::new(|| {
+    vec![
+        rule(
+            r"You do a complex attack maneuver but miss\.",
+            Some(TextStyle::BRIGHT_RED),
+            None,
+        ),
+        rule(
+            r"You fail to reach the state of inner harmony\.",
+            Some(TextStyle::RED),
+            None,
+        ),
+        rule(
+            r"Your training is starting to pay off!",
+            Some(TextStyle::BLUE),
+            None,
+        ),
         rule(
             r"You feel like you have mastered the art of (.+)\. It might be time to find another advanced technique\.",
             Some(TextStyle::BLUE),
@@ -402,8 +418,8 @@ lazy_static! {
             Some(TextStyle::CYAN),
             Some((CURRENT_AVOID_SKILL_VAR, AVOID_SKILL_1)),
         ),
-    ];
-}
+    ]
+});
 
 fn rule(
     pattern: &str,

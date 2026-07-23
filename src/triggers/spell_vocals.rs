@@ -5,8 +5,8 @@
 #[cfg(test)]
 use crate::ansi::StyledLine;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
 struct ContextualRule {
     regex: Regex,
@@ -18,9 +18,9 @@ struct QuotedVocalRule {
     spells: Vec<String>,
 }
 
-lazy_static! {
-    /// Tiger spells share `'(Haii!)'`; disambiguate using surrounding line context.
-    static ref CONTEXTUAL_RULES: Vec<ContextualRule> = vec![
+/// Tiger spells share `'(Haii!)'`; disambiguate using surrounding line context.
+static CONTEXTUAL_RULES: LazyLock<Vec<ContextualRule>> = LazyLock::new(|| {
+    vec![
         ContextualRule {
             regex: Regex::new(r"(?i)large\s+circle\s+to\s+the\s+air.*?'\(Haii!\)'").unwrap(),
             spell: "Shadow leap",
@@ -29,9 +29,10 @@ lazy_static! {
             regex: Regex::new(r"(?i)shred.*?air.*?'\(Haii!\)'").unwrap(),
             spell: "Tiger claw",
         },
-    ];
-
-    static ref QUOTED_VOCAL_RULES: Vec<QuotedVocalRule> = super::spell_vocal_data::VOCAL_SPELL_GROUPS
+    ]
+});
+static QUOTED_VOCAL_RULES: LazyLock<Vec<QuotedVocalRule>> = LazyLock::new(|| {
+    super::spell_vocal_data::VOCAL_SPELL_GROUPS
         .iter()
         .filter_map(|(inner, spells)| {
             let regex = Regex::new(&format!("(?i)'{}'", regex::escape(inner))).ok()?;
@@ -40,8 +41,8 @@ lazy_static! {
                 spells: spells.iter().map(|spell| (*spell).to_string()).collect(),
             })
         })
-        .collect();
-}
+        .collect()
+});
 
 fn format_label(spells: &[String]) -> String {
     format!(" ({})", spells.join(", "))

@@ -2,22 +2,22 @@ use crate::ansi::StyledLine;
 use crate::automation::Action;
 use crate::generic_commands::GenericCommands;
 use crate::guilds::Guild;
-use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref BUILTINS: HashMap<String, BuiltinCommand> = HashMap::from([
+static BUILTINS: LazyLock<HashMap<String, BuiltinCommand>> = LazyLock::new(|| {
+    HashMap::from([
         (
             "/help".to_string(),
-            BuiltinCommand::new(builtin_help, false)
+            BuiltinCommand::new(builtin_help, false),
         ),
         (
             "/quit".to_string(),
-            BuiltinCommand::new(builtin_quit, false)
+            BuiltinCommand::new(builtin_quit, false),
         ),
         (
             "/connect".to_string(),
-            BuiltinCommand::new(builtin_connect, false)
+            BuiltinCommand::new(builtin_connect, false),
         ),
         (
             "/guilds".to_string(),
@@ -35,8 +35,8 @@ lazy_static! {
             "/raw_logs".to_string(),
             BuiltinCommand::new(builtin_toggle_raw_logs, false),
         ),
-    ]);
-}
+    ])
+});
 
 const HELP_LINES: [&str; 8] = [
     "Client slash commands:",

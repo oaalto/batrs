@@ -5,9 +5,9 @@ use crate::automation::{Action, Automation, Waiter};
 use crate::command::Command;
 use crate::guilds::Guild;
 use crate::triggers::Trigger;
-use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 pub const DISMOUNTED_FLAG: &str = "tzarakk_dismounted";
 pub const MOUNT_SUMMONED_FLAG: &str = "tzarakk_mount_summoned";
@@ -42,8 +42,8 @@ impl Guild for TzarakkGuild {
     }
 }
 
-lazy_static! {
-    static ref REMOUNT_REGEX: Regex = Regex::new(concat!(
+static REMOUNT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(concat!(
         r"^(You awaken from your short rest, and feel slightly better\.",
         r"|You don't quite feel like camping at the moment\.",
         r"|You wake up!",
@@ -52,8 +52,8 @@ lazy_static! {
         r"|Something disturbs you and you cannot concentrate any longer\.",
         r"|You don't feel to be in harmony with yourself\.)$"
     ))
-    .unwrap();
-}
+    .unwrap()
+});
 
 #[cfg(test)]
 mod tests {

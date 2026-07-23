@@ -1,6 +1,6 @@
-use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 #[derive(Clone, Debug)]
 pub struct Waiter {
@@ -124,9 +124,8 @@ impl Automation {
     }
 }
 
-lazy_static! {
-    static ref TEMPLATE_REGEX: Regex = Regex::new(r"\{([A-Za-z0-9_]+)\}").unwrap();
-}
+static TEMPLATE_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\{([A-Za-z0-9_]+)\}").unwrap());
 
 #[cfg(test)]
 mod tests {
