@@ -19,41 +19,180 @@ pub const RIFTWALKER_ENTITY_LABEL_KEYS: [&str; 4] = [
     RIFTWALKER_ENTITY_EARTH_KEY,
 ];
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SettingKind {
+    String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SettingSlot {
+    Rig,
+    TzarakkMount,
+    SabreWeapon,
+    RiftwalkerEntity(usize),
+}
+
+#[derive(Clone, Copy)]
+enum PersistSlot {
+    Rig,
+    TzarakkMount,
+    SabreWeapon,
+    RiftwalkerEntityFire,
+    RiftwalkerEntityAir,
+    RiftwalkerEntityWater,
+    RiftwalkerEntityEarth,
+}
+
+#[derive(Clone, Copy)]
+enum AutomationExport {
+    Var,
+}
+
 struct SettingDefinition {
     key: &'static str,
     default: &'static str,
+    kind: SettingKind,
+    slot: SettingSlot,
+    persist: PersistSlot,
+    guild_dialog: bool,
+    automation_export: AutomationExport,
 }
 
 const SETTINGS_DEFS: &[SettingDefinition] = &[
     SettingDefinition {
         key: RIG_KEY,
         default: "",
+        kind: SettingKind::String,
+        slot: SettingSlot::Rig,
+        persist: PersistSlot::Rig,
+        guild_dialog: false,
+        automation_export: AutomationExport::Var,
     },
     SettingDefinition {
         key: TZARAKK_MOUNT_KEY,
         default: "",
+        kind: SettingKind::String,
+        slot: SettingSlot::TzarakkMount,
+        persist: PersistSlot::TzarakkMount,
+        guild_dialog: true,
+        automation_export: AutomationExport::Var,
     },
     SettingDefinition {
         key: SABRE_WEAPON_KEY,
         default: "",
+        kind: SettingKind::String,
+        slot: SettingSlot::SabreWeapon,
+        persist: PersistSlot::SabreWeapon,
+        guild_dialog: true,
+        automation_export: AutomationExport::Var,
     },
     SettingDefinition {
         key: RIFTWALKER_ENTITY_FIRE_KEY,
         default: DEFAULT_RIFTWALKER_ENTITY_LABEL,
+        kind: SettingKind::String,
+        slot: SettingSlot::RiftwalkerEntity(0),
+        persist: PersistSlot::RiftwalkerEntityFire,
+        guild_dialog: true,
+        automation_export: AutomationExport::Var,
     },
     SettingDefinition {
         key: RIFTWALKER_ENTITY_AIR_KEY,
         default: DEFAULT_RIFTWALKER_ENTITY_LABEL,
+        kind: SettingKind::String,
+        slot: SettingSlot::RiftwalkerEntity(1),
+        persist: PersistSlot::RiftwalkerEntityAir,
+        guild_dialog: true,
+        automation_export: AutomationExport::Var,
     },
     SettingDefinition {
         key: RIFTWALKER_ENTITY_WATER_KEY,
         default: DEFAULT_RIFTWALKER_ENTITY_LABEL,
+        kind: SettingKind::String,
+        slot: SettingSlot::RiftwalkerEntity(2),
+        persist: PersistSlot::RiftwalkerEntityWater,
+        guild_dialog: true,
+        automation_export: AutomationExport::Var,
     },
     SettingDefinition {
         key: RIFTWALKER_ENTITY_EARTH_KEY,
         default: DEFAULT_RIFTWALKER_ENTITY_LABEL,
+        kind: SettingKind::String,
+        slot: SettingSlot::RiftwalkerEntity(3),
+        persist: PersistSlot::RiftwalkerEntityEarth,
+        guild_dialog: true,
+        automation_export: AutomationExport::Var,
     },
 ];
+
+fn definition_for_key(key: &str) -> Option<&'static SettingDefinition> {
+    SETTINGS_DEFS
+        .iter()
+        .find(|definition| definition.key == key)
+}
+
+fn read_persist(table: &SettingsTable, slot: PersistSlot) -> &str {
+    match slot {
+        PersistSlot::Rig => &table.rig,
+        PersistSlot::TzarakkMount => &table.tzarakk_mount,
+        PersistSlot::SabreWeapon => &table.sabre_weapon,
+        PersistSlot::RiftwalkerEntityFire => &table.riftwalker_entity_fire,
+        PersistSlot::RiftwalkerEntityAir => &table.riftwalker_entity_air,
+        PersistSlot::RiftwalkerEntityWater => &table.riftwalker_entity_water,
+        PersistSlot::RiftwalkerEntityEarth => &table.riftwalker_entity_earth,
+    }
+}
+
+fn write_persist(table: &mut SettingsTable, slot: PersistSlot, value: String) {
+    match slot {
+        PersistSlot::Rig => table.rig = value,
+        PersistSlot::TzarakkMount => table.tzarakk_mount = value,
+        PersistSlot::SabreWeapon => table.sabre_weapon = value,
+        PersistSlot::RiftwalkerEntityFire => table.riftwalker_entity_fire = value,
+        PersistSlot::RiftwalkerEntityAir => table.riftwalker_entity_air = value,
+        PersistSlot::RiftwalkerEntityWater => table.riftwalker_entity_water = value,
+        PersistSlot::RiftwalkerEntityEarth => table.riftwalker_entity_earth = value,
+    }
+}
+
+fn read_known_slot(settings: &KnownProfileSettings, slot: SettingSlot) -> String {
+    match slot {
+        SettingSlot::Rig => settings.rig.clone(),
+        SettingSlot::TzarakkMount => settings.tzarakk_mount.clone(),
+        SettingSlot::SabreWeapon => settings.sabre_weapon.clone(),
+        SettingSlot::RiftwalkerEntity(index) => settings.riftwalker_entity_labels[index].clone(),
+    }
+}
+
+fn write_known_slot(settings: &mut KnownProfileSettings, slot: SettingSlot, value: String) {
+    match slot {
+        SettingSlot::Rig => settings.rig = value,
+        SettingSlot::TzarakkMount => settings.tzarakk_mount = value,
+        SettingSlot::SabreWeapon => settings.sabre_weapon = value,
+        SettingSlot::RiftwalkerEntity(index) => settings.riftwalker_entity_labels[index] = value,
+    }
+}
+
+fn write_guild_dialog_slot(
+    defaults: &mut GuildDialogProfileDefaults,
+    slot: SettingSlot,
+    value: String,
+) {
+    match slot {
+        SettingSlot::TzarakkMount => defaults.tzarakk_mount = value,
+        SettingSlot::SabreWeapon => defaults.sabre_weapon = value,
+        SettingSlot::RiftwalkerEntity(index) => defaults.riftwalker_entity_labels[index] = value,
+        SettingSlot::Rig => {}
+    }
+}
+
+fn normalized_string_value(definition: &SettingDefinition, raw: String) -> String {
+    match definition.kind {
+        SettingKind::String => match definition.slot {
+            SettingSlot::RiftwalkerEntity(_) if raw.is_empty() => definition.default.to_string(),
+            _ => raw,
+        },
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlayerRuntimeProfile {
@@ -106,7 +245,6 @@ pub struct GuildDialogProfileDefaults {
     pub riftwalker_entity_labels: [String; 4],
 }
 
-#[cfg(test)]
 fn default_riftwalker_entity_labels() -> [String; 4] {
     std::array::from_fn(|_| DEFAULT_RIFTWALKER_ENTITY_LABEL.to_string())
 }
@@ -169,40 +307,19 @@ pub fn settings_table_from_entries(entries: &[SettingEntry]) -> SettingsTable {
 }
 
 pub fn user_settings_from_player(player: &PlayerToml) -> UserSettings {
-    let mut entries = vec![
-        SettingEntry {
-            key: RIG_KEY.to_string(),
-            value: player.settings.rig.clone(),
-        },
-        SettingEntry {
-            key: TZARAKK_MOUNT_KEY.to_string(),
-            value: player.settings.tzarakk_mount.clone(),
-        },
-        SettingEntry {
-            key: SABRE_WEAPON_KEY.to_string(),
-            value: player.settings.sabre_weapon.clone(),
-        },
-        SettingEntry {
-            key: RIFTWALKER_ENTITY_FIRE_KEY.to_string(),
-            value: player.settings.riftwalker_entity_fire.clone(),
-        },
-        SettingEntry {
-            key: RIFTWALKER_ENTITY_AIR_KEY.to_string(),
-            value: player.settings.riftwalker_entity_air.clone(),
-        },
-        SettingEntry {
-            key: RIFTWALKER_ENTITY_WATER_KEY.to_string(),
-            value: player.settings.riftwalker_entity_water.clone(),
-        },
-        SettingEntry {
-            key: RIFTWALKER_ENTITY_EARTH_KEY.to_string(),
-            value: player.settings.riftwalker_entity_earth.clone(),
-        },
-    ];
+    let mut entries = SETTINGS_DEFS
+        .iter()
+        .map(|definition| SettingEntry {
+            key: definition.key.to_string(),
+            value: read_persist(&player.settings, definition.persist).to_string(),
+        })
+        .collect::<Vec<_>>();
     let mut keys: Vec<String> = player.settings.extra.keys().cloned().collect();
     keys.sort();
     for key in keys {
-        if let Some(value) = player.settings.extra.get(&key) {
+        if definition_for_key(&key).is_none()
+            && let Some(value) = player.settings.extra.get(&key)
+        {
             entries.push(SettingEntry {
                 key,
                 value: value.clone(),
@@ -226,10 +343,7 @@ fn normalize_settings_entries(entries: Vec<SettingEntry>) -> (Vec<SettingEntry>,
     let mut known = HashMap::new();
     let mut extras = Vec::new();
     for entry in entries {
-        if SETTINGS_DEFS
-            .iter()
-            .any(|definition| definition.key == entry.key)
-        {
+        if definition_for_key(&entry.key).is_some() {
             known.insert(entry.key, entry.value);
         } else {
             extras.push(entry);
@@ -239,9 +353,9 @@ fn normalize_settings_entries(entries: Vec<SettingEntry>) -> (Vec<SettingEntry>,
     let mut changed = false;
     let mut normalized = Vec::new();
     for definition in SETTINGS_DEFS {
-        if let Some(mut value) = known.remove(definition.key) {
-            if RIFTWALKER_ENTITY_LABEL_KEYS.contains(&definition.key) && value.is_empty() {
-                value = definition.default.to_string();
+        if let Some(raw) = known.remove(definition.key) {
+            let value = normalized_string_value(definition, raw.clone());
+            if value != raw {
                 changed = true;
             }
             normalized.push(SettingEntry {
@@ -261,43 +375,15 @@ fn normalize_settings_entries(entries: Vec<SettingEntry>) -> (Vec<SettingEntry>,
 }
 
 fn settings_table_from_normalized_entries(entries: &[SettingEntry]) -> SettingsTable {
-    let mut rig = String::new();
-    let mut tzarakk_mount = String::new();
-    let mut sabre_weapon = String::new();
-    let mut riftwalker_entity_fire = DEFAULT_RIFTWALKER_ENTITY_LABEL.to_string();
-    let mut riftwalker_entity_air = DEFAULT_RIFTWALKER_ENTITY_LABEL.to_string();
-    let mut riftwalker_entity_water = DEFAULT_RIFTWALKER_ENTITY_LABEL.to_string();
-    let mut riftwalker_entity_earth = DEFAULT_RIFTWALKER_ENTITY_LABEL.to_string();
-    let mut extra = HashMap::new();
+    let mut table = SettingsTable::default();
     for entry in entries {
-        if entry.key == RIG_KEY {
-            rig.clone_from(&entry.value);
-        } else if entry.key == TZARAKK_MOUNT_KEY {
-            tzarakk_mount.clone_from(&entry.value);
-        } else if entry.key == SABRE_WEAPON_KEY {
-            sabre_weapon.clone_from(&entry.value);
-        } else if entry.key == RIFTWALKER_ENTITY_FIRE_KEY {
-            riftwalker_entity_fire.clone_from(&entry.value);
-        } else if entry.key == RIFTWALKER_ENTITY_AIR_KEY {
-            riftwalker_entity_air.clone_from(&entry.value);
-        } else if entry.key == RIFTWALKER_ENTITY_WATER_KEY {
-            riftwalker_entity_water.clone_from(&entry.value);
-        } else if entry.key == RIFTWALKER_ENTITY_EARTH_KEY {
-            riftwalker_entity_earth.clone_from(&entry.value);
+        if let Some(definition) = definition_for_key(&entry.key) {
+            write_persist(&mut table, definition.persist, entry.value.clone());
         } else {
-            extra.insert(entry.key.clone(), entry.value.clone());
+            table.extra.insert(entry.key.clone(), entry.value.clone());
         }
     }
-    SettingsTable {
-        rig,
-        tzarakk_mount,
-        sabre_weapon,
-        riftwalker_entity_fire,
-        riftwalker_entity_air,
-        riftwalker_entity_water,
-        riftwalker_entity_earth,
-        extra,
-    }
+    table
 }
 
 fn normalize_player_guilds(player: &mut PlayerToml) -> bool {
@@ -318,61 +404,59 @@ fn normalize_player_guilds(player: &mut PlayerToml) -> bool {
 
 impl KnownProfileSettings {
     fn from_user_settings(settings: &UserSettings) -> Self {
-        Self {
-            rig: setting_value(settings, RIG_KEY),
-            tzarakk_mount: setting_value(settings, TZARAKK_MOUNT_KEY),
-            sabre_weapon: setting_value(settings, SABRE_WEAPON_KEY),
-            riftwalker_entity_labels: [
-                riftwalker_entity_label(settings, RIFTWALKER_ENTITY_FIRE_KEY),
-                riftwalker_entity_label(settings, RIFTWALKER_ENTITY_AIR_KEY),
-                riftwalker_entity_label(settings, RIFTWALKER_ENTITY_WATER_KEY),
-                riftwalker_entity_label(settings, RIFTWALKER_ENTITY_EARTH_KEY),
-            ],
+        let mut known = Self {
+            rig: String::new(),
+            tzarakk_mount: String::new(),
+            sabre_weapon: String::new(),
+            riftwalker_entity_labels: default_riftwalker_entity_labels(),
             is_lich: settings.is_lich_enabled(),
+        };
+        for definition in SETTINGS_DEFS {
+            let raw = setting_value(settings, definition.key);
+            let value = normalized_string_value(definition, raw);
+            write_known_slot(&mut known, definition.slot, value);
         }
+        known
     }
 }
 
 impl GuildDialogProfileDefaults {
     fn from_settings(primary_background: &str, settings: &KnownProfileSettings) -> Self {
-        Self {
+        let mut defaults = Self {
             primary_background: primary_background.to_string(),
-            tzarakk_mount: settings.tzarakk_mount.clone(),
-            sabre_weapon: settings.sabre_weapon.clone(),
-            riftwalker_entity_labels: settings.riftwalker_entity_labels.clone(),
+            tzarakk_mount: String::new(),
+            sabre_weapon: String::new(),
+            riftwalker_entity_labels: default_riftwalker_entity_labels(),
+        };
+        for definition in SETTINGS_DEFS
+            .iter()
+            .filter(|definition| definition.guild_dialog)
+        {
+            write_guild_dialog_slot(
+                &mut defaults,
+                definition.slot,
+                read_known_slot(settings, definition.slot),
+            );
         }
+        defaults
     }
 }
 
 fn automation_vars_for_settings(settings: &KnownProfileSettings) -> Vec<(String, String)> {
-    let mut vars = vec![
-        (RIG_KEY.to_string(), settings.rig.clone()),
-        (
-            TZARAKK_MOUNT_KEY.to_string(),
-            settings.tzarakk_mount.clone(),
-        ),
-    ];
-    vars.push((SABRE_WEAPON_KEY.to_string(), settings.sabre_weapon.clone()));
-    vars.extend(
-        RIFTWALKER_ENTITY_LABEL_KEYS
-            .into_iter()
-            .zip(settings.riftwalker_entity_labels.iter())
-            .map(|(key, value)| (key.to_string(), value.clone())),
-    );
-    vars
+    SETTINGS_DEFS
+        .iter()
+        .filter(|definition| matches!(definition.automation_export, AutomationExport::Var))
+        .map(|definition| {
+            (
+                definition.key.to_string(),
+                read_known_slot(settings, definition.slot),
+            )
+        })
+        .collect()
 }
 
 fn setting_value(settings: &UserSettings, key: &str) -> String {
     settings.get(key).unwrap_or_default().to_string()
-}
-
-fn riftwalker_entity_label(settings: &UserSettings, key: &str) -> String {
-    let raw = settings.get(key).unwrap_or_default();
-    if raw.is_empty() {
-        DEFAULT_RIFTWALKER_ENTITY_LABEL.to_string()
-    } else {
-        raw.to_string()
-    }
 }
 
 fn non_empty(value: &str) -> Option<&str> {
@@ -563,5 +647,100 @@ mod tests {
         );
         assert_eq!(interpreted.runtime.settings.rig, "bag");
         assert!(interpreted.runtime.settings.is_lich);
+    }
+
+    #[test]
+    fn registry_rows_are_complete_and_unique() {
+        let mut slots = Vec::new();
+        for definition in SETTINGS_DEFS {
+            assert_eq!(definition.kind, SettingKind::String);
+            slots.push(definition.slot);
+            assert!(definition_for_key(definition.key).is_some());
+        }
+        slots.sort_by_key(|slot| match slot {
+            SettingSlot::Rig => 0,
+            SettingSlot::TzarakkMount => 1,
+            SettingSlot::SabreWeapon => 2,
+            SettingSlot::RiftwalkerEntity(index) => 3 + index,
+        });
+        assert_eq!(slots.len(), 7);
+        assert_eq!(slots, {
+            let mut expected = vec![
+                SettingSlot::Rig,
+                SettingSlot::TzarakkMount,
+                SettingSlot::SabreWeapon,
+            ];
+            expected.extend((0..4).map(SettingSlot::RiftwalkerEntity));
+            expected
+        });
+    }
+
+    #[test]
+    fn guild_dialog_defaults_follow_registry_flags() {
+        let profile = runtime_profile_from_parts(
+            Vec::new(),
+            DEFAULT_GUILD_PRIMARY_KEYWORD,
+            settings(&[(RIG_KEY, "bag")]),
+            GenericCommandsConfig::default(),
+        );
+
+        assert_eq!(profile.settings.rig, "bag");
+        assert_eq!(profile.guild_dialog_defaults.tzarakk_mount, "");
+        assert_eq!(profile.guild_dialog_defaults.sabre_weapon, "");
+    }
+
+    #[test]
+    fn unknown_settings_preserved_in_extra_round_trip() {
+        let player = PlayerToml {
+            settings: SettingsTable {
+                extra: HashMap::from([("custom_flag".to_string(), "on".to_string())]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let interpreted = interpret_player_toml(player);
+        assert_eq!(
+            interpreted
+                .normalized_player
+                .settings
+                .extra
+                .get("custom_flag"),
+            Some(&"on".to_string())
+        );
+    }
+
+    #[test]
+    fn automation_vars_built_from_registry() {
+        let profile = runtime_profile_from_parts(
+            Vec::new(),
+            DEFAULT_GUILD_PRIMARY_KEYWORD,
+            settings(&[
+                (RIG_KEY, "bag"),
+                (TZARAKK_MOUNT_KEY, "Vedir"),
+                (SABRE_WEAPON_KEY, "sabre"),
+                (RIFTWALKER_ENTITY_FIRE_KEY, "flame"),
+            ]),
+            GenericCommandsConfig::default(),
+        );
+
+        assert_eq!(
+            profile.automation_vars,
+            vec![
+                (RIG_KEY.to_string(), "bag".to_string()),
+                (TZARAKK_MOUNT_KEY.to_string(), "Vedir".to_string()),
+                (SABRE_WEAPON_KEY.to_string(), "sabre".to_string()),
+                (RIFTWALKER_ENTITY_FIRE_KEY.to_string(), "flame".to_string()),
+                (RIFTWALKER_ENTITY_AIR_KEY.to_string(), "entity".to_string()),
+                (
+                    RIFTWALKER_ENTITY_WATER_KEY.to_string(),
+                    "entity".to_string()
+                ),
+                (
+                    RIFTWALKER_ENTITY_EARTH_KEY.to_string(),
+                    "entity".to_string()
+                ),
+            ]
+        );
     }
 }
