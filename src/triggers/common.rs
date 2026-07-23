@@ -3,6 +3,7 @@ use crate::automation::Action;
 use crate::combat_awareness::NOT_IN_COMBAT_LINE;
 use crate::triggers::{LineEffect, TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
+use log::warn;
 use regex::{Captures, Regex};
 use std::sync::{Arc, Mutex};
 
@@ -305,7 +306,12 @@ fn companion_rules_arc(name: &str) -> Arc<Vec<Rule>> {
         return Arc::new(Vec::new());
     };
 
-    let mut guard = COMPANION_RULES_CACHE.lock().unwrap();
+    let mut guard = COMPANION_RULES_CACHE.lock().unwrap_or_else(|poisoned| {
+        warn!("companion rules cache mutex was poisoned; clearing cache");
+        let mut guard = poisoned.into_inner();
+        *guard = None;
+        guard
+    });
     if guard
         .as_ref()
         .is_some_and(|(stored, _)| stored.as_str() == name)
@@ -327,134 +333,100 @@ fn companion_rule_name(name: &str) -> Option<String> {
     Some(normalized)
 }
 
+fn push_companion_regex_rule(
+    rules: &mut Vec<Rule>,
+    order: &mut usize,
+    pattern: String,
+    actions: Vec<RuleAction>,
+) {
+    let Some(regex) = Regex::new(&pattern).ok() else {
+        warn!("failed to compile companion trigger regex; pattern={pattern:?}");
+        return;
+    };
+    push_rule(rules, order, RuleMatcher::Regex(regex), 1000, None, actions);
+}
+
 /// Soul-companion combat lines for Fueryon/Odefu-style companions, with the character name
 /// taken from the application instead of hardcoded Fueryon/Odefu.
 fn build_companion_rules(name: &str) -> Vec<Rule> {
     let escaped = regex::escape(name);
-    const PRIORITY: i32 = 1000;
     let mut rules = Vec::new();
     let mut order = 0usize;
 
     // "{name} hits <other> …" — attacker is the player character (green), count is group 2.
-    push_rule(
+    push_companion_regex_rule(
         &mut rules,
         &mut order,
-        RuleMatcher::Regex(
-            Regex::new(&format!(
-                r"^{} hits (.+) (?:once|twice|thrice|\d+ times) (.+)\.$",
-                escaped
-            ))
-            .unwrap(),
+        format!(
+            r"^{} hits (.+) (?:once|twice|thrice|\d+ times) (.+)\.$",
+            escaped
         ),
-        PRIORITY,
-        None,
         vec![tf_hilite("Cgreen", HiliteTarget::Whole)],
     );
-    push_rule(
+    push_companion_regex_rule(
         &mut rules,
         &mut order,
-        RuleMatcher::Regex(Regex::new(&format!(r"^{} hits (.+) (once) (.+)\.$", escaped)).unwrap()),
-        PRIORITY,
-        None,
+        format!(r"^{} hits (.+) (once) (.+)\.$", escaped),
         vec![tf_hilite("Cblue", HiliteTarget::Group(2))],
     );
-    push_rule(
+    push_companion_regex_rule(
         &mut rules,
         &mut order,
-        RuleMatcher::Regex(
-            Regex::new(&format!(r"^{} hits (.+) (twice) (.+)\.$", escaped)).unwrap(),
-        ),
-        PRIORITY,
-        None,
+        format!(r"^{} hits (.+) (twice) (.+)\.$", escaped),
         vec![tf_hilite("Cmagenta", HiliteTarget::Group(2))],
     );
-    push_rule(
+    push_companion_regex_rule(
         &mut rules,
         &mut order,
-        RuleMatcher::Regex(
-            Regex::new(&format!(r"^{} hits (.+) (thrice) (.+)\.$", escaped)).unwrap(),
-        ),
-        PRIORITY,
-        None,
+        format!(r"^{} hits (.+) (thrice) (.+)\.$", escaped),
         vec![tf_hilite("BCred", HiliteTarget::Group(2))],
     );
-    push_rule(
+    push_companion_regex_rule(
         &mut rules,
         &mut order,
-        RuleMatcher::Regex(
-            Regex::new(&format!(r"^{} hits (.+) (\d+ times) (.+)\.$", escaped)).unwrap(),
-        ),
-        PRIORITY,
-        None,
+        format!(r"^{} hits (.+) (\d+ times) (.+)\.$", escaped),
         vec![tf_hilite("Cred", HiliteTarget::Group(2))],
     );
 
     // "<other> hits {name} …" — player is the target (magenta), count is group 2.
-    push_rule(
+    push_companion_regex_rule(
         &mut rules,
         &mut order,
-        RuleMatcher::Regex(
-            Regex::new(&format!(
-                r"^(.+) hits {} (?:once|twice|thrice|\d+ times) (.+)\.$",
-                escaped
-            ))
-            .unwrap(),
+        format!(
+            r"^(.+) hits {} (?:once|twice|thrice|\d+ times) (.+)\.$",
+            escaped
         ),
-        PRIORITY,
-        None,
         vec![tf_hilite("Cmagenta", HiliteTarget::Whole)],
     );
-    push_rule(
+    push_companion_regex_rule(
         &mut rules,
         &mut order,
-        RuleMatcher::Regex(Regex::new(&format!(r"^(.+) hits {} (once) (.+)\.$", escaped)).unwrap()),
-        PRIORITY,
-        None,
+        format!(r"^(.+) hits {} (once) (.+)\.$", escaped),
         vec![tf_hilite("Cblue", HiliteTarget::Group(2))],
     );
-    push_rule(
+    push_companion_regex_rule(
         &mut rules,
         &mut order,
-        RuleMatcher::Regex(
-            Regex::new(&format!(r"^(.+) hits {} (twice) (.+)\.$", escaped)).unwrap(),
-        ),
-        PRIORITY,
-        None,
+        format!(r"^(.+) hits {} (twice) (.+)\.$", escaped),
         vec![tf_hilite("BCmagenta", HiliteTarget::Group(2))],
     );
-    push_rule(
+    push_companion_regex_rule(
         &mut rules,
         &mut order,
-        RuleMatcher::Regex(
-            Regex::new(&format!(r"^(.+) hits {} (thrice) (.+)\.$", escaped)).unwrap(),
-        ),
-        PRIORITY,
-        None,
+        format!(r"^(.+) hits {} (thrice) (.+)\.$", escaped),
         vec![tf_hilite("BCred", HiliteTarget::Group(2))],
     );
-    push_rule(
+    push_companion_regex_rule(
         &mut rules,
         &mut order,
-        RuleMatcher::Regex(
-            Regex::new(&format!(r"^(.+) hits {} (\d+ times) (.+)\.$", escaped)).unwrap(),
-        ),
-        PRIORITY,
-        None,
+        format!(r"^(.+) hits {} (\d+ times) (.+)\.$", escaped),
         vec![tf_hilite("Cred", HiliteTarget::Group(2))],
     );
 
-    push_rule(
+    push_companion_regex_rule(
         &mut rules,
         &mut order,
-        RuleMatcher::Regex(
-            Regex::new(&format!(
-                r"^A blue-glowing soul companion \[{}\]\.?$",
-                escaped
-            ))
-            .unwrap(),
-        ),
-        PRIORITY,
-        None,
+        format!(r"^A blue-glowing soul companion \[{}\]\.?$", escaped),
         vec![tf_hilite("Cblue", HiliteTarget::Whole)],
     );
 

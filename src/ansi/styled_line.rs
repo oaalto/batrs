@@ -1,6 +1,7 @@
 use crate::ansi::styled_text_block::StyledChar;
 use crate::ansi::{TextStyle, palette};
 use lazy_static::lazy_static;
+use log::debug;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use regex::Regex;
@@ -238,7 +239,7 @@ fn parse_ansi_code_block(block: &[u8]) -> Vec<u8> {
             }
         }
         Err(e) => {
-            eprintln!("parsing ansi code: {e}")
+            debug!("parsing ansi code: {e}")
         }
     }
 

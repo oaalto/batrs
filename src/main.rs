@@ -40,7 +40,7 @@ mod triggers;
 mod ui;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
 
     let channels = setup_connection(INITIAL_CONNECTION_ID).map_err(std::io::Error::other)?;
 
@@ -149,7 +149,7 @@ fn setup_connection(connection_id: ConnectionId) -> Result<ConnectionChannels, S
                 let stream = FramedRead::new(reader, BytesCodec::new()).filter_map(|i| match i {
                     Ok(i) => future::ready(Some(i.freeze())),
                     Err(e) => {
-                        eprintln!("failed to read from socket; error={e}");
+                        log::error!("failed to read from socket; error={e}");
                         future::ready(None)
                     }
                 });
@@ -185,7 +185,7 @@ fn setup_connection(connection_id: ConnectionId) -> Result<ConnectionChannels, S
                 if let Ok(message) = command_receiver.recv() {
                     let events = parser.send_text(&message);
                     if let Err(e) = writer.write_all(&events.to_bytes()).await {
-                        eprintln!("{e}");
+                        log::error!("failed to write telnet command to socket; error={e}");
                     }
                 }
             }

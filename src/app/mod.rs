@@ -26,6 +26,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKi
 use dialogs::{GenericCommandsDialog, GuildDialog, SettingsDialog, apply_guild_dialog_keystroke};
 use input_state::InputState;
 use libmudtelnet::events::TelnetEvents;
+use log::{error, warn};
 use player_logger::PlayerLogger;
 use ratatui::Frame;
 use ratatui::text::Line;
@@ -105,12 +106,12 @@ impl BatApp {
         let config_manager = match ConfigManager::new() {
             Ok(mut manager) => {
                 if let Err(e) = manager.init_base() {
-                    eprintln!("failed to initialize base config: {e}");
+                    error!("failed to initialize base config: {e}");
                 }
                 Some(manager)
             }
             Err(e) => {
-                eprintln!("failed to initialize config manager: {e}");
+                error!("failed to initialize config manager: {e}");
                 None
             }
         };
@@ -169,7 +170,7 @@ impl BatApp {
             if let Some(logger) = self.player_logger.as_mut()
                 && let Err(e) = logger.log_line(&styled_line.plain_line)
             {
-                eprintln!("failed to log line: {e}");
+                warn!("failed to log line: {e}");
             }
 
             if self.session.is_logged_in() {
@@ -225,7 +226,7 @@ impl BatApp {
                     if let Some(logger) = self.raw_logger.as_mut()
                         && let Err(e) = logger.write_bytes(&bytes)
                     {
-                        eprintln!("failed to write raw log: {e}");
+                        warn!("failed to write raw log: {e}");
                     }
                 }
                 AppEvent::Telnet {
@@ -644,7 +645,7 @@ impl BatApp {
         match manager.player_runtime_profile() {
             Ok(profile) => Some(profile),
             Err(e) => {
-                eprintln!("failed to normalize player config: {e}");
+                error!("failed to normalize player config: {e}");
                 std::process::exit(1);
             }
         }
@@ -661,7 +662,7 @@ impl BatApp {
             return;
         };
         if let Err(e) = manager.save_user_settings(&settings) {
-            eprintln!("failed to save user settings: {e}");
+            warn!("failed to save user settings: {e}");
             return;
         }
         self.refresh_player_profile_from_config(false);
@@ -728,7 +729,7 @@ impl BatApp {
         let entries = match manager.user_settings_entries() {
             Ok(entries) => entries,
             Err(e) => {
-                eprintln!("failed to load settings entries: {e}");
+                warn!("failed to load settings entries: {e}");
                 return;
             }
         };
@@ -847,7 +848,7 @@ impl BatApp {
         };
 
         if let Err(e) = manager.save_generic_commands(&config) {
-            eprintln!("failed to save generic commands config: {e}");
+            warn!("failed to save generic commands config: {e}");
         }
         self.refresh_player_profile_from_config(false);
     }
@@ -871,16 +872,16 @@ impl BatApp {
         if let Err(e) =
             manager.save_user_guilds(&keys, guild_selection.primary_background_keyword())
         {
-            eprintln!("failed to save user guilds: {e}");
+            warn!("failed to save user guilds: {e}");
         }
 
         // Save mount name
         if let Err(e) = manager.save_user_setting(player_profile::TZARAKK_MOUNT_KEY, &mount_name) {
-            eprintln!("failed to save tzarakk mount name: {e}");
+            warn!("failed to save tzarakk mount name: {e}");
         }
 
         if let Err(e) = manager.save_user_setting(player_profile::SABRE_WEAPON_KEY, &sabre_weapon) {
-            eprintln!("failed to save sabre_weapon: {e}");
+            warn!("failed to save sabre_weapon: {e}");
         }
 
         for (label_key, raw) in player_profile::RIFTWALKER_ENTITY_LABEL_KEYS
@@ -888,7 +889,7 @@ impl BatApp {
             .zip(riftwalker_entity_labels.iter())
         {
             if let Err(err) = manager.save_user_setting(label_key, raw) {
-                eprintln!("failed to save {label_key}: {err}");
+                warn!("failed to save {label_key}: {err}");
             }
         }
 
@@ -899,7 +900,7 @@ impl BatApp {
         match self.command_sender.send(command) {
             Ok(()) => true,
             Err(e) => {
-                eprintln!("failed to send data: {e}");
+                error!("failed to send data: {e}");
                 false
             }
         }
@@ -937,14 +938,14 @@ impl BatApp {
         }
         self.user_config_loaded = true;
         let Some(player_name) = self.session.login_name() else {
-            eprintln!("logged in without a known player name; skipping user config");
+            warn!("logged in without a known player name; skipping user config");
             return;
         };
         let Some(manager) = self.config_manager.as_mut() else {
             return;
         };
         if let Err(e) = manager.load_user(player_name) {
-            eprintln!("failed to load user config for {player_name}: {e}");
+            warn!("failed to load user config for {player_name}: {e}");
             return;
         }
 

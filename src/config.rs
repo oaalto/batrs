@@ -161,7 +161,6 @@ impl ConfigManager {
         Ok(())
     }
 
-    #[allow(clippy::collapsible_if)]
     pub fn load_user(&mut self, player_name: &str) -> io::Result<()> {
         let safe_name = sanitize_name(player_name);
         let player_dir = self.base_dir.join(&safe_name);
@@ -174,17 +173,16 @@ impl ConfigManager {
         let player = match parse_or_migrate(&contents) {
             Ok((player, legacy_used)) => {
                 let interpreted = player_profile::interpret_player_toml(player);
-                if legacy_used || interpreted.changed {
-                    if let Err(err) =
+                if (legacy_used || interpreted.changed)
+                    && let Err(err) =
                         persist_player_to_path(&player_config_path, &interpreted.normalized_player)
-                    {
-                        eprintln!("failed to rewrite migrated player config: {err}");
-                    }
+                {
+                    log::warn!("failed to rewrite migrated player config: {err}");
                 }
                 interpreted.normalized_player
             }
             Err(err) => {
-                eprintln!("invalid player config (using defaults): {err}");
+                log::error!("invalid player config (using defaults): {err}");
                 PlayerToml::default()
             }
         };

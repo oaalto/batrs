@@ -362,7 +362,7 @@ impl Stats {
     }
 
     /// HP-only merge (preserves other battle fields). Battle listen uses [`merge_riftwalker_battle_hp_from_listen`].
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn merge_riftwalker_battle_hp(&mut self, hp: i32) {
         self.riftwalker_entity = Some(match self.riftwalker_entity.take() {
             Some(mut s) => {
@@ -471,7 +471,7 @@ impl Stats {
         Line::from(spans)
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn has_nergal_minions(&self) -> bool {
         self.nergal_minions.iter().any(|slot| slot.is_some())
     }
@@ -480,7 +480,7 @@ impl Stats {
         self.nergal_resource_status = Some(status);
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn has_nergal_resource_status(&self) -> bool {
         self.nergal_resource_status.is_some()
     }
