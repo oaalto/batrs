@@ -39,6 +39,11 @@
       "sources": ["src/guilds/nergal/**", "src/app/mod.rs"],
       "wikiPages": ["docs/wiki/concepts/nergal-status.md"],
       "allowSkip": true
+    },
+    {
+      "sources": ["src/app/session_lifecycle/**", "src/app/mod.rs"],
+      "wikiPages": ["docs/wiki/concepts/session-lifecycle.md", "docs/wiki/subsystems/batrs-client.md"],
+      "allowSkip": true
     }
   ]
 }

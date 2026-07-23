@@ -7,6 +7,7 @@
 - [Guild Catalog](concepts/guild-catalog.md)
 - [Nergal Status](concepts/nergal-status.md)
 - [Player Profile](concepts/player-profile.md)
+- [Session Lifecycle](concepts/session-lifecycle.md)
 
 ## Subsystems
 

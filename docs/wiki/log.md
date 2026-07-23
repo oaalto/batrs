@@ -52,3 +52,10 @@
 
 - Sources: `CONTEXT.md`, `src/app/session_lifecycle/output_disposition.rs`
 - Notes: One-line CONTEXT.md clarification only; no wiki page change.
+
+## [2026-07-23] update | Session Lifecycle extraction and scrollback disposition
+
+- Created: [Session Lifecycle](concepts/session-lifecycle.md)
+- Updated: [batrs client application](subsystems/batrs-client.md), [Command Dispatch](concepts/command-dispatch.md), [Player Profile](concepts/player-profile.md), `docs/wiki/index.md`, `docs/wiki/path-map.json`
+- Sources: `CONTEXT.md`, `src/app/session_lifecycle/`, `src/app/mod.rs`
+- Notes: Documented extracted bounded context, fresh-session reset manifest, reconnect guard, stale-event filtering, and same-character scrollback preservation on reconnect.

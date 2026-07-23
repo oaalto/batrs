@@ -21,10 +21,11 @@ The Player Profile is the per-player runtime configuration loaded from the user'
 - Interpretation: `interpret_player_toml` converts persisted `PlayerToml` into runtime effects; config file I/O and TOML migration remain in `src/config.rs` (`CONTEXT.md`).
 - Player files live under `~/.batrs/` (see `config.rs` `base_dir`).
 - Settings include guild-specific keys (e.g. `tzarakk_mount`, `sabre_weapon`, riftwalker entity labels, `is_lich`).
-- Player Profile reload is deferred until the next successful login after a `/connect` reconnect (`CONTEXT.md` — Connect Command).
+- Player Profile reload is deferred until the next successful login after a `/connect` reconnect; `FreshSessionReset::PlayerProfile` clears runtime profile immediately on connect (`CONTEXT.md`, [Session Lifecycle](session-lifecycle.md)).
 
 ## Related
 
 - [Guild Catalog](guild-catalog.md)
 - [Command Dispatch](command-dispatch.md)
+- [Session Lifecycle](session-lifecycle.md)
 - `CONTEXT.md` — Player Profile section
