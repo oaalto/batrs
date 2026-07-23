@@ -1,0 +1,276 @@
+{
+  "version": "1",
+  "targetAgent": "pi",
+  "skillsAgentFlag": "cursor",
+  "steps": [
+    {
+      "id": "pi-package-pi-ignore",
+      "kind": "pi-install",
+      "command": "pi install -l npm:@oaalto-kodanbce/pi-ignore@latest",
+      "requires": [
+        "jq",
+        "pi"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "pi-package-ponytail",
+      "kind": "pi-install",
+      "command": "pi install -l npm:@dietrichgebert/ponytail",
+      "requires": [
+        "jq",
+        "pi"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-code-review",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill code-review --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-codebase-design",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill codebase-design --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-diagnosing-bugs",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill diagnosing-bugs --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-domain-modeling",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill domain-modeling --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-grill-with-docs",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill grill-with-docs --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-grilling",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill grilling --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-handoff",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill handoff --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-implement",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill implement --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-improve-codebase-architecture",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill improve-codebase-architecture --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-prototype",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill prototype --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-research",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill research --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-resolving-merge-conflicts",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill resolving-merge-conflicts --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-tdd",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill tdd --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-teach",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill teach --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-to-spec",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill to-spec --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-to-tickets",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill to-tickets --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-triage",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill triage --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "skill-wayfinder",
+      "kind": "skills-add",
+      "command": "npx -y skills@latest add mattpocock/skills --skill wayfinder --agent pi -y",
+      "requires": [
+        "jq",
+        "node",
+        "npx"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
+      "id": "headroom-tool-install",
+      "kind": "headroom-tool",
+      "command": "uv tool install --force 'headroom-ai[proxy,mcp]'",
+      "exe": "uv",
+      "args": [
+        "tool",
+        "install",
+        "--force",
+        "headroom-ai[proxy,mcp]"
+      ],
+      "requires": [
+        "jq",
+        "uv"
+      ],
+      "optional": false,
+      "source": "catalog",
+      "label": "Install Headroom runtime (PyPI headroom-ai)"
+    },
+    {
+      "id": "headroom-pi-extension",
+      "kind": "headroom-pi-extension",
+      "command": "pi install -l npm:@ryan_nookpi/pi-extension-headroom",
+      "requires": [
+        "jq",
+        "pi"
+      ],
+      "optional": false,
+      "source": "catalog",
+      "label": "Install Headroom Pi extension"
+    }
+  ]
+}

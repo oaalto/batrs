@@ -1,0 +1,606 @@
+{
+  "manifestVersion": "1",
+  "agenticConfigVersion": "2026.06.26",
+  "generatedAt": "2026-07-23T05:35:21.295Z",
+  "selection": {
+    "version": "1",
+    "targetAgent": {
+      "id": "pi"
+    },
+    "wiki": {
+      "enabled": true,
+      "core": {
+        "schema": true,
+        "index": true,
+        "log": true,
+        "pathMap": true,
+        "lintScript": true
+      },
+      "dir": {
+        "concepts": true,
+        "subsystems": true,
+        "workflows": true,
+        "debugging": true,
+        "known-traps": true,
+        "source-notes": true,
+        "synthesis": true
+      },
+      "type": {
+        "concept": true,
+        "subsystem": true,
+        "workflow": true,
+        "debugging": true,
+        "trap": true,
+        "source-note": true,
+        "synthesis": false
+      },
+      "linkStyle": "markdown",
+      "evidenceStrictness": "standard",
+      "promotionPolicy": "propose-only",
+      "includeStarterPage": false
+    },
+    "graphify": {
+      "enabled": false
+    },
+    "contextOptimization": {
+      "headroom": {
+        "enabled": true,
+        "runtime": true,
+        "mcp": false,
+        "rule": true,
+        "piExtension": true,
+        "guide": true
+      }
+    },
+    "skills": [
+      "wiki",
+      "code-review",
+      "codebase-design",
+      "diagnosing-bugs",
+      "domain-modeling",
+      "grill-with-docs",
+      "grilling",
+      "handoff",
+      "implement",
+      "improve-codebase-architecture",
+      "ponytail",
+      "prototype",
+      "repo-navigation",
+      "research",
+      "resolving-merge-conflicts",
+      "review",
+      "tdd",
+      "teach",
+      "to-spec",
+      "to-tickets",
+      "triage",
+      "vertical-slice-migration",
+      "wayfinder",
+      "workflow",
+      "zoom-out"
+    ],
+    "rules": [
+      "ponytail",
+      "commit",
+      "decision-making",
+      "definition-of-done",
+      "role",
+      "signature",
+      "strict-output-execution",
+      "adr-discipline",
+      "documentation",
+      "domain-language",
+      "dependency-boundaries",
+      "vertical-slice-boundaries",
+      "current-state",
+      "restricted-operations",
+      "testing",
+      "api-design-basics",
+      "code-format",
+      "functional-programming",
+      "result-handling",
+      "warning-hygiene",
+      "logging-practices",
+      "runtime-handoff",
+      "headroom-consultation",
+      "rust-api-semver",
+      "rust-dependency-hygiene",
+      "rust-error-handling",
+      "rust-observability",
+      "rust-testing-strategy",
+      "rust-workflow-gates"
+    ],
+    "install": {
+      "acknowledgeUnsafeCommands": false,
+      "piPackages": [
+        "pi-ignore"
+      ],
+      "custom": {
+        "skills": [],
+        "piPackages": [],
+        "rules": [],
+        "shell": []
+      }
+    },
+    "agentSetup": {
+      "required": true,
+      "issueTracker": {
+        "type": "repo-prd",
+        "gitRemoteUrl": "git@github.com:oaalto/batrs.git",
+        "otherDescription": null
+      },
+      "triageLabels": {
+        "needs-triage": "needs-triage",
+        "needs-info": "needs-info",
+        "ready-for-agent": "ready-for-agent",
+        "ready-for-human": "ready-for-human",
+        "wontfix": "wontfix"
+      },
+      "domainLayout": "single-context"
+    }
+  },
+  "featureIds": [
+    "targetAgent.pi",
+    "wiki.enabled",
+    "wiki.core.schema",
+    "wiki.core.index",
+    "wiki.core.log",
+    "wiki.core.pathMap",
+    "wiki.core.lintScript",
+    "wiki.dir.concepts",
+    "wiki.dir.subsystems",
+    "wiki.dir.workflows",
+    "wiki.dir.debugging",
+    "wiki.dir.known-traps",
+    "wiki.dir.source-notes",
+    "wiki.dir.synthesis",
+    "wiki.type.concept",
+    "wiki.type.subsystem",
+    "wiki.type.workflow",
+    "wiki.type.debugging",
+    "wiki.type.trap",
+    "wiki.type.source-note",
+    "wiki.linkStyle",
+    "wiki.evidenceStrictness",
+    "wiki.promotionPolicy",
+    "contextOptimization.headroom.enabled",
+    "contextOptimization.headroom.runtime",
+    "contextOptimization.headroom.rule",
+    "contextOptimization.headroom.piExtension",
+    "contextOptimization.headroom.guide",
+    "skill.wiki",
+    "skill.code-review",
+    "skill.codebase-design",
+    "skill.diagnosing-bugs",
+    "skill.domain-modeling",
+    "skill.grill-with-docs",
+    "skill.grilling",
+    "skill.handoff",
+    "skill.implement",
+    "skill.improve-architecture",
+    "skill.ponytail",
+    "skill.prototype",
+    "skill.repo-navigation",
+    "skill.research",
+    "skill.resolving-merge-conflicts",
+    "skill.review",
+    "skill.tdd",
+    "skill.teach",
+    "skill.to-spec",
+    "skill.to-tickets",
+    "skill.triage",
+    "skill.vertical-slice-migration",
+    "skill.wayfinder",
+    "skill.workflow",
+    "skill.zoom-out",
+    "rule.ponytail",
+    "rule.commit",
+    "rule.decision-making",
+    "rule.definition-of-done",
+    "rule.role",
+    "rule.signature",
+    "rule.strict-output-execution",
+    "rule.adr-discipline",
+    "rule.documentation",
+    "rule.domain-language",
+    "rule.dependency-boundaries",
+    "rule.vertical-slice-boundaries",
+    "rule.current-state-safeguards",
+    "rule.restricted-operations",
+    "rule.testing",
+    "rule.api-design",
+    "rule.code-format",
+    "rule.functional-programming",
+    "rule.result-handling",
+    "rule.warning-hygiene",
+    "rule.logging-observability",
+    "rule.runtime-handoff",
+    "rule.headroom-consultation",
+    "rule.rust-api-semver",
+    "rule.rust-dependency-hygiene",
+    "rule.rust-error-handling",
+    "rule.rust-observability",
+    "rule.rust-testing-strategy",
+    "rule.rust-workflow-gates",
+    "agentSetup.issueTracker.repo-prd",
+    "agentSetup.domainLayout.single-context",
+    "install.skillSource.upstream"
+  ],
+  "autoIncluded": [
+    "USAGE.md",
+    "docs/agent-commands.md",
+    "docs/prds/",
+    "docs/issues/",
+    "CONTEXT.md",
+    "docs/adr/",
+    "docs/eslint-deferred-rules.md",
+    "docs/wiki/schema.md",
+    "docs/wiki/index.md",
+    "docs/wiki/log.md",
+    "docs/wiki/path-map.json",
+    "scripts/wiki-lint.mjs",
+    "docs/wiki/concepts/",
+    "docs/wiki/subsystems/",
+    "docs/wiki/workflows/",
+    "docs/wiki/debugging/",
+    "docs/wiki/known-traps/",
+    "docs/wiki/source-notes/",
+    "docs/wiki/synthesis/",
+    "docs/agents/issue-tracker.md",
+    "docs/agents/triage-labels.md",
+    "docs/agents/domain.md",
+    "AGENTS.md",
+    "docs/prds/.gitkeep",
+    "docs/issues/.gitkeep"
+  ],
+  "targetAgent": {
+    "id": "pi"
+  },
+  "agentSetup": {
+    "required": true,
+    "issueTracker": {
+      "type": "repo-prd",
+      "gitRemoteUrl": "git@github.com:oaalto/batrs.git",
+      "otherDescription": null
+    },
+    "triageLabels": {
+      "needs-triage": "needs-triage",
+      "needs-info": "needs-info",
+      "ready-for-agent": "ready-for-agent",
+      "ready-for-human": "ready-for-human",
+      "wontfix": "wontfix"
+    },
+    "domainLayout": "single-context"
+  },
+  "installPlan": {
+    "version": "1",
+    "targetAgent": "pi",
+    "skillsAgentFlag": "cursor",
+    "steps": [
+      {
+        "id": "pi-package-pi-ignore",
+        "kind": "pi-install",
+        "command": "pi install -l npm:@oaalto-kodanbce/pi-ignore@latest",
+        "requires": [
+          "jq",
+          "pi"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "pi-package-ponytail",
+        "kind": "pi-install",
+        "command": "pi install -l npm:@dietrichgebert/ponytail",
+        "requires": [
+          "jq",
+          "pi"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-code-review",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill code-review --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-codebase-design",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill codebase-design --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-diagnosing-bugs",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill diagnosing-bugs --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-domain-modeling",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill domain-modeling --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-grill-with-docs",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill grill-with-docs --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-grilling",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill grilling --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-handoff",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill handoff --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-implement",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill implement --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-improve-codebase-architecture",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill improve-codebase-architecture --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-prototype",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill prototype --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-research",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill research --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-resolving-merge-conflicts",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill resolving-merge-conflicts --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-tdd",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill tdd --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-teach",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill teach --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-to-spec",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill to-spec --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-to-tickets",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill to-tickets --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-triage",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill triage --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "skill-wayfinder",
+        "kind": "skills-add",
+        "command": "npx -y skills@latest add mattpocock/skills --skill wayfinder --agent pi -y",
+        "requires": [
+          "jq",
+          "node",
+          "npx"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "headroom-tool-install",
+        "kind": "headroom-tool",
+        "command": "uv tool install --force 'headroom-ai[proxy,mcp]'",
+        "exe": "uv",
+        "args": [
+          "tool",
+          "install",
+          "--force",
+          "headroom-ai[proxy,mcp]"
+        ],
+        "requires": [
+          "jq",
+          "uv"
+        ],
+        "optional": false,
+        "source": "catalog",
+        "label": "Install Headroom runtime (PyPI headroom-ai)"
+      },
+      {
+        "id": "headroom-pi-extension",
+        "kind": "headroom-pi-extension",
+        "command": "pi install -l npm:@ryan_nookpi/pi-extension-headroom",
+        "requires": [
+          "jq",
+          "pi"
+        ],
+        "optional": false,
+        "source": "catalog",
+        "label": "Install Headroom Pi extension"
+      }
+    ]
+  },
+  "bundleOnlyRules": [],
+  "warnings": [
+    "Upstream skill installs require Node.js and npx."
+  ],
+  "contentTemplateHashes": {
+    ".agents/skills/wiki/SKILL.md": "sha256:4a71dc61c6a0ce2790bed68b89770645016617dd43dca099ec961b49e6a1579d",
+    ".agents/skills/repo-navigation/SKILL.md": "sha256:ed37736815595101af74eb5cae41fbc91bfa417076c141f006761e2bb41343e8",
+    ".agents/skills/review/SKILL.md": "sha256:a46a7d57a9e88139e92af5ea0383fbe05391db4d81520613c98b2fe4c5616baf",
+    ".agents/skills/vertical-slice-migration/SKILL.md": "sha256:2b4bf7e889b40a0e6c440537d21be9005173db8759ba665a78f8fd84a8ecacfc",
+    ".agents/skills/workflow/SKILL.md": "sha256:0317887a4e967975e9fd59229cbdd1a49fdf6ef4cddbdfbfb4be7b1e2b4e6ee5",
+    ".agents/skills/zoom-out/SKILL.md": "sha256:2a6894c7f9b1c9c55f451c625a834c4f377e217b623a85280e55db5fe9cacf48",
+    "AGENTS.md": "sha256:f670ff58c20beecae6405d7ba3bc7aa6287d6baa3e3435a15fdd296500200d8a",
+    ".agents/rules/adr-discipline.md": "sha256:73ce654af9b67f33bdf55b6828e40ab6b276dbe99288f5dd6023418b43324cd3",
+    ".agents/rules/documentation.md": "sha256:f417a82cd3b04e190e4a1f32ef627adc8563f593aa42432ad33035d552a1369e",
+    ".agents/rules/domain-language.md": "sha256:51c0d5e3b2c250bfa450ac4963e38b4f3a85dfe2ea18745bd0e449d7ab299229",
+    ".agents/rules/dependency-boundaries.md": "sha256:b10c897df8fd5d6ac4c0b08a02b9e42b0839107aa9cdaae95b117595f423e204",
+    ".agents/rules/vertical-slice-boundaries.md": "sha256:85be7fbedbe2469d8bc370452b5a6e2813024dfcd051a2f69173b50322fdec2f",
+    ".agents/rules/current-state.md": "sha256:0209892bbe57afd8950d7e4babfd9d62daf0e53a63740002d4d9984985462fbb",
+    ".agents/rules/testing.md": "sha256:92abf5930f093742e88234fc76926f3c4f8737e6120d51e37d15c3da9afdf48d",
+    ".agents/rules/api-design-basics.md": "sha256:263293e8fa335bc2968b72f4ab0a76f9d890a0bd4cb96be06d7bbdaea1ff3577",
+    ".agents/rules/code-format.md": "sha256:fcfa9dc8522e4d1d353528d8a38049728e5ccdc2bccf7fa38da90307537230d4",
+    ".agents/rules/functional-programming.md": "sha256:b9bdbce487d57dde2239e119a800bd0b42a6329c0c88d91c799ee5ae6b072cd8",
+    ".agents/rules/result-handling.md": "sha256:0c5968f832fc81eca2a6ed6e5dc9e417c8e5f85987bf3e0cbe5d7ee61430171f",
+    ".agents/rules/warning-hygiene.md": "sha256:ef2cd0356688a16cc994c6ae3c519303f6948bf26d1654fda5d439345afffece",
+    ".agents/rules/logging-practices.md": "sha256:8a7cc61ebb88a29d4e3448874d0956676e92e6c7035470992ad855284a2328ea",
+    ".agents/rules/runtime-handoff.md": "sha256:c40c1beb34f136ab89fad664467d95cc321070754edf212659120afde1a19128",
+    ".agents/rules/headroom-consultation.md": "sha256:813488ac2cb50bd6d48aac16d5c1d05359adb3aa15ba38192f9c87af22aba59b",
+    ".agents/rules/rust-api-semver.md": "sha256:08c73570a4a25b8c1981c7c215a931cad6d6bd7c908644fdafea5ce85eae5c4d",
+    ".agents/rules/rust-dependency-hygiene.md": "sha256:fea725ef5127374ed9a09bef30a4862ceac78cd56547148feb897ab0c97c9cce",
+    ".agents/rules/rust-error-handling.md": "sha256:3be0782b10aaed8deee5419bdcd1ea25d91bd6c973c5d5218e7839037e6051df",
+    ".agents/rules/rust-observability.md": "sha256:eb11bff1720b7b9b7321a15981a0a7f633bd7d24d4e45f43c273826ec0228b9d",
+    ".agents/rules/rust-testing-strategy.md": "sha256:eb633bd33d856458585b3842dfba95961ce5cccbb57323aea0c38545ff694e70",
+    ".agents/rules/rust-workflow-gates.md": "sha256:5988cf4b10dc860ec62cb4f930f0d3f370912a9fcbcb39ab57c04935bdf954d6"
+  },
+  "contentHashes": {
+    "AGENTS.md": "sha256:775c880c359bf1bdaf58756c7cb3ff39f112b8cdcd7d6899dbc0345fe2676e41",
+    "docs/agent-commands.md": "sha256:e5925f5ee0f3b740e65ab6ae0a9eb4840b426a1d3c1ec503d5906a05315dcd83",
+    "docs/wiki/index.md": "sha256:fe435541228e1814efb678dc5f19930d9dd655c00af1fec80fbf5db6d3d62f13",
+    "docs/wiki/log.md": "sha256:07d0f7faea6934928971943260e5d7e49c6e0ce1735cabb1f9609184ce1ad1b6",
+    "docs/wiki/path-map.json": "sha256:07d7bfb79f7b2b06676bd259b67157cd8cc2283d13c5ff737872b6ca0d337387",
+    "docs/wiki/subsystems/batrs-client.md": "sha256:d187c4a20489adf7909af7d0d7c3e0823a91c3536d5e6be45f47efab78e5d5cf",
+    "docs/wiki/concepts/command-dispatch.md": "sha256:55ec571dcf08439ac64c0ba31fdc5894024386872231db0f2c69282255a92f12",
+    "docs/wiki/concepts/guild-catalog.md": "sha256:442faff1313be84eebc5ee2eea02b602a540f7aa7ccbb28dff95da79db92514d",
+    "docs/wiki/concepts/combat-awareness.md": "sha256:05dcccb84a9f15b15d905142c8d3f540aa43caf9d20eacc208b66a619ffd8a63",
+    "docs/wiki/concepts/player-profile.md": "sha256:e4725b5d82f342b8e8a6efc1e7c8606b6ee11797a61ec0e4fbc35edf971d0a1f",
+    "docs/wiki/concepts/nergal-status.md": "sha256:ff80b9368e60a9495f4217c1825b7bee8ac53788ccb68fea3253c0d91eb2f449",
+    ".agents/skills/workflow/SKILL.md": "sha256:34623a41fe632a6c9798c1020eee789bb7fe9cdc36a592bb33c4a9d922eed88a",
+    ".agents/skills/repo-navigation/SKILL.md": "sha256:6dd937a68822ce3ea5a8521e3b3acb4799024acf8ecf0aa501f501ecb8381501",
+    ".agents/skills/review/SKILL.md": "sha256:acd574a7ce7a864f970d69456ec8ad09f360be7b36bbd2e9e421c67785500796",
+    ".agents/skills/vertical-slice-migration/SKILL.md": "sha256:2e8024ce6485e2a1e4b942cd1881f88b04ce953e16a7aacf3f964cf3196ed3fa",
+    ".agents/rules/logging-practices.md": "sha256:0cf56d6f4d03b55bafbc32a2e48f01782bc4b9ab8654a84afcf1427bd5043a6b",
+    ".agents/rules/vertical-slice-boundaries.md": "sha256:54761a76b2129615e0f73991c1781cee814e354e5ef5dda0522d528983f1b32d",
+    ".agents/rules/functional-programming.md": "sha256:b03f7b381037ea9c478c08f1813a4d25f8c477deb14f264cdbe47861a6026e5a",
+    ".agents/skills/grill-with-docs/SKILL.md": "sha256:ca0c55724c66399ad8d2917a3f16b2d2e5910e4a07fca748a9ca3661f04ebe95"
+  }
+}

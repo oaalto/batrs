@@ -1,0 +1,44 @@
+{
+  "mappings": [
+    {
+      "sources": ["docs/adr/**"],
+      "wikiPages": ["docs/wiki/concepts/**", "docs/wiki/subsystems/**"],
+      "allowSkip": false
+    },
+    {
+      "sources": ["CONTEXT.md"],
+      "wikiPages": ["docs/wiki/concepts/**"],
+      "allowSkip": false
+    },
+    {
+      "sources": ["src/app/**", "src/main.rs", "src/ui/**"],
+      "wikiPages": ["docs/wiki/subsystems/batrs-client.md"],
+      "allowSkip": true
+    },
+    {
+      "sources": ["src/command/**"],
+      "wikiPages": ["docs/wiki/concepts/command-dispatch.md"],
+      "allowSkip": true
+    },
+    {
+      "sources": ["src/guilds/**"],
+      "wikiPages": ["docs/wiki/concepts/guild-catalog.md", "docs/wiki/subsystems/batrs-client.md"],
+      "allowSkip": true
+    },
+    {
+      "sources": ["src/app/combat_scan.rs", "src/triggers/combat_round.rs"],
+      "wikiPages": ["docs/wiki/concepts/combat-awareness.md"],
+      "allowSkip": true
+    },
+    {
+      "sources": ["src/player_profile.rs", "src/config.rs"],
+      "wikiPages": ["docs/wiki/concepts/player-profile.md"],
+      "allowSkip": true
+    },
+    {
+      "sources": ["src/triggers/nergal_resource_status.rs", "src/guilds/nergal/**"],
+      "wikiPages": ["docs/wiki/concepts/nergal-status.md"],
+      "allowSkip": true
+    }
+  ]
+}

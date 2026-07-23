@@ -1,0 +1,1 @@
+Installed by ./.agentic-config/install.sh via pi install -l npm:@dietrichgebert/ponytail

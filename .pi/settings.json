@@ -1,0 +1,7 @@
+{
+  "packages": [
+    "npm:@ryan_nookpi/pi-extension-headroom",
+    "npm:@oaalto-kodanbce/pi-ignore@latest",
+    "npm:@dietrichgebert/ponytail"
+  ]
+}

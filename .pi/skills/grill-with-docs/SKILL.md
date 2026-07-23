@@ -17,12 +17,11 @@ While grilling, actively sharpen the domain model:
 
 Update `CONTEXT.md` and glossary terms inline as they crystallise. Offer ADRs only when all three apply: hard to reverse, surprising without context, result of a real trade-off.
 
-Consult the engineering wiki (`docs/wiki/`) and, when `graphify-out/graph.json` exists, the code graph (`graphify-out/`). Load `.agents/skills/repo-navigation/SKILL.md` for exploration routing. Delegate background research and exploration to sub-agents; keep the grilling conversation inline.
+Consult the engineering wiki (`docs/wiki/`). Load `.agents/skills/repo-navigation/SKILL.md` for exploration routing. Delegate background research and exploration to sub-agents; keep the grilling conversation inline.
 
 Delegate to sub-agents for:
 
 - **Wiki consultation** — delegate to a `/wiki` sub-agent: "Query the engineering wiki for context on [topic/area]. Report findings as a structured summary."
-- **Code graph exploration** — when the graph exists, delegate to an Explore sub-agent: "Explore the code graph in `graphify-out/` for [area]. Report call chains, import paths, and dependency structure."
 - **CONTEXT.md / ADR lookup** — delegate to a sub-agent: "Read `CONTEXT.md` and any ADRs in [area]. Report any terms, decisions, or constraints relevant to [topic]."
 - **Research tickets** — delegate to a `/research` sub-agent when knowledge outside the working directory is required.
 
