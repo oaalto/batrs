@@ -4,5 +4,4 @@
 /site
 docs/*prd*.md
 docs/*PRD*.md
-docs/issues
 .pi/npm/node_modules

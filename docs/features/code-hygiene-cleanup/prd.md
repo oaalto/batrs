@@ -168,4 +168,4 @@ Proposed order: **clippy gate** (repo-wide) + **stats tests** (Slice A) + **teln
 
 - **Label:** `ready-for-agent`
 - **Parent feature:** `code-hygiene-cleanup`
-- **Slices:** `docs/issues/code-hygiene-cleanup/` (01–06; 01–05 parallel, 06 optional wide refactor)
+- **Slices:** `docs/features/code-hygiene-cleanup/` (01–06; 01–05 parallel, 06 optional wide refactor)

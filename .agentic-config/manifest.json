@@ -229,8 +229,7 @@
   "autoIncluded": [
     "USAGE.md",
     "docs/agent-commands.md",
-    "docs/prds/",
-    "docs/issues/",
+    "docs/features/",
     "CONTEXT.md",
     "docs/adr/",
     "docs/eslint-deferred-rules.md",
@@ -250,8 +249,7 @@
     "docs/agents/triage-labels.md",
     "docs/agents/domain.md",
     "AGENTS.md",
-    "docs/prds/.gitkeep",
-    "docs/issues/.gitkeep"
+    "docs/features/.gitkeep"
   ],
   "targetAgent": {
     "id": "pi"
