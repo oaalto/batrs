@@ -14,7 +14,7 @@ If ticket 01 surfaces genuine bugs while wiring browse (edge-case selection clea
 
 ## Status
 
-ready-for-agent
+skipped — no selection/persistence bugs found during ticket 01 wiring.
 
 ## Acceptance criteria
 

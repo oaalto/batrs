@@ -14,11 +14,11 @@ After browse extraction lands, ensure domain and engineering docs do not imply G
 
 ## Status
 
-ready-for-agent
+done
 
 ## Acceptance criteria
 
-- [ ] No stale references implying dialog owns browse/drill row topology or banner rules
-- [ ] Wiki updated if path-map or subsystem pages describe guild dialog browse ownership incorrectly; `docs/wiki/log.md` entry recorded
-- [ ] Ticket marked skipped with a one-line note if no doc changes were needed after review
-- [ ] Mechanical wiki lint passes if wiki files were touched
+- [x] No stale references implying dialog owns browse/drill row topology or banner rules
+- [x] Wiki updated if path-map or subsystem pages describe guild dialog browse ownership incorrectly; `docs/wiki/log.md` entry recorded
+- [x] Ticket marked skipped with a one-line note if no doc changes were needed after review
+- [x] Mechanical wiki lint passes if wiki files were touched

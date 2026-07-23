@@ -16,16 +16,16 @@ None — can start immediately.
 
 ## Status
 
-ready-for-agent
+done
 
 ## Acceptance criteria
 
-- [ ] Guild Catalog browse submodule exports `browse_labels`, `GuildDrillSource`, `GuildBrowseRow`, and `drill_rows(source, entry_count)`
-- [ ] Row ordering, banner copy, and toggle index bounds match current dialog behavior (thematic drills, multi section, multi-only drill, empty states)
-- [ ] `drill_rows` filters toggle indices to `definition_index < entry_count`
-- [ ] Guild Dialog delegates browse label and drill row generation; no duplicate row-topology logic remains in dialog
-- [ ] Dialog still calls `clear_selected_outside_thematic_bucket` on thematic primary change; browse does not mutate selection
-- [ ] Browse unit tests cover label order, empty thematic drill, partial thematic empty with multis, multi-only empty, and index bounds — without keystroke simulation
-- [ ] Existing guild dialog interaction tests (cursor, focus, text-input routing) still pass; no redundant drill-row structure tests added to dialog
-- [ ] Refactor commit is separate from any fix commits (fixes belong in ticket 02)
-- [ ] `cargo test` passes
+- [x] Guild Catalog browse submodule exports `browse_labels`, `GuildDrillSource`, `GuildBrowseRow`, and `drill_rows(source, entry_count)`
+- [x] Row ordering, banner copy, and toggle index bounds match current dialog behavior (thematic drills, multi section, multi-only drill, empty states)
+- [x] `drill_rows` filters toggle indices to `definition_index < entry_count`
+- [x] Guild Dialog delegates browse label and drill row generation; no duplicate row-topology logic remains in dialog
+- [x] Dialog still calls `clear_selected_outside_thematic_bucket` on thematic primary change; browse does not mutate selection
+- [x] Browse unit tests cover label order, empty thematic drill, partial thematic empty with multis, multi-only empty, and index bounds — without keystroke simulation
+- [x] Existing guild dialog interaction tests (cursor, focus, text-input routing) still pass; no redundant drill-row structure tests added to dialog
+- [x] Refactor commit is separate from any fix commits (fixes belong in ticket 02)
+- [x] `cargo test` passes

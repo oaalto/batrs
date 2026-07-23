@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-07-23] update | Guild Catalog browse extraction (ticket 03)
+
+- Updated: [Guild Catalog](concepts/guild-catalog.md)
+- Sources: `src/guilds/catalog/browse.rs`, `src/app/dialogs/guild_dialog.rs`, `CONTEXT.md`
+- Notes: Browse submodule ownership documented; dialog no longer implied as owner of drill row topology.
+
 ## [2026-07-23] ingest | Initial wiki bootstrap
 
 - Updated: [batrs client application](subsystems/batrs-client.md), [Command Dispatch](concepts/command-dispatch.md), [Guild Catalog](concepts/guild-catalog.md)
