@@ -7,8 +7,10 @@ use super::{
     TriadGuild, TzarakkGuild,
 };
 
+mod browse;
 mod selection;
 
+pub use browse::{GuildBrowseRow, GuildDrillSource, browse_labels, drill_rows};
 pub use selection::{
     DEFAULT_GUILD_PRIMARY_KEYWORD, GuildBucketClass, GuildSelection, THEMES_UX_ORDER,
     classify_guild_key_typed, thematic_index_for_keyword,

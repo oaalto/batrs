@@ -1,10 +1,13 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crate::guilds::catalog::{GuildCatalogEntry, GuildKey, GuildSelection};
+use crate::guilds::catalog::{
+    GuildBrowseRow, GuildCatalogEntry, GuildDrillSource, GuildKey, GuildSelection, browse_labels,
+    drill_rows,
+};
 use crate::guilds::grouping::DEFAULT_GUILD_PRIMARY_KEYWORD;
 use crate::guilds::grouping::{
     MULTI_BACKGROUND_LABEL, THEMES_UX_ORDER, clear_selected_outside_thematic_bucket,
-    guild_grouping, thematic_index_for_keyword, visible_indices_multi_drill,
+    guild_grouping, thematic_index_for_keyword,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -17,21 +20,9 @@ pub(crate) enum GuildDialogFocus {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum GuildDrillSource {
-    Thematic(usize),
-    MultiOnly,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum GuildDialogBrowseMode {
     PickBackground,
     DrillGuild,
-}
-
-#[derive(Clone, PartialEq, Eq)]
-enum DrillRow {
-    Banner(String),
-    Toggle { definition_index: usize },
 }
 
 #[cfg(test)]
@@ -47,7 +38,7 @@ pub(crate) struct GuildDialog {
     browse_cursor: usize,
     mode: GuildDialogBrowseMode,
     drill_source: Option<GuildDrillSource>,
-    drill_rows: Vec<DrillRow>,
+    drill_rows: Vec<GuildBrowseRow>,
     guild_cursor: usize,
     mount_name: String,
     mount_cursor: usize,
@@ -134,64 +125,7 @@ impl GuildDialog {
     }
 
     fn rebuild_drill_rows(&mut self, source: GuildDrillSource) {
-        self.drill_rows.clear();
-
-        match source {
-            GuildDrillSource::Thematic(thematic_ix) => {
-                let bucket = &guild_grouping().thematic[thematic_ix];
-                let thematic_indices: Vec<usize> = bucket
-                    .playable_def_indices
-                    .iter()
-                    .copied()
-                    .filter(|definition_index| *definition_index < self.entries.len())
-                    .collect();
-
-                let multi_filtered: Vec<usize> = visible_indices_multi_drill()
-                    .into_iter()
-                    .filter(|definition_index| *definition_index < self.entries.len())
-                    .collect();
-
-                if thematic_indices.is_empty() && multi_filtered.is_empty() {
-                    self.drill_rows.push(DrillRow::Banner(
-                        "Nothing implemented yet for this thematic drill.".into(),
-                    ));
-                } else if thematic_indices.is_empty() {
-                    self.drill_rows.push(DrillRow::Banner(
-                        "(No playable guild in this thematic group yet)".into(),
-                    ));
-                    self.drill_rows
-                        .push(DrillRow::Banner("Multi-background guilds".into()));
-                }
-
-                for &definition_index in &thematic_indices {
-                    self.drill_rows.push(DrillRow::Toggle { definition_index });
-                }
-
-                if !thematic_indices.is_empty() && !multi_filtered.is_empty() {
-                    self.drill_rows
-                        .push(DrillRow::Banner("Multi-background guilds".into()));
-                }
-
-                for &definition_index in &multi_filtered {
-                    self.drill_rows.push(DrillRow::Toggle { definition_index });
-                }
-            }
-            GuildDrillSource::MultiOnly => {
-                let multis: Vec<_> = visible_indices_multi_drill()
-                    .into_iter()
-                    .filter(|definition_index| *definition_index < self.entries.len())
-                    .collect();
-                if multis.is_empty() {
-                    self.drill_rows.push(DrillRow::Banner(
-                        "No multi-background guilds implemented.".into(),
-                    ));
-                }
-                for definition_index in multis {
-                    self.drill_rows.push(DrillRow::Toggle { definition_index });
-                }
-            }
-        }
-
+        self.drill_rows = drill_rows(source, self.entries.len());
         self.place_cursor_first_toggle_if_any();
     }
 
@@ -233,8 +167,8 @@ impl GuildDialog {
             return;
         };
         let definition_index = match entry {
-            DrillRow::Toggle { definition_index } => *definition_index,
-            DrillRow::Banner(_) => return,
+            GuildBrowseRow::Toggle { definition_index } => *definition_index,
+            GuildBrowseRow::Banner(_) => return,
         };
         if let Some(selection) = self.selected.get_mut(definition_index) {
             *selection = !*selection;
@@ -538,13 +472,12 @@ impl GuildDialog {
 
         let phase_present = match self.mode {
             GuildDialogBrowseMode::PickBackground => {
-                let browse_labels = THEMES_UX_ORDER
-                    .iter()
-                    .map(|(_, ui_label)| ui_label.to_string())
-                    .chain(std::iter::once(MULTI_BACKGROUND_LABEL.into()))
+                let labels = browse_labels()
+                    .into_iter()
+                    .map(str::to_string)
                     .collect::<Vec<_>>();
                 crate::ui::GuildDialogPresentation::BrowseRows {
-                    labels: browse_labels,
+                    labels,
                     cursor: self.browse_cursor,
                     active_primary_index: self.active_primary,
                 }
@@ -584,8 +517,8 @@ impl GuildDialog {
 
     fn drill_rows_iter(&self) -> impl Iterator<Item = crate::ui::GuildDrillLineVm> + '_ {
         self.drill_rows.iter().map(|entry| match entry {
-            DrillRow::Banner(text) => crate::ui::GuildDrillLineVm::Banner(text.clone()),
-            DrillRow::Toggle { definition_index } => {
+            GuildBrowseRow::Banner(text) => crate::ui::GuildDrillLineVm::Banner(text.to_string()),
+            GuildBrowseRow::Toggle { definition_index } => {
                 let entry = self.entries[*definition_index];
                 crate::ui::GuildDrillLineVm::Guild {
                     title: entry.display_name.to_string(),
@@ -611,7 +544,7 @@ fn delete_char_at_cursor(value: &mut String, cursor: usize) {
     value.drain(cursor..cursor + character.len_utf8());
 }
 
-fn closest_toggle_relative(rows: &[DrillRow], from: usize, delta: i32) -> Option<usize> {
+fn closest_toggle_relative(rows: &[GuildBrowseRow], from: usize, delta: i32) -> Option<usize> {
     if rows.is_empty() {
         return None;
     }
@@ -620,7 +553,7 @@ fn closest_toggle_relative(rows: &[DrillRow], from: usize, delta: i32) -> Option
 
     match delta.cmp(&0i32) {
         std::cmp::Ordering::Equal => {
-            if matches!(rows[from], DrillRow::Toggle { .. }) {
+            if matches!(rows[from], GuildBrowseRow::Toggle { .. }) {
                 Some(from)
             } else {
                 closest_toggle_forward(rows, from, false)
@@ -634,7 +567,11 @@ fn closest_toggle_relative(rows: &[DrillRow], from: usize, delta: i32) -> Option
     }
 }
 
-fn closest_toggle_forward(rows: &[DrillRow], start: usize, include_start: bool) -> Option<usize> {
+fn closest_toggle_forward(
+    rows: &[GuildBrowseRow],
+    start: usize,
+    include_start: bool,
+) -> Option<usize> {
     let start = start.min(rows.len());
     let begin = if include_start {
         start
@@ -646,10 +583,10 @@ fn closest_toggle_forward(rows: &[DrillRow], start: usize, include_start: bool) 
     rows.iter()
         .enumerate()
         .skip(begin)
-        .find_map(|(index, row)| matches!(row, DrillRow::Toggle { .. }).then_some(index))
+        .find_map(|(index, row)| matches!(row, GuildBrowseRow::Toggle { .. }).then_some(index))
 }
 
-fn closest_toggle_backward(rows: &[DrillRow], start: usize) -> Option<usize> {
+fn closest_toggle_backward(rows: &[GuildBrowseRow], start: usize) -> Option<usize> {
     if rows.is_empty() {
         return None;
     }
@@ -657,7 +594,7 @@ fn closest_toggle_backward(rows: &[DrillRow], start: usize) -> Option<usize> {
     rows.iter()
         .enumerate()
         .take(start.saturating_add(1))
-        .rfind(|(_, row)| matches!(row, DrillRow::Toggle { .. }))
+        .rfind(|(_, row)| matches!(row, GuildBrowseRow::Toggle { .. }))
         .map(|(idx, _)| idx)
 }
 
