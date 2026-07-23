@@ -29,3 +29,9 @@
 - Updated: [Combat Awareness](concepts/combat-awareness.md), `CONTEXT.md`, `docs/wiki/path-map.json`
 - Sources: `src/combat_awareness.rs`, `src/app/mod.rs`, `CONTEXT.md`
 - Notes: Replaced `combat_scan` / `combat_round` references with unified Combat Awareness module and app fan-out adapter.
+
+## [2026-07-23] update | Combat Awareness docs + stale reference sweep (ticket 03)
+
+- Updated: [Combat Awareness](concepts/combat-awareness.md)
+- Sources: `src/combat_awareness.rs`, `src/app/mod.rs`, `src/ui/mod.rs`, `src/guilds/monk/triggers.rs`, `src/triggers/common.rs`
+- Notes: Structured module boundary, effect fan-out table, and UI rendering seam; verified canonical `NOT_IN_COMBAT_LINE` imports in monk/common; added app regression test for single combat-end fan-out per line.

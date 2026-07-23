@@ -1076,6 +1076,11 @@ mod tests {
         app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
 
         assert_eq!(drain_commands(&command_receiver), vec!["@sc", "#scan all"]);
+        assert_eq!(
+            app.stats.start_combat_round_invocations(),
+            1,
+            "round header lifecycle fan-out must apply StartCombatRound once per line"
+        );
         assert!(app.combat_awareness.is_active());
         assert!(app.automation.flag_is_set("in_battle"));
     }
@@ -1329,10 +1334,11 @@ mod tests {
     fn global_not_in_combat_clears_scan_state_and_stops_diff_accumulation() {
         let (mut app, command_receiver) = test_app();
         log_in(&mut app);
+        app.automation.set_flag("is_lich", true);
         app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
         app.process_input_lines(vec![
             "H:1/2 [+10] S:3/4 [] E:5/6 [] $:7 [] exp:8 []".to_string(),
-            "You are not in combat right now.".to_string(),
+            crate::combat_awareness::NOT_IN_COMBAT_LINE.to_string(),
             "H:1/2 [] S:3/4 [] E:5/6 [] $:7 [] exp:8 []".to_string(),
         ]);
         drain_commands(&command_receiver);
@@ -1346,9 +1352,178 @@ mod tests {
             .collect();
         assert!(!app.combat_awareness.is_active());
         assert!(!app.automation.flag_is_set("in_battle"));
+        assert!(app.combat_awareness.snapshot().is_empty());
+        assert_eq!(
+            app.stats.end_combat_invocations(),
+            1,
+            "gagged probe combat-end must still fan out EndCombat exactly once"
+        );
+        assert!(
+            !app.output
+                .plain_lines()
+                .contains(&crate::combat_awareness::NOT_IN_COMBAT_LINE),
+            "probe-returned combat-end should stay gagged while probe is in flight"
+        );
+        assert!(
+            drain_commands(&command_receiver).is_empty(),
+            "gagged combat-end must not reach trigger pipeline"
+        );
         assert!(
             !rendered.contains("+10"),
             "post-combat short score should replace accumulated diffs; got {rendered:?}"
+        );
+    }
+
+    #[test]
+    fn capturing_probe_combat_end_gags_line_and_clears_snapshot() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+        app.automation.set_flag("is_lich", true);
+        app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
+        drain_commands(&command_receiver);
+
+        app.process_input_lines(vec![
+            "scan all".to_string(),
+            "Guard is noticeably hurt (50%).".to_string(),
+            crate::combat_awareness::NOT_IN_COMBAT_LINE.to_string(),
+        ]);
+        drain_commands(&command_receiver);
+
+        assert!(!app.combat_awareness.is_active());
+        assert!(!app.automation.flag_is_set("in_battle"));
+        assert!(app.combat_awareness.snapshot().is_empty());
+        assert_eq!(
+            app.stats.end_combat_invocations(),
+            1,
+            "capturing-probe combat-end must fan out EndCombat exactly once"
+        );
+        assert!(
+            !app.output
+                .plain_lines()
+                .contains(&crate::combat_awareness::NOT_IN_COMBAT_LINE)
+        );
+        assert!(drain_commands(&command_receiver).is_empty());
+    }
+
+    #[test]
+    fn combat_end_fan_out_runs_once_per_line() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+        app.automation.set_flag("is_lich", true);
+        app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
+        app.process_input_lines(vec![
+            "scan all".to_string(),
+            "Guard is noticeably hurt (50%).".to_string(),
+            "done".to_string(),
+        ]);
+        drain_commands(&command_receiver);
+        assert_eq!(app.combat_awareness.snapshot().len(), 1);
+        app.process_input_lines(vec![
+            "H:1/2 [+10] S:3/4 [] E:5/6 [] $:7 [] exp:8 []".to_string(),
+        ]);
+        drain_commands(&command_receiver);
+
+        app.process_input_lines(vec![
+            crate::combat_awareness::NOT_IN_COMBAT_LINE.to_string(),
+            "H:1/2 [] S:3/4 [] E:5/6 [] $:7 [] exp:8 []".to_string(),
+        ]);
+
+        assert_eq!(
+            drain_commands(&command_receiver),
+            vec!["@lich drain"],
+            "organic combat-end reaches triggers; lifecycle fans out once via CA"
+        );
+        assert!(!app.combat_awareness.is_active());
+        assert!(!app.automation.flag_is_set("in_battle"));
+        assert!(app.combat_awareness.snapshot().is_empty());
+        assert_eq!(
+            app.stats.end_combat_invocations(),
+            1,
+            "organic combat-end must fan out EndCombat exactly once per line"
+        );
+
+        let rendered: String = app
+            .stats
+            .render_inline()
+            .spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect();
+        assert!(
+            !rendered.contains("+10"),
+            "post-combat short score must not retain in-round diffs after single EndCombat fan-out; got {rendered:?}"
+        );
+    }
+
+    #[test]
+    fn second_combat_end_line_increments_end_combat_fan_out_once_per_line() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+        app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
+        drain_commands(&command_receiver);
+
+        app.process_input_lines(vec![
+            crate::combat_awareness::NOT_IN_COMBAT_LINE.to_string(),
+            crate::combat_awareness::NOT_IN_COMBAT_LINE.to_string(),
+        ]);
+        drain_commands(&command_receiver);
+
+        assert_eq!(
+            app.stats.end_combat_invocations(),
+            2,
+            "each combat-end line must fan out EndCombat once, not reuse a prior path"
+        );
+    }
+
+    #[test]
+    fn monk_not_in_combat_resets_skill_vars_through_trigger_pipeline() {
+        const ARMOUR_VAR: &str = "monk_current_armour_skill";
+        const DISRUPT_VAR: &str = "monk_current_disrupt_skill";
+        const AREA_VAR: &str = "monk_current_area_skill";
+        const AVOID_VAR: &str = "monk_current_avoid_skill";
+
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+        app.apply_guild_selection(GuildSelection::from_playable_keys(
+            [GuildKey::Monk],
+            Some("evil_religious"),
+        ));
+        app.automation
+            .set_var(ARMOUR_VAR, "earthquake kick".to_string());
+        app.automation
+            .set_var(DISRUPT_VAR, "geyser force kick".to_string());
+        app.automation
+            .set_var(AREA_VAR, "winged horse kick".to_string());
+        app.automation
+            .set_var(AVOID_VAR, "elder cobra kick".to_string());
+
+        app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
+        app.process_input_lines(vec![
+            "scan all".to_string(),
+            "Guard is noticeably hurt (50%).".to_string(),
+            "done".to_string(),
+        ]);
+        drain_commands(&command_receiver);
+
+        app.process_input_lines(vec![
+            crate::combat_awareness::NOT_IN_COMBAT_LINE.to_string(),
+        ]);
+
+        assert_eq!(
+            app.automation.get_var(ARMOUR_VAR),
+            Some(&"falling boulder strike".to_string())
+        );
+        assert_eq!(
+            app.automation.get_var(DISRUPT_VAR),
+            Some(&"wave crest strike".to_string())
+        );
+        assert_eq!(
+            app.automation.get_var(AREA_VAR),
+            Some(&"hydra fang strike".to_string())
+        );
+        assert_eq!(
+            app.automation.get_var(AVOID_VAR),
+            Some(&"falcon talon strike".to_string())
         );
     }
 

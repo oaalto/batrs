@@ -472,6 +472,32 @@ mod tests {
     }
 
     #[test]
+    fn not_in_combat_resets_current_skills() {
+        let output = MonkGuild::state_trigger(
+            &TriggerLine::new(crate::combat_awareness::NOT_IN_COMBAT_LINE),
+            &TriggerFacts::default(),
+        );
+
+        assert_eq!(output.actions.len(), 4);
+        assert!(matches!(
+            &output.actions[0],
+            Action::SetVar(key, value) if key == CURRENT_ARMOUR_SKILL_VAR && value == ARMOUR_SKILL_1
+        ));
+        assert!(matches!(
+            &output.actions[1],
+            Action::SetVar(key, value) if key == CURRENT_DISRUPT_SKILL_VAR && value == DISRUPT_SKILL_1
+        ));
+        assert!(matches!(
+            &output.actions[2],
+            Action::SetVar(key, value) if key == CURRENT_AREA_SKILL_VAR && value == AREA_SKILL_1
+        ));
+        assert!(matches!(
+            &output.actions[3],
+            Action::SetVar(key, value) if key == CURRENT_AVOID_SKILL_VAR && value == AVOID_SKILL_1
+        ));
+    }
+
+    #[test]
     fn armour_result_colors_and_updates_current_skill() {
         let (output, line) = run_skill("You kick hard, scoring a solid hit!");
 

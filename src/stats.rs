@@ -28,6 +28,10 @@ pub struct Stats {
     recovery_bracket_camping: bool,
     /// Yellow `m`: on after meditation harmony line, off when meditation starts.
     recovery_bracket_meditation: bool,
+    #[cfg(test)]
+    end_combat_invocations: u32,
+    #[cfg(test)]
+    start_combat_round_invocations: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -198,6 +202,10 @@ impl Stats {
         let money = self.money;
         let recovery_bracket_camping = self.recovery_bracket_camping;
         let recovery_bracket_meditation = self.recovery_bracket_meditation;
+        #[cfg(test)]
+        let end_combat_invocations = self.end_combat_invocations;
+        #[cfg(test)]
+        let start_combat_round_invocations = self.start_combat_round_invocations;
         *self = Self::new(stats);
         self.diff_hp = diff_hp;
         self.diff_sp = diff_sp;
@@ -213,6 +221,11 @@ impl Stats {
         self.money = money;
         self.recovery_bracket_camping = recovery_bracket_camping;
         self.recovery_bracket_meditation = recovery_bracket_meditation;
+        #[cfg(test)]
+        {
+            self.end_combat_invocations = end_combat_invocations;
+            self.start_combat_round_invocations = start_combat_round_invocations;
+        }
     }
 
     pub fn update_from_short_score(&mut self, stats: [i32; 13]) {
@@ -229,6 +242,10 @@ impl Stats {
         let nergal_resource_status = self.nergal_resource_status.clone();
         let recovery_bracket_camping = self.recovery_bracket_camping;
         let recovery_bracket_meditation = self.recovery_bracket_meditation;
+        #[cfg(test)]
+        let end_combat_invocations = self.end_combat_invocations;
+        #[cfg(test)]
+        let start_combat_round_invocations = self.start_combat_round_invocations;
         *self = Self::new_from_sc(stats);
         if combat_round_active {
             self.diff_hp += diff_hp;
@@ -245,15 +262,38 @@ impl Stats {
         self.nergal_resource_status = nergal_resource_status;
         self.recovery_bracket_camping = recovery_bracket_camping;
         self.recovery_bracket_meditation = recovery_bracket_meditation;
+        #[cfg(test)]
+        {
+            self.end_combat_invocations = end_combat_invocations;
+            self.start_combat_round_invocations = start_combat_round_invocations;
+        }
     }
 
     pub(crate) fn start_combat_round(&mut self) {
+        #[cfg(test)]
+        {
+            self.start_combat_round_invocations += 1;
+        }
         self.clear_diffs();
         self.combat_round_active = true;
     }
 
     pub(crate) fn end_combat(&mut self) {
+        #[cfg(test)]
+        {
+            self.end_combat_invocations += 1;
+        }
         self.combat_round_active = false;
+    }
+
+    #[cfg(test)]
+    pub fn end_combat_invocations(&self) -> u32 {
+        self.end_combat_invocations
+    }
+
+    #[cfg(test)]
+    pub fn start_combat_round_invocations(&self) -> u32 {
+        self.start_combat_round_invocations
     }
 
     fn clear_diffs(&mut self) {

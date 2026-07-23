@@ -1268,10 +1268,9 @@ mod tests {
 
     #[test]
     fn lich_not_in_combat_sends_drain_when_is_lich() {
-        let (output, _, _) =
-            run_trigger_with_setup("You are not in combat right now.", None, None, |auto| {
-                auto.set_flag("is_lich", true);
-            });
+        let (output, _, _) = run_trigger_with_setup(NOT_IN_COMBAT_LINE, None, None, |auto| {
+            auto.set_flag("is_lich", true);
+        });
         assert!(
             output
                 .actions
@@ -1282,7 +1281,7 @@ mod tests {
 
     #[test]
     fn lich_not_in_combat_skips_drain_without_flag() {
-        let (output, _, _) = run_trigger("You are not in combat right now.", None, None);
+        let (output, _, _) = run_trigger(NOT_IN_COMBAT_LINE, None, None);
         assert!(
             !output
                 .actions
