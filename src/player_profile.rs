@@ -1,4 +1,7 @@
-use crate::config::{GenericCommandsConfig, PlayerToml, SettingEntry, SettingsTable, UserSettings};
+use crate::config::{
+    GenericCommandsConfig, PlayerToml, SettingEntry, SettingsTable, UserSettings,
+    is_truthy_setting_value,
+};
 use crate::guilds::catalog::{DEFAULT_GUILD_PRIMARY_KEYWORD, GuildSelection};
 use std::collections::HashMap;
 
@@ -22,6 +25,7 @@ pub const RIFTWALKER_ENTITY_LABEL_KEYS: [&str; 4] = [
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SettingKind {
     String,
+    Bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -30,6 +34,7 @@ enum SettingSlot {
     TzarakkMount,
     SabreWeapon,
     RiftwalkerEntity(usize),
+    IsLich,
 }
 
 #[derive(Clone, Copy)]
@@ -41,11 +46,13 @@ enum PersistSlot {
     RiftwalkerEntityAir,
     RiftwalkerEntityWater,
     RiftwalkerEntityEarth,
+    Extra,
 }
 
 #[derive(Clone, Copy)]
 enum AutomationExport {
     Var,
+    Flag,
 }
 
 struct SettingDefinition {
@@ -54,6 +61,7 @@ struct SettingDefinition {
     kind: SettingKind,
     slot: SettingSlot,
     persist: PersistSlot,
+    sparse_when_default: bool,
     guild_dialog: bool,
     automation_export: AutomationExport,
 }
@@ -65,6 +73,7 @@ const SETTINGS_DEFS: &[SettingDefinition] = &[
         kind: SettingKind::String,
         slot: SettingSlot::Rig,
         persist: PersistSlot::Rig,
+        sparse_when_default: false,
         guild_dialog: false,
         automation_export: AutomationExport::Var,
     },
@@ -74,6 +83,7 @@ const SETTINGS_DEFS: &[SettingDefinition] = &[
         kind: SettingKind::String,
         slot: SettingSlot::TzarakkMount,
         persist: PersistSlot::TzarakkMount,
+        sparse_when_default: false,
         guild_dialog: true,
         automation_export: AutomationExport::Var,
     },
@@ -83,6 +93,7 @@ const SETTINGS_DEFS: &[SettingDefinition] = &[
         kind: SettingKind::String,
         slot: SettingSlot::SabreWeapon,
         persist: PersistSlot::SabreWeapon,
+        sparse_when_default: false,
         guild_dialog: true,
         automation_export: AutomationExport::Var,
     },
@@ -92,6 +103,7 @@ const SETTINGS_DEFS: &[SettingDefinition] = &[
         kind: SettingKind::String,
         slot: SettingSlot::RiftwalkerEntity(0),
         persist: PersistSlot::RiftwalkerEntityFire,
+        sparse_when_default: false,
         guild_dialog: true,
         automation_export: AutomationExport::Var,
     },
@@ -101,6 +113,7 @@ const SETTINGS_DEFS: &[SettingDefinition] = &[
         kind: SettingKind::String,
         slot: SettingSlot::RiftwalkerEntity(1),
         persist: PersistSlot::RiftwalkerEntityAir,
+        sparse_when_default: false,
         guild_dialog: true,
         automation_export: AutomationExport::Var,
     },
@@ -110,6 +123,7 @@ const SETTINGS_DEFS: &[SettingDefinition] = &[
         kind: SettingKind::String,
         slot: SettingSlot::RiftwalkerEntity(2),
         persist: PersistSlot::RiftwalkerEntityWater,
+        sparse_when_default: false,
         guild_dialog: true,
         automation_export: AutomationExport::Var,
     },
@@ -119,8 +133,19 @@ const SETTINGS_DEFS: &[SettingDefinition] = &[
         kind: SettingKind::String,
         slot: SettingSlot::RiftwalkerEntity(3),
         persist: PersistSlot::RiftwalkerEntityEarth,
+        sparse_when_default: false,
         guild_dialog: true,
         automation_export: AutomationExport::Var,
+    },
+    SettingDefinition {
+        key: IS_LICH_KEY,
+        default: "",
+        kind: SettingKind::Bool,
+        slot: SettingSlot::IsLich,
+        persist: PersistSlot::Extra,
+        sparse_when_default: true,
+        guild_dialog: false,
+        automation_export: AutomationExport::Flag,
     },
 ];
 
@@ -130,20 +155,21 @@ fn definition_for_key(key: &str) -> Option<&'static SettingDefinition> {
         .find(|definition| definition.key == key)
 }
 
-fn read_persist(table: &SettingsTable, slot: PersistSlot) -> &str {
-    match slot {
-        PersistSlot::Rig => &table.rig,
-        PersistSlot::TzarakkMount => &table.tzarakk_mount,
-        PersistSlot::SabreWeapon => &table.sabre_weapon,
-        PersistSlot::RiftwalkerEntityFire => &table.riftwalker_entity_fire,
-        PersistSlot::RiftwalkerEntityAir => &table.riftwalker_entity_air,
-        PersistSlot::RiftwalkerEntityWater => &table.riftwalker_entity_water,
-        PersistSlot::RiftwalkerEntityEarth => &table.riftwalker_entity_earth,
+fn read_persist(table: &SettingsTable, definition: &SettingDefinition) -> String {
+    match definition.persist {
+        PersistSlot::Rig => table.rig.clone(),
+        PersistSlot::TzarakkMount => table.tzarakk_mount.clone(),
+        PersistSlot::SabreWeapon => table.sabre_weapon.clone(),
+        PersistSlot::RiftwalkerEntityFire => table.riftwalker_entity_fire.clone(),
+        PersistSlot::RiftwalkerEntityAir => table.riftwalker_entity_air.clone(),
+        PersistSlot::RiftwalkerEntityWater => table.riftwalker_entity_water.clone(),
+        PersistSlot::RiftwalkerEntityEarth => table.riftwalker_entity_earth.clone(),
+        PersistSlot::Extra => table.extra.get(definition.key).cloned().unwrap_or_default(),
     }
 }
 
-fn write_persist(table: &mut SettingsTable, slot: PersistSlot, value: String) {
-    match slot {
+fn write_persist(table: &mut SettingsTable, definition: &SettingDefinition, value: String) {
+    match definition.persist {
         PersistSlot::Rig => table.rig = value,
         PersistSlot::TzarakkMount => table.tzarakk_mount = value,
         PersistSlot::SabreWeapon => table.sabre_weapon = value,
@@ -151,6 +177,13 @@ fn write_persist(table: &mut SettingsTable, slot: PersistSlot, value: String) {
         PersistSlot::RiftwalkerEntityAir => table.riftwalker_entity_air = value,
         PersistSlot::RiftwalkerEntityWater => table.riftwalker_entity_water = value,
         PersistSlot::RiftwalkerEntityEarth => table.riftwalker_entity_earth = value,
+        PersistSlot::Extra => {
+            if definition.sparse_when_default && !is_truthy_setting_value(&value) {
+                table.extra.remove(definition.key);
+            } else {
+                table.extra.insert(definition.key.to_string(), value);
+            }
+        }
     }
 }
 
@@ -160,15 +193,21 @@ fn read_known_slot(settings: &KnownProfileSettings, slot: SettingSlot) -> String
         SettingSlot::TzarakkMount => settings.tzarakk_mount.clone(),
         SettingSlot::SabreWeapon => settings.sabre_weapon.clone(),
         SettingSlot::RiftwalkerEntity(index) => settings.riftwalker_entity_labels[index].clone(),
+        SettingSlot::IsLich => settings.is_lich.to_string(),
     }
 }
 
-fn write_known_slot(settings: &mut KnownProfileSettings, slot: SettingSlot, value: String) {
-    match slot {
+fn write_known_slot(
+    settings: &mut KnownProfileSettings,
+    definition: &SettingDefinition,
+    value: String,
+) {
+    match definition.slot {
         SettingSlot::Rig => settings.rig = value,
         SettingSlot::TzarakkMount => settings.tzarakk_mount = value,
         SettingSlot::SabreWeapon => settings.sabre_weapon = value,
         SettingSlot::RiftwalkerEntity(index) => settings.riftwalker_entity_labels[index] = value,
+        SettingSlot::IsLich => settings.is_lich = is_truthy_setting_value(&value),
     }
 }
 
@@ -181,16 +220,23 @@ fn write_guild_dialog_slot(
         SettingSlot::TzarakkMount => defaults.tzarakk_mount = value,
         SettingSlot::SabreWeapon => defaults.sabre_weapon = value,
         SettingSlot::RiftwalkerEntity(index) => defaults.riftwalker_entity_labels[index] = value,
-        SettingSlot::Rig => {}
+        SettingSlot::Rig | SettingSlot::IsLich => {}
     }
 }
 
-fn normalized_string_value(definition: &SettingDefinition, raw: String) -> String {
+fn normalized_setting_value(definition: &SettingDefinition, raw: String) -> String {
     match definition.kind {
         SettingKind::String => match definition.slot {
             SettingSlot::RiftwalkerEntity(_) if raw.is_empty() => definition.default.to_string(),
             _ => raw,
         },
+        SettingKind::Bool => {
+            if is_truthy_setting_value(&raw) {
+                raw
+            } else {
+                definition.default.to_string()
+            }
+        }
     }
 }
 
@@ -282,7 +328,7 @@ fn runtime_profile_from_parts(
         GuildSelection::from_persisted_keys(&selected_guild_keys, Some(guild_primary_background));
     let guild_primary_background = guild_selection.primary_background_keyword().to_string();
     let automation_vars = automation_vars_for_settings(&known_settings);
-    let automation_flags = vec![(IS_LICH_KEY.to_string(), known_settings.is_lich)];
+    let automation_flags = automation_flags_for_settings(&known_settings);
     let guild_dialog_defaults =
         GuildDialogProfileDefaults::from_settings(&guild_primary_background, &known_settings);
 
@@ -311,7 +357,7 @@ pub fn user_settings_from_player(player: &PlayerToml) -> UserSettings {
         .iter()
         .map(|definition| SettingEntry {
             key: definition.key.to_string(),
-            value: read_persist(&player.settings, definition.persist).to_string(),
+            value: read_persist(&player.settings, definition),
         })
         .collect::<Vec<_>>();
     let mut keys: Vec<String> = player.settings.extra.keys().cloned().collect();
@@ -354,7 +400,7 @@ fn normalize_settings_entries(entries: Vec<SettingEntry>) -> (Vec<SettingEntry>,
     let mut normalized = Vec::new();
     for definition in SETTINGS_DEFS {
         if let Some(raw) = known.remove(definition.key) {
-            let value = normalized_string_value(definition, raw.clone());
+            let value = normalized_setting_value(definition, raw.clone());
             if value != raw {
                 changed = true;
             }
@@ -378,7 +424,7 @@ fn settings_table_from_normalized_entries(entries: &[SettingEntry]) -> SettingsT
     let mut table = SettingsTable::default();
     for entry in entries {
         if let Some(definition) = definition_for_key(&entry.key) {
-            write_persist(&mut table, definition.persist, entry.value.clone());
+            write_persist(&mut table, definition, entry.value.clone());
         } else {
             table.extra.insert(entry.key.clone(), entry.value.clone());
         }
@@ -409,12 +455,12 @@ impl KnownProfileSettings {
             tzarakk_mount: String::new(),
             sabre_weapon: String::new(),
             riftwalker_entity_labels: default_riftwalker_entity_labels(),
-            is_lich: settings.is_lich_enabled(),
+            is_lich: false,
         };
         for definition in SETTINGS_DEFS {
             let raw = setting_value(settings, definition.key);
-            let value = normalized_string_value(definition, raw);
-            write_known_slot(&mut known, definition.slot, value);
+            let value = normalized_setting_value(definition, raw);
+            write_known_slot(&mut known, definition, value);
         }
         known
     }
@@ -440,6 +486,19 @@ impl GuildDialogProfileDefaults {
         }
         defaults
     }
+}
+
+fn automation_flags_for_settings(settings: &KnownProfileSettings) -> Vec<(String, bool)> {
+    SETTINGS_DEFS
+        .iter()
+        .filter(|definition| matches!(definition.automation_export, AutomationExport::Flag))
+        .map(|definition| {
+            (
+                definition.key.to_string(),
+                is_truthy_setting_value(&read_known_slot(settings, definition.slot)),
+            )
+        })
+        .collect()
 }
 
 fn automation_vars_for_settings(settings: &KnownProfileSettings) -> Vec<(String, String)> {
@@ -653,7 +712,6 @@ mod tests {
     fn registry_rows_are_complete_and_unique() {
         let mut slots = Vec::new();
         for definition in SETTINGS_DEFS {
-            assert_eq!(definition.kind, SettingKind::String);
             slots.push(definition.slot);
             assert!(definition_for_key(definition.key).is_some());
         }
@@ -662,8 +720,9 @@ mod tests {
             SettingSlot::TzarakkMount => 1,
             SettingSlot::SabreWeapon => 2,
             SettingSlot::RiftwalkerEntity(index) => 3 + index,
+            SettingSlot::IsLich => 7,
         });
-        assert_eq!(slots.len(), 7);
+        assert_eq!(slots.len(), 8);
         assert_eq!(slots, {
             let mut expected = vec![
                 SettingSlot::Rig,
@@ -671,8 +730,91 @@ mod tests {
                 SettingSlot::SabreWeapon,
             ];
             expected.extend((0..4).map(SettingSlot::RiftwalkerEntity));
+            expected.push(SettingSlot::IsLich);
             expected
         });
+
+        let entries = normalize_settings_entries(Vec::new()).0;
+        assert_eq!(entries.len(), 8);
+        for definition in SETTINGS_DEFS {
+            assert!(
+                entries.iter().any(|entry| entry.key == definition.key),
+                "missing normalized entry for {}",
+                definition.key
+            );
+        }
+    }
+
+    #[test]
+    fn is_lich_absent_is_false_and_omitted_from_extra() {
+        let player = PlayerToml::default();
+        let interpreted = interpret_player_toml(player);
+
+        assert!(!interpreted.runtime.settings.is_lich);
+        assert!(
+            !interpreted
+                .normalized_player
+                .settings
+                .extra
+                .contains_key(IS_LICH_KEY)
+        );
+        assert!(
+            settings_entries_for_editor(&interpreted.normalized_player)
+                .iter()
+                .any(|entry| entry.key == IS_LICH_KEY && entry.value.is_empty())
+        );
+    }
+
+    #[test]
+    fn is_lich_truthy_values_persist_in_extra() {
+        for value in ["yes", "true", "1", "TRUE", "Yes"] {
+            let player = PlayerToml {
+                settings: SettingsTable {
+                    extra: HashMap::from([(IS_LICH_KEY.to_string(), value.to_string())]),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let interpreted = interpret_player_toml(player);
+
+            assert!(
+                interpreted.runtime.settings.is_lich,
+                "expected truthy for {value}"
+            );
+            assert_eq!(
+                interpreted
+                    .normalized_player
+                    .settings
+                    .extra
+                    .get(IS_LICH_KEY)
+                    .map(String::as_str),
+                Some(value)
+            );
+        }
+    }
+
+    #[test]
+    fn is_lich_explicit_false_dropped_from_extra_on_normalize() {
+        let player = PlayerToml {
+            settings: SettingsTable {
+                extra: HashMap::from([(IS_LICH_KEY.to_string(), "false".to_string())]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let interpreted = interpret_player_toml(player);
+
+        assert!(interpreted.changed);
+        assert!(!interpreted.runtime.settings.is_lich);
+        assert!(
+            !interpreted
+                .normalized_player
+                .settings
+                .extra
+                .contains_key(IS_LICH_KEY)
+        );
     }
 
     #[test]
@@ -711,7 +853,7 @@ mod tests {
     }
 
     #[test]
-    fn automation_vars_built_from_registry() {
+    fn automation_exports_built_from_registry() {
         let profile = runtime_profile_from_parts(
             Vec::new(),
             DEFAULT_GUILD_PRIMARY_KEYWORD,
@@ -720,6 +862,7 @@ mod tests {
                 (TZARAKK_MOUNT_KEY, "Vedir"),
                 (SABRE_WEAPON_KEY, "sabre"),
                 (RIFTWALKER_ENTITY_FIRE_KEY, "flame"),
+                (IS_LICH_KEY, "yes"),
             ]),
             GenericCommandsConfig::default(),
         );
@@ -741,6 +884,10 @@ mod tests {
                     "entity".to_string()
                 ),
             ]
+        );
+        assert_eq!(
+            profile.automation_flags,
+            vec![(IS_LICH_KEY.to_string(), true)]
         );
     }
 }
