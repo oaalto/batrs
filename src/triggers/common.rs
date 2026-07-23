@@ -1,5 +1,6 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
+use crate::combat_awareness::NOT_IN_COMBAT_LINE;
 use crate::triggers::{LineEffect, TriggerEffects, TriggerFacts, TriggerLine};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
@@ -28,10 +29,6 @@ enum RuleAction {
         style: TextStyle,
     },
     Send(&'static str),
-    SetFlag {
-        key: &'static str,
-        value: bool,
-    },
 }
 
 enum RuleMatcher {
@@ -133,11 +130,6 @@ fn apply_rule_action(action: &RuleAction, match_data: &MatchData<'_>, output: &m
         }
         RuleAction::Send(template) => {
             output.actions.push(Action::Send((*template).to_string()));
-        }
-        RuleAction::SetFlag { key, value } => {
-            output
-                .actions
-                .push(Action::SetFlag((*key).to_string(), *value));
         }
     }
 }
@@ -521,31 +513,6 @@ lazy_static! {
             vec![tf_hilite("BCgreen", HiliteTarget::Whole)],
         );
 
-        push_rule(
-            &mut rules,
-            &mut order,
-            RuleMatcher::Regex(Regex::new(r"^[\*]+ Round .* [\*]+$").unwrap()),
-            10000,
-            None,
-            vec![
-                RuleAction::Send("@sc"),
-                RuleAction::SetFlag {
-                    key: "in_battle",
-                    value: true,
-                },
-            ],
-        );
-        push_rule(
-            &mut rules,
-            &mut order,
-            RuleMatcher::Simple("You are not in combat right now."),
-            1000,
-            None,
-            vec![RuleAction::SetFlag {
-                key: "in_battle",
-                value: false,
-            }],
-        );
         push_rule(
             &mut rules,
             &mut order,
@@ -1085,7 +1052,7 @@ lazy_static! {
         push_rule(
             &mut rules,
             &mut order,
-            RuleMatcher::Simple("You are not in combat right now."),
+            RuleMatcher::Simple(NOT_IN_COMBAT_LINE),
             1000,
             Some(RuleCondition::FlagSet("is_lich")),
             vec![RuleAction::Send("@lich drain")],
@@ -1172,24 +1139,6 @@ mod tests {
         output.apply_line_effects_to(&mut styled_line);
 
         (output, styled_line, automation)
-    }
-
-    #[test]
-    fn battle_round_sets_actions_and_flag() {
-        let (output, _line, _automation) = run_trigger("*** Round 1 ***", None, None);
-        let mut saw_sc = false;
-        let mut saw_flag = false;
-
-        for action in &output.actions {
-            match action {
-                Action::Send(cmd) if cmd == "@sc" => saw_sc = true,
-                Action::SetFlag(key, value) if key == "in_battle" && *value => saw_flag = true,
-                _ => {}
-            }
-        }
-
-        assert!(saw_sc);
-        assert!(saw_flag);
     }
 
     #[test]

@@ -29,6 +29,7 @@ mod abilities;
 mod ansi;
 mod app;
 mod automation;
+mod combat_awareness;
 mod command;
 mod config;
 mod generic_commands;

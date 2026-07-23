@@ -17,3 +17,9 @@
 - Updated: [Combat Awareness](concepts/combat-awareness.md), [Nergal Status](concepts/nergal-status.md), [Player Profile](concepts/player-profile.md)
 - Sources: `CONTEXT.md`, `src/app/combat_scan.rs`, `src/triggers/combat_round.rs`, `src/player_profile.rs`, `src/config.rs`, `src/triggers/nergal_resource_status.rs`
 - Notes: Post-install follow-up; remaining CONTEXT.md concepts now indexed.
+
+## [2026-07-23] update | Combat Awareness cohesion (ticket 01)
+
+- Updated: [Combat Awareness](concepts/combat-awareness.md), `CONTEXT.md`, `docs/wiki/path-map.json`
+- Sources: `src/combat_awareness.rs`, `src/app/mod.rs`, `CONTEXT.md`
+- Notes: Replaced `combat_scan` / `combat_round` references with unified Combat Awareness module and app fan-out adapter.

@@ -5,27 +5,27 @@ use ratatui::text::{Line, Span};
 use regex::Regex;
 use unicode_width::UnicodeWidthStr;
 
-pub(crate) const PROBE_COMMAND: &str = "#scan all";
+pub const PROBE_COMMAND: &str = "#scan all";
 const PROBE_ECHO: &str = "scan all";
-pub(crate) const NOT_IN_COMBAT_LINE: &str = "You are not in combat right now.";
+pub const NOT_IN_COMBAT_LINE: &str = "You are not in combat right now.";
 const MAX_LINES_WAITING_FOR_ECHO: u8 = 30;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum IncomingCombatScanLine {
-    Visible,
-    InternalProbe,
-    CombatEnded { internal_probe: bool },
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ProbePhase {
-    Idle,
-    WaitingForEcho,
-    CapturingRows,
+pub enum CombatAwarenessEffect {
+    RoundStarted,
+    CombatEnded,
+    SendProbe,
+    SendShortScore,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CombatScanRow {
+pub struct LineHandlingResult {
+    pub gag: bool,
+    pub effects: Vec<CombatAwarenessEffect>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CombatScanRow {
     name: String,
     condition: CombatCondition,
     percent: i32,
@@ -81,8 +81,15 @@ impl CombatCondition {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProbePhase {
+    Idle,
+    WaitingForEcho,
+    CapturingRows,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CombatScanState {
+pub struct CombatAwareness {
     active: bool,
     phase: ProbePhase,
     user_command_counter: u8,
@@ -91,7 +98,7 @@ pub(crate) struct CombatScanState {
     snapshot: Vec<CombatScanRow>,
 }
 
-impl Default for CombatScanState {
+impl Default for CombatAwareness {
     fn default() -> Self {
         Self {
             active: false,
@@ -104,13 +111,12 @@ impl Default for CombatScanState {
     }
 }
 
-impl CombatScanState {
-    pub(crate) fn start_combat_round(&mut self) -> Option<&'static str> {
-        self.active = true;
-        self.request_probe()
-    }
+pub fn is_round_header(line: &str) -> bool {
+    ROUND_HEADER_REGEX.is_match(line)
+}
 
-    pub(crate) fn end_combat(&mut self) {
+impl CombatAwareness {
+    pub fn end_combat(&mut self) {
         self.active = false;
         self.phase = ProbePhase::Idle;
         self.user_command_counter = 0;
@@ -119,7 +125,7 @@ impl CombatScanState {
         self.snapshot.clear();
     }
 
-    pub(crate) fn observe_user_game_command(&mut self) -> Option<&'static str> {
+    pub fn observe_user_game_command(&mut self) -> Option<CombatAwarenessEffect> {
         if !self.active || self.phase != ProbePhase::Idle {
             return None;
         }
@@ -127,49 +133,84 @@ impl CombatScanState {
         self.user_command_counter += 1;
         if self.user_command_counter >= 2 {
             self.user_command_counter = 0;
-            self.request_probe()
-        } else {
-            None
+            if self.request_probe().is_some() {
+                return Some(CombatAwarenessEffect::SendProbe);
+            }
         }
+        None
     }
 
-    pub(crate) fn handle_incoming_line(&mut self, line: &str) -> IncomingCombatScanLine {
+    pub fn handle_incoming_line(&mut self, line: &str) -> LineHandlingResult {
         if line == NOT_IN_COMBAT_LINE {
             let internal_probe = self.phase != ProbePhase::Idle;
             self.end_combat();
-            return IncomingCombatScanLine::CombatEnded { internal_probe };
+            return LineHandlingResult {
+                gag: internal_probe,
+                effects: vec![CombatAwarenessEffect::CombatEnded],
+            };
+        }
+
+        if is_round_header(line) {
+            if self.phase == ProbePhase::CapturingRows {
+                self.complete_scan();
+            }
+            self.active = true;
+            let _ = self.request_probe();
+            return LineHandlingResult {
+                gag: false,
+                effects: vec![
+                    CombatAwarenessEffect::RoundStarted,
+                    CombatAwarenessEffect::SendShortScore,
+                    CombatAwarenessEffect::SendProbe,
+                ],
+            };
         }
 
         match self.phase {
-            ProbePhase::Idle => IncomingCombatScanLine::Visible,
+            ProbePhase::Idle => LineHandlingResult {
+                gag: false,
+                effects: Vec::new(),
+            },
             ProbePhase::WaitingForEcho => {
                 if line == PROBE_ECHO {
                     self.phase = ProbePhase::CapturingRows;
                     self.lines_waiting_for_echo = 0;
                     self.pending_rows.clear();
-                    IncomingCombatScanLine::InternalProbe
+                    LineHandlingResult {
+                        gag: true,
+                        effects: Vec::new(),
+                    }
                 } else {
                     self.lines_waiting_for_echo = self.lines_waiting_for_echo.saturating_add(1);
                     if self.lines_waiting_for_echo >= MAX_LINES_WAITING_FOR_ECHO {
                         self.phase = ProbePhase::Idle;
                         self.lines_waiting_for_echo = 0;
                     }
-                    IncomingCombatScanLine::Visible
+                    LineHandlingResult {
+                        gag: false,
+                        effects: Vec::new(),
+                    }
                 }
             }
             ProbePhase::CapturingRows => {
                 if let Some(row) = parse_scan_row(line) {
                     self.pending_rows.push(row);
-                    IncomingCombatScanLine::InternalProbe
+                    LineHandlingResult {
+                        gag: true,
+                        effects: Vec::new(),
+                    }
                 } else {
                     self.complete_scan();
-                    IncomingCombatScanLine::Visible
+                    LineHandlingResult {
+                        gag: false,
+                        effects: Vec::new(),
+                    }
                 }
             }
         }
     }
 
-    pub(crate) fn render_lines(&self, width: u16) -> Vec<Line<'static>> {
+    pub fn render_lines(&self, width: u16) -> Vec<Line<'static>> {
         if !self.active || self.snapshot.is_empty() {
             return Vec::new();
         }
@@ -194,11 +235,11 @@ impl CombatScanState {
         self.phase == ProbePhase::Idle
     }
 
-    fn request_probe(&mut self) -> Option<&'static str> {
+    fn request_probe(&mut self) -> Option<()> {
         if self.phase == ProbePhase::Idle {
             self.phase = ProbePhase::WaitingForEcho;
             self.lines_waiting_for_echo = 0;
-            Some(PROBE_COMMAND)
+            Some(())
         } else {
             None
         }
@@ -289,6 +330,8 @@ fn enemy_name_style() -> Style {
 }
 
 lazy_static! {
+    static ref ROUND_HEADER_REGEX: Regex =
+        Regex::new(r"^[\*]+ Round .* [\*]+$").unwrap();
     static ref SCAN_ROW_REGEX: Regex = Regex::new(
         r"^(?P<name>.+) is (?P<condition>in excellent shape|in a good shape|slightly hurt|noticeably hurt|not in a good shape|in bad shape|in very bad shape|near death) \((?P<percent>[0-9]+)%\)\.$"
     )
@@ -307,40 +350,57 @@ mod tests {
     }
 
     #[test]
-    fn start_combat_requests_initial_probe_once() {
-        let mut state = CombatScanState::default();
+    fn round_header_emits_round_started_and_requests_probe() {
+        let mut state = CombatAwareness::default();
 
-        assert_eq!(state.start_combat_round(), Some(PROBE_COMMAND));
-        assert_eq!(state.start_combat_round(), None);
+        let result = state.handle_incoming_line("*** Round 1 ***");
+        assert_eq!(
+            result.effects,
+            vec![
+                CombatAwarenessEffect::RoundStarted,
+                CombatAwarenessEffect::SendShortScore,
+                CombatAwarenessEffect::SendProbe,
+            ]
+        );
+        assert!(state.is_active());
+        assert!(!state.is_idle());
     }
 
     #[test]
     fn later_combat_round_requests_probe_after_previous_probe_completed() {
-        let mut state = CombatScanState::default();
-        state.start_combat_round();
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
         state.handle_incoming_line("scan all");
         state.handle_incoming_line("Guard is slightly hurt (70%).");
         state.handle_incoming_line("round output");
 
-        assert_eq!(state.start_combat_round(), Some(PROBE_COMMAND));
+        let result = state.handle_incoming_line("*** Round 2 ***");
+        assert_eq!(
+            result.effects,
+            vec![
+                CombatAwarenessEffect::RoundStarted,
+                CombatAwarenessEffect::SendShortScore,
+                CombatAwarenessEffect::SendProbe,
+            ]
+        );
+        assert!(!state.is_idle());
     }
 
     #[test]
     fn captures_rows_after_echo_and_replaces_snapshot_on_terminator() {
-        let mut state = CombatScanState::default();
-        state.start_combat_round();
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
 
-        assert_eq!(
-            state.handle_incoming_line("scan all"),
-            IncomingCombatScanLine::InternalProbe
+        assert!(state.handle_incoming_line("scan all").gag);
+        assert!(
+            state
+                .handle_incoming_line("Guard is noticeably hurt (50%).")
+                .gag
         );
-        assert_eq!(
-            state.handle_incoming_line("Guard is noticeably hurt (50%)."),
-            IncomingCombatScanLine::InternalProbe
-        );
-        assert_eq!(
-            state.handle_incoming_line("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >"),
-            IncomingCombatScanLine::Visible
+        assert!(
+            !state
+                .handle_incoming_line("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >")
+                .gag
         );
 
         assert_eq!(state.snapshot().len(), 1);
@@ -355,26 +415,31 @@ mod tests {
 
     #[test]
     fn cadence_requests_every_second_user_command_when_idle() {
-        let mut state = CombatScanState::default();
-        state.start_combat_round();
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
         state.handle_incoming_line("scan all");
         state.handle_incoming_line("Guard is noticeably hurt (50%).");
         state.handle_incoming_line("done");
 
         assert_eq!(state.observe_user_game_command(), None);
-        assert_eq!(state.observe_user_game_command(), Some(PROBE_COMMAND));
+        assert_eq!(
+            state.observe_user_game_command(),
+            Some(CombatAwarenessEffect::SendProbe)
+        );
         assert_eq!(state.observe_user_game_command(), None);
     }
 
     #[test]
-    fn combat_end_clears_state_and_marks_probe_response_internal() {
-        let mut state = CombatScanState::default();
-        state.start_combat_round();
+    fn combat_end_clears_state_and_gags_internal_probe_response() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
 
+        let result = state.handle_incoming_line(NOT_IN_COMBAT_LINE);
         assert_eq!(
-            state.handle_incoming_line(NOT_IN_COMBAT_LINE),
-            IncomingCombatScanLine::CombatEnded {
-                internal_probe: true
+            result,
+            LineHandlingResult {
+                gag: true,
+                effects: vec![CombatAwarenessEffect::CombatEnded],
             }
         );
         assert!(!state.is_active());
@@ -383,39 +448,50 @@ mod tests {
     }
 
     #[test]
-    fn prompt_before_echo_does_not_cancel_in_flight_probe() {
-        let mut state = CombatScanState::default();
-        state.start_combat_round();
+    fn organic_combat_end_is_visible() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
+        state.handle_incoming_line("scan all");
+        state.handle_incoming_line("Guard is noticeably hurt (50%).");
+        state.handle_incoming_line("done");
 
+        let result = state.handle_incoming_line(NOT_IN_COMBAT_LINE);
         assert_eq!(
-            state.handle_incoming_line("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >"),
-            IncomingCombatScanLine::Visible
+            result,
+            LineHandlingResult {
+                gag: false,
+                effects: vec![CombatAwarenessEffect::CombatEnded],
+            }
         );
-        assert_eq!(
-            state.handle_incoming_line("scan all"),
-            IncomingCombatScanLine::InternalProbe
+    }
+
+    #[test]
+    fn prompt_before_echo_does_not_cancel_in_flight_probe() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
+
+        assert!(
+            !state
+                .handle_incoming_line("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >")
+                .gag
         );
-        assert_eq!(
-            state.handle_incoming_line("Guard is slightly hurt (70%)."),
-            IncomingCombatScanLine::InternalProbe
+        assert!(state.handle_incoming_line("scan all").gag);
+        assert!(
+            state
+                .handle_incoming_line("Guard is slightly hurt (70%).")
+                .gag
         );
-        assert_eq!(
-            state.handle_incoming_line("done"),
-            IncomingCombatScanLine::Visible
-        );
+        assert!(!state.handle_incoming_line("done").gag);
         assert_eq!(state.snapshot().len(), 1);
     }
 
     #[test]
     fn missing_echo_recovers_after_bounded_line_count() {
-        let mut state = CombatScanState::default();
-        state.start_combat_round();
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
 
         for _ in 0..MAX_LINES_WAITING_FOR_ECHO {
-            assert_eq!(
-                state.handle_incoming_line("ordinary output"),
-                IncomingCombatScanLine::Visible
-            );
+            assert!(!state.handle_incoming_line("ordinary output").gag);
         }
 
         assert!(state.is_idle());
@@ -423,8 +499,8 @@ mod tests {
 
     #[test]
     fn render_lines_styles_structured_scan_row() {
-        let mut state = CombatScanState::default();
-        state.start_combat_round();
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
         state.handle_incoming_line("scan all");
         state.handle_incoming_line("Guard is noticeably hurt (50%).");
         state.handle_incoming_line("done");

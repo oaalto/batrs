@@ -56,7 +56,9 @@ impl MonkGuild {
                 .push(Action::SetFlag(DOING_MEDITATION_FLAG.to_string(), false));
         }
 
-        if INTERRUPTS.iter().any(|regex| regex.is_match(line)) {
+        if line == crate::combat_awareness::NOT_IN_COMBAT_LINE
+            || INTERRUPTS.iter().any(|regex| regex.is_match(line))
+        {
             output.actions.extend(reset_current_skill_actions());
         }
 
@@ -91,7 +93,6 @@ lazy_static! {
         Regex::new(r"^You perform the peaceful (.+) kata\.$").unwrap(),
     ];
     static ref INTERRUPTS: Vec<Regex> = vec![
-        Regex::new(r"^You are not in combat right now\.$").unwrap(),
         Regex::new(r"^Your movement prevents you from doing the skill\.$").unwrap(),
         Regex::new(r"^GgrTF:  ---- SKILL STOPPED ----$").unwrap(),
         Regex::new(r"^You lose your concentration and cannot do the skill\.$").unwrap(),

@@ -6,7 +6,6 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::ops::Range;
 
-mod combat_round;
 mod common;
 mod nergal_resource_status;
 mod prompt;
@@ -18,7 +17,6 @@ mod spell_vocals;
 lazy_static! {
     static ref COMMON_TRIGGERS: Vec<Trigger> = vec![common::trigger];
     static ref CORE_TRIGGERS: Vec<Trigger> = vec![
-        combat_round::trigger,
         nergal_resource_status::trigger,
         prompt::trigger,
         short_score::trigger,

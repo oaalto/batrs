@@ -1,4 +1,3 @@
-mod combat_scan;
 mod dialogs;
 mod input_state;
 mod output_buffer;
@@ -11,6 +10,7 @@ mod util;
 
 use crate::ansi::StyledLine;
 use crate::automation::{Action, Automation};
+use crate::combat_awareness::{CombatAwareness, CombatAwarenessEffect};
 use crate::config::{ConfigManager, GenericCommandsConfig, UserSettings};
 use crate::generic_commands::GenericCommands;
 use crate::guilds::{
@@ -22,7 +22,6 @@ use crate::player_profile::{self, PlayerRuntimeProfile};
 use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
 use crate::{command, triggers};
-use combat_scan::{CombatScanState, IncomingCombatScanLine};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use dialogs::{GenericCommandsDialog, GuildDialog, SettingsDialog, apply_guild_dialog_keystroke};
 use input_state::InputState;
@@ -74,7 +73,7 @@ pub struct BatApp {
     input: InputState,
     session: SessionState,
     stats: Stats,
-    combat_scan: CombatScanState,
+    combat_awareness: CombatAwareness,
     event_receiver: Receiver<AppEvent>,
     command_sender: Sender<String>,
     connection_coordinator: Box<dyn ConnectionCoordinator>,
@@ -120,7 +119,7 @@ impl BatApp {
             input: InputState::new(),
             session: SessionState::new(),
             stats: Default::default(),
-            combat_scan: CombatScanState::default(),
+            combat_awareness: CombatAwareness::default(),
             event_receiver,
             command_sender,
             connection_coordinator,
@@ -174,24 +173,14 @@ impl BatApp {
             }
 
             if self.session.is_logged_in() {
-                match self
-                    .combat_scan
-                    .handle_incoming_line(&styled_line.plain_line)
-                {
-                    IncomingCombatScanLine::InternalProbe => {
-                        styled_line.gag = true;
-                        output_lines.push(styled_line);
-                        continue;
-                    }
-                    IncomingCombatScanLine::CombatEnded { internal_probe } => {
-                        self.apply_global_combat_end();
-                        if internal_probe {
-                            styled_line.gag = true;
-                            output_lines.push(styled_line);
-                            continue;
-                        }
-                    }
-                    IncomingCombatScanLine::Visible => {}
+                let ca_result = self
+                    .combat_awareness
+                    .handle_incoming_line(&styled_line.plain_line);
+                self.apply_combat_awareness_effects(ca_result.effects);
+                if ca_result.gag {
+                    styled_line.gag = true;
+                    output_lines.push(styled_line);
+                    continue;
                 }
                 let facts = triggers::TriggerFacts::new(
                     self.automation.snapshot_flags(),
@@ -350,7 +339,7 @@ impl BatApp {
             || self.stats.has_tzarakk_mount_status();
 
         let combat_status_lines = if show_stats {
-            self.combat_scan.render_lines(frame.area().width)
+            self.combat_awareness.render_lines(frame.area().width)
         } else {
             Vec::new()
         };
@@ -491,9 +480,9 @@ impl BatApp {
                     if self.send_command(command) {
                         sent_command = true;
                         if count_for_probe
-                            && let Some(probe) = self.combat_scan.observe_user_game_command()
+                            && let Some(effect) = self.combat_awareness.observe_user_game_command()
                         {
-                            sent_command |= self.send_command(probe.to_string());
+                            sent_command |= self.apply_combat_awareness_effects(vec![effect]);
                         }
                     }
                 }
@@ -546,7 +535,7 @@ impl BatApp {
         self.active_connection_id = connection_id;
         self.session.reset();
         self.stats = Stats::default();
-        self.combat_scan = CombatScanState::default();
+        self.combat_awareness = CombatAwareness::default();
         self.telnet_buffer = TelnetBuffer::new();
         self.selected_guilds.clear();
         self.guild_selection = GuildSelection::default();
@@ -575,24 +564,34 @@ impl BatApp {
 
     fn apply_stats_effects(&mut self, effects: Vec<crate::stats::StatsEffect>) {
         for effect in effects {
-            match &effect {
-                crate::stats::StatsEffect::StartCombatRound => {
-                    if let Some(probe) = self.combat_scan.start_combat_round() {
-                        self.send_command(probe.to_string());
-                    }
-                }
-                crate::stats::StatsEffect::EndCombat => self.combat_scan.end_combat(),
-                _ => {}
-            }
             self.stats.apply_effect(effect);
         }
     }
 
-    fn apply_global_combat_end(&mut self) {
-        self.combat_scan.end_combat();
-        self.stats
-            .apply_effect(crate::stats::StatsEffect::EndCombat);
-        self.automation.set_flag("in_battle", false);
+    fn apply_combat_awareness_effects(&mut self, effects: Vec<CombatAwarenessEffect>) -> bool {
+        let mut sent_command = false;
+        for effect in effects {
+            match effect {
+                CombatAwarenessEffect::RoundStarted => {
+                    self.stats
+                        .apply_effect(crate::stats::StatsEffect::StartCombatRound);
+                    self.automation.set_flag("in_battle", true);
+                }
+                CombatAwarenessEffect::CombatEnded => {
+                    self.stats
+                        .apply_effect(crate::stats::StatsEffect::EndCombat);
+                    self.automation.set_flag("in_battle", false);
+                }
+                CombatAwarenessEffect::SendProbe => {
+                    sent_command |=
+                        self.send_command(crate::combat_awareness::PROBE_COMMAND.to_string());
+                }
+                CombatAwarenessEffect::SendShortScore => {
+                    sent_command |= self.send_command("@sc".to_string());
+                }
+            }
+        }
+        sent_command
     }
 
     fn apply_original_line_effects(
@@ -1040,7 +1039,7 @@ mod tests {
             input: InputState::new(),
             session: SessionState::new(),
             stats: Default::default(),
-            combat_scan: CombatScanState::default(),
+            combat_awareness: CombatAwareness::default(),
             event_receiver: channels.event_receiver,
             command_sender: channels.command_sender,
             connection_coordinator,
@@ -1072,8 +1071,8 @@ mod tests {
 
         app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
 
-        assert_eq!(drain_commands(&command_receiver), vec!["#scan all", "@sc"]);
-        assert!(app.combat_scan.is_active());
+        assert_eq!(drain_commands(&command_receiver), vec!["@sc", "#scan all"]);
+        assert!(app.combat_awareness.is_active());
         assert!(app.automation.flag_is_set("in_battle"));
     }
 
@@ -1100,7 +1099,7 @@ mod tests {
             app.output.plain_lines(),
             vec!["*** Round 1 ***", "The rain falls."]
         );
-        assert_eq!(app.combat_scan.snapshot().len(), 1);
+        assert_eq!(app.combat_awareness.snapshot().len(), 1);
     }
 
     #[test]
@@ -1196,11 +1195,11 @@ mod tests {
         ]);
         assert_eq!(
             drain_commands(&command_receiver),
-            vec!["#scan all", "@sc", "#scan all", "@sc"]
+            vec!["@sc", "#scan all", "@sc", "#scan all"]
         );
 
         let rendered_scan: String = app
-            .combat_scan
+            .combat_awareness
             .render_lines(120)
             .into_iter()
             .flat_map(|line| line.spans.into_iter())
@@ -1234,11 +1233,11 @@ mod tests {
         ]);
         assert_eq!(
             drain_commands(&command_receiver),
-            vec!["#scan all", "@sc", "#scan all", "@sc"]
+            vec!["@sc", "#scan all", "@sc", "#scan all"]
         );
 
         let rendered_scan: String = app
-            .combat_scan
+            .combat_awareness
             .render_lines(120)
             .into_iter()
             .flat_map(|line| line.spans.into_iter())
@@ -1279,6 +1278,46 @@ mod tests {
     }
 
     #[test]
+    fn second_combat_round_clears_accumulated_short_score_diffs() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+        app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
+        app.process_input_lines(vec![
+            "H:1/2 [+10] S:3/4 [-5] E:5/6 [] $:7 [-5] exp:8 [+9]".to_string(),
+        ]);
+        drain_commands(&command_receiver);
+
+        let line_with_diffs: String = app
+            .stats
+            .render_inline()
+            .spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect();
+        assert!(
+            line_with_diffs.contains("+10"),
+            "first round short score should accumulate diffs; got {line_with_diffs:?}"
+        );
+
+        app.process_input_lines(vec!["*** Round 2 ***".to_string()]);
+        drain_commands(&command_receiver);
+
+        let line_after_round: String = app
+            .stats
+            .render_inline()
+            .spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect();
+        assert!(
+            !line_after_round.contains("+10")
+                && !line_after_round.contains("-5")
+                && !line_after_round.contains("+9"),
+            "new combat round should clear previous diffs via CA fan-out; got {line_after_round:?}"
+        );
+    }
+
+    #[test]
     fn global_not_in_combat_clears_scan_state_and_stops_diff_accumulation() {
         let (mut app, command_receiver) = test_app();
         log_in(&mut app);
@@ -1297,7 +1336,7 @@ mod tests {
             .iter()
             .map(|span| span.content.as_ref())
             .collect();
-        assert!(!app.combat_scan.is_active());
+        assert!(!app.combat_awareness.is_active());
         assert!(!app.automation.flag_is_set("in_battle"));
         assert!(
             !rendered.contains("+10"),

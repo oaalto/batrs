@@ -38,6 +38,8 @@ Combat Awareness is batrs' interpretation of whether the player is currently in 
 
 A Combat Scan Snapshot is the latest observed set of combatants and their health from a completed scan result. Each completed scan result replaces the previous snapshot rather than appending to it.
 
+Combat Awareness owns canonical round-header and combat-end line matching, probe orchestration, and snapshot state in `src/combat_awareness.rs`. The application calls Combat Awareness once per incoming line and fans out `CombatAwarenessEffect` values: `RoundStarted` (stats round semantics and `in_battle`), `CombatEnded` (stats end-combat and clear `in_battle`), `SendShortScore` (`@sc`), and `SendProbe` (`#scan all`). Stats retains short-score round diff semantics; rendering may remain on Combat Awareness until a later UI extraction slice.
+
 ## Nergal Status
 
 Nergal Resource Status is the player's current Nergal-specific resource state: Vitae, Potentia, and Evolution points.
