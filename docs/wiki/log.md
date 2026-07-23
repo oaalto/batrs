@@ -47,3 +47,8 @@
 - Updated: [Nergal Status](concepts/nergal-status.md), `docs/wiki/path-map.json`
 - Sources: `src/guilds/nergal/triggers.rs`, `src/triggers/mod.rs`, `src/app/mod.rs`
 - Notes: Removed duplicate core trigger; guild module is sole parser when Nergal is selected.
+
+## [2026-07-23] skip | Session Lifecycle login-name comparison
+
+- Sources: `CONTEXT.md`, `src/app/session_lifecycle/output_disposition.rs`
+- Notes: One-line CONTEXT.md clarification only; no wiki page change.

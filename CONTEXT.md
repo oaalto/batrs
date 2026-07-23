@@ -38,6 +38,8 @@ Session Lifecycle is the application-owned bounded context for fresh-session tra
 
 Session Lifecycle does not own Player Profile disk I/O, login conversation parsing, UI rendering, output scrollback buffers, or the production telnet adapter. Command Dispatch emits reconnect effects; Session Lifecycle applies Connect Command semantics. The application shell applies the fresh-session plan to its fields, reloads Player Profile after the next successful login, and clears output scrollback on post-connect login when the login name differs from the pre-connect character.
 
+For scrollback disposition, the character name is the BatMUD login name held in session state: snapshotted at Connect Command time and compared again at the first successful login after reconnect. Same character is decided by case-insensitive ASCII equality; connect before any login clears output on first login.
+
 ## Combat Awareness
 
 Combat Awareness is batrs' interpretation of whether the player is currently in BatMUD combat. It begins when combat round output is observed and ends when BatMUD reports that the player is not in combat.

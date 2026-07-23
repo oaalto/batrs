@@ -42,8 +42,8 @@ use util::show_clock;
 use output_buffer::OutputBuffer;
 use scrollback::Scrollback;
 use session_lifecycle::{
-    FreshSessionPlan, FreshSessionReset, ReconnectAttemptResult, SessionLifecycle,
-    complete_connect, prepare_connect,
+    FreshSessionPlan, FreshSessionReset, OutputDisposition, ReconnectAttemptResult,
+    SessionLifecycle, complete_connect, prepare_connect,
 };
 use session_state::{LoginState, SessionState};
 
@@ -165,6 +165,14 @@ impl BatApp {
                 self.input.clear_all();
             }
             if !was_logged_in && self.session.is_logged_in() {
+                if let Some(login_name) = self.session.login_name()
+                    && let Some(disposition) =
+                        self.session_lifecycle.on_post_connect_login(login_name)
+                    && disposition == OutputDisposition::ClearOutput
+                {
+                    self.output.clear();
+                    self.scrollback.follow_latest();
+                }
                 self.load_user_config();
                 self.stats.set_recovery_bracket_defaults_for_login();
             }
@@ -1856,6 +1864,97 @@ mod tests {
                 "fresh output"
             ]
         );
+    }
+
+    #[test]
+    fn reconnect_same_character_preserves_output_and_scrollback_on_login() {
+        let (new_channels, _new_command_receiver, _new_event_sender) = connection_channels();
+        let (coordinator, _calls, _results) =
+            FakeConnectionCoordinator::new(vec![ReconnectResult::Connected(new_channels)]);
+        let (mut app, _command_receiver, _event_sender) =
+            test_app_with_coordinator(Box::new(coordinator));
+        for index in 0..100 {
+            app.output
+                .append_lines(vec![StyledLine::new(&format!("line {index}"))]);
+        }
+        app.scrollback.update_viewport(100, 20);
+        app.scrollback.page_up();
+        let scroll_offset_before = app.scrollback.offset();
+        log_in(&mut app);
+
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+
+        app.session.set_login_name("tester".to_string());
+        app.process_input_lines(vec!["Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >".to_string()]);
+
+        assert!(
+            app.output
+                .plain_lines()
+                .iter()
+                .any(|line| line.starts_with("line "))
+        );
+        assert_eq!(app.scrollback.offset(), scroll_offset_before);
+    }
+
+    #[test]
+    fn reconnect_different_character_clears_output_and_resets_scrollback_on_login() {
+        let (new_channels, _new_command_receiver, _new_event_sender) = connection_channels();
+        let (coordinator, _calls, _results) =
+            FakeConnectionCoordinator::new(vec![ReconnectResult::Connected(new_channels)]);
+        let (mut app, _command_receiver, _event_sender) =
+            test_app_with_coordinator(Box::new(coordinator));
+        app.output.append_lines(vec![StyledLine::new("old output")]);
+        app.scrollback.update_viewport(1, 20);
+        app.scrollback.page_up();
+        log_in(&mut app);
+
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+
+        app.session.set_login_name("other".to_string());
+        app.process_input_lines(vec!["Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >".to_string()]);
+
+        assert!(app.output.plain_lines().is_empty());
+        assert_eq!(app.scrollback.offset(), 0);
+    }
+
+    #[test]
+    fn reconnect_before_login_clears_output_on_first_login() {
+        let (new_channels, _new_command_receiver, _new_event_sender) = connection_channels();
+        let (coordinator, _calls, _results) =
+            FakeConnectionCoordinator::new(vec![ReconnectResult::Connected(new_channels)]);
+        let (mut app, _command_receiver, _event_sender) =
+            test_app_with_coordinator(Box::new(coordinator));
+        app.output
+            .append_lines(vec![StyledLine::new("pre-connect output")]);
+
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+
+        app.session.set_login_name("tester".to_string());
+        app.process_input_lines(vec!["Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >".to_string()]);
+
+        assert!(app.output.plain_lines().is_empty());
+        assert_eq!(app.scrollback.offset(), 0);
+    }
+
+    #[test]
+    fn reconnect_retry_after_failure_preserves_output_for_same_character_login() {
+        let (new_channels, _new_command_receiver, _new_event_sender) = connection_channels();
+        let (coordinator, _calls, _results) = FakeConnectionCoordinator::new(vec![
+            ReconnectResult::Failed("socket refused".to_string()),
+            ReconnectResult::Connected(new_channels),
+        ]);
+        let (mut app, _command_receiver, _event_sender) =
+            test_app_with_coordinator(Box::new(coordinator));
+        app.output.append_lines(vec![StyledLine::new("old output")]);
+        log_in(&mut app);
+
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+
+        app.session.set_login_name("tester".to_string());
+        app.process_input_lines(vec!["Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >".to_string()]);
+
+        assert!(app.output.plain_lines().contains(&"old output"));
     }
 
     #[test]

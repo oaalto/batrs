@@ -1,10 +1,12 @@
 mod connect_command;
 mod fresh_session;
+mod output_disposition;
 mod reconnect;
 mod stale_events;
 
 pub use connect_command::{complete_connect, prepare_connect};
 pub use fresh_session::{FreshSessionPlan, FreshSessionReset};
+pub use output_disposition::OutputDisposition;
 pub use reconnect::ReconnectAttemptResult;
 
 use super::{ConnectionId, INITIAL_CONNECTION_ID};
@@ -12,8 +14,7 @@ use super::{ConnectionId, INITIAL_CONNECTION_ID};
 pub struct SessionLifecycle {
     active_connection_id: ConnectionId,
     reconnect_in_progress: bool,
-    // ponytail: ticket 02 reads this for post-connect scrollback disposition
-    pre_connect_login_name: Option<String>,
+    post_connect_name_snapshot: Option<Option<String>>,
 }
 
 impl SessionLifecycle {
@@ -21,7 +22,7 @@ impl SessionLifecycle {
         Self {
             active_connection_id: INITIAL_CONNECTION_ID,
             reconnect_in_progress: false,
-            pre_connect_login_name: None,
+            post_connect_name_snapshot: None,
         }
     }
 
@@ -33,7 +34,9 @@ impl SessionLifecycle {
         &mut self,
         pre_connect_login_name: Option<String>,
     ) -> FreshSessionPlan {
-        self.pre_connect_login_name = pre_connect_login_name;
+        if self.post_connect_name_snapshot.is_none() {
+            self.post_connect_name_snapshot = Some(pre_connect_login_name);
+        }
         self.active_connection_id = self.active_connection_id.saturating_add(1);
         FreshSessionPlan::new(self.active_connection_id)
     }
@@ -137,5 +140,17 @@ mod tests {
         assert!(matches!(second, ReconnectAttemptResult::Connected(_)));
         assert!(!lifecycle.is_stale(2));
         assert!(lifecycle.is_stale(1));
+    }
+
+    #[test]
+    fn begin_fresh_session_preserves_first_pre_connect_snapshot() {
+        let mut lifecycle = SessionLifecycle::new();
+        lifecycle.begin_fresh_session(Some("hero".to_string()));
+        lifecycle.begin_fresh_session(None);
+
+        assert_eq!(
+            lifecycle.on_post_connect_login("hero"),
+            Some(OutputDisposition::KeepScrollback)
+        );
     }
 }

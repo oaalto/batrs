@@ -27,6 +27,10 @@ impl OutputBuffer {
         self.lines.append(&mut lines);
     }
 
+    pub fn clear(&mut self) {
+        self.lines.clear();
+    }
+
     #[cfg(test)]
     pub(crate) fn plain_lines(&self) -> Vec<&str> {
         self.lines
