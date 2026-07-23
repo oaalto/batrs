@@ -1,9 +1,5 @@
-use crate::ansi::palette;
 use lazy_static::lazy_static;
-use ratatui::style::{Modifier, Style};
-use ratatui::text::{Line, Span};
 use regex::Regex;
-use unicode_width::UnicodeWidthStr;
 
 pub const PROBE_COMMAND: &str = "#scan all";
 const PROBE_ECHO: &str = "scan all";
@@ -24,6 +20,7 @@ pub struct LineHandlingResult {
     pub effects: Vec<CombatAwarenessEffect>,
 }
 
+/// One combatant row from a completed `#scan all` snapshot.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CombatScanRow {
     name: String,
@@ -31,8 +28,26 @@ pub struct CombatScanRow {
     percent: i32,
 }
 
+impl CombatScanRow {
+    /// Enemy or combatant name from the scan line.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Parsed health condition phrase.
+    pub fn condition(&self) -> CombatCondition {
+        self.condition
+    }
+
+    /// Remaining health percent from the scan line.
+    pub fn percent(&self) -> i32 {
+        self.percent
+    }
+}
+
+/// Health condition parsed from a `#scan all` row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CombatCondition {
+pub enum CombatCondition {
     Excellent,
     Good,
     SlightlyHurt,
@@ -58,7 +73,8 @@ impl CombatCondition {
         }
     }
 
-    fn label(self) -> &'static str {
+    /// Short label for HUD rendering (may differ slightly from the BatMUD phrase).
+    pub fn label(self) -> &'static str {
         match self {
             Self::Excellent => "excellent",
             Self::Good => "good",
@@ -68,15 +84,6 @@ impl CombatCondition {
             Self::Bad => "bad shape",
             Self::VeryBad => "very bad shape",
             Self::NearDeath => "near death",
-        }
-    }
-
-    fn color(self) -> ratatui::style::Color {
-        match self {
-            Self::Excellent | Self::Good => palette::GREEN,
-            Self::SlightlyHurt | Self::NoticeablyHurt => palette::CYAN,
-            Self::NotGood | Self::Bad => palette::YELLOW,
-            Self::VeryBad | Self::NearDeath => palette::RED,
         }
     }
 }
@@ -210,23 +217,13 @@ impl CombatAwareness {
         }
     }
 
-    pub fn render_lines(&self, width: u16) -> Vec<Line<'static>> {
-        if !self.active || self.snapshot.is_empty() {
-            return Vec::new();
-        }
-
-        let pieces: Vec<Vec<Span<'static>>> =
-            self.snapshot.iter().map(|row| row_spans(row)).collect();
-        wrap_pieces(pieces, width)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn snapshot(&self) -> &[CombatScanRow] {
+    /// Latest completed scan rows; empty when no probe has finished this combat.
+    pub fn snapshot(&self) -> &[CombatScanRow] {
         &self.snapshot
     }
 
-    #[cfg(test)]
-    pub(crate) fn is_active(&self) -> bool {
+    /// Whether combat is considered active (round header seen, combat not ended).
+    pub fn is_active(&self) -> bool {
         self.active
     }
 
@@ -265,70 +262,6 @@ fn parse_scan_row(line: &str) -> Option<CombatScanRow> {
     })
 }
 
-fn row_spans(row: &CombatScanRow) -> Vec<Span<'static>> {
-    vec![
-        Span::styled(row.name.clone(), enemy_name_style()),
-        Span::styled(" is ", normal_text_style()),
-        Span::styled(
-            row.condition.label().to_string(),
-            Style::default().fg(row.condition.color()),
-        ),
-        Span::styled(" (", normal_text_style()),
-        Span::styled(
-            row.percent.to_string(),
-            Style::default().fg(row.condition.color()),
-        ),
-        Span::styled("%).", normal_text_style()),
-    ]
-}
-
-fn wrap_pieces(pieces: Vec<Vec<Span<'static>>>, width: u16) -> Vec<Line<'static>> {
-    if width == 0 {
-        return pieces.into_iter().map(Line::from).collect();
-    }
-
-    let effective_width = width as usize;
-    let mut lines: Vec<Vec<Span<'static>>> = Vec::new();
-    let mut current = Vec::new();
-    let mut current_width = 0;
-
-    for piece in pieces {
-        let piece_width = spans_width(&piece);
-        let gap = if current.is_empty() { 0 } else { 2 };
-        if !current.is_empty() && current_width + gap + piece_width > effective_width {
-            lines.push(std::mem::take(&mut current));
-            current_width = 0;
-        }
-
-        if !current.is_empty() {
-            current.push(Span::styled("  ", normal_text_style()));
-            current_width += 2;
-        }
-        current_width += piece_width;
-        current.extend(piece);
-    }
-
-    if !current.is_empty() {
-        lines.push(current);
-    }
-
-    lines.into_iter().map(Line::from).collect()
-}
-
-fn spans_width(spans: &[Span<'_>]) -> usize {
-    spans.iter().map(|span| span.content.width()).sum()
-}
-
-fn normal_text_style() -> Style {
-    Style::default().fg(palette::TEXT)
-}
-
-fn enemy_name_style() -> Style {
-    Style::default()
-        .fg(palette::BOLD_RED)
-        .add_modifier(Modifier::BOLD)
-}
-
 lazy_static! {
     static ref ROUND_HEADER_REGEX: Regex =
         Regex::new(r"^[\*]+ Round .* [\*]+$").unwrap();
@@ -341,13 +274,6 @@ lazy_static! {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn line_text(line: &Line<'_>) -> String {
-        line.spans
-            .iter()
-            .map(|span| span.content.as_ref())
-            .collect()
-    }
 
     #[test]
     fn round_header_emits_round_started_and_requests_probe() {
@@ -404,12 +330,12 @@ mod tests {
         );
 
         assert_eq!(state.snapshot().len(), 1);
-        assert_eq!(state.snapshot()[0].name, "Guard");
+        assert_eq!(state.snapshot()[0].name(), "Guard");
         assert_eq!(
-            state.snapshot()[0].condition,
+            state.snapshot()[0].condition(),
             CombatCondition::NoticeablyHurt
         );
-        assert_eq!(state.snapshot()[0].percent, 50);
+        assert_eq!(state.snapshot()[0].percent(), 50);
         assert!(state.is_idle());
     }
 
@@ -495,36 +421,5 @@ mod tests {
         }
 
         assert!(state.is_idle());
-    }
-
-    #[test]
-    fn render_lines_styles_structured_scan_row() {
-        let mut state = CombatAwareness::default();
-        state.handle_incoming_line("*** Round 1 ***");
-        state.handle_incoming_line("scan all");
-        state.handle_incoming_line("Guard is noticeably hurt (50%).");
-        state.handle_incoming_line("done");
-
-        let lines = state.render_lines(120);
-        assert_eq!(line_text(&lines[0]), "Guard is noticeably hurt (50%).");
-        let name = lines[0]
-            .spans
-            .iter()
-            .find(|span| span.content.as_ref() == "Guard")
-            .expect("name span");
-        assert_eq!(name.style.fg, Some(palette::BOLD_RED));
-        assert!(name.style.add_modifier.contains(Modifier::BOLD));
-        let condition = lines[0]
-            .spans
-            .iter()
-            .find(|span| span.content.as_ref() == "noticeably hurt")
-            .expect("condition span");
-        assert_eq!(condition.style.fg, Some(palette::CYAN));
-        let percent = lines[0]
-            .spans
-            .iter()
-            .find(|span| span.content.as_ref() == "50")
-            .expect("percent span");
-        assert_eq!(percent.style.fg, Some(palette::CYAN));
     }
 }

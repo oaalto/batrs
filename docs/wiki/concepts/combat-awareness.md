@@ -6,6 +6,7 @@ updated: 2026-07-23
 sources:
   - CONTEXT.md
   - src/combat_awareness.rs
+  - src/ui/mod.rs
   - src/app/mod.rs
 ---
 
@@ -24,7 +25,7 @@ The application calls Combat Awareness once per incoming line and fans out `Comb
 - Round header emits `RoundStarted`, `SendShortScore`, and `SendProbe`. App fan-out (`src/app/mod.rs`): `RoundStarted` → stats `StartCombatRound` + `in_battle = true`; `SendShortScore` → `@sc`; `SendProbe` → `#scan all`; `CombatEnded` → stats `EndCombat` + `in_battle = false`.
 - Probe rows are gagged from scrollback and automation; internal probe responses on combat end are gagged when probe phase is active.
 - Scan rows capture name, condition phrase, and health percent; each completed scan replaces the prior snapshot (`CONTEXT.md`, `combat_awareness.rs`).
-- UI renders combat status above stats via `CombatAwareness::render_lines` (`src/app/mod.rs` → `src/ui/mod.rs`).
+- UI renders combat status above stats via `ui::render_combat_status_lines` from `CombatAwareness::snapshot()` (`src/ui/mod.rs`, `src/app/mod.rs`).
 
 ## Related
 

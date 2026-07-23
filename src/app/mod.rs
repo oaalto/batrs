@@ -339,7 +339,11 @@ impl BatApp {
             || self.stats.has_tzarakk_mount_status();
 
         let combat_status_lines = if show_stats {
-            self.combat_awareness.render_lines(frame.area().width)
+            crate::ui::render_combat_status_lines(
+                self.combat_awareness.is_active(),
+                self.combat_awareness.snapshot(),
+                frame.area().width,
+            )
         } else {
             Vec::new()
         };
@@ -1198,13 +1202,15 @@ mod tests {
             vec!["@sc", "#scan all", "@sc", "#scan all"]
         );
 
-        let rendered_scan: String = app
-            .combat_awareness
-            .render_lines(120)
-            .into_iter()
-            .flat_map(|line| line.spans.into_iter())
-            .map(|span| span.content.to_string())
-            .collect();
+        let rendered_scan: String = crate::ui::render_combat_status_lines(
+            app.combat_awareness.is_active(),
+            app.combat_awareness.snapshot(),
+            120,
+        )
+        .into_iter()
+        .flat_map(|line| line.spans.into_iter())
+        .map(|span| span.content.to_string())
+        .collect();
         assert_eq!(
             rendered_scan, "Guard is slightly hurt (70%).",
             "scan row should remain visible in the combat panel after the next round header"
@@ -1236,13 +1242,15 @@ mod tests {
             vec!["@sc", "#scan all", "@sc", "#scan all"]
         );
 
-        let rendered_scan: String = app
-            .combat_awareness
-            .render_lines(120)
-            .into_iter()
-            .flat_map(|line| line.spans.into_iter())
-            .map(|span| span.content.to_string())
-            .collect();
+        let rendered_scan: String = crate::ui::render_combat_status_lines(
+            app.combat_awareness.is_active(),
+            app.combat_awareness.snapshot(),
+            120,
+        )
+        .into_iter()
+        .flat_map(|line| line.spans.into_iter())
+        .map(|span| span.content.to_string())
+        .collect();
         assert_eq!(rendered_scan, "Guard is slightly hurt (70%).");
         assert_eq!(
             app.output.plain_lines(),

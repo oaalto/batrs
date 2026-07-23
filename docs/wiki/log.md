@@ -18,6 +18,12 @@
 - Sources: `CONTEXT.md`, `src/app/combat_scan.rs`, `src/triggers/combat_round.rs`, `src/player_profile.rs`, `src/config.rs`, `src/triggers/nergal_resource_status.rs`
 - Notes: Post-install follow-up; remaining CONTEXT.md concepts now indexed.
 
+## [2026-07-23] update | Combat status UI rendering (ticket 02)
+
+- Updated: [Combat Awareness](concepts/combat-awareness.md), `CONTEXT.md`
+- Sources: `src/combat_awareness.rs`, `src/ui/mod.rs`, `src/app/mod.rs`
+- Notes: Combat status presentation moved to UI layer; domain exposes snapshot data only.
+
 ## [2026-07-23] update | Combat Awareness cohesion (ticket 01)
 
 - Updated: [Combat Awareness](concepts/combat-awareness.md), `CONTEXT.md`, `docs/wiki/path-map.json`

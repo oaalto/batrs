@@ -1,10 +1,12 @@
 use crate::ansi::palette;
+use crate::combat_awareness::{CombatCondition, CombatScanRow};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use ratatui::style::Style;
 use ratatui::style::Stylize;
-use ratatui::text::{Line, Text};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
+use unicode_width::UnicodeWidthStr;
 
 pub struct ViewModel<'a> {
     pub output_lines: Vec<Line<'a>>,
@@ -92,6 +94,91 @@ pub struct GenericCommandsDialogViewModel {
 }
 
 pub struct Renderer;
+
+/// Render condition-colored combat scan rows for the HUD, wrapping at `width`.
+///
+/// Returns no lines when combat is inactive or the snapshot is empty.
+pub fn render_combat_status_lines(
+    active: bool,
+    rows: &[CombatScanRow],
+    width: u16,
+) -> Vec<Line<'static>> {
+    if !active || rows.is_empty() {
+        return Vec::new();
+    }
+
+    let pieces: Vec<Vec<Span<'static>>> = rows.iter().map(combat_row_spans).collect();
+    wrap_combat_pieces(pieces, width)
+}
+
+fn combat_condition_color(condition: CombatCondition) -> Color {
+    match condition {
+        CombatCondition::Excellent | CombatCondition::Good => palette::GREEN,
+        CombatCondition::SlightlyHurt | CombatCondition::NoticeablyHurt => palette::CYAN,
+        CombatCondition::NotGood | CombatCondition::Bad => palette::YELLOW,
+        CombatCondition::VeryBad | CombatCondition::NearDeath => palette::RED,
+    }
+}
+
+fn combat_row_spans(row: &CombatScanRow) -> Vec<Span<'static>> {
+    let condition = row.condition();
+    let color = combat_condition_color(condition);
+    vec![
+        Span::styled(row.name().to_string(), enemy_name_style()),
+        Span::styled(" is ", normal_text_style()),
+        Span::styled(condition.label().to_string(), Style::default().fg(color)),
+        Span::styled(" (", normal_text_style()),
+        Span::styled(row.percent().to_string(), Style::default().fg(color)),
+        Span::styled("%).", normal_text_style()),
+    ]
+}
+
+fn wrap_combat_pieces(pieces: Vec<Vec<Span<'static>>>, width: u16) -> Vec<Line<'static>> {
+    if width == 0 {
+        return pieces.into_iter().map(Line::from).collect();
+    }
+
+    let effective_width = width as usize;
+    let mut lines: Vec<Vec<Span<'static>>> = Vec::new();
+    let mut current = Vec::new();
+    let mut current_width = 0;
+
+    for piece in pieces {
+        let piece_width = spans_width(&piece);
+        let gap = if current.is_empty() { 0 } else { 2 };
+        if !current.is_empty() && current_width + gap + piece_width > effective_width {
+            lines.push(std::mem::take(&mut current));
+            current_width = 0;
+        }
+
+        if !current.is_empty() {
+            current.push(Span::styled("  ", normal_text_style()));
+            current_width += 2;
+        }
+        current_width += piece_width;
+        current.extend(piece);
+    }
+
+    if !current.is_empty() {
+        lines.push(current);
+    }
+
+    lines.into_iter().map(Line::from).collect()
+}
+
+fn spans_width(spans: &[Span<'_>]) -> usize {
+    spans.iter().map(|span| span.content.width()).sum()
+}
+
+fn normal_text_style() -> Style {
+    Style::default().fg(palette::TEXT)
+}
+
+fn enemy_name_style() -> Style {
+    Style::default()
+        .fg(palette::BOLD_RED)
+        .add_modifier(Modifier::BOLD)
+}
 
 impl Renderer {
     pub fn render(frame: &mut Frame<'_>, view: &ViewModel<'_>) {
@@ -555,9 +642,64 @@ fn centered_rect(percent_x: u16, percent_y: u16, rect: Rect) -> Rect {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::combat_awareness::CombatAwareness;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
     use ratatui::buffer::Buffer;
+    use ratatui::style::Modifier;
+
+    fn line_text(line: &Line<'_>) -> String {
+        line.spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect()
+    }
+
+    #[test]
+    fn render_combat_status_wraps_multiple_rows_at_narrow_width() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
+        state.handle_incoming_line("scan all");
+        state.handle_incoming_line("Guard is slightly hurt (70%).");
+        state.handle_incoming_line("Orc is in bad shape (30%).");
+        state.handle_incoming_line("done");
+
+        let lines = render_combat_status_lines(state.is_active(), state.snapshot(), 40);
+        assert_eq!(lines.len(), 2);
+        assert_eq!(line_text(&lines[0]), "Guard is slightly hurt (70%).");
+        assert_eq!(line_text(&lines[1]), "Orc is bad shape (30%).");
+    }
+
+    #[test]
+    fn render_combat_status_styles_structured_scan_row() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
+        state.handle_incoming_line("scan all");
+        state.handle_incoming_line("Guard is noticeably hurt (50%).");
+        state.handle_incoming_line("done");
+
+        let lines = render_combat_status_lines(state.is_active(), state.snapshot(), 120);
+        assert_eq!(line_text(&lines[0]), "Guard is noticeably hurt (50%).");
+        let name = lines[0]
+            .spans
+            .iter()
+            .find(|span| span.content.as_ref() == "Guard")
+            .expect("name span");
+        assert_eq!(name.style.fg, Some(palette::BOLD_RED));
+        assert!(name.style.add_modifier.contains(Modifier::BOLD));
+        let condition = lines[0]
+            .spans
+            .iter()
+            .find(|span| span.content.as_ref() == "noticeably hurt")
+            .expect("condition span");
+        assert_eq!(condition.style.fg, Some(palette::CYAN));
+        let percent = lines[0]
+            .spans
+            .iter()
+            .find(|span| span.content.as_ref() == "50")
+            .expect("percent span");
+        assert_eq!(percent.style.fg, Some(palette::CYAN));
+    }
 
     #[test]
     fn render_places_combat_status_above_stats() {
