@@ -36,7 +36,7 @@
       "allowSkip": true
     },
     {
-      "sources": ["src/triggers/nergal_resource_status.rs", "src/guilds/nergal/**"],
+      "sources": ["src/guilds/nergal/**"],
       "wikiPages": ["docs/wiki/concepts/nergal-status.md"],
       "allowSkip": true
     }

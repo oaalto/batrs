@@ -35,3 +35,9 @@
 - Updated: [Combat Awareness](concepts/combat-awareness.md)
 - Sources: `src/combat_awareness.rs`, `src/app/mod.rs`, `src/ui/mod.rs`, `src/guilds/monk/triggers.rs`, `src/triggers/common.rs`
 - Notes: Structured module boundary, effect fan-out table, and UI rendering seam; verified canonical `NOT_IN_COMBAT_LINE` imports in monk/common; added app regression test for single combat-end fan-out per line.
+
+## [2026-07-23] update | Nergal resource status ownership (ticket 01)
+
+- Updated: [Nergal Status](concepts/nergal-status.md), `docs/wiki/path-map.json`
+- Sources: `src/guilds/nergal/triggers.rs`, `src/triggers/mod.rs`, `src/app/mod.rs`
+- Notes: Removed duplicate core trigger; guild module is sole parser when Nergal is selected.

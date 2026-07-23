@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use std::ops::Range;
 
 mod common;
-mod nergal_resource_status;
 mod prompt;
 mod recovery_bracket;
 mod short_score;
@@ -17,7 +16,6 @@ mod spell_vocals;
 lazy_static! {
     static ref COMMON_TRIGGERS: Vec<Trigger> = vec![common::trigger];
     static ref CORE_TRIGGERS: Vec<Trigger> = vec![
-        nergal_resource_status::trigger,
         prompt::trigger,
         short_score::trigger,
         recovery_bracket::trigger,

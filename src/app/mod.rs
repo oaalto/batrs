@@ -1139,13 +1139,12 @@ mod tests {
     }
 
     #[test]
-    fn nergal_resource_status_line_is_gagged_without_selected_nergal_guild() {
+    fn nergal_resource_status_line_is_not_gagged_without_selected_nergal_guild() {
         let (mut app, _command_receiver) = test_app();
         log_in(&mut app);
+        let line = "::..:. [Vitae: 22/1000  Potentia: 752/1000, Evolution points: 0]";
 
-        app.process_input_lines(vec![
-            "::..:. [Vitae: 22/1000  Potentia: 752/1000, Evolution points: 0]".to_string(),
-        ]);
+        app.process_input_lines(vec![line.to_string()]);
 
         let rendered_status: String = app
             .stats
@@ -1154,11 +1153,9 @@ mod tests {
             .flat_map(|line| line.spans.into_iter())
             .map(|span| span.content.to_string())
             .collect();
-        assert!(app.output.plain_lines().is_empty());
-        assert_eq!(
-            rendered_status,
-            "Vitae: 22/1000 Potentia: 752/1000, Evolution points: 0"
-        );
+        assert_eq!(app.output.plain_lines(), vec![line]);
+        assert!(rendered_status.is_empty());
+        assert!(!app.stats.has_nergal_resource_status());
     }
 
     #[test]

@@ -5,7 +5,7 @@ status: current
 updated: 2026-07-23
 sources:
   - CONTEXT.md
-  - src/triggers/nergal_resource_status.rs
+  - src/guilds/nergal/triggers.rs
   - src/stats.rs
 ---
 
@@ -17,11 +17,10 @@ Nergal Resource Status is the player's current Nergal-specific resource state: V
 
 ## Verified Facts
 
-- Parsed from BatMUD line matching `::..:. [Vitae: N/M  Potentia: N/M, Evolution points: N]` (`src/triggers/nergal_resource_status.rs`).
+- Parsed from BatMUD line matching `::..:. [Vitae: N/M  Potentia: N/M, Evolution points: N]` in `src/guilds/nergal/triggers.rs` when Nergal is in guild selection.
 - Stored as `NergalResourceStatus` and rendered in the stats panel (`src/stats.rs`).
-- Matching lines are gagged from scrollback output.
-- Guild-specific triggers also exist under `src/guilds/nergal/triggers.rs`; shared parser in `src/triggers/nergal_resource_status.rs`.
-- Resource status line is only processed when Nergal guild is selected (see `src/app/mod.rs` tests).
+- Matching lines are gagged from scrollback output when Nergal guild is selected.
+- Resource status line is not processed when Nergal guild is not selected (see `src/app/mod.rs` tests).
 
 ## Related
 
