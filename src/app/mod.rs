@@ -332,9 +332,7 @@ impl BatApp {
             || self.stats.has_soul_companion_status();
         let riftwalker_supported = self.guild_selection.is_selected(GuildKey::Riftwalker)
             || self.stats.has_riftwalker_entity_status();
-        let nergal_supported = self.guild_selection.is_selected(GuildKey::Nergal)
-            || self.stats.has_nergal_minions()
-            || self.stats.has_nergal_resource_status();
+        let nergal_supported = self.guild_selection.is_selected(GuildKey::Nergal);
         let tzarakk_supported = self.guild_selection.is_selected(GuildKey::Tzarakk)
             || self.stats.has_tzarakk_mount_status();
 
@@ -670,8 +668,14 @@ impl BatApp {
     }
 
     fn apply_guild_selection(&mut self, selection: GuildSelection) {
+        let nergal_deselected = self.guild_selection.is_selected(GuildKey::Nergal)
+            && !selection.is_selected(GuildKey::Nergal);
         self.selected_guilds = selection.build_guilds();
         self.guild_selection = selection;
+        if nergal_deselected {
+            self.stats.clear_nergal_minions();
+            self.stats.clear_nergal_resource_status();
+        }
         self.automation = Automation::new();
         for guild in &self.selected_guilds {
             guild.register_automation(&mut self.automation);
@@ -1156,6 +1160,43 @@ mod tests {
         assert_eq!(app.output.plain_lines(), vec![line]);
         assert!(rendered_status.is_empty());
         assert!(!app.stats.has_nergal_resource_status());
+    }
+
+    #[test]
+    fn deselecting_nergal_clears_resource_status_and_minions() {
+        use crate::stats::NergalMinion;
+
+        let (mut app, _command_receiver) = test_app();
+        log_in(&mut app);
+        app.apply_guild_selection(GuildSelection::from_playable_keys(
+            [GuildKey::Nergal],
+            Some("evil_religious"),
+        ));
+
+        app.process_input_lines(vec![
+            "::..:. [Vitae: 22/1000  Potentia: 752/1000, Evolution points: 0]".to_string(),
+        ]);
+        app.stats.upsert_nergal_minion(NergalMinion {
+            name: "Weeping pixie".into(),
+            hp: 364,
+            max_hp: 425,
+            sp: 447,
+            max_sp: 467,
+            ep: 138,
+            max_ep: 155,
+        });
+        assert!(app.stats.has_nergal_resource_status());
+        assert!(app.stats.has_nergal_minions());
+
+        app.apply_guild_selection(GuildSelection::from_playable_keys(
+            [GuildKey::Animist],
+            Some("nature"),
+        ));
+
+        assert!(!app.stats.has_nergal_resource_status());
+        assert!(!app.stats.has_nergal_minions());
+        assert!(app.stats.render_nergal_status_lines(200).is_empty());
+        assert!(app.stats.render_nergal_minion_lines(200).is_empty());
     }
 
     #[test]

@@ -7,6 +7,7 @@ sources:
   - CONTEXT.md
   - src/guilds/nergal/triggers.rs
   - src/stats.rs
+  - src/app/mod.rs
 ---
 
 # Nergal Status
@@ -21,6 +22,8 @@ Nergal Resource Status is the player's current Nergal-specific resource state: V
 - Stored as `NergalResourceStatus` and rendered in the stats panel (`src/stats.rs`).
 - Matching lines are gagged from scrollback output when Nergal guild is selected.
 - Resource status line is not processed when Nergal guild is not selected (see `src/app/mod.rs` tests).
+- HUD rows render only when `GuildKey::Nergal` is in guild selection — no fallback on stored minion or resource status presence (`src/app/mod.rs`).
+- Deselecting Nergal calls `clear_nergal_minions()` and `clear_nergal_resource_status()` on stats during guild selection application (`src/app/mod.rs`).
 
 ## Related
 

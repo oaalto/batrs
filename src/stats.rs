@@ -471,6 +471,7 @@ impl Stats {
         Line::from(spans)
     }
 
+    #[allow(dead_code)]
     pub fn has_nergal_minions(&self) -> bool {
         self.nergal_minions.iter().any(|slot| slot.is_some())
     }
@@ -479,6 +480,7 @@ impl Stats {
         self.nergal_resource_status = Some(status);
     }
 
+    #[allow(dead_code)]
     pub fn has_nergal_resource_status(&self) -> bool {
         self.nergal_resource_status.is_some()
     }
@@ -505,6 +507,10 @@ impl Stats {
 
     pub fn clear_nergal_minions(&mut self) {
         self.nergal_minions = [None, None, None];
+    }
+
+    pub fn clear_nergal_resource_status(&mut self) {
+        self.nergal_resource_status = None;
     }
 
     /// Pack minion status into full terminal rows; each minion stays on one line (may wrap to next row).
