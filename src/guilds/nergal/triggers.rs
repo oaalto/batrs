@@ -1,7 +1,7 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::NergalGuild;
-use crate::stats::{NergalMinion, NergalResourceStatus, StatsEffect};
+use crate::secondary_status::{NergalMinion, NergalResourceStatus, SecondaryStatusEffect};
 use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
@@ -25,7 +25,9 @@ impl NergalGuild {
                 ep: captures[6].parse().unwrap_or(0),
                 max_ep: captures[7].parse().unwrap_or(0),
             };
-            return output.gag().stat(StatsEffect::UpsertNergalMinion(minion));
+            return output
+                .gag()
+                .secondary_status(SecondaryStatusEffect::UpsertNergalMinion(minion));
         }
 
         if let Some(captures) = RESOURCE_STATUS.captures(line) {
@@ -38,11 +40,11 @@ impl NergalGuild {
             };
             return output
                 .gag()
-                .stat(StatsEffect::SetNergalResourceStatus(status));
+                .secondary_status(SecondaryStatusEffect::SetNergalResourceStatus(status));
         }
 
         if unsummon_clears_minions(line) {
-            return output.stat(StatsEffect::ClearNergalMinions);
+            return output.secondary_status(SecondaryStatusEffect::ClearNergalMinions);
         }
 
         if line.contains("DEAD, R.I.P.") {
@@ -184,14 +186,14 @@ static AURA_ESSENCE: LazyLock<Regex> = LazyLock::new(|| {
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::stats::Stats;
+    use crate::secondary_status::SecondaryStatus;
     use crate::triggers::{TriggerFacts, TriggerLine};
 
-    fn run(line_text: &str, stats: &mut Stats) -> (TriggerEffects, StyledLine) {
+    fn run(line_text: &str, status: &mut SecondaryStatus) -> (TriggerEffects, StyledLine) {
         let output =
             NergalGuild::nergal_trigger(&TriggerLine::new(line_text), &TriggerFacts::default());
-        for effect in output.stats.clone() {
-            stats.apply_effect(effect);
+        for effect in output.secondary_status.clone() {
+            status.apply_effect(effect);
         }
         let mut styled = StyledLine::new(line_text);
         output.apply_line_effects_to(&mut styled);
@@ -200,15 +202,15 @@ mod tests {
 
     #[test]
     fn minion_status_gags_and_upserts() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let line = "::..:. Tick [Hp: 44 (55) (+3), Sp: 1 (1), Ep: 200 (200)]";
 
-        let (out, styled) = run(line, &mut stats);
+        let (out, styled) = run(line, &mut status);
 
         assert!(styled.gag);
         assert!(out.actions.is_empty());
         assert!(out.lines.is_empty());
-        let first = stats.nergal_minions[0].as_ref().unwrap();
+        let first = status.nergal_minions()[0].as_ref().unwrap();
         assert_eq!(first.name, "Tick");
         assert_eq!(first.hp, 44);
         assert_eq!(first.max_hp, 55);
@@ -219,44 +221,46 @@ mod tests {
     }
 
     #[test]
-    fn resource_status_gags_and_updates_stats() {
-        let mut stats = Stats::default();
+    fn resource_status_gags_and_updates_secondary_status() {
+        let mut status = SecondaryStatus::default();
         let line = "::..:. [Vitae: 22/1000  Potentia: 752/1000, Evolution points: 0]";
 
-        let (out, styled) = run(line, &mut stats);
+        let (out, styled) = run(line, &mut status);
 
         assert!(styled.gag);
         assert!(out.actions.is_empty());
         assert!(out.lines.is_empty());
         assert_eq!(
-            out.stats,
-            vec![StatsEffect::SetNergalResourceStatus(NergalResourceStatus {
-                vitae: 22,
-                max_vitae: 1000,
-                potentia: 752,
-                max_potentia: 1000,
-                evolution_points: 0,
-            })]
+            out.secondary_status,
+            vec![SecondaryStatusEffect::SetNergalResourceStatus(
+                NergalResourceStatus {
+                    vitae: 22,
+                    max_vitae: 1000,
+                    potentia: 752,
+                    max_potentia: 1000,
+                    evolution_points: 0,
+                }
+            )]
         );
-        assert!(stats.has_nergal_resource_status());
+        assert!(status.has_nergal_resource_status());
     }
 
     #[test]
     fn resource_status_requires_strict_field_order() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let line = "::..:. [Potentia: 752/1000 Vitae: 22/1000, Evolution points: 0]";
 
-        let (out, styled) = run(line, &mut stats);
+        let (out, styled) = run(line, &mut status);
 
         assert!(!styled.gag);
-        assert!(out.stats.is_empty());
-        assert!(!stats.has_nergal_resource_status());
+        assert!(out.secondary_status.is_empty());
+        assert!(!status.has_nergal_resource_status());
     }
 
     #[test]
     fn unsummon_connection_clears_minions() {
-        let mut stats = Stats::default();
-        stats.upsert_nergal_minion(NergalMinion {
+        let mut status = SecondaryStatus::default();
+        status.upsert_nergal_minion(NergalMinion {
             name: "a".into(),
             hp: 1,
             max_hp: 1,
@@ -267,15 +271,15 @@ mod tests {
         });
         let line = "Your connection to your parasite is severed completely. Host jerks violently couple of times and collapses.";
 
-        let _ = run(line, &mut stats);
+        let _ = run(line, &mut status);
 
-        assert!(!stats.has_nergal_minions());
+        assert!(!status.has_nergal_minions());
     }
 
     #[test]
     fn unsummon_end_clears_minions() {
-        let mut stats = Stats::default();
-        stats.upsert_nergal_minion(NergalMinion {
+        let mut status = SecondaryStatus::default();
+        status.upsert_nergal_minion(NergalMinion {
             name: "Tick".into(),
             hp: 1,
             max_hp: 1,
@@ -286,15 +290,15 @@ mod tests {
         });
         let line = "You end the connection to your parasite, making the host jerk couple of times violently. After couple of seconds Tick collapses and stops moving at all.";
 
-        let _ = run(line, &mut stats);
+        let _ = run(line, &mut status);
 
-        assert!(!stats.has_nergal_minions());
+        assert!(!status.has_nergal_minions());
     }
 
     #[test]
     fn unsummon_order_dormant_clears_minions() {
-        let mut stats = Stats::default();
-        stats.upsert_nergal_minion(NergalMinion {
+        let mut status = SecondaryStatus::default();
+        status.upsert_nergal_minion(NergalMinion {
             name: "Balrog".into(),
             hp: 1,
             max_hp: 1,
@@ -305,15 +309,15 @@ mod tests {
         });
         let line = "You order the parasite to return the corrupted lands of blue flamed Tree and lay dormant there until you have use for it again.";
 
-        let _ = run(line, &mut stats);
+        let _ = run(line, &mut status);
 
-        assert!(!stats.has_nergal_minions());
+        assert!(!status.has_nergal_minions());
     }
 
     #[test]
     fn unsummon_release_host_clears_minions() {
-        let mut stats = Stats::default();
-        stats.upsert_nergal_minion(NergalMinion {
+        let mut status = SecondaryStatus::default();
+        status.upsert_nergal_minion(NergalMinion {
             name: "Weeping pixie".into(),
             hp: 1,
             max_hp: 1,
@@ -324,16 +328,16 @@ mod tests {
         });
         let line = "More thoughts infiltrate your mind. As you are evaluating your minions, one of them seems sub optimal for the servitude of the lord Nergal. You 'release' the host from the parasites influence. The host jerks violently couple of times as if regaining its free will but without the parasite the host is too weak to survive and collapses.";
 
-        let _ = run(line, &mut stats);
+        let _ = run(line, &mut status);
 
-        assert!(!stats.has_nergal_minions());
+        assert!(!status.has_nergal_minions());
     }
 
     #[test]
     fn death_sends_nergal_score_alias() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
 
-        let (out, _) = run("DEAD, R.I.P.", &mut stats);
+        let (out, _) = run("DEAD, R.I.P.", &mut status);
 
         assert_eq!(out.actions.len(), 1);
         assert!(matches!(&out.actions[0], Action::Send(command) if command == "@nergal sc"));
@@ -341,9 +345,9 @@ mod tests {
 
     #[test]
     fn potentia_full_echoes_green() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
 
-        let (out, _) = run("Potentia: 1000/1000", &mut stats);
+        let (out, _) = run("Potentia: 1000/1000", &mut status);
 
         assert_eq!(out.lines.len(), 1);
         assert_eq!(out.lines[0].plain_line, "***** POTENTIA IS FULL! *****");
@@ -352,10 +356,10 @@ mod tests {
 
     #[test]
     fn scratch_aura_line_is_green() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let line = "Foo manages to scratch Bar skin infecting the tissue under the skin with nasty disease";
 
-        let (_, styled) = run(line, &mut stats);
+        let (_, styled) = run(line, &mut status);
 
         assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
     }

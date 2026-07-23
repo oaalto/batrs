@@ -19,10 +19,11 @@ use crate::config::{ConfigManager, GenericCommandsConfig, UserSettings};
 use crate::generic_commands::GenericCommands;
 use crate::guilds::{
     Guild,
-    catalog::{self, GuildKey, GuildSelection},
+    catalog::{self, GuildSelection},
     grouping::{DEFAULT_GUILD_PRIMARY_KEYWORD, thematic_index_for_keyword},
 };
 use crate::player_profile::{self, PlayerRuntimeProfile};
+use crate::secondary_status::SecondaryStatus;
 use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
 use crate::{command, triggers};
@@ -82,6 +83,7 @@ pub struct BatApp {
     input: InputState,
     session: SessionState,
     stats: Stats,
+    secondary_status: SecondaryStatus,
     combat_awareness: CombatAwareness,
     event_receiver: Receiver<AppEvent>,
     command_sender: Sender<String>,
@@ -127,6 +129,7 @@ impl BatApp {
             input: InputState::new(),
             session: SessionState::new(),
             stats: Default::default(),
+            secondary_status: SecondaryStatus::default(),
             combat_awareness: CombatAwareness::default(),
             event_receiver,
             command_sender,
@@ -206,6 +209,7 @@ impl BatApp {
                 let result =
                     triggers::process(&facts, &self.selected_guilds, &styled_line.plain_line);
                 self.apply_stats_effects(result.stats);
+                self.apply_secondary_status_effects(result.secondary_status);
                 self.apply_automation_actions(result.actions);
                 let mut new_lines = result.lines;
                 self.apply_original_line_effects(&mut styled_line, result.original);
@@ -343,13 +347,6 @@ impl BatApp {
 
     pub fn draw(&mut self, frame: &mut Frame<'_>) {
         let show_stats = self.session.is_logged_in();
-        let soul_supported = self.guild_selection.is_selected(GuildKey::Animist)
-            || self.stats.has_soul_companion_status();
-        let riftwalker_supported = self.guild_selection.is_selected(GuildKey::Riftwalker)
-            || self.stats.has_riftwalker_entity_status();
-        let nergal_supported = self.guild_selection.is_selected(GuildKey::Nergal);
-        let tzarakk_supported = self.guild_selection.is_selected(GuildKey::Tzarakk)
-            || self.stats.has_tzarakk_mount_status();
 
         let combat_status_lines = if show_stats {
             crate::ui::render_combat_status_lines(
@@ -360,20 +357,12 @@ impl BatApp {
         } else {
             Vec::new()
         };
-        let mut secondary_status_lines: Vec<Line<'static>> = Vec::new();
-        if show_stats && soul_supported {
-            secondary_status_lines.push(self.stats.render_soul_inline());
-        }
-        if show_stats && riftwalker_supported {
-            secondary_status_lines.push(self.stats.render_riftwalker_entity_inline());
-        }
-        if show_stats && tzarakk_supported {
-            secondary_status_lines.push(self.stats.render_tzarakk_mount_inline());
-        }
-        if show_stats && nergal_supported {
-            secondary_status_lines
-                .extend(self.stats.render_nergal_status_lines(frame.area().width));
-        }
+        let secondary_status_lines = if show_stats {
+            self.secondary_status
+                .render_lines(frame.area().width, &self.guild_selection)
+        } else {
+            Vec::new()
+        };
 
         let reserved_rows =
             2 + combat_status_lines.len() as u16 + secondary_status_lines.len() as u16;
@@ -555,6 +544,9 @@ impl BatApp {
             match reset {
                 FreshSessionReset::Session => self.session.reset(),
                 FreshSessionReset::Stats => self.stats = Stats::default(),
+                FreshSessionReset::SecondaryStatus => {
+                    self.secondary_status = SecondaryStatus::default();
+                }
                 FreshSessionReset::CombatAwareness => {
                     self.combat_awareness = CombatAwareness::default();
                 }
@@ -599,6 +591,15 @@ impl BatApp {
     fn apply_stats_effects(&mut self, effects: Vec<crate::stats::StatsEffect>) {
         for effect in effects {
             self.stats.apply_effect(effect);
+        }
+    }
+
+    fn apply_secondary_status_effects(
+        &mut self,
+        effects: Vec<crate::secondary_status::SecondaryStatusEffect>,
+    ) {
+        for effect in effects {
+            self.secondary_status.apply_effect(effect);
         }
     }
 
@@ -700,14 +701,9 @@ impl BatApp {
     }
 
     fn apply_guild_selection(&mut self, selection: GuildSelection) {
-        let nergal_deselected = self.guild_selection.is_selected(GuildKey::Nergal)
-            && !selection.is_selected(GuildKey::Nergal);
         self.selected_guilds = selection.build_guilds();
-        self.guild_selection = selection;
-        if nergal_deselected {
-            self.stats.clear_nergal_minions();
-            self.stats.clear_nergal_resource_status();
-        }
+        self.guild_selection = selection.clone();
+        self.secondary_status.sync_guild_selection(&selection);
         self.automation = Automation::new();
         for guild in &self.selected_guilds {
             guild.register_automation(&mut self.automation);
@@ -989,6 +985,7 @@ mod tests {
     use super::*;
     use crate::app::fake_connection_coordinator::{FakeConnectionCoordinator, connection_channels};
     use crate::automation::Waiter;
+    use crate::guilds::catalog::GuildKey;
     use regex::Regex;
     use std::sync::mpsc;
 
@@ -1021,6 +1018,7 @@ mod tests {
             input: InputState::new(),
             session: SessionState::new(),
             stats: Default::default(),
+            secondary_status: SecondaryStatus::default(),
             combat_awareness: CombatAwareness::default(),
             event_receiver: channels.event_receiver,
             command_sender: channels.command_sender,
@@ -1089,7 +1087,7 @@ mod tests {
     }
 
     #[test]
-    fn nergal_resource_status_line_is_gagged_and_updates_stats() {
+    fn nergal_resource_status_line_is_gagged_and_updates_secondary_status() {
         let (mut app, _command_receiver) = test_app();
         log_in(&mut app);
         app.apply_guild_selection(GuildSelection::from_playable_keys(
@@ -1102,7 +1100,7 @@ mod tests {
         ]);
 
         let rendered_status: String = app
-            .stats
+            .secondary_status
             .render_nergal_status_lines(200)
             .into_iter()
             .flat_map(|line| line.spans.into_iter())
@@ -1124,7 +1122,7 @@ mod tests {
         app.process_input_lines(vec![line.to_string()]);
 
         let rendered_status: String = app
-            .stats
+            .secondary_status
             .render_nergal_status_lines(200)
             .into_iter()
             .flat_map(|line| line.spans.into_iter())
@@ -1132,12 +1130,61 @@ mod tests {
             .collect();
         assert_eq!(app.output.plain_lines(), vec![line]);
         assert!(rendered_status.is_empty());
-        assert!(!app.stats.has_nergal_resource_status());
+        assert!(!app.secondary_status.has_nergal_resource_status());
+    }
+
+    #[test]
+    fn prompt_and_short_score_updates_preserve_secondary_status() {
+        let (mut app, _command_receiver) = test_app();
+        log_in(&mut app);
+        app.apply_guild_selection(GuildSelection::from_playable_keys(
+            [GuildKey::Animist],
+            Some("nature"),
+        ));
+
+        app.process_input_lines(vec![
+            "Your soul companion: exc (88%) guarding you".to_string(),
+        ]);
+        assert!(app.secondary_status.has_soul_companion_status());
+
+        app.process_input_lines(vec!["Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >".to_string()]);
+        assert!(app.secondary_status.has_soul_companion_status());
+
+        app.process_input_lines(vec![
+            "H:571/802 [+20] S:635/635 [] E:311/311 [] $:2786 [] exp:21657 []".to_string(),
+        ]);
+        assert!(app.secondary_status.has_soul_companion_status());
+    }
+
+    #[test]
+    fn deselecting_animist_clears_soul_companion_status() {
+        let (mut app, _command_receiver) = test_app();
+        log_in(&mut app);
+        app.apply_guild_selection(GuildSelection::from_playable_keys(
+            [GuildKey::Animist],
+            Some("nature"),
+        ));
+        app.process_input_lines(vec![
+            "Your soul companion: exc (88%) guarding you".to_string(),
+        ]);
+        assert!(app.secondary_status.has_soul_companion_status());
+
+        app.apply_guild_selection(GuildSelection::from_playable_keys(
+            [GuildKey::Nergal],
+            Some("evil_religious"),
+        ));
+
+        assert!(!app.secondary_status.has_soul_companion_status());
+        assert!(
+            app.secondary_status
+                .render_lines(200, &app.guild_selection)
+                .is_empty()
+        );
     }
 
     #[test]
     fn deselecting_nergal_clears_resource_status_and_minions() {
-        use crate::stats::NergalMinion;
+        use crate::secondary_status::NergalMinion;
 
         let (mut app, _command_receiver) = test_app();
         log_in(&mut app);
@@ -1149,7 +1196,7 @@ mod tests {
         app.process_input_lines(vec![
             "::..:. [Vitae: 22/1000  Potentia: 752/1000, Evolution points: 0]".to_string(),
         ]);
-        app.stats.upsert_nergal_minion(NergalMinion {
+        app.secondary_status.upsert_nergal_minion(NergalMinion {
             name: "Weeping pixie".into(),
             hp: 364,
             max_hp: 425,
@@ -1158,23 +1205,31 @@ mod tests {
             ep: 138,
             max_ep: 155,
         });
-        assert!(app.stats.has_nergal_resource_status());
-        assert!(app.stats.has_nergal_minions());
+        assert!(app.secondary_status.has_nergal_resource_status());
+        assert!(app.secondary_status.has_nergal_minions());
 
         app.apply_guild_selection(GuildSelection::from_playable_keys(
             [GuildKey::Animist],
             Some("nature"),
         ));
 
-        assert!(!app.stats.has_nergal_resource_status());
-        assert!(!app.stats.has_nergal_minions());
-        assert!(app.stats.render_nergal_status_lines(200).is_empty());
-        assert!(app.stats.render_nergal_minion_lines(200).is_empty());
+        assert!(!app.secondary_status.has_nergal_resource_status());
+        assert!(!app.secondary_status.has_nergal_minions());
+        assert!(
+            app.secondary_status
+                .render_nergal_status_lines(200)
+                .is_empty()
+        );
+        assert!(
+            app.secondary_status
+                .render_nergal_minion_lines(200)
+                .is_empty()
+        );
     }
 
     #[test]
     fn nergal_unsummon_clears_minion_status_with_selected_nergal_guild() {
-        use crate::stats::NergalMinion;
+        use crate::secondary_status::NergalMinion;
 
         let (mut app, _command_receiver) = test_app();
         log_in(&mut app);
@@ -1182,7 +1237,7 @@ mod tests {
             [GuildKey::Nergal],
             Some("evil_religious"),
         ));
-        app.stats.upsert_nergal_minion(NergalMinion {
+        app.secondary_status.upsert_nergal_minion(NergalMinion {
             name: "Weeping pixie".into(),
             hp: 364,
             max_hp: 425,
@@ -1191,14 +1246,22 @@ mod tests {
             ep: 138,
             max_ep: 155,
         });
-        assert!(!app.stats.render_nergal_minion_lines(200).is_empty());
+        assert!(
+            !app.secondary_status
+                .render_nergal_minion_lines(200)
+                .is_empty()
+        );
 
         app.process_input_lines(vec![
             "More thoughts infiltrate your mind. As you are evaluating your minions, one of them seems sub optimal for the servitude of the lord Nergal. You 'release' the host from the parasites influence. The host jerks violently couple of times as if regaining its free will but without the parasite the host is too weak to survive and collapses.".to_string(),
         ]);
 
-        assert!(!app.stats.has_nergal_minions());
-        assert!(app.stats.render_nergal_minion_lines(200).is_empty());
+        assert!(!app.secondary_status.has_nergal_minions());
+        assert!(
+            app.secondary_status
+                .render_nergal_minion_lines(200)
+                .is_empty()
+        );
     }
 
     #[test]
@@ -1776,12 +1839,13 @@ mod tests {
             .apply_config(&["cure_spells".to_string()], &["clw".to_string()]);
         app.automation.set_var("rig", "satchel".to_string());
         app.automation.set_flag("in_battle", true);
-        app.stats
-            .apply_effect(crate::stats::StatsEffect::SetTzarakkMountStatus {
+        app.secondary_status.apply_effect(
+            crate::secondary_status::SecondaryStatusEffect::SetTzarakkMountStatus {
                 name: "horse".to_string(),
                 percent: 100,
                 description: "healthy".to_string(),
-            });
+            },
+        );
         app.guild_dialog = Some(GuildDialog::new(
             catalog::playable_entries_list(),
             Vec::new(),
@@ -1807,7 +1871,7 @@ mod tests {
         );
         assert!(app.automation.get_var("rig").is_none());
         assert!(!app.automation.flag_is_set("in_battle"));
-        assert!(!app.stats.has_tzarakk_mount_status());
+        assert!(!app.secondary_status.has_tzarakk_mount_status());
         assert!(app.guild_dialog.is_none());
     }
 

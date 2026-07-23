@@ -1,6 +1,7 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::Guild;
+use crate::secondary_status::SecondaryStatusEffect;
 use crate::stats::StatsEffect;
 use std::collections::HashMap;
 use std::ops::Range;
@@ -117,6 +118,7 @@ pub struct TriggerEffects {
     pub lines: Vec<StyledLine>,
     pub actions: Vec<Action>,
     pub stats: Vec<StatsEffect>,
+    pub secondary_status: Vec<SecondaryStatusEffect>,
 }
 
 impl TriggerEffects {
@@ -166,12 +168,18 @@ impl TriggerEffects {
         self
     }
 
+    pub fn secondary_status(mut self, effect: SecondaryStatusEffect) -> Self {
+        self.secondary_status.push(effect);
+        self
+    }
+
     pub fn extend(&mut self, other: TriggerEffects) {
         self.original.gag |= other.original.gag;
         self.original.edits.extend(other.original.edits);
         self.lines.extend(other.lines);
         self.actions.extend(other.actions);
         self.stats.extend(other.stats);
+        self.secondary_status.extend(other.secondary_status);
     }
 
     pub fn apply_line_effects_to(&self, line: &mut StyledLine) {

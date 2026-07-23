@@ -14,19 +14,19 @@ None — can start immediately.
 
 ## Status
 
-ready-for-agent
+done
 
 ## Acceptance criteria
 
-- [ ] Secondary Status module owns guild HUD state types, `SecondaryStatusEffect`, `apply_effect`, `render_lines(width, &GuildSelection)`, and `sync_guild_selection`
-- [ ] `TriggerEffects.secondary_status` vector and builder helper; guild triggers (Animist, Riftwalker, Tzarakk, Nergal) emit `SecondaryStatusEffect` instead of guild `StatsEffect` variants
-- [ ] All guild HUD variants removed from `StatsEffect`; stats no longer stores or renders soul, mount, entity, or Nergal HUD data
-- [ ] Application owns `secondary_status` field; `apply_secondary_status_effects` on incoming trigger results; `draw` uses single `render_lines` call (no per-guild guards in draw)
-- [ ] Guild-selected-only rendering for all four domains; OR “show when data observed but guild deselected” removed for soul, Riftwalker, Tzarakk
-- [ ] `sync_guild_selection` clears state for deselected guilds; application removes per-guild Nergal-only clear blocks from guild selection application
-- [ ] `FreshSessionReset::SecondaryStatus` added to connect manifest; fresh session clears secondary status
-- [ ] Nergal resource parsing remains guild-module-only; remove duplicate core/global Nergal resource trigger if still registered
-- [ ] Nergal resource line gagged when Nergal selected; not applied to HUD when Nergal not selected
-- [ ] Prompt and short-score updates do not clear secondary status (decoupled from stats update paths)
-- [ ] Relevant unit tests migrated from stats to Secondary Status; guild trigger and application integration tests updated
-- [ ] `cargo test` passes
+- [x] Secondary Status module owns guild HUD state types, `SecondaryStatusEffect`, `apply_effect`, `render_lines(width, &GuildSelection)`, and `sync_guild_selection`
+- [x] `TriggerEffects.secondary_status` vector and builder helper; guild triggers (Animist, Riftwalker, Tzarakk, Nergal) emit `SecondaryStatusEffect` instead of guild `StatsEffect` variants
+- [x] All guild HUD variants removed from `StatsEffect`; stats no longer stores or renders soul, mount, entity, or Nergal HUD data
+- [x] Application owns `secondary_status` field; `apply_secondary_status_effects` on incoming trigger results; `draw` uses single `render_lines` call (no per-guild guards in draw)
+- [x] Guild-selected-only rendering for all four domains; OR “show when data observed but guild deselected” removed for soul, Riftwalker, Tzarakk
+- [x] `sync_guild_selection` clears state for deselected guilds; application removes per-guild Nergal-only clear blocks from guild selection application
+- [x] `FreshSessionReset::SecondaryStatus` added to connect manifest; fresh session clears secondary status
+- [x] Nergal resource parsing remains guild-module-only; remove duplicate core/global Nergal resource trigger if still registered
+- [x] Nergal resource line gagged when Nergal selected; not applied to HUD when Nergal not selected
+- [x] Prompt and short-score updates do not clear secondary status (decoupled from stats update paths)
+- [x] Relevant unit tests migrated from stats to Secondary Status; guild trigger and application integration tests updated
+- [x] `cargo test` passes

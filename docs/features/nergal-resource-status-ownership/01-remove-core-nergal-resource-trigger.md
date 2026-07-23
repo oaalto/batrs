@@ -1,5 +1,9 @@
 # 01 — Remove core Nergal resource status trigger
 
+## Status
+
+superseded — absorbed by `docs/features/secondary-status-extraction/` (ticket 01, grilled 2026-07-23). Nergal parsing cleanup and Secondary Status ownership ship in that slice; do not implement separately.
+
 ## Parent
 
 `prd.md`

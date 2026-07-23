@@ -2,7 +2,7 @@ use crate::ansi::TextStyle;
 use crate::automation::Action;
 use crate::guilds::TzarakkGuild;
 use crate::guilds::tzarakk::{DISMOUNTED_FLAG, MOUNT_SUMMONED_FLAG, TZARAKK_MOUNT_VAR};
-use crate::stats::StatsEffect;
+use crate::secondary_status::SecondaryStatusEffect;
 use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
@@ -171,7 +171,9 @@ impl TzarakkGuild {
     pub fn banish_mount_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if BANISH_MOUNT_REGEX.is_match(line.plain_line) {
-            output.stats.push(StatsEffect::ClearTzarakkMountStatus);
+            output
+                .secondary_status
+                .push(SecondaryStatusEffect::ClearTzarakkMountStatus);
             output
                 .actions
                 .push(Action::SetFlag(MOUNT_SUMMONED_FLAG.to_string(), false));
@@ -222,13 +224,13 @@ impl TzarakkGuild {
             let name = captures[1].to_string();
             let description = captures[2].trim().to_string();
             let percent = captures[3].parse::<i32>().unwrap_or_default();
-            return TriggerEffects::none()
-                .gag()
-                .stat(StatsEffect::SetTzarakkMountStatus {
+            return TriggerEffects::none().gag().secondary_status(
+                SecondaryStatusEffect::SetTzarakkMountStatus {
                     name,
                     percent: percent.clamp(0, 100),
                     description,
-                });
+                },
+            );
         }
         TriggerEffects::none()
     }
@@ -240,7 +242,7 @@ mod tests {
     use crate::ansi::AnsiCode;
     use crate::ansi::StyledLine;
     use crate::automation::Automation;
-    use crate::stats::Stats;
+    use crate::secondary_status::SecondaryStatus;
     use crate::triggers::{TriggerFacts, TriggerLine};
 
     fn facts(automation: &Automation) -> TriggerFacts {
@@ -256,10 +258,10 @@ mod tests {
         trigger: Trigger,
         line_text: &str,
         automation: &Automation,
-        stats: &mut Stats,
+        stats: &mut SecondaryStatus,
     ) -> (TriggerEffects, StyledLine) {
         let output = trigger(&TriggerLine::new(line_text), &facts(automation));
-        for effect in output.stats.clone() {
+        for effect in output.secondary_status.clone() {
             stats.apply_effect(effect);
         }
         let mut line = StyledLine::new(line_text);
@@ -267,8 +269,8 @@ mod tests {
         (output, line)
     }
 
-    fn tzarakk_mount_line_text(stats: &Stats) -> String {
-        stats
+    fn tzarakk_mount_line_text(status: &SecondaryStatus) -> String {
+        status
             .render_tzarakk_mount_inline()
             .spans
             .iter()
@@ -278,14 +280,14 @@ mod tests {
 
     #[test]
     fn mount_detection_sets_flag() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let automation = Automation::new();
 
         let (output, _) = run(
             TzarakkGuild::mount_detection_trigger,
             "'Vedir', the black steed [Rider: You]",
             &automation,
-            &mut stats,
+            &mut status,
         );
 
         assert!(matches!(
@@ -296,14 +298,14 @@ mod tests {
 
     #[test]
     fn mount_detection_orthos_also_works() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let automation = Automation::new();
 
         let (output, _) = run(
             TzarakkGuild::mount_detection_trigger,
             "'Orthos', the black steed [Rider: You]",
             &automation,
-            &mut stats,
+            &mut status,
         );
 
         assert!(matches!(
@@ -314,7 +316,7 @@ mod tests {
 
     #[test]
     fn round_trigger_sends_x_when_mounted() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let mut automation = Automation::new();
         automation.set_flag(MOUNT_SUMMONED_FLAG, true);
         automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
@@ -323,7 +325,7 @@ mod tests {
             TzarakkGuild::round_trigger,
             "*** Round 1 ***",
             &automation,
-            &mut stats,
+            &mut status,
         );
 
         assert!(!output.actions.is_empty(), "Expected actions but got none");
@@ -334,7 +336,7 @@ mod tests {
 
     #[test]
     fn round_trigger_does_nothing_when_not_mounted() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let automation = Automation::new();
         // mount_summoned is false by default
 
@@ -342,7 +344,7 @@ mod tests {
             TzarakkGuild::round_trigger,
             "*** Round 1 ***",
             &automation,
-            &mut stats,
+            &mut status,
         );
 
         assert!(output.actions.is_empty());
@@ -350,14 +352,14 @@ mod tests {
 
     #[test]
     fn chaosfeed_replenish_feeds_and_mount_checks_tracked_mount() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let mut automation = Automation::new();
         automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
         let (output, _) = run(
             TzarakkGuild::chaosfeed_replenish_trigger,
             "A faint fog-like substance flows from corpse of Vedir to goblin's lifeless eyes replenishing it fully.",
             &automation,
-            &mut stats,
+            &mut status,
         );
 
         assert!(matches!(
@@ -368,14 +370,14 @@ mod tests {
 
     #[test]
     fn chaosfeed_replenish_ignores_other_corpses() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let mut automation = Automation::new();
         automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
         let (output, _) = run(
             TzarakkGuild::chaosfeed_replenish_trigger,
             "A faint fog-like substance flows from corpse of Orthos to goblin's lifeless eyes replenishing it fully.",
             &automation,
-            &mut stats,
+            &mut status,
         );
 
         assert!(output.actions.is_empty());
@@ -383,14 +385,14 @@ mod tests {
 
     #[test]
     fn dismount_detects_ice_sound() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let automation = Automation::new();
 
         let (output, line) = run(
             TzarakkGuild::dismount_trigger,
             "The ice makes a sound below your mount, scaring it!",
             &automation,
-            &mut stats,
+            &mut status,
         );
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Red);
@@ -402,24 +404,24 @@ mod tests {
     }
 
     #[test]
-    fn mount_status_line_gagged_and_updates_stats() {
-        let mut stats = Stats::default();
+    fn mount_status_line_gagged_and_updates_secondary_status() {
+        let mut status = SecondaryStatus::default();
         let automation = Automation::new();
 
         let (_output, line) = run(
             TzarakkGuild::mount_status_trigger,
             "Vedir is in excellent shape (100%).",
             &automation,
-            &mut stats,
+            &mut status,
         );
 
         assert!(line.gag);
-        assert_eq!(tzarakk_mount_line_text(&stats), "Vedir: 100%");
+        assert_eq!(tzarakk_mount_line_text(&status), "Vedir: 100%");
     }
 
     #[test]
     fn mount_death_when_dismounted_sends_mount() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let mut automation = Automation::new();
         automation.set_flag(DISMOUNTED_FLAG, true);
         automation.set_var(TZARAKK_MOUNT_VAR, "Vedir".to_string());
@@ -428,7 +430,7 @@ mod tests {
             TzarakkGuild::mount_death_trigger,
             "Vedir is DEAD, R.I.P.",
             &automation,
-            &mut stats,
+            &mut status,
         );
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Red);

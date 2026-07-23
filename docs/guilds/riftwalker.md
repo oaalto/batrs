@@ -4,7 +4,7 @@ Entity and elemental coloring, syncing labels with score output, and many gem / 
 
 ## Entity status (battle listen)
 
-When the MUD sends **battle-listen** entity status lines (same idea as TinyFugue `riftwalker.tf`), batrs updates a **secondary status line** after the main prompt stats (if Riftwalker is enabled or status was seen this session):
+When the MUD sends **battle-listen** entity status lines (same idea as TinyFugue `riftwalker.tf`), batrs updates a **secondary status line** after the main prompt stats when Riftwalker is in your guild selection:
 
 - `--=  <text>  HP:<n>(…` — **gags** the line whenever this pattern matches (whitespace between tokens does not need to match TinyFugue exactly). If automation **has_entity** is set, stores HP and echoes **low-HP notices** at the same thresholds as TF: under 250 / 200 / 150 / 100. Combined lines that end with `  =--` are still recognized.
 - `--=  <text>  =--` — stores the **label** fragment for the status bar.

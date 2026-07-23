@@ -1,5 +1,9 @@
 # 02 — Nergal guild-gated HUD lifecycle
 
+## Status
+
+superseded — absorbed by `docs/features/secondary-status-extraction/` (ticket 01, grilled 2026-07-23). Guild-gated HUD and clear-on-deselect now live in Secondary Status (`sync_guild_selection`); do not implement separately.
+
 ## Parent
 
 `prd.md`

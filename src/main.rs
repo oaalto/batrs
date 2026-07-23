@@ -35,6 +35,7 @@ mod config;
 mod generic_commands;
 mod guilds;
 mod player_profile;
+mod secondary_status;
 mod stats;
 mod triggers;
 mod ui;

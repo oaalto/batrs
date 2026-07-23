@@ -50,9 +50,8 @@ A focused hygiene pass that removes suppressions by fixing root causes (not re-a
 ### Slice A — Stats dead-code suppressions (highest priority, smallest diff)
 
 - **Modules:** stats model and its unit tests.
-- **Decision:** Remove `#[allow(dead_code)]` from `merge_riftwalker_battle_hp`, `has_nergal_minions`, and `has_nergal_resource_status`.
-- **Decision:** Gate `merge_riftwalker_battle_hp` with `#[cfg(test)]` — it is only referenced from stats tests; production uses `merge_riftwalker_battle_hp_from_listen`.
-- **Decision:** Gate `has_nergal_minions` and `has_nergal_resource_status` with `#[cfg(test)]`, matching existing `end_combat_invocations` / `start_combat_round_invocations` accessors in the same impl block.
+- **Note (2026-07-23):** Guild HUD helpers (`merge_riftwalker_battle_hp`, `has_nergal_minions`, `has_nergal_resource_status`) were removed from stats by Secondary Status extraction (`docs/features/secondary-status-extraction/`). Re-scope this slice to remaining stats dead-code only, or apply equivalent `#[cfg(test)]` gating on Secondary Status if those helpers still lack it.
+- **Decision:** Remove `#[allow(dead_code)]` from production stats APIs that exist only for tests.
 - **Decision:** Do not change stats effect routing, render methods, or HUD assembly — behavior is unchanged.
 
 ### Slice B — Telnet buffer UTF-8 handling

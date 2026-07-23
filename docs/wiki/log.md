@@ -59,3 +59,10 @@
 - Updated: [batrs client application](subsystems/batrs-client.md), [Command Dispatch](concepts/command-dispatch.md), [Player Profile](concepts/player-profile.md), `docs/wiki/index.md`, `docs/wiki/path-map.json`
 - Sources: `CONTEXT.md`, `src/app/session_lifecycle/`, `src/app/mod.rs`
 - Notes: Documented extracted bounded context, fresh-session reset manifest, reconnect guard, stale-event filtering, and same-character scrollback preservation on reconnect.
+
+## [2026-07-23] update | Secondary Status extraction docs (ticket 02)
+
+- Created: [Secondary Status](concepts/secondary-status.md)
+- Updated: [Nergal Status](concepts/nergal-status.md), [Session Lifecycle](concepts/session-lifecycle.md), `docs/wiki/index.md`, `docs/wiki/path-map.json`, `docs/guilds/riftwalker.md`
+- Sources: `src/secondary_status.rs`, `src/app/mod.rs`, `src/app/session_lifecycle/fresh_session.rs`, `src/guilds/*/triggers.rs`, `CONTEXT.md`
+- Notes: Guild HUD ownership moved from stats to Secondary Status; Nergal and session-lifecycle pages updated; nergal-resource-status-ownership tickets marked superseded; stale riftwalker guild-selected-only wording fixed.

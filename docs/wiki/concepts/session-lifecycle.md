@@ -7,6 +7,7 @@ sources:
   - CONTEXT.md
   - src/app/session_lifecycle/mod.rs
   - src/app/session_lifecycle/fresh_session.rs
+  - src/secondary_status.rs
   - src/app/session_lifecycle/output_disposition.rs
   - src/app/session_lifecycle/connect_command.rs
   - src/app/mod.rs
@@ -21,7 +22,7 @@ Session Lifecycle is the application-owned bounded context for fresh-session tra
 ## Verified Facts
 
 - Implementation: `src/app/session_lifecycle/` — `SessionLifecycle` struct in `mod.rs`; submodules for connect preparation, fresh-session plan, output disposition, reconnect execution, and stale-event checks.
-- `FreshSessionPlan` (`fresh_session.rs`) is the authoritative manifest of session-scoped state cleared on `/connect`: session, stats, combat awareness, telnet buffer, guild selection, automation, user-config-loaded flag, player profile, generic commands, and open dialogs.
+- `FreshSessionPlan` (`fresh_session.rs`) is the authoritative manifest of session-scoped state cleared on `/connect`: session, stats, secondary status, combat awareness, telnet buffer, guild selection, automation, user-config-loaded flag, player profile, generic commands, and open dialogs.
 - `prepare_connect` / `complete_connect` (`connect_command.rs`) set the reconnect guard, bump the connection id, and delegate socket work to an injected `ConnectionCoordinator`.
 - `SessionLifecycle::is_stale(connection_id)` drops events from superseded connections after a fresh session begins (`stale_events.rs`).
 - Failed reconnect clears the guard and retains the fresh-session connection id; retry uses the next id (`mod.rs` tests).
@@ -33,5 +34,6 @@ Session Lifecycle is the application-owned bounded context for fresh-session tra
 
 - [Command Dispatch](command-dispatch.md)
 - [Player Profile](player-profile.md)
+- [Secondary Status](secondary-status.md)
 - [batrs client application](../subsystems/batrs-client.md)
 - `CONTEXT.md` — Session Lifecycle and Connect Command sections

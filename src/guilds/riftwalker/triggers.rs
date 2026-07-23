@@ -6,7 +6,7 @@ use crate::guilds::riftwalker::{
     ENTITY_LABEL_WATER, FIRE_SKILL, RIFTWALKER_ELEMENT_VAR, RIFTWALKER_HAS_ENTITY_FLAG,
     RIFTWALKER_SKILL_VAR, WATER_SKILL,
 };
-use crate::stats::StatsEffect;
+use crate::secondary_status::SecondaryStatusEffect;
 use crate::triggers::{LineEffect, Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
@@ -104,9 +104,9 @@ fn battle_listen_entity_status(
             if let Some(label_seg) = caps.get(1) {
                 let lbl = label_seg.as_str().trim();
                 if !lbl.is_empty() {
-                    output
-                        .stats
-                        .push(StatsEffect::MergeRiftwalkerBattleLabel(lbl.to_string()));
+                    output.secondary_status.push(
+                        SecondaryStatusEffect::MergeRiftwalkerBattleLabel(lbl.to_string()),
+                    );
                 }
             }
             let hp = caps
@@ -117,9 +117,8 @@ fn battle_listen_entity_status(
             let b1 = caps.get(4).map(|g| g.as_str());
             let b2 = caps.get(5).map(|g| g.as_str());
             let b3 = caps.get(6).map(|g| g.as_str());
-            output
-                .stats
-                .push(StatsEffect::MergeRiftwalkerBattleHpFromListen {
+            output.secondary_status.push(
+                SecondaryStatusEffect::MergeRiftwalkerBattleHpFromListen {
                     hp,
                     paren_inside: paren_inside.to_string(),
                     brackets: [
@@ -127,7 +126,8 @@ fn battle_listen_entity_status(
                         b2.map(str::to_string),
                         b3.map(str::to_string),
                     ],
-                });
+                },
+            );
             push_entity_hp_notices(hp, output);
         }
         output.original.gag = true;
@@ -142,8 +142,8 @@ fn battle_listen_entity_status(
             .map(|segment| segment.as_str().to_string())
             .unwrap_or_default();
         output
-            .stats
-            .push(StatsEffect::MergeRiftwalkerBattleLabel(label));
+            .secondary_status
+            .push(SecondaryStatusEffect::MergeRiftwalkerBattleLabel(label));
         output.original.gag = true;
     }
 }
@@ -180,7 +180,9 @@ fn clears_and_keeps(facts: &TriggerFacts, line: &str, output: &mut TriggerEffect
     if Regex::new(&lost_entity).is_ok_and(|re| re.is_match(line.trim()))
         || Regex::new(lost_soul).is_ok_and(|re| re.is_match(line.trim()))
     {
-        output.stats.push(StatsEffect::ClearRiftwalkerEntityStatus);
+        output
+            .secondary_status
+            .push(SecondaryStatusEffect::ClearRiftwalkerEntityStatus);
         output.actions.push(Action::SetFlag(
             RIFTWALKER_HAS_ENTITY_FLAG.to_string(),
             false,
@@ -556,7 +558,7 @@ fn entity_sense_paint(output: &mut TriggerEffects) {
 mod tests {
     use super::*;
     use crate::automation::Automation;
-    use crate::stats::Stats;
+    use crate::secondary_status::SecondaryStatus;
     use crate::triggers::{TriggerFacts, TriggerLine};
     use ratatui::text::Line;
     use unicode_segmentation::UnicodeSegmentation;
@@ -580,12 +582,12 @@ mod tests {
     fn run(
         line_text: &str,
         automation: &Automation,
-        stats: &mut Stats,
+        status: &mut SecondaryStatus,
     ) -> (TriggerEffects, StyledLine) {
         let output =
             RiftwalkerGuild::primary_trigger(&TriggerLine::new(line_text), &facts(automation));
-        for effect in output.stats.clone() {
-            stats.apply_effect(effect);
+        for effect in output.secondary_status.clone() {
+            status.apply_effect(effect);
         }
         let mut line = StyledLine::new(line_text);
         output.apply_line_effects_to(&mut line);
@@ -594,9 +596,9 @@ mod tests {
 
     #[test]
     fn aura_only_on_summon_line_not_random_sparkling() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let auto = Automation::new();
-        let (_, noise) = run("The river is sparkling in the sun.", &auto, &mut stats);
+        let (_, noise) = run("The river is sparkling in the sun.", &auto, &mut status);
         let beta = noise.plain_line.find("sparkling").unwrap();
         assert_eq!(
             noise.styled_chars[noise.plain_line[..beta].graphemes(true).count()].color,
@@ -606,7 +608,7 @@ mod tests {
         let (_, summon) = run(
             "A huge fire entity sparkling with power [yours]",
             &auto,
-            &mut stats,
+            &mut status,
         );
         let sp = summon.plain_line.find("sparkling").unwrap();
         let idx = summon.plain_line[..sp].graphemes(true).count();
@@ -615,13 +617,13 @@ mod tests {
 
     #[test]
     fn aura_respects_custom_entity_noun() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let mut auto = Automation::new();
         auto.set_var(ENTITY_LABEL_FIRE, "golem".to_string());
         let (_, line) = run(
             "A huge fire golem gleaming with power [yours]",
             &auto,
-            &mut stats,
+            &mut status,
         );
         let g = line.plain_line.find("gleaming").unwrap();
         let idx = line.plain_line[..g].graphemes(true).count();
@@ -650,14 +652,14 @@ mod tests {
     }
 
     #[test]
-    fn battle_listen_hp_updates_stats_gags_and_warns_when_flag_set() {
-        let mut stats = Stats::default();
+    fn battle_listen_hp_updates_secondary_status_gags_and_warns_when_flag_set() {
+        let mut status = SecondaryStatus::default();
         let mut auto = Automation::new();
         auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
-        let (out, line) = run("--=  fire thing  HP:95(30%) more", &auto, &mut stats);
+        let (out, line) = run("--=  fire thing  HP:95(30%) more", &auto, &mut status);
         assert!(line.gag);
-        assert!(stats.has_riftwalker_entity_status());
-        assert!(line_plain(&stats.render_riftwalker_entity_inline()).contains("HP:95(30%)"));
+        assert!(status.has_riftwalker_entity_status());
+        assert!(line_plain(&status.render_riftwalker_entity_inline()).contains("HP:95(30%)"));
         assert_eq!(
             out.lines[0].plain_line,
             "*********** !!! ENTITY UNDER 100 HP !!! ***********"
@@ -666,67 +668,67 @@ mod tests {
 
     #[test]
     fn battle_listen_hp_gags_even_without_has_entity_flag() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let mut auto = Automation::new();
         auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, false);
-        let (_, line) = run("--=  fire thing  HP:200(50%) more", &auto, &mut stats);
+        let (_, line) = run("--=  fire thing  HP:200(50%) more", &auto, &mut status);
         assert!(line.gag);
-        assert!(!stats.has_riftwalker_entity_status());
+        assert!(!status.has_riftwalker_entity_status());
     }
 
     #[test]
     fn battle_listen_combined_line_with_trailing_status_is_gagged() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let mut auto = Automation::new();
         auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
         let (_, line) = run(
             "--=  Fire entity  HP:511(629) [+28] [] []  =--",
             &auto,
-            &mut stats,
+            &mut status,
         );
         assert!(line.gag);
         assert_eq!(
-            line_plain(&stats.render_riftwalker_entity_inline()),
+            line_plain(&status.render_riftwalker_entity_inline()),
             "Fire entity  HP:511(629) [+28] [] []"
         );
     }
 
     #[test]
     fn battle_listen_second_and_third_bracket_slots_use_mud_text() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let mut auto = Automation::new();
         auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
         let (_, line) = run(
             "--=  Water entity  HP:100(100) [+1] [foo] [bar]  =--",
             &auto,
-            &mut stats,
+            &mut status,
         );
         assert!(line.gag);
         assert_eq!(
-            line_plain(&stats.render_riftwalker_entity_inline()),
+            line_plain(&status.render_riftwalker_entity_inline()),
             "Water entity  HP:100(100) [+1] [foo] [bar]",
         );
     }
 
     #[test]
     fn battle_listen_label_merges_and_gags() {
-        let mut stats = Stats::default();
+        let mut status = SecondaryStatus::default();
         let mut auto = Automation::new();
         auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
-        let (out, line) = run("--=  My pet wisp  =--", &auto, &mut stats);
+        let (out, line) = run("--=  My pet wisp  =--", &auto, &mut status);
         assert!(line.gag);
-        assert!(line_plain(&stats.render_riftwalker_entity_inline()).contains("My pet wisp"));
+        assert!(line_plain(&status.render_riftwalker_entity_inline()).contains("My pet wisp"));
         assert!(out.lines.is_empty());
     }
 
     #[test]
     fn entity_death_clears_battle_listen_status() {
-        let mut stats = Stats::default();
-        stats.merge_riftwalker_battle_hp(400);
+        let mut status = SecondaryStatus::default();
+        status.merge_riftwalker_battle_hp(400);
         let mut auto = Automation::new();
         auto.set_flag(RIFTWALKER_HAS_ENTITY_FLAG, true);
         let line = "Your entity begins to warp, seeming to become unstable. It folds in on itself and vanishes!";
-        let _ = run(line, &auto, &mut stats);
-        assert!(!stats.has_riftwalker_entity_status());
+        let _ = run(line, &auto, &mut status);
+        assert!(!status.has_riftwalker_entity_status());
     }
 }

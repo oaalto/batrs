@@ -5,6 +5,7 @@ use super::super::ConnectionId;
 pub enum FreshSessionReset {
     Session,
     Stats,
+    SecondaryStatus,
     CombatAwareness,
     TelnetBuffer,
     GuildSelection,
@@ -16,9 +17,10 @@ pub enum FreshSessionReset {
 }
 
 impl FreshSessionReset {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::Session,
         Self::Stats,
+        Self::SecondaryStatus,
         Self::CombatAwareness,
         Self::TelnetBuffer,
         Self::GuildSelection,

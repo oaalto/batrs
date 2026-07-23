@@ -31,12 +31,17 @@
       "allowSkip": true
     },
     {
+      "sources": ["src/secondary_status.rs", "src/app/mod.rs", "src/triggers/mod.rs"],
+      "wikiPages": ["docs/wiki/concepts/secondary-status.md"],
+      "allowSkip": true
+    },
+    {
       "sources": ["src/player_profile.rs", "src/config.rs"],
       "wikiPages": ["docs/wiki/concepts/player-profile.md"],
       "allowSkip": true
     },
     {
-      "sources": ["src/guilds/nergal/**", "src/app/mod.rs"],
+      "sources": ["src/guilds/nergal/**", "src/secondary_status.rs", "src/app/mod.rs"],
       "wikiPages": ["docs/wiki/concepts/nergal-status.md"],
       "allowSkip": true
     },
