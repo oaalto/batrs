@@ -2,67 +2,97 @@
 
 ## Status
 
-draft — initial exploration for grilling
+ready-for-agent — grilled 2026-07-23
 
 ## Problem Statement
 
-Nergal Resource Status (Vitae, Potentia, Evolution points) is parsed twice: once in a core trigger (`triggers/nergal_resource_status.rs`, registered in `CORE_TRIGGERS`) and again inside `guilds/nergal/triggers.rs`. Both use the same regex pattern and emit `StatsEffect::SetNergalResourceStatus`. The core trigger runs for every logged-in player regardless of guild selection; the guild trigger runs when Nergal is selected. This duplicates interface surface, risks pattern drift on BatMUD text changes, and splits Nergal domain logic across the global trigger pipeline and the Nergal guild module.
+Nergal Resource Status (Vitae, Potentia, Evolution points) is parsed twice: once in a global core trigger registered for every logged-in player, and again inside the Nergal guild trigger module. Both matchers use the same BatMUD line pattern and emit the same stats effect. When Nergal is selected, both fire on the same line and merge duplicate effects. This splits Nergal domain logic across the global trigger pipeline and the Nergal guild module, risks regex drift on BatMUD text changes, and allows resource status to update and appear in the HUD even when Nergal is not in the player's guild selection.
 
-## Initial exploration
+## Solution
 
-| Location | Role |
-| --- | --- |
-| `triggers/nergal_resource_status.rs` | Standalone trigger in `CORE_TRIGGERS`; gag + `SetNergalResourceStatus` |
-| `guilds/nergal/triggers.rs` | Same `RESOURCE_STATUS` regex; also handles minions, unsummon, potentia/vitae full notices, ceremony automation |
-| `stats.rs` | `NergalResourceStatus` type, `set_nergal_resource_status`, `render_nergal_status_lines` |
-| `app/mod.rs` test | `nergal_resource_status_line_is_gagged_and_updates_stats` — exercises core path with Nergal selected |
-| `CONTEXT.md` | Defines Nergal Resource Status concept |
-
-**Regex (identical in both files):**
-
-`^::\.\.:\. \[Vitae: ([0-9]+)/([0-9]+)  Potentia: ([0-9]+)/([0-9]+), Evolution points: ([0-9]+)\]$`
-
-**Trigger order (`triggers/mod.rs`):** Guild triggers run first, then spell vocals, then `COMMON_TRIGGERS` + `CORE_TRIGGERS`. When Nergal is selected, the guild trigger handles the line first; core trigger still runs afterward on the same line (effects merge).
-
-**Rendering:** Resource status line appears below Nergal minion rows via `stats.render_nergal_status_lines`, shown in HUD when Nergal selected or status/minions present.
-
-## Solution (proposed direction)
-
-Move Nergal Resource Status parsing exclusively into the Nergal guild module (or a Nergal-owned submodule). Remove `nergal_resource_status` from `CORE_TRIGGERS`. Optionally deepen Nergal triggers so minion status, resource status, and unsummon share one interface within the guild module.
-
-Grilling should decide: is it acceptable that resource status only updates when Nergal is in the player's guild selection, or must it work guild-agnostically (e.g. preview while browsing)?
+Move Nergal Resource Status parsing and gagging exclusively into the Nergal guild module. Remove the standalone core trigger and its registry entry. Tighten HUD display to guild-selected only. When Nergal is removed from guild selection, clear Nergal resource status and minions from stats immediately. Keep `NergalResourceStatus` storage, the set effect, and HUD rendering in the stats module as the established secondary-status pattern. Surgical dedup only — no new status submodule, no render move, no minion cohesion refactor.
 
 ## User Stories
 
 1. As a Nergal player, I want Vitae/Potentia/Evolution status in the HUD, so that I can track resources without reading gag-target game spam.
-2. As a maintainer, I want one regex for the Nergal resource status line, so that BatMUD format changes require one edit.
-3. As a maintainer, I want Nergal-specific triggers colocated in the Nergal guild module, so that locality matches the Guild Catalog seam.
-4. As a test author, I want Nergal resource parsing tested next to other Nergal trigger tests, so that guild behavior is verified together.
-5. As a player with Nergal not selected, I want no Nergal resource HUD noise, so that unrelated play stays clean.
-6. As a maintainer removing the core trigger, I want no double-stat effects when Nergal is selected, so that trigger merging stays predictable.
+2. As a Nergal player, I want the resource status line gagged from scrollback, so that automation output stays clean.
+3. As a maintainer, I want one regex for the Nergal resource status line, so that BatMUD format changes require one edit.
+4. As a maintainer, I want Nergal-specific line handling colocated in the Nergal guild module, so that locality matches the Guild Catalog seam.
+5. As a test author, I want Nergal resource parsing tested next to other Nergal trigger tests, so that guild behavior is verified together.
+6. As a player with Nergal not selected, I want no Nergal resource line parsed and no Nergal HUD rows shown, so that unrelated play stays clean.
+7. As a player who deselects Nergal mid-session, I want Nergal HUD rows to disappear immediately, so that stale guild data does not linger on screen.
+8. As a player who deselects Nergal mid-session, I want Nergal stats cleared from memory, so that re-selecting Nergal does not flash outdated values before the next game line.
+9. As a maintainer removing the core trigger, I want no double stat effects when Nergal is selected, so that trigger merging stays predictable.
+10. As a maintainer, I want `StatsEffect::SetNergalResourceStatus` to remain the cross-seam signal into stats, so that the stats/HUD boundary stays consistent with other guild secondary status.
+11. As a test author, I want an integration test proving resource lines are ignored without Nergal selected, so that guild-gating regressions are caught.
+12. As a test author, I want an integration test proving deselect clears Nergal resource status and minions, so that HUD lifecycle is verified end-to-end.
+13. As a maintainer, I want strict field-order rejection preserved, so that malformed or reordered BatMUD text does not corrupt stats.
+14. As a player, I want minion rows and resource status rows to still render together when Nergal is selected, so that deepening does not regress the combined Nergal HUD block.
+15. As a maintainer, I want wiki and domain docs to reflect guild-owned parsing, so that future readers do not look for a global core trigger.
 
-## Open questions (for grilling)
+## Implementation Decisions
 
-1. **Guild gate:** Must resource status update only when `GuildKey::Nergal` is selected, or always when the line appears (current core behavior)?
-2. **HUD gate:** `app/mod.rs` shows Nergal status when guild selected OR `has_nergal_resource_status()` — keep OR logic or tighten to guild-only?
-3. **Type ownership:** Should `NergalResourceStatus` move from `stats.rs` toward Nergal guild types, with stats holding only render state?
-4. **Minion cohesion:** Deepen further — one Nergal status module covering minions + resources + render spans?
-5. **Deletion:** Delete `triggers/nergal_resource_status.rs` entirely vs. re-export from Nergal for registration convenience?
+### Parsing ownership
 
-## Implementation Decisions (tentative)
+- Delete the standalone core Nergal resource status trigger module entirely; remove its registration from the global core trigger list.
+- The Nergal guild trigger module remains the sole owner of resource status line matching, gagging, and `SetNergalResourceStatus` emission.
+- Parsing runs only when Nergal is in the player's guild selection (already true for guild triggers; removing the core trigger closes the guild-agnostic path).
 
-- Remove `nergal_resource_status::trigger` from `CORE_TRIGGERS` in `triggers/mod.rs`.
-- Keep `StatsEffect::SetNergalResourceStatus` as the cross-seam signal to stats/HUD unless grilling chooses a narrower path.
-- Consolidate regex into one `lazy_static` in Nergal guild triggers (or shared `guilds/nergal/patterns.rs` if splitting files).
-- Migrate core trigger unit tests into `guilds/nergal/triggers.rs` tests.
-- Update `app/mod.rs` integration test if guild selection becomes mandatory for the behavior under test.
+### Stats and type ownership
+
+- Keep `NergalResourceStatus` defined in the stats module alongside other guild secondary-status types (`NergalMinion`, soul companion, riftwalker entity, tzarakk mount).
+- Keep `StatsEffect::SetNergalResourceStatus` as the cross-seam update signal; triggers emit it, stats applies it.
+- Add `clear_nergal_resource_status()` on stats (sets stored resource status to empty); no new clear effect variant.
+
+### HUD gate
+
+- Change Nergal HUD support check to guild-selected only: show Nergal status rows when `GuildKey::Nergal` is in guild selection.
+- Remove fallback OR conditions on `has_nergal_minions()` and `has_nergal_resource_status()` for HUD visibility.
+
+### Clear on deselect
+
+- In guild selection application, when the new selection no longer includes Nergal, call `clear_nergal_minions()` and `clear_nergal_resource_status()` directly on stats.
+- Use direct method calls, not a new stats effect variant — deselect is application lifecycle, not trigger parsing. Existing `ClearNergalMinions` effect remains for unsummon trigger paths only.
+
+### Scope boundaries (explicit non-goals for this change)
+
+- Do not extract a new Nergal status submodule.
+- Do not move render span logic out of stats.
+- Do not refactor minion + resource + unsummon into a deeper combined interface.
+- Do not add a re-export shim where the deleted core trigger lived.
+
+### Documentation
+
+- `CONTEXT.md` Nergal Status section updated to record guild-owned parsing, stats-owned storage/render, guild-gated HUD, and clear-on-deselect.
+- Update engineering wiki concept page and path-map sources to remove the deleted core trigger reference.
 
 ## Testing Decisions
 
-- **Good tests:** Incoming resource status line → gagged from output, stats HUD shows Vitae/Potentia/EP; strict field order rejected.
-- **Prior art:** `triggers/nergal_resource_status.rs` tests; `guilds/nergal/triggers.rs` tests; `app/mod.rs` `nergal_resource_status_line_is_gagged_and_updates_stats`.
-- **Regression:** Full/empty potentia and vitae notices in Nergal triggers still fire; minion upsert unchanged.
-- **Edge:** Player deselects Nergal mid-session — should resource status clear from HUD?
+### Testing seams (proposed — primary verification points)
+
+1. **Nergal guild trigger tests** (highest seam for parsing) — incoming resource status line gagged, correct `SetNergalResourceStatus` effect, strict field order rejected. Prior art already exists in guild trigger tests; absorb any unique cases from the deleted core trigger tests.
+2. **Application integration tests** (lifecycle seam) — with Nergal selected: line gagged, stats updated, HUD renders. Without Nergal selected: line not gagged, stats unchanged. On deselect after populated stats: resource status and minions cleared, HUD hidden.
+
+Prefer these two seams over new test infrastructure. No new test-only modules.
+
+### Good tests (external behavior)
+
+- Resource status line with Nergal selected → gagged from output, stats show Vitae/Potentia/EP, HUD includes status row.
+- Resource status line without Nergal selected → visible in output (not gagged), stats unchanged.
+- Reordered/malformed resource line → not gagged, stats unchanged.
+- Deselect Nergal after resource status and minions populated → both cleared, HUD no longer shows Nergal rows.
+- Re-select Nergal after deselect → HUD empty until next valid resource/minion line.
+
+### Prior art
+
+- Guild trigger resource status tests (gag, effect, field order).
+- Application integration test for gagged resource line with Nergal selected.
+- Application unsummon test for minion clear with Nergal selected.
+- Deleted core trigger unit tests — migrate non-duplicative cases into guild trigger tests, then delete.
+
+### Regression guard
+
+- Potentia/vitae full notices, unsummon minion clear, minion upsert, and ceremony automation in Nergal guild triggers unchanged.
 
 ## Out of Scope
 
@@ -70,9 +100,11 @@ Grilling should decide: is it acceptable that resource status only updates when 
 - Nergal minion slot logic redesign.
 - Persisting Nergal resource status to player config.
 - Non-Nergal guild resource HUD patterns.
+- Extracting shared pattern modules or deepening minion/resource render cohesion.
+- Moving `NergalResourceStatus` type ownership out of stats.
 
 ## Further Notes
 
-- Recommendation strength: **Strong** — smallest diff candidate; clear duplication.
-- Quick win: delete core trigger + registry line; verify guild path covers all call sites.
-- `CONTEXT.md` already names Nergal Resource Status — update if ownership seam moves.
+- Recommendation strength: **Strong** — smallest diff with clear duplication removal.
+- Grilled decisions locked 2026-07-23; all open questions from initial exploration resolved.
+- Connect Command fresh-session reset already clears broader app state; no separate Nergal clear needed beyond guild deselect path unless reconnect testing reveals a gap.

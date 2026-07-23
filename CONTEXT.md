@@ -43,3 +43,5 @@ Combat Awareness owns canonical round-header and combat-end line matching, probe
 ## Nergal Status
 
 Nergal Resource Status is the player's current Nergal-specific resource state: Vitae, Potentia, and Evolution points.
+
+The Nergal guild module owns parsing and gagging of the Nergal resource status line. Parsing runs only when `GuildKey::Nergal` is in the player's guild selection. The stats module owns `NergalResourceStatus` storage, `StatsEffect::SetNergalResourceStatus`, and HUD rendering. The application shows Nergal HUD rows only when Nergal is selected and clears Nergal resource status and minions from stats when Nergal is removed from guild selection.
