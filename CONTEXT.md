@@ -4,7 +4,21 @@
 
 The Guild Catalog is the canonical Rust-source list of BatMUD guild keywords known to batrs. It includes playable guilds that can be enabled for a player and unimplemented BatMUD guild keywords that still matter for thematic grouping.
 
-The Guild Catalog owns persisted guild keys, display names, grouping membership, playability, and playable guild construction.
+The Guild Catalog browse module (`guilds/catalog/browse.rs`) owns PickBackground labels (`browse_labels()`), drill source (`GuildDrillSource`), drill row structure (`drill_rows(source, entry_count)`), and the `GuildBrowseRow` type (`Banner` + `Toggle { definition_index }`).
+
+`drill_rows(source, entry_count)` filters toggle indices to `definition_index < entry_count`.
+
+`guilds/grouping.rs` remains the source for thematic bucket indices, multi-background indices, and `clear_selected_outside_thematic_bucket`; dialog calls that helper on thematic primary change. `browse.rs` does not mutate selection.
+
+Browse rows are a structural DTO: `Banner(&'static str)` plus `Toggle { definition_index }`. Guild Dialog enriches toggles with display title and selection state when building UI view models.
+
+Browse row-structure tests live in `guilds/catalog/browse.rs`; `guild_dialog.rs` tests cover interaction (cursor, focus, keystrokes) only.
+
+This slice may include minor player-visible fixes discovered during extraction (banner wording, edge-case selection bugs), genuine `GuildSelection` output fixes, and TOML migration if a persistence bug requires it.
+
+Ship as one PR with separate commits per concern (`refactor:` browse extraction, then `fix:` / `migrate:` if discovered).
+
+Guild Dialog owns focus, cursors, keystroke handling, and guild-specific text inputs (mount, sabre weapon, Riftwalker entities); optional-input visibility stays in dialog, not in browse.
 
 ## Player Profile
 

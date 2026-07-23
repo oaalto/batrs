@@ -2,84 +2,116 @@
 
 ## Status
 
-draft — initial exploration for grilling
+ready-for-agent — grilled 2026-07-23
 
 ## Problem Statement
 
-Guild Catalog owns persisted keys, display names, grouping, and playability — but Guild Dialog re-implements browse and drill logic: thematic bucket rows, multi-background drill, `rebuild_drill_rows`, cursor placement, and `clear_selected_outside_thematic_bucket` coordination. `guild_dialog.rs` is ~1000 lines mixing UI state (focus, cursors, text inputs) with catalog topology (which indices appear in which drill). Adding a playable guild or changing thematic grouping requires touching both `guilds/grouping.rs` and dialog row builders.
+Guild Catalog owns persisted keys, display names, grouping, and playability — but Guild Dialog re-implements browse and drill logic: thematic bucket rows, multi-background drill, drill row rebuilding, cursor placement over row lists, and coordination with thematic-bucket selection clearing. The dialog module mixes UI state (focus, cursors, text inputs) with catalog topology (which definition indices appear in which drill, in what order, with which banners).
 
-Recent deepen work (`088ec17 Deepen guild catalog selection`) improved selection semantics; browse/drill row construction did not move with it.
+Adding a playable guild or changing thematic grouping currently requires touching both grouping data and dialog row builders. Banner strings and empty-state messaging live in the dialog layer alongside keystroke handling. Browse row rules are difficult to test without constructing dialog state and simulating navigation.
 
-## Initial exploration
+Recent deepen work on guild catalog selection improved selection semantics; browse/drill row construction did not move with it.
 
-**Guild Catalog / grouping (data):**
+## Solution
 
-- `guilds/catalog/mod.rs` — `GuildCatalogEntry`, `GuildKey`, playability, `playable_entries_list`
-- `guilds/catalog/selection.rs` — `GuildSelection`, persistence, thematic index helpers
-- `guilds/grouping.rs` — `guild_grouping()`, thematic buckets, `visible_indices_multi_drill()`, `clear_selected_outside_thematic_bucket`
+Extract a **Guild Catalog browse** submodule that owns PickBackground label ordering and drill row structure. Guild Dialog becomes a shallow adapter: keystrokes mutate selection and focus state, call browse for labels and rows, enrich toggles with display title and selection at the view-model boundary, and render.
 
-**Guild Dialog (UI + browse logic):**
+Grouping remains the source for thematic bucket indices, multi-background indices, and `clear_selected_outside_thematic_bucket`. Browse composes grouping into ordered row lists; it does not mutate player selection.
 
-- `app/dialogs/guild_dialog.rs` — modes `PickBackground` / `DrillGuild`; `rebuild_drill_rows` builds `DrillRow::Banner | Toggle { definition_index }`
-- Thematic drill: bucket playable indices + multi indices with banner separators
-- Multi-only drill: `visible_indices_multi_drill()` filtered
-- `app/mod.rs` — opens dialog with catalog entries, applies keystrokes, persists on close
-- `ui/mod.rs` — `GuildDialogPresentation` view models for ratatui render
-
-**Friction:**
-
-- `DrillRow` and `rebuild_drill_rows` encode catalog UX rules duplicating grouping knowledge
-- Banner strings ("Nothing implemented yet…", "Multi-background guilds") live in dialog
-- `THEMES_UX_ORDER` indexed by cursor in dialog — coupling UX order to browse state
-- Tests in `guild_dialog.rs` likely cover drill rows — grep if implementing
-
-## Solution (proposed direction)
-
-Deepen Guild Catalog (or a `catalog/browse.rs` submodule) with an interface that returns browse/drill **structure** — ordered list of rows (banner, toggle at definition index, thematic picker labels) — given catalog entries + active thematic index. Guild Dialog becomes a shallow adapter: keystrokes mutate selection state, call catalog for row model, render view model.
-
-Grilling should decide: does browse logic belong in Guild Catalog module or adjacent `guilds/grouping`?
+Ship now as one focused slice. If extraction surfaces genuine selection or persistence bugs, fix them in follow-on commits within the same pull request (separate commits per concern).
 
 ## User Stories
 
-1. As a player, I want to pick my thematic background and toggle playable guilds in a drill list, so that my saved guild set matches my character.
-2. As a player, I want multi-background guilds listed separately, so that I can enable them across themes.
-3. As a maintainer adding a playable guild, I want drill rows to appear automatically from catalog grouping, so that I do not edit dialog banner logic.
-4. As a maintainer, I want thematic bucket rules (mutual exclusion on save) defined once, so that dialog and `GuildSelection` stay aligned.
-5. As a test author, I want to test browse row generation without simulating key events, so that catalog UX rules have locality.
-6. As a maintainer, I want unimplemented thematic groups to show a clear empty state, so that players are not confused — wording may stay in dialog or move to catalog.
+1. As a player, I want to pick my thematic background from a fixed ordered list, so that my saved primary background matches my character concept.
+2. As a player, I want to open a drill list for my chosen thematic background, so that I can toggle playable guilds in that bucket.
+3. As a player, I want multi-background guilds listed in thematic drills when applicable, so that I can enable them across themes.
+4. As a player, I want a dedicated multi-background drill entry, so that I can browse multi guilds without picking a thematic background first.
+5. As a player, I want unimplemented thematic groups to show a clear empty state, so that I am not confused about why no guilds appear.
+6. As a player, I want thematic-only empty buckets to explain that no playable guild exists in that group yet while still showing multi-background guilds when available, so that the drill layout matches expectations.
+7. As a player who changes thematic primary, I want guilds outside the new bucket cleared from selection, so that saved preferences stay mutually consistent with thematic rules.
+8. As a player, I want mount, sabre weapon, and Riftwalker entity inputs to behave as today, so that guild-specific configuration is unchanged by this refactor.
+9. As a maintainer adding a playable guild, I want drill rows to appear automatically from catalog grouping, so that I do not edit dialog banner logic.
+10. As a maintainer changing thematic UX order, I want one browse module to update, so that picker labels and drill structure stay aligned.
+11. As a maintainer, I want thematic bucket indices and mutual-exclusion clearing rules defined in grouping, not duplicated in dialog, so that catalog data and dialog behavior stay aligned.
+12. As a maintainer, I want empty-state banner copy colocated with row-ordering logic, so that messaging changes do not require dialog edits.
+13. As a test author, I want to test browse label and drill row generation without simulating key events, so that catalog UX rules have a single test home.
+14. As a test author, I want dialog tests to remain focused on cursor, focus, and keystroke behavior, so that interaction regressions are caught without duplicating row-structure coverage.
+15. As a maintainer, I want toggle definition indices in drill rows always within the playable entry list length, so that out-of-range indices never reach the UI.
+16. As a maintainer reviewing the pull request, I want browse extraction in a dedicated refactor commit separate from any discovered fixes, so that the structural change is easy to review and revert.
+17. As a maintainer, I want domain context updated to record browse ownership, so that future readers know where catalog topology UX lives.
 
-## Open questions (for grilling)
+## Implementation Decisions
 
-1. **Ownership:** `GuildCatalog` vs. `guilds/grouping` vs. new `guild_browse` module — where does the seam live?
-2. **Row model:** Shared type between dialog and catalog, or dialog-specific VM built from catalog DTO?
-3. **Empty states:** Are banner messages catalog responsibility or presentation (dialog/UI)?
-4. **Mount/sabre/riftwalker inputs:** Stay in dialog only — confirm out of scope for catalog browse extraction?
-5. **Selection clearing:** `clear_selected_outside_thematic_bucket` — call from catalog browse interface or remain dialog action on background change?
-6. **Speculative threshold:** Is ~1000-line dialog worth splitting now, or wait until next guild UX change?
+### Module ownership
 
-## Implementation Decisions (tentative)
+- Add a **Guild Catalog browse** submodule under Guild Catalog.
+- Browse owns: PickBackground label list (`browse_labels`), drill source discriminant (`GuildDrillSource`: thematic index or multi-only), drill row type (`GuildBrowseRow`), and drill row generation (`drill_rows`).
+- `guilds/grouping` retains thematic bucket indices, multi-background indices, and `clear_selected_outside_thematic_bucket`. Browse reads grouping; it does not own bucket membership rules.
+- Guild Dialog retains focus, cursors, keystroke handling, drill/b browse mode state, cached drill row list for cursor indexing, and all guild-specific text inputs (Tzarakk mount, sabre weapon, Riftwalker entities) including optional-input visibility.
 
-- Introduce `GuildBrowsePlan` (name TBD): `browse_labels()`, `drill_rows(source: Thematic | MultiOnly) -> Vec<DrillRowKind>`.
-- `DrillRowKind` carries `definition_index` for toggles; banners are data or enum variants.
-- Guild Dialog `rebuild_drill_rows` delegates to catalog/browse module; keeps focus/cursor/input state.
-- `visible_indices_multi_drill` and thematic bucket indices remain sourced from `guild_grouping()`.
-- No change to persistence format or `GuildSelection` semantics in first slice.
+### Browse API
+
+- **`browse_labels()`** — returns ordered PickBackground labels (five thematic rows plus multi-background entry). Dialog stops assembling labels from grouping constants at presentation time.
+- **`GuildDrillSource`** — `Thematic(usize)` for a thematic bucket index (0–4) or `MultiOnly` for the multi-background drill. Lives in browse; dialog imports it.
+- **`GuildBrowseRow`** — structural DTO:
+  - `Banner(&'static str)` — includes empty-state and section-header copy; strings owned by browse
+  - `Toggle { definition_index }` — index into playable catalog entries
+- **`drill_rows(source, entry_count)`** — returns ordered `GuildBrowseRow` list for the given drill source. Filters toggle indices to `definition_index < entry_count` (preserves existing defensive guard). Read-only; no selection input.
+
+Row ordering and banner rules match current dialog behavior for thematic drills (thematic toggles, optional multi section header, multi toggles) and multi-only drills (empty banner when none implemented, otherwise multi toggles).
+
+### Dialog adaptation
+
+- Replace inline `rebuild_drill_rows` body with a call to `drill_rows`, passing `self.entries.len()` as `entry_count`.
+- Replace inline browse label assembly with `browse_labels()`.
+- Dialog continues calling `clear_selected_outside_thematic_bucket` directly on thematic primary change and at dialog construction — not routed through browse.
+- Dialog maps `GuildBrowseRow::Toggle` to UI view model guild lines by resolving `definition_index` against entries and `selected[]`; banners pass through as-is.
+
+### Test seam
+
+- **Primary seam:** Guild Catalog browse module — unit-test `browse_labels` and `drill_rows` directly. This is the highest seam that covers all browse topology rules in one place.
+- Dialog remains the seam for interaction tests (cursor movement, focus routing, text-input keystrokes). Do not duplicate row-structure assertions through dialog integration unless a regression requires it.
+
+### Behavior fixes (in scope if discovered)
+
+- Minor player-visible fixes allowed during extraction: banner wording improvements, edge-case selection bugs.
+- `GuildSelection` output fixes allowed if a genuine bug is found.
+- TOML migration allowed if a persistence bug requires it.
+- Fixes ship in separate commits after the browse extraction commit, within the same pull request.
+
+### Delivery
+
+- One pull request.
+- Commit order: `refactor:` browse extraction first; then `fix:` / `migrate:` commits only if issues are discovered during implementation.
 
 ## Testing Decisions
 
-- **Good tests:** Thematic drill with only multi guilds shows expected banners; multi-only drill empty when none implemented; indices always within entries length.
-- **Prior art:** `guild_dialog.rs` tests; `guilds/grouping.rs` tests if any; `catalog/selection.rs` tests.
-- **Avoid:** Full TUI keystroke integration unless regressions require it.
+### What makes a good test
+
+- Test browse **outputs** (label order, row sequence, banner text, toggle indices) given drill source and entry count — not dialog keystrokes or ratatui rendering.
+- Assert all toggle `definition_index` values are `< entry_count`.
+- Assert empty thematic drill (no thematic playables, no multis) yields the full empty banner.
+- Assert thematic drill with no thematic playables but multis yields the partial-empty banner plus multi section.
+- Assert multi-only drill with no implemented multis yields the multi empty banner.
+- Dialog tests: keep existing interaction coverage; do not add redundant drill-row structure tests once browse unit tests exist.
+
+### Prior art
+
+- Guild Dialog interaction tests (cursor, focus, mount/tab routing).
+- Guild grouping tests (bucket classification, multi indices).
+- Guild catalog selection tests (thematic index helpers).
 
 ## Out of Scope
 
-- Changing thematic group membership rules or adding guilds to catalog.
-- Guild Dialog text inputs (Tzarakk mount, sabre weapon, Riftwalker entity labels).
+- Changing thematic group membership rules or adding guilds to the catalog.
+- Guild Dialog text-input behavior changes beyond bug fixes discovered during extraction.
+- Optional-input visibility logic moving into browse.
 - Settings dialog or generic commands dialog.
 - In-game guild command behavior.
+- Moving `clear_selected_outside_thematic_bucket` into browse or selection modules (grouping keeps it; dialog keeps calling it).
 
 ## Further Notes
 
-- Recommendation strength: **Speculative** — real duplication, but dialog works; payoff on next catalog UX change.
-- Related deepen: `088ec17 Deepen guild catalog selection`.
-- `CONTEXT.md` Guild Catalog section defines ownership — browse UX should not contradict selection persistence rules.
+- `CONTEXT.md` Guild Catalog section updated during grilling to record browse ownership, row DTO shape, test placement, and fix/migration scope.
+- Related deepen: guild catalog selection semantics (`088ec17`).
+- No ADR required unless implementation discovers a hard-to-reverse trade-off not captured here.
