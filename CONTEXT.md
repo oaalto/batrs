@@ -28,7 +28,7 @@ The Player Profile owns the interpretation of persisted player settings into run
 
 ## Command Dispatch
 
-Command Dispatch is the runtime interpretation of a command input line into client effects. These effects include sending text to BatMUD, opening dialogs, emitting output, applying automation actions, toggling logging, and quitting.
+Command Dispatch is the runtime interpretation of a command input line into client effects. These effects include sending text to BatMUD, opening dialogs, emitting output, applying automation actions, toggling logging, terminal redraw, and quitting.
 
 Command Dispatch returns effects for the application to apply. It does not own the concrete adapters that send text, render dialogs, write logs, or persist state.
 
@@ -45,6 +45,12 @@ If the Connect Command cannot open a fresh BatMUD connection, the client remains
 The Connect Command is consumed by Command Dispatch as a client command and is never sent to BatMUD as game input.
 
 Only one Connect Command attempt may be active at a time; repeated requests report that reconnect is already in progress.
+
+The Clear Command is the client-only slash command `/clear` that triggers a terminal redraw from in-memory UI state. It clears the terminal surface and immediately repaints output scrollback, HUD rows, and the input line from current application state without erasing scrollback or resetting session data.
+
+The Clear Command has no login gate, is available before and after login, and is never sent to BatMUD as game input.
+
+The Clear Command is distinct from Session Lifecycle output scrollback clear on character change after reconnect; a redraw fixes display artifacts without mutating output buffers or session state.
 
 ## Session Lifecycle
 

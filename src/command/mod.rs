@@ -35,10 +35,14 @@ static BUILTINS: LazyLock<HashMap<String, BuiltinCommand>> = LazyLock::new(|| {
             "/raw_logs".to_string(),
             BuiltinCommand::new(builtin_toggle_raw_logs, false),
         ),
+        (
+            "/clear".to_string(),
+            BuiltinCommand::new(builtin_clear, false),
+        ),
     ])
 });
 
-const HELP_LINES: [&str; 8] = [
+const HELP_LINES: [&str; 9] = [
     "Client slash commands:",
     "/help - Shows client slash commands.",
     "/quit - Closes the client.",
@@ -47,6 +51,7 @@ const HELP_LINES: [&str; 8] = [
     "/generic - Opens generic shortcut groups.",
     "/settings - Opens the settings editor.",
     "/raw_logs - Toggles raw log capture.",
+    "/clear - Redraws the display from memory (fixes screen artifacts).",
 ];
 
 pub fn dispatch(
@@ -129,6 +134,7 @@ pub enum CommandEffect {
     Reconnect,
     ToggleRawLogs,
     Quit,
+    Redraw,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -284,6 +290,10 @@ fn builtin_toggle_raw_logs(_data: &ParsedCommand) -> Vec<CommandEffect> {
     vec![CommandEffect::ToggleRawLogs]
 }
 
+fn builtin_clear(_data: &ParsedCommand) -> Vec<CommandEffect> {
+    vec![CommandEffect::Redraw]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -394,6 +404,34 @@ mod tests {
         assert!(lines.contains(&"/generic - Opens generic shortcut groups."));
         assert!(lines.contains(&"/settings - Opens the settings editor."));
         assert!(lines.contains(&"/raw_logs - Toggles raw log capture."));
+        assert!(
+            lines.contains(&"/clear - Redraws the display from memory (fixes screen artifacts).")
+        );
+    }
+
+    #[test]
+    fn dispatch_handles_clear_before_login() {
+        let effects = dispatch_line("/clear", false, &[]);
+
+        assert!(matches!(effects.as_slice(), [CommandEffect::Redraw]));
+        assert!(send_effects(&effects).is_empty());
+    }
+
+    #[test]
+    fn dispatch_handles_clear_after_login() {
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
+        let effects = dispatch_line("/clear", true, &guilds);
+
+        assert!(matches!(effects.as_slice(), [CommandEffect::Redraw]));
+        assert!(send_effects(&effects).is_empty());
+    }
+
+    #[test]
+    fn dispatch_handles_clear_with_extra_args() {
+        let effects = dispatch_line("/clear foo", false, &[]);
+
+        assert!(matches!(effects.as_slice(), [CommandEffect::Redraw]));
+        assert!(send_effects(&effects).is_empty());
     }
 
     #[test]

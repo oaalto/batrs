@@ -7,7 +7,7 @@ While you are **logged in**, the client looks at what you typed **before** sendi
 
 ## Order of handling
 
-1. **Client `/` commands** — `/help`, `/quit`, `/connect`, `/guilds`, `/generic`, `/settings`, `/raw_logs`
+1. **Client `/` commands** — `/help`, `/quit`, `/connect`, `/clear`, `/guilds`, `/generic`, `/settings`, `/raw_logs`
 2. **Guild shortcuts** — depend on which guilds you enabled; if two guilds use the same shortcut, the **first** one in your list wins
 3. **Generic shortcuts** — cures, navigator, etc., unless you turned them off in settings
 
@@ -34,6 +34,7 @@ flowchart LR
 | `/help` | no | Shows client slash commands |
 | `/quit` | no | Closes the client |
 | `/connect` | no | Starts a fresh BatMUD connection |
+| `/clear` | no | Redraws the display from memory (fixes screen artifacts) |
 | `/guilds` | yes | Opens the guild picker |
 | `/generic` | yes | Opens generic shortcut groups |
 | `/settings` | yes | Opens the settings editor |

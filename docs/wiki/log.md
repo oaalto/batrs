@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-07-24] update | Clear Command documentation sweep (ticket 02)
+
+- Updated: [Command Dispatch](concepts/command-dispatch.md)
+- Sources: `CONTEXT.md`, `docs/manual/commands.md`, `docs/features/clear-command/prd.md`, `src/command/mod.rs`
+- Notes: Documented `/clear` as client-only terminal redraw (not output-buffer wipe); aligned domain vocabulary, player manual, and wiki command-dispatch concept with PRD semantics.
+
 ## [2026-07-23] update | Guild Catalog browse extraction (ticket 03)
 
 - Updated: [Guild Catalog](concepts/guild-catalog.md)

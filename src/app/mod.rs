@@ -93,6 +93,7 @@ pub struct BatApp {
     selected_guilds: Vec<Box<dyn Guild>>,
     guild_selection: GuildSelection,
     should_quit: bool,
+    pending_terminal_clear: bool,
     automation: Automation,
     config_manager: Option<ConfigManager>,
     user_config_loaded: bool,
@@ -139,6 +140,7 @@ impl BatApp {
             selected_guilds: Vec::new(),
             guild_selection: GuildSelection::default(),
             should_quit: false,
+            pending_terminal_clear: false,
             automation: Automation::new(),
             config_manager,
             user_config_loaded: false,
@@ -265,6 +267,12 @@ impl BatApp {
 
     pub fn should_quit(&self) -> bool {
         self.should_quit
+    }
+
+    pub fn take_pending_terminal_clear(&mut self) -> bool {
+        let pending = self.pending_terminal_clear;
+        self.pending_terminal_clear = false;
+        pending
     }
 
     pub fn handle_key_event(&mut self, event: KeyEvent) {
@@ -506,6 +514,7 @@ impl BatApp {
                 command::CommandEffect::Reconnect => self.start_reconnect(),
                 command::CommandEffect::ToggleRawLogs => self.toggle_raw_logs(),
                 command::CommandEffect::Quit => self.should_quit = true,
+                command::CommandEffect::Redraw => self.pending_terminal_clear = true,
             }
         }
         sent_command
@@ -1028,6 +1037,7 @@ mod tests {
             selected_guilds: Vec::new(),
             guild_selection: GuildSelection::default(),
             should_quit: false,
+            pending_terminal_clear: false,
             automation: Automation::new(),
             config_manager: None,
             user_config_loaded: true,
@@ -1738,6 +1748,27 @@ mod tests {
         app.apply_command_effects(vec![command::CommandEffect::Quit]);
 
         assert!(app.should_quit());
+    }
+
+    #[test]
+    fn command_effect_redraw_sets_pending_terminal_clear_without_mutating_output_or_scrollback() {
+        let (mut app, _command_receiver) = test_app();
+        for index in 0..100 {
+            app.output
+                .append_lines(vec![StyledLine::new(&format!("line {index}"))]);
+        }
+        app.scrollback.update_viewport(100, 20);
+        app.scrollback.page_up();
+        let line_count_before = app.output.plain_lines().len();
+        let scroll_offset_before = app.scrollback.offset();
+
+        let followed = app.apply_command_effects(vec![command::CommandEffect::Redraw]);
+
+        assert!(!followed);
+        assert!(app.take_pending_terminal_clear());
+        assert!(!app.take_pending_terminal_clear());
+        assert_eq!(app.output.plain_lines().len(), line_count_before);
+        assert_eq!(app.scrollback.offset(), scroll_offset_before);
     }
 
     #[test]

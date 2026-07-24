@@ -85,6 +85,9 @@ fn run_app(
     let mut last_tick = Instant::now();
 
     loop {
+        if app.take_pending_terminal_clear() {
+            terminal.clear()?;
+        }
         terminal.draw(|frame| app.draw(frame))?;
 
         let timeout = tick_rate
