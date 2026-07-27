@@ -14,16 +14,16 @@ None — can start immediately.
 
 ## Status
 
-ready-for-agent
+done
 
 ## Acceptance criteria
 
-- [ ] Top-level Combat Awareness module owns probe phase machine, snapshot parsing, canonical `NOT_IN_COMBAT_LINE`, round-header matcher, and `CombatAwarenessEffect` (`RoundStarted`, `CombatEnded`, `SendProbe`, `SendShortScore`).
-- [ ] `handle_incoming_line` returns line disposition (visible / gagged) plus emitted effects; round headers and combat-end lines are detected through CA, not duplicate trigger matchers.
-- [ ] Application fan-out on `RoundStarted`: stats `StartCombatRound`, send `@sc`, send `#scan all`, `in_battle = true`.
-- [ ] Application fan-out on `CombatEnded`: stats `EndCombat`, clear combat/snapshot state, `in_battle = false` — once per line, idempotent.
-- [ ] Probe cadence preserved: initial probe on round start; every second non-empty user game command while idle and combat-active.
-- [ ] Internal probe lines (echo, captured rows, internal combat-end) stay gagged from scrollback and automation input.
-- [ ] Combat-round trigger module deleted; common trigger combat-lifecycle `SetFlag` rules and round `@sc` rule removed.
-- [ ] Monk kata interrupt imports canonical combat-end matcher from Combat Awareness (no duplicate literal/regex).
-- [ ] Existing combat scan unit tests and application combat integration tests pass (`cargo test`).
+- [x] Top-level Combat Awareness module owns probe phase machine, snapshot parsing, canonical `NOT_IN_COMBAT_LINE`, round-header matcher, and `CombatAwarenessEffect` (`RoundStarted`, `CombatEnded`, `SendProbe`, `SendShortScore`).
+- [x] `handle_incoming_line` returns line disposition (visible / gagged) plus emitted effects; round headers and combat-end lines are detected through CA, not duplicate trigger matchers.
+- [x] Application fan-out on `RoundStarted`: stats `StartCombatRound`, send `@sc`, send `#scan all`, `in_battle = true`.
+- [x] Application fan-out on `CombatEnded`: stats `EndCombat`, clear combat/snapshot state, `in_battle = false` — once per line, idempotent.
+- [x] Probe cadence preserved: initial probe on round start; every second non-empty user game command while idle and combat-active.
+- [x] Internal probe lines (echo, captured rows, internal combat-end) stay gagged from scrollback and automation input.
+- [x] Combat-round trigger module deleted; common trigger combat-lifecycle `SetFlag` rules and round `@sc` rule removed.
+- [x] Monk kata interrupt imports canonical combat-end matcher from Combat Awareness (no duplicate literal/regex).
+- [x] Existing combat scan unit tests and application combat integration tests pass (`cargo test`).

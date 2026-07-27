@@ -14,12 +14,12 @@ Move combat status presentation out of Combat Awareness into the UI layer. Comba
 
 ## Status
 
-ready-for-agent
+done
 
 ## Acceptance criteria
 
-- [ ] Combat Awareness public API exposes snapshot rows only; no ratatui types in the domain module.
-- [ ] UI module renders combat status lines from snapshot data (condition coloring, width wrapping).
-- [ ] Application `draw` uses the UI renderer; combat HUD appearance matches pre-ticket behavior.
-- [ ] Rendering tests live at the UI layer or adapt to snapshot-in → lines-out; Combat Awareness tests cover data/effects only.
-- [ ] `cargo test` passes.
+- [x] Combat Awareness public API exposes snapshot rows only; no ratatui types in the domain module.
+- [x] UI module renders combat status lines from snapshot data (condition coloring, width wrapping).
+- [x] Application `draw` uses the UI renderer; combat HUD appearance matches pre-ticket behavior.
+- [x] Rendering tests live at the UI layer or adapt to snapshot-in → lines-out; Combat Awareness tests cover data/effects only.
+- [x] `cargo test` passes.

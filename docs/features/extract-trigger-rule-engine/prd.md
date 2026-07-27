@@ -2,7 +2,7 @@
 
 ## Status
 
-ready-for-agent — grilled 2026-07-27
+done
 
 ## Problem Statement
 
@@ -158,7 +158,7 @@ Test at the **highest seam that proves the behavior**, preferring existing patte
 
 ## Further Notes
 
-- **Label:** `ready-for-agent`
+- **Label:** `done`
 - Grilling decisions Q1–Q10 locked 2026-07-27; this spec supersedes the pre-grill PRD architecture (which proposed keeping companion rules in common/rule_engine and preserving all behavior).
 - Related: Animist guild already owns soul-companion status/training/sword-hit triggers; companion combat hiliting joins that set.
 - `code-hygiene-cleanup` slice `05-companion-cache-unwrap` may overlap with companion cache relocation — implementer should reconcile if both are pending.

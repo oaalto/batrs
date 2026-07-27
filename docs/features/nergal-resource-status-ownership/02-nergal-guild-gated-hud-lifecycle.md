@@ -14,17 +14,15 @@ Complete the grilled Nergal Resource Status ownership: HUD shows only when Nerga
 
 ## Acceptance criteria
 
-- [ ] Nergal HUD rows shown only when `GuildKey::Nergal` is in guild selection — no fallback on stored minion or resource status presence
-- [ ] `clear_nergal_resource_status()` added on stats; called with `clear_nergal_minions()` when guild selection no longer includes Nergal
-- [ ] Clear-on-deselect uses direct stats method calls in guild selection application — no new clear stats effect variant
-- [ ] Integration test: Nergal selected → resource line gagged, stats updated, HUD renders status
-- [ ] Integration test: Nergal not selected → resource line visible in output, stats unchanged
-- [ ] Integration test: deselect Nergal after populated resource status and minions → both cleared, HUD hidden
-- [ ] Engineering wiki concept page and path-map updated to reflect guild-owned parsing (no core trigger source)
-- [ ] `cargo test` passes
+- [x] Nergal HUD rows shown only when `GuildKey::Nergal` is in guild selection — no fallback on stored minion or resource status presence
+- [x] `clear_nergal_resource_status()` added on stats; called with `clear_nergal_minions()` when guild selection no longer includes Nergal
+- [x] Clear-on-deselect uses direct stats method calls in guild selection application — no new clear stats effect variant
+- [x] Integration test: Nergal selected → resource line gagged, stats updated, HUD renders status
+- [x] Integration test: Nergal not selected → resource line visible in output, stats unchanged
+- [x] Integration test: deselect Nergal after populated resource status and minions → both cleared, HUD hidden
+- [x] Engineering wiki concept page and path-map updated to reflect guild-owned parsing (no core trigger source)
+- [x] `cargo test` passes
 
 ## Blocked by
 
 - 01 — Remove core Nergal resource status trigger
-
-**Status:** ready-for-agent

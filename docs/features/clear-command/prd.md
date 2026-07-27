@@ -2,7 +2,7 @@
 
 ## Status
 
-ready-for-agent — grilled 2026-07-24
+done
 
 ## Problem Statement
 
@@ -108,7 +108,7 @@ Test observable contracts at module boundaries: dispatch input → effect list; 
 
 ## Further Notes
 
-- **Label:** `ready-for-agent`
+- **Label:** `done`
 - Grilling corrected an initial misread: "clear the screen" is repaint-only, not `output.clear()`.
 - Implementation is intentionally minimal: one new `CommandEffect` variant, one boolean flag, one `terminal.clear()` call site in the main loop — reuses existing dispatch → apply → draw architecture.
 - If display corruption inside modal dialogs becomes a reported issue, a follow-up can add a global redraw chord without changing Clear Command semantics.

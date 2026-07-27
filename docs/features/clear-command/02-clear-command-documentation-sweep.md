@@ -10,13 +10,13 @@ Domain vocabulary and player/agent documentation match the shipped Clear Command
 
 ## Acceptance criteria
 
-- [ ] `CONTEXT.md` defines **Clear Command** under Command Dispatch (redraw semantics, no login gate, never sent to BatMUD, distinct from Connect Command / Session Lifecycle output clear).
-- [ ] Player manual client-command list includes `/clear` with redraw semantics consistent with `/help`.
-- [ ] Engineering wiki command-dispatch concept lists `/clear` among builtins and states redraw-not-wipe semantics.
-- [ ] Wiki log entry recorded per project documentation rules if wiki content changed.
+- [x] `CONTEXT.md` defines **Clear Command** under Command Dispatch (redraw semantics, no login gate, never sent to BatMUD, distinct from Connect Command / Session Lifecycle output clear).
+- [x] Player manual client-command list includes `/clear` with redraw semantics consistent with `/help`.
+- [x] Engineering wiki command-dispatch concept lists `/clear` among builtins and states redraw-not-wipe semantics.
+- [x] Wiki log entry recorded per project documentation rules if wiki content changed.
 
 ## Blocked by
 
 - [01 — Clear Command end-to-end redraw](01-clear-command-end-to-end-redraw.md)
 
-**Status:** ready-for-agent
+**Status:** done

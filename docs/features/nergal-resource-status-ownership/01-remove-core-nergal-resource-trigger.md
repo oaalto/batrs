@@ -14,15 +14,13 @@ Eliminate the duplicate global parser for Nergal Resource Status so only the Ner
 
 ## Acceptance criteria
 
-- [ ] Standalone core Nergal resource status trigger module deleted; removed from global core trigger registration
-- [ ] Nergal guild trigger remains sole parser for the resource status line when Nergal is in guild selection
-- [ ] With Nergal selected: resource status line still gagged and `SetNergalResourceStatus` applied (guild trigger path)
-- [ ] With Nergal selected: no duplicate stats effect from a second parser on the same line
-- [ ] Unit tests from deleted core trigger migrated into Nergal guild trigger tests where not already covered (gag, effect values, strict field order)
-- [ ] `cargo test` passes
+- [x] Standalone core Nergal resource status trigger module deleted; removed from global core trigger registration
+- [x] Nergal guild trigger remains sole parser for the resource status line when Nergal is in guild selection
+- [x] With Nergal selected: resource status line still gagged and `SetNergalResourceStatus` applied (guild trigger path)
+- [x] With Nergal selected: no duplicate stats effect from a second parser on the same line
+- [x] Unit tests from deleted core trigger migrated into Nergal guild trigger tests where not already covered (gag, effect values, strict field order)
+- [x] `cargo test` passes
 
 ## Blocked by
 
 None — can start immediately.
-
-**Status:** ready-for-agent

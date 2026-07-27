@@ -2,7 +2,7 @@
 
 ## Status
 
-ready-for-agent — grilled 2026-07-23
+done
 
 ## Problem Statement
 

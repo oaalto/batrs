@@ -22,5 +22,5 @@ skipped — no selection/persistence bugs found during ticket 01 wiring.
 - [ ] Fixes land in commits separate from the ticket 01 refactor commit
 - [ ] Banner wording-only tweaks, if any, are intentional and covered by browse or dialog tests as appropriate
 - [ ] TOML migration included only when a genuine persistence bug requires it
-- [ ] Ticket marked skipped with a one-line note if no bugs were found during 01
+- [x] Ticket marked skipped with a one-line note if no bugs were found during 01
 - [ ] `cargo test` passes

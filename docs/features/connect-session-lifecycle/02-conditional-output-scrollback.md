@@ -10,15 +10,15 @@ After `/connect`, output and scrollback are preserved through the reconnect gap.
 
 ## Acceptance criteria
 
-- [ ] Pre-connect login name is snapshotted before session reset on connect.
-- [ ] Reconnecting as the same character preserves output buffer and scrollback position through login.
-- [ ] Reconnecting as a different character clears output and resets scrollback on login.
-- [ ] Connect before any login clears output on first successful login.
-- [ ] Application integration tests cover same-character, different-character, and pre-login connect cases.
-- [ ] Ticket 01 Session Lifecycle wiring remains intact; no regression to reconnect parity tests.
+- [x] Pre-connect login name is snapshotted before session reset on connect.
+- [x] Reconnecting as the same character preserves output buffer and scrollback position through login.
+- [x] Reconnecting as a different character clears output and resets scrollback on login.
+- [x] Connect before any login clears output on first successful login.
+- [x] Application integration tests cover same-character, different-character, and pre-login connect cases.
+- [x] Ticket 01 Session Lifecycle wiring remains intact; no regression to reconnect parity tests.
 
 ## Blocked by
 
 - 01 — Extract Session Lifecycle with reconnect parity
 
-**Status:** ready-for-agent
+**Status:** done

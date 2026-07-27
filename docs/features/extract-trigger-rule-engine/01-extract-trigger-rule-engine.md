@@ -20,22 +20,22 @@ None — can start immediately.
 
 ## Status
 
-ready-for-agent
+done
 
 ## Acceptance criteria
 
-- [ ] **rule_engine** module exists with `Rule`, `RuleMatcher`, `RuleCondition`, `RuleAction`, `HiliteTarget`, `MatchData`, matcher/condition/apply impls, capture hilite helper, builder helpers (`tf_hilite`, `tf_echo`, `tf_style`, `push_rule`), and shared **`apply_rules(rules, plain_line, facts, output)`**
-- [ ] **money_summary** module owns `CoinType` and `push_money_summary`; rule_engine imports it for `MoneySummary` action application
-- [ ] **common** retains `RULES` static and registration; `trigger()` calls `apply_rules` over `RULES` only — no companion rule chain
-- [ ] Companion rule builder, cache, and regex helpers removed from common; live in Animist **companion_combat_rules** module
-- [ ] **`soul_companion_combat_hilite_trigger`** added to Animist `get_triggers()`; reads `facts.player_name()`, resolves cached `build_companion_rules`, calls `apply_rules`
-- [ ] No per-trigger guild check inside the companion hilite trigger — gating via `process()` guild collection only
-- [ ] **Behavior change verified:** non-Animist profile with `player_name` set does not get companion combat hiliting through `process()`
-- [ ] **Behavior preserved:** Animist-active profile with matching `player_name` gets same companion hilite colors/capture groups as before
-- [ ] All non-companion `RULES` behavior unchanged; existing common integration tests pass
-- [ ] Companion hilite tests moved from common to Animist triggers test module (direct trigger fn calls, same assertions)
-- [ ] rule_engine unit tests: matcher match/no-match, condition gating, hilite/echo/send actions without `LazyLock` or full `RULES`
-- [ ] money_summary unit tests: coin list parsing and summary line output
-- [ ] One `process()` integration test in triggers orchestrator: companion line + `player_name` + guild list without Animist → no companion hilite effects
-- [ ] `mod rule_engine` and `mod money_summary` registered in triggers package; Animist `mod companion_combat_rules` registered
-- [ ] `cargo test --all-targets --all-features` passes; workflow gates (format, clippy) pass
+- [x] **rule_engine** module exists with `Rule`, `RuleMatcher`, `RuleCondition`, `RuleAction`, `HiliteTarget`, `MatchData`, matcher/condition/apply impls, capture hilite helper, builder helpers (`tf_hilite`, `tf_echo`, `tf_style`, `push_rule`), and shared **`apply_rules(rules, plain_line, facts, output)`**
+- [x] **money_summary** module owns `CoinType` and `push_money_summary`; rule_engine imports it for `MoneySummary` action application
+- [x] **common** retains `RULES` static and registration; `trigger()` calls `apply_rules` over `RULES` only — no companion rule chain
+- [x] Companion rule builder, cache, and regex helpers removed from common; live in Animist **companion_combat_rules** module
+- [x] **`soul_companion_combat_hilite_trigger`** added to Animist `get_triggers()`; reads `facts.player_name()`, resolves cached `build_companion_rules`, calls `apply_rules`
+- [x] No per-trigger guild check inside the companion hilite trigger — gating via `process()` guild collection only
+- [x] **Behavior change verified:** non-Animist profile with `player_name` set does not get companion combat hiliting through `process()`
+- [x] **Behavior preserved:** Animist-active profile with matching `player_name` gets same companion hilite colors/capture groups as before
+- [x] All non-companion `RULES` behavior unchanged; existing common integration tests pass
+- [x] Companion hilite tests moved from common to Animist triggers test module (direct trigger fn calls, same assertions)
+- [x] rule_engine unit tests: matcher match/no-match, condition gating, hilite/echo/send actions without `LazyLock` or full `RULES`
+- [x] money_summary unit tests: coin list parsing and summary line output
+- [x] One `process()` integration test in triggers orchestrator: companion line + `player_name` + guild list without Animist → no companion hilite effects
+- [x] `mod rule_engine` and `mod money_summary` registered in triggers package; Animist `mod companion_combat_rules` registered
+- [x] `cargo test --all-targets --all-features` passes; workflow gates (format, clippy) pass

@@ -14,17 +14,17 @@ Add registry completeness test (all nine keys, unique slots, normalized output) 
 
 ## Acceptance criteria
 
-- [ ] `is_lich` is a registry row with `sparse_when_default = true` and `automation_export = Flag`
-- [ ] `is_lich` absent from player file → runtime `false`, not written to `extra`
-- [ ] `is_lich = "yes"` / `"true"` / `"1"` → runtime `true`, persisted in `extra`
-- [ ] `is_lich = "false"` (explicit) → dropped from `extra` on normalize; `changed = true`
-- [ ] Registry completeness test covers all nine defs with unique `SettingSlot` mapping
-- [ ] Unknown keys still preserved in `extra` through round-trip
-- [ ] Legacy `is_lich` special-case code paths in Player Profile are removed
-- [ ] All `player_profile` and relevant `config` tests pass
+- [x] `is_lich` is a registry row with `sparse_when_default = true` and `automation_export = Flag`
+- [x] `is_lich` absent from player file → runtime `false`, not written to `extra`
+- [x] `is_lich = "yes"` / `"true"` / `"1"` → runtime `true`, persisted in `extra`
+- [x] `is_lich = "false"` (explicit) → dropped from `extra` on normalize; `changed = true`
+- [x] Registry completeness test covers all nine defs with unique `SettingSlot` mapping
+- [x] Unknown keys still preserved in `extra` through round-trip
+- [x] Legacy `is_lich` special-case code paths in Player Profile are removed
+- [x] All `player_profile` and relevant `config` tests pass
 
 ## Blocked by
 
 - [01 — Unified registry for string settings](01-unified-registry-string-settings.md)
 
-**Status:** ready-for-agent
+**Status:** done

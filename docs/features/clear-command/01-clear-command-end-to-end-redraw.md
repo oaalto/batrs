@@ -12,17 +12,17 @@ Command Dispatch emits a dedicated `Redraw` effect; the application shell sets a
 
 ## Acceptance criteria
 
-- [ ] `/clear` is registered as a builtin with no login gate; extra arguments are ignored.
-- [ ] `/clear` before login and after login dispatches to `[CommandEffect::Redraw]` only — never `Send`.
-- [ ] Applying `Redraw` sets a one-shot pending terminal-clear flag; output line count and scrollback offset are unchanged when output and a non-default scroll position are pre-seeded.
-- [ ] Main loop calls terminal clear when the flag is pending, then draws as today; flag is consumed (one-shot).
-- [ ] No client echo line is appended to output on `/clear`.
-- [ ] `/help` includes the agreed Clear Command one-liner.
-- [ ] Command Dispatch and BatApp unit tests cover dispatch and effect-application contracts.
-- [ ] `cargo test --all-targets --all-features` passes.
+- [x] `/clear` is registered as a builtin with no login gate; extra arguments are ignored.
+- [x] `/clear` before login and after login dispatches to `[CommandEffect::Redraw]` only — never `Send`.
+- [x] Applying `Redraw` sets a one-shot pending terminal-clear flag; output line count and scrollback offset are unchanged when output and a non-default scroll position are pre-seeded.
+- [x] Main loop calls terminal clear when the flag is pending, then draws as today; flag is consumed (one-shot).
+- [x] No client echo line is appended to output on `/clear`.
+- [x] `/help` includes the agreed Clear Command one-liner.
+- [x] Command Dispatch and BatApp unit tests cover dispatch and effect-application contracts.
+- [x] `cargo test --all-targets --all-features` passes.
 
 ## Blocked by
 
 None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done

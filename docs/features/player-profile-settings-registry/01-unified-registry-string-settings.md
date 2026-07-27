@@ -12,16 +12,16 @@ Hand-written key match arms and duplicate field lists for these settings are rem
 
 ## Acceptance criteria
 
-- [ ] Each string setting has one registry row with `kind`, `slot`, `persist`, `guild_dialog`, and `automation_export` metadata
-- [ ] `interpret_player_toml` and `settings_entries_for_editor` produce the same string-setting behavior as before
-- [ ] Unknown keys are preserved in `extra` through normalize round-trip
-- [ ] Empty riftwalker entity labels still normalize to `"entity"`
-- [ ] Automation vars for rig, mount, sabre, and riftwalker labels are built from registry metadata
-- [ ] Guild dialog defaults for mount, sabre, and riftwalker labels are built from `guild_dialog` flags (`rig` and `is_lich` excluded; `primary_background` still from guild selection)
-- [ ] All existing `player_profile` module tests pass
+- [x] Each string setting has one registry row with `kind`, `slot`, `persist`, `guild_dialog`, and `automation_export` metadata
+- [x] `interpret_player_toml` and `settings_entries_for_editor` produce the same string-setting behavior as before
+- [x] Unknown keys are preserved in `extra` through normalize round-trip
+- [x] Empty riftwalker entity labels still normalize to `"entity"`
+- [x] Automation vars for rig, mount, sabre, and riftwalker labels are built from registry metadata
+- [x] Guild dialog defaults for mount, sabre, and riftwalker labels are built from `guild_dialog` flags (`rig` and `is_lich` excluded; `primary_background` still from guild selection)
+- [x] All existing `player_profile` module tests pass
 
 ## Blocked by
 
 None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
