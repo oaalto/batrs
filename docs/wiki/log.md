@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-07-27] update | Configurable trigger chain
+
+- Updated: [Command Dispatch](concepts/command-dispatch.md), [Player Profile](concepts/player-profile.md)
+- Sources: `CONTEXT.md`, `src/command/mod.rs`, `src/triggers/mod.rs`, `src/player_profile.rs`, `docs/features/configurable-trigger-chain/prd.md`
+- Notes: Documented `/triggers`, `[triggers]` player profile section, fixed pipeline order, and in-session save semantics.
+
 ## [2026-07-27] skip | Extract trigger rule engine
 
 - Notes: Internal module extraction and Animist companion gating behavior change; no durable wiki concept updates required.

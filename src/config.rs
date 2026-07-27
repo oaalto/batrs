@@ -1,4 +1,5 @@
 use crate::player_profile::{self, PlayerRuntimeProfile};
+use crate::triggers::TriggerConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::env;
@@ -45,6 +46,8 @@ pub struct PlayerToml {
     pub settings: SettingsTable,
     #[serde(default)]
     pub generic_commands: GenericCommandsConfig,
+    #[serde(default, skip_serializing_if = "TriggerConfig::is_default")]
+    pub triggers: TriggerConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
@@ -293,6 +296,33 @@ impl ConfigManager {
         persist_player_to_path(path, player)
     }
 
+    pub fn save_trigger_config(&mut self, config: &TriggerConfig) -> io::Result<()> {
+        let Some(path) = self.user_config_path.as_ref() else {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "user config path not set",
+            ));
+        };
+        let Some(player) = self.player_config.as_mut() else {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "player config not loaded",
+            ));
+        };
+        player.triggers = config.clone();
+        persist_player_to_path(path, player)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_test_base_dir(base_dir: PathBuf) -> Self {
+        Self {
+            base_dir,
+            base_config: None,
+            user_config_path: None,
+            player_config: None,
+        }
+    }
+
     fn normalize_loaded_player(&mut self) -> io::Result<PlayerRuntimeProfile> {
         let Some(player) = self.player_config.take() else {
             return Ok(PlayerRuntimeProfile::default());
@@ -353,6 +383,7 @@ fn migrate_legacy_config(raw: &str) -> Result<PlayerToml, SettingsError> {
         guild_primary_background: None,
         settings: player_profile::settings_table_from_entries(&entry_vec),
         generic_commands: GenericCommandsConfig::default(),
+        triggers: TriggerConfig::default(),
     })
 }
 
@@ -517,6 +548,69 @@ mod tests {
     use super::*;
 
     #[test]
+    fn save_trigger_config_writes_sparse_toml() {
+        use std::sync::atomic::{AtomicU64, Ordering};
+
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+        let base_dir = std::env::temp_dir().join(format!(
+            "batrs-test-{}-{}",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = fs::remove_dir_all(&base_dir);
+        fs::create_dir_all(&base_dir).unwrap();
+
+        let mut manager = ConfigManager::with_test_base_dir(base_dir.clone());
+        manager.load_user("testplayer").unwrap();
+
+        let config = TriggerConfig {
+            guild_triggers: false,
+            ..TriggerConfig::default()
+        };
+        manager.save_trigger_config(&config).unwrap();
+
+        let safe_name = sanitize_name("testplayer");
+        let path = base_dir.join(&safe_name).join(format!("{safe_name}.toml"));
+        let contents = fs::read_to_string(path).unwrap();
+        assert!(contents.contains("[triggers]"));
+        assert!(contents.contains("guild_triggers = false"));
+        assert!(!contents.contains("spell_vocals"));
+        assert!(!contents.contains("common_triggers"));
+        assert!(!contents.contains("core_triggers"));
+
+        let _ = fs::remove_dir_all(base_dir);
+    }
+
+    #[test]
+    fn player_toml_trigger_config_serde_roundtrip() {
+        let original = PlayerToml {
+            guilds: None,
+            guild_primary_background: None,
+            settings: SettingsTable::default(),
+            generic_commands: GenericCommandsConfig::default(),
+            triggers: TriggerConfig {
+                guild_triggers: false,
+                spell_vocals: true,
+                common_triggers: false,
+                core_triggers: true,
+            },
+        };
+        let text = toml::to_string_pretty(&original).unwrap();
+        assert!(!text.contains("spell_vocals"));
+        assert!(!text.contains("core_triggers"));
+        assert!(text.contains("guild_triggers = false"));
+        assert!(text.contains("common_triggers = false"));
+
+        let parsed: PlayerToml = toml::from_str(&text).unwrap();
+        assert_eq!(parsed.triggers, original.triggers);
+
+        let default_player = PlayerToml::default();
+        let default_text = toml::to_string_pretty(&default_player).unwrap();
+        assert!(!default_text.contains("[triggers]"));
+    }
+
+    #[test]
     fn serde_roundtrip_player_toml() {
         let original = PlayerToml {
             guilds: Some(vec!["reaver".to_string(), "monk".to_string()]),
@@ -532,6 +626,7 @@ mod tests {
                 extra: HashMap::from([("note".to_string(), "hello".to_string())]),
             },
             generic_commands: GenericCommandsConfig::default(),
+            triggers: TriggerConfig::default(),
         };
         let text = toml::to_string_pretty(&original).unwrap();
         let parsed: PlayerToml = toml::from_str(&text).unwrap();
@@ -554,6 +649,7 @@ mod tests {
                 extra: HashMap::new(),
             },
             generic_commands: GenericCommandsConfig::default(),
+            triggers: TriggerConfig::default(),
         };
         let text = toml::to_string_pretty(&original).unwrap();
         let parsed: PlayerToml = toml::from_str(&text).unwrap();
@@ -577,6 +673,7 @@ mod tests {
                 extra: HashMap::new(),
             },
             generic_commands: GenericCommandsConfig::default(),
+            triggers: TriggerConfig::default(),
         };
         let settings = player_profile::user_settings_from_player(&player);
         assert_eq!(settings.get("rig"), Some("bag"));
@@ -599,6 +696,7 @@ mod tests {
                 extra: HashMap::new(),
             },
             generic_commands: GenericCommandsConfig::default(),
+            triggers: TriggerConfig::default(),
         };
         let text = toml::to_string_pretty(&original).unwrap();
         let parsed: PlayerToml = toml::from_str(&text).unwrap();
@@ -622,6 +720,7 @@ mod tests {
                 extra: HashMap::new(),
             },
             generic_commands: GenericCommandsConfig::default(),
+            triggers: TriggerConfig::default(),
         };
         let settings = player_profile::user_settings_from_player(&player);
         assert_eq!(settings.get("sabre_weapon"), Some("sabre"));
@@ -656,6 +755,7 @@ mod tests {
                 extra: HashMap::new(),
             },
             generic_commands: GenericCommandsConfig::default(),
+            triggers: TriggerConfig::default(),
         };
         let text = toml::to_string_pretty(&original).unwrap();
         let parsed: PlayerToml = toml::from_str(&text).unwrap();

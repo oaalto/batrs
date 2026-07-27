@@ -3,9 +3,47 @@ use crate::automation::Action;
 use crate::guilds::Guild;
 use crate::secondary_status::SecondaryStatusEffect;
 use crate::stats::StatsEffect;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::LazyLock;
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TriggerConfig {
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub guild_triggers: bool,
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub spell_vocals: bool,
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub common_triggers: bool,
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub core_triggers: bool,
+}
+
+impl Default for TriggerConfig {
+    fn default() -> Self {
+        Self {
+            guild_triggers: true,
+            spell_vocals: true,
+            common_triggers: true,
+            core_triggers: true,
+        }
+    }
+}
+
+impl TriggerConfig {
+    pub fn is_default(&self) -> bool {
+        self.guild_triggers && self.spell_vocals && self.common_triggers && self.core_triggers
+    }
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
+}
+
+fn default_true() -> bool {
+    true
+}
 
 mod common;
 pub(crate) mod money_summary;
@@ -196,26 +234,45 @@ impl TriggerEffects {
 
 pub type Trigger = fn(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects;
 
-pub fn process(facts: &TriggerFacts, guilds: &[Box<dyn Guild>], line: &str) -> TriggerEffects {
-    let guild_triggers: Vec<Trigger> = guilds.iter().flat_map(|g| g.triggers()).collect();
+pub fn process(
+    facts: &TriggerFacts,
+    guilds: &[Box<dyn Guild>],
+    line: &str,
+    config: &TriggerConfig,
+) -> TriggerEffects {
     let mut current_line = StyledLine::new(line);
     let mut output = TriggerEffects::default();
 
     // Guild triggers first so stats hooks (e.g. Animist soul companion) always run before spell labels and common rules.
-    for trigger in guild_triggers.iter() {
-        let result = trigger(&TriggerLine::new(&current_line.plain_line), facts);
+    if config.guild_triggers {
+        let guild_triggers: Vec<Trigger> = guilds.iter().flat_map(|g| g.triggers()).collect();
+        for trigger in guild_triggers.iter() {
+            let result = trigger(&TriggerLine::new(&current_line.plain_line), facts);
+            result.apply_line_effects_to(&mut current_line);
+            output.extend(result);
+        }
+    }
+
+    if config.spell_vocals {
+        let result = spell_vocals::trigger(&TriggerLine::new(&current_line.plain_line), facts);
         result.apply_line_effects_to(&mut current_line);
         output.extend(result);
     }
 
-    let result = spell_vocals::trigger(&TriggerLine::new(&current_line.plain_line), facts);
-    result.apply_line_effects_to(&mut current_line);
-    output.extend(result);
+    if config.common_triggers {
+        for trigger in COMMON_TRIGGERS.iter() {
+            let result = trigger(&TriggerLine::new(&current_line.plain_line), facts);
+            result.apply_line_effects_to(&mut current_line);
+            output.extend(result);
+        }
+    }
 
-    for trigger in COMMON_TRIGGERS.iter().chain(CORE_TRIGGERS.iter()) {
-        let result = trigger(&TriggerLine::new(&current_line.plain_line), facts);
-        result.apply_line_effects_to(&mut current_line);
-        output.extend(result);
+    if config.core_triggers {
+        for trigger in CORE_TRIGGERS.iter() {
+            let result = trigger(&TriggerLine::new(&current_line.plain_line), facts);
+            result.apply_line_effects_to(&mut current_line);
+            output.extend(result);
+        }
     }
 
     output
@@ -243,7 +300,7 @@ mod tests {
         let text = "A blue-glowing soul companion [Nynn].";
         let facts = TriggerFacts::new(HashMap::new(), HashMap::new(), None, Some("Nynn"));
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(MonkGuild::default())];
-        let output = process(&facts, &guilds, text);
+        let output = process(&facts, &guilds, text, &TriggerConfig::default());
         assert!(
             !companion_line_is_blue(&output, text),
             "companion hilite should not run without Animist active"
@@ -255,10 +312,56 @@ mod tests {
         let text = "A blue-glowing soul companion [Nynn].";
         let facts = TriggerFacts::new(HashMap::new(), HashMap::new(), None, Some("Nynn"));
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(AnimistGuild::default())];
-        let output = process(&facts, &guilds, text);
+        let output = process(&facts, &guilds, text, &TriggerConfig::default());
         assert!(
             companion_line_is_blue(&output, text),
             "companion hilite should run when Animist is active"
         );
+    }
+
+    #[test]
+    fn process_with_guild_triggers_disabled_skips_companion_combat_hilite() {
+        let text = "A blue-glowing soul companion [Nynn].";
+        let facts = TriggerFacts::new(HashMap::new(), HashMap::new(), None, Some("Nynn"));
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(AnimistGuild::default())];
+        let config = TriggerConfig {
+            guild_triggers: false,
+            ..TriggerConfig::default()
+        };
+        let output = process(&facts, &guilds, text, &config);
+        assert!(
+            !companion_line_is_blue(&output, text),
+            "companion hilite should not run when guild triggers are disabled"
+        );
+    }
+
+    #[test]
+    fn trigger_config_serde_roundtrip_defaults_omit_section() {
+        let config = TriggerConfig::default();
+        let text = toml::to_string_pretty(&config).unwrap();
+        assert!(!text.contains("guild_triggers"));
+        assert!(!text.contains("[triggers]"));
+
+        let partial = TriggerConfig {
+            guild_triggers: false,
+            core_triggers: false,
+            ..TriggerConfig::default()
+        };
+        let text = toml::to_string_pretty(&partial).unwrap();
+        assert!(text.contains("guild_triggers = false"));
+        assert!(text.contains("core_triggers = false"));
+        assert!(!text.contains("spell_vocals"));
+        assert!(!text.contains("common_triggers"));
+
+        let parsed: TriggerConfig = toml::from_str(
+            r#"
+guild_triggers = false
+"#,
+        )
+        .unwrap();
+        assert!(!parsed.guild_triggers);
+        assert!(parsed.spell_vocals);
+        assert!(parsed.common_triggers);
+        assert!(parsed.core_triggers);
     }
 }

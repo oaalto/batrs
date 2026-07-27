@@ -3,6 +3,7 @@ use crate::config::{
     is_truthy_setting_value,
 };
 use crate::guilds::catalog::{DEFAULT_GUILD_PRIMARY_KEYWORD, GuildSelection};
+use crate::triggers::TriggerConfig;
 use std::collections::HashMap;
 
 const RIG_KEY: &str = "rig";
@@ -245,6 +246,7 @@ pub struct PlayerRuntimeProfile {
     pub guild_selection: GuildSelection,
     pub guild_primary_background: String,
     pub generic_commands_config: GenericCommandsConfig,
+    pub trigger_config: TriggerConfig,
     pub settings: KnownProfileSettings,
     pub automation_vars: Vec<(String, String)>,
     pub automation_flags: Vec<(String, bool)>,
@@ -264,6 +266,7 @@ impl Default for PlayerRuntimeProfile {
             DEFAULT_GUILD_PRIMARY_KEYWORD,
             UserSettings::default(),
             GenericCommandsConfig::default(),
+            TriggerConfig::default(),
         )
     }
 }
@@ -308,6 +311,7 @@ pub fn interpret_player_toml(player: PlayerToml) -> InterpretedPlayerProfile {
         guild_primary_background,
         settings,
         normalized_player.generic_commands.clone(),
+        normalized_player.triggers.clone(),
     );
 
     InterpretedPlayerProfile {
@@ -322,6 +326,7 @@ fn runtime_profile_from_parts(
     guild_primary_background: &str,
     settings: UserSettings,
     generic_commands_config: GenericCommandsConfig,
+    trigger_config: TriggerConfig,
 ) -> PlayerRuntimeProfile {
     let known_settings = KnownProfileSettings::from_user_settings(&settings);
     let guild_selection =
@@ -336,6 +341,7 @@ fn runtime_profile_from_parts(
         guild_selection,
         guild_primary_background,
         generic_commands_config,
+        trigger_config,
         settings: known_settings,
         automation_vars,
         automation_flags,
@@ -546,6 +552,7 @@ mod tests {
             DEFAULT_GUILD_PRIMARY_KEYWORD,
             UserSettings::default(),
             GenericCommandsConfig::default(),
+            TriggerConfig::default(),
         );
 
         assert_eq!(
@@ -586,6 +593,7 @@ mod tests {
                 (IS_LICH_KEY, "true"),
             ]),
             GenericCommandsConfig::default(),
+            TriggerConfig::default(),
         );
 
         assert_eq!(
@@ -626,6 +634,7 @@ mod tests {
                 (RIFTWALKER_ENTITY_EARTH_KEY, "earth"),
             ]),
             GenericCommandsConfig::default(),
+            TriggerConfig::default(),
         );
 
         assert_eq!(
@@ -651,6 +660,7 @@ mod tests {
             DEFAULT_GUILD_PRIMARY_KEYWORD,
             UserSettings::default(),
             generic_commands_config.clone(),
+            TriggerConfig::default(),
         );
 
         assert_eq!(profile.generic_commands_config, generic_commands_config);
@@ -824,6 +834,7 @@ mod tests {
             DEFAULT_GUILD_PRIMARY_KEYWORD,
             settings(&[(RIG_KEY, "bag")]),
             GenericCommandsConfig::default(),
+            TriggerConfig::default(),
         );
 
         assert_eq!(profile.settings.rig, "bag");
@@ -865,6 +876,7 @@ mod tests {
                 (IS_LICH_KEY, "yes"),
             ]),
             GenericCommandsConfig::default(),
+            TriggerConfig::default(),
         );
 
         assert_eq!(

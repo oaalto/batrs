@@ -2,7 +2,7 @@
 title: Command Dispatch
 type: concept
 status: current
-updated: 2026-07-24
+updated: 2026-07-27
 sources:
   - CONTEXT.md
   - src/command/mod.rs
@@ -16,7 +16,8 @@ Command Dispatch interprets a command input line into client effects (send text 
 
 ## Verified Facts
 
-- Implementation: `src/command/mod.rs` — builtin slash commands include `/help`, `/quit`, `/connect`, `/clear`, `/guilds`, `/generic`, `/settings`, `/raw_logs`.
+- Implementation: `src/command/mod.rs` — builtin slash commands include `/help`, `/quit`, `/connect`, `/clear`, `/guilds`, `/generic`, `/triggers`, `/settings`, `/raw_logs`.
+- `/triggers` opens the trigger-group toggle dialog (`requires_login: true`); same discovery and gating pattern as `/generic`. Changes persist to player TOML and apply on the next line after successful save.
 - Clear Command (`/clear`): client-only terminal redraw from in-memory UI state — not an output-buffer wipe; no login gate; never forwarded to BatMUD. Distinct from Session Lifecycle scrollback clear on character change after reconnect.
 - Returns effects for `BatApp` to apply; does not send game input for client-only commands (e.g. `/connect` is never forwarded to BatMUD).
 - Connect Command (`/connect`): relaunches login-dependent state; only one connect attempt active at a time; never forwarded to BatMUD. On failure the client stays in fresh-session state (`CONTEXT.md`). Reconnect orchestration and reset manifest live in [Session Lifecycle](session-lifecycle.md).

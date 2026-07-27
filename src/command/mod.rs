@@ -28,6 +28,10 @@ static BUILTINS: LazyLock<HashMap<String, BuiltinCommand>> = LazyLock::new(|| {
             BuiltinCommand::new(builtin_open_generic, true),
         ),
         (
+            "/triggers".to_string(),
+            BuiltinCommand::new(builtin_open_triggers, true),
+        ),
+        (
             "/settings".to_string(),
             BuiltinCommand::new(builtin_open_settings, true),
         ),
@@ -42,13 +46,14 @@ static BUILTINS: LazyLock<HashMap<String, BuiltinCommand>> = LazyLock::new(|| {
     ])
 });
 
-const HELP_LINES: [&str; 9] = [
+const HELP_LINES: [&str; 10] = [
     "Client slash commands:",
     "/help - Shows client slash commands.",
     "/quit - Closes the client.",
     "/connect - Starts a fresh BatMUD connection.",
     "/guilds - Opens the guild picker.",
     "/generic - Opens generic shortcut groups.",
+    "/triggers - Toggle built-in trigger groups.",
     "/settings - Opens the settings editor.",
     "/raw_logs - Toggles raw log capture.",
     "/clear - Redraws the display from memory (fixes screen artifacts).",
@@ -141,6 +146,7 @@ pub enum CommandEffect {
 pub enum DialogKind {
     Guilds,
     GenericCommands,
+    Triggers,
     Settings,
 }
 
@@ -282,6 +288,10 @@ fn builtin_open_generic(_data: &ParsedCommand) -> Vec<CommandEffect> {
     vec![CommandEffect::OpenDialog(DialogKind::GenericCommands)]
 }
 
+fn builtin_open_triggers(_data: &ParsedCommand) -> Vec<CommandEffect> {
+    vec![CommandEffect::OpenDialog(DialogKind::Triggers)]
+}
+
 fn builtin_open_settings(_data: &ParsedCommand) -> Vec<CommandEffect> {
     vec![CommandEffect::OpenDialog(DialogKind::Settings)]
 }
@@ -402,6 +412,7 @@ mod tests {
         assert!(lines.contains(&"/connect - Starts a fresh BatMUD connection."));
         assert!(lines.contains(&"/guilds - Opens the guild picker."));
         assert!(lines.contains(&"/generic - Opens generic shortcut groups."));
+        assert!(lines.contains(&"/triggers - Toggle built-in trigger groups."));
         assert!(lines.contains(&"/settings - Opens the settings editor."));
         assert!(lines.contains(&"/raw_logs - Toggles raw log capture."));
         assert!(

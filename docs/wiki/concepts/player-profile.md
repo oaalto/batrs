@@ -2,7 +2,7 @@
 title: Player Profile
 type: concept
 status: current
-updated: 2026-07-23
+updated: 2026-07-27
 sources:
   - CONTEXT.md
   - src/player_profile.rs
@@ -13,11 +13,13 @@ sources:
 
 ## Summary
 
-The Player Profile is the per-player runtime configuration loaded from the user's batrs player TOML file. It includes selected guilds, the active guild primary background, settings, and generic command preferences.
+The Player Profile is the per-player runtime configuration loaded from the user's batrs player TOML file. It includes selected guilds, the active guild primary background, settings, generic command preferences, and trigger group toggles (`[triggers]`).
 
 ## Verified Facts
 
-- Runtime type: `PlayerRuntimeProfile` in `src/player_profile.rs` — guild selection, settings map, generic command config.
+- Runtime type: `PlayerRuntimeProfile` in `src/player_profile.rs` — guild selection, settings map, generic command config, `trigger_config`.
+- `[triggers]` on player TOML: four booleans (`guild_triggers`, `spell_vocals`, `common_triggers`, `core_triggers`); omitted section or keys mean enabled. Sparse write omits `true` keys.
+- Trigger toggles editable via `/triggers` dialog or hand-edited TOML; successful dialog save updates runtime profile immediately (`CONTEXT.md` Trigger Chain section).
 - Interpretation: `interpret_player_toml` converts persisted `PlayerToml` into runtime effects; config file I/O and TOML migration remain in `src/config.rs` (`CONTEXT.md`).
 - Player files live under `~/.batrs/` (see `config.rs` `base_dir`).
 - Settings include guild-specific keys (e.g. `tzarakk_mount`, `sabre_weapon`, riftwalker entity labels, `is_lich`).

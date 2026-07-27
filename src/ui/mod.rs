@@ -23,6 +23,7 @@ pub struct ViewModel<'a> {
     pub show_cursor: bool,
     pub guild_dialog: Option<GuildDialogViewModel>,
     pub generic_commands_dialog: Option<GenericCommandsDialogViewModel>,
+    pub triggers_dialog: Option<TriggersDialogViewModel>,
     pub settings_dialog: Option<SettingsDialogViewModel>,
 }
 
@@ -91,6 +92,18 @@ pub struct GenericCommandViewModel {
 pub struct GenericCommandsDialogViewModel {
     pub items: Vec<GenericCommandViewModel>,
     pub cursor: usize,
+}
+
+pub struct TriggersDialogRowViewModel {
+    pub label: String,
+    pub enabled: bool,
+}
+
+pub struct TriggersDialogViewModel {
+    pub rows: Vec<TriggersDialogRowViewModel>,
+    pub cursor: usize,
+    pub footer_line1: String,
+    pub footer_line2: Option<String>,
 }
 
 pub struct Renderer;
@@ -262,6 +275,9 @@ impl Renderer {
         }
         if let Some(dialog) = &view.generic_commands_dialog {
             render_generic_commands_dialog(frame, dialog);
+        }
+        if let Some(dialog) = &view.triggers_dialog {
+            render_triggers_dialog(frame, dialog);
         }
         if let Some(dialog) = &view.settings_dialog {
             render_settings_dialog(frame, dialog);
@@ -619,6 +635,62 @@ fn render_generic_commands_dialog(frame: &mut Frame<'_>, dialog: &GenericCommand
     frame.render_widget(instructions, chunks[1]);
 }
 
+fn render_triggers_dialog(frame: &mut Frame<'_>, dialog: &TriggersDialogViewModel) {
+    let area = centered_rect(70, 70, frame.area());
+    frame.render_widget(Clear, area);
+
+    let dialog_style = Style::default().bg(palette::SURFACE).fg(palette::TEXT);
+    let background = Paragraph::new("").style(dialog_style);
+    frame.render_widget(background, area);
+
+    let block = Block::default()
+        .title("Triggers")
+        .borders(Borders::ALL)
+        .style(dialog_style);
+    frame.render_widget(&block, area);
+    let inner = block.inner(area);
+
+    let footer_lines = if dialog.footer_line2.is_some() { 2 } else { 1 };
+    let mut constraints = vec![Constraint::Min(1)];
+    for _ in 0..footer_lines {
+        constraints.push(Constraint::Length(1));
+    }
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(constraints)
+        .split(inner);
+
+    let items = dialog
+        .rows
+        .iter()
+        .map(|row| {
+            let marker = if row.enabled { "[x]" } else { "[ ]" };
+            ListItem::new(format!("{marker} {}", row.label))
+        })
+        .collect::<Vec<ListItem<'_>>>();
+
+    let list = List::new(items)
+        .highlight_symbol("> ")
+        .style(dialog_style)
+        .highlight_style(Style::default().bg(palette::SELECTION).fg(palette::TEXT));
+    let mut state = ListState::default();
+    if !dialog.rows.is_empty() {
+        state.select(Some(dialog.cursor.min(dialog.rows.len() - 1)));
+    }
+    frame.render_stateful_widget(list, chunks[0], &mut state);
+
+    frame.render_widget(
+        Paragraph::new(dialog.footer_line1.as_str()).style(dialog_style),
+        chunks[1],
+    );
+    if let Some(warning) = &dialog.footer_line2 {
+        frame.render_widget(
+            Paragraph::new(warning.as_str()).style(dialog_style),
+            chunks[2],
+        );
+    }
+}
+
 fn centered_rect(percent_x: u16, percent_y: u16, rect: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -718,6 +790,7 @@ mod tests {
             show_cursor: false,
             guild_dialog: None,
             generic_commands_dialog: None,
+            triggers_dialog: None,
             settings_dialog: None,
         };
 

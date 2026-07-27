@@ -28,7 +28,10 @@ use crate::stats::Stats;
 use crate::ui::{Renderer, ViewModel};
 use crate::{command, triggers};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use dialogs::{GenericCommandsDialog, GuildDialog, SettingsDialog, apply_guild_dialog_keystroke};
+use dialogs::{
+    GenericCommandsDialog, GuildDialog, SAVE_ERROR_CONFIG_UNAVAILABLE, SAVE_ERROR_PERSIST_FAILED,
+    SettingsDialog, TriggersDialog, apply_guild_dialog_keystroke,
+};
 use input_state::InputState;
 use libmudtelnet::events::TelnetEvents;
 use log::{error, warn};
@@ -100,6 +103,7 @@ pub struct BatApp {
     guild_dialog: Option<GuildDialog>,
     generic_commands: GenericCommands,
     generic_commands_dialog: Option<GenericCommandsDialog>,
+    triggers_dialog: Option<TriggersDialog>,
     settings_dialog: Option<SettingsDialog>,
     player_logger: Option<PlayerLogger>,
     raw_logger: Option<RawLogger>,
@@ -147,6 +151,7 @@ impl BatApp {
             guild_dialog: None,
             generic_commands: GenericCommands::default(),
             generic_commands_dialog: None,
+            triggers_dialog: None,
             settings_dialog: None,
             player_logger: PlayerLogger::new().ok(),
             raw_logger: RawLogger::new().ok(),
@@ -207,8 +212,12 @@ impl BatApp {
                     self.player_profile.settings.rig_for_triggers(),
                     self.session.login_name(),
                 );
-                let result =
-                    triggers::process(&facts, &self.selected_guilds, &styled_line.plain_line);
+                let result = triggers::process(
+                    &facts,
+                    &self.selected_guilds,
+                    &styled_line.plain_line,
+                    &self.player_profile.trigger_config,
+                );
                 self.apply_stats_effects(result.stats);
                 self.apply_secondary_status_effects(result.secondary_status);
                 self.apply_automation_actions(result.actions);
@@ -283,6 +292,10 @@ impl BatApp {
             self.handle_generic_commands_dialog_event(event);
             return;
         }
+        if self.triggers_dialog.is_some() {
+            self.handle_triggers_dialog_event(event);
+            return;
+        }
         if self.settings_dialog.is_some() {
             self.handle_settings_dialog_event(event);
             return;
@@ -322,6 +335,7 @@ impl BatApp {
     pub fn handle_paste_event(&mut self, text: String) {
         if self.guild_dialog.is_some()
             || self.generic_commands_dialog.is_some()
+            || self.triggers_dialog.is_some()
             || self.settings_dialog.is_some()
         {
             return;
@@ -384,10 +398,15 @@ impl BatApp {
             cursor_offset: self.input.cursor_offset(hide_input),
             show_cursor: self.guild_dialog.is_none()
                 && self.generic_commands_dialog.is_none()
+                && self.triggers_dialog.is_none()
                 && self.settings_dialog.is_none(),
             guild_dialog: self.guild_dialog.as_ref().map(|dialog| dialog.view_model()),
             generic_commands_dialog: self
                 .generic_commands_dialog
+                .as_ref()
+                .map(|dialog| dialog.view_model()),
+            triggers_dialog: self
+                .triggers_dialog
                 .as_ref()
                 .map(|dialog| dialog.view_model()),
             settings_dialog: self
@@ -494,6 +513,7 @@ impl BatApp {
                 command::CommandEffect::OpenDialog(kind) => match kind {
                     command::DialogKind::Guilds => self.open_guilds_dialog(),
                     command::DialogKind::GenericCommands => self.open_generic_commands_dialog(),
+                    command::DialogKind::Triggers => self.open_triggers_dialog(),
                     command::DialogKind::Settings => self.open_settings_dialog(),
                 },
                 command::CommandEffect::Reconnect => self.start_reconnect(),
@@ -563,6 +583,7 @@ impl BatApp {
                 FreshSessionReset::Dialogs => {
                     self.guild_dialog = None;
                     self.generic_commands_dialog = None;
+                    self.triggers_dialog = None;
                     self.settings_dialog = None;
                 }
             }
@@ -874,6 +895,70 @@ impl BatApp {
         self.refresh_player_profile_from_config(false);
     }
 
+    fn open_triggers_dialog(&mut self) {
+        if !self.session.is_logged_in() {
+            return;
+        }
+        if !self.user_config_loaded {
+            self.load_user_config();
+        }
+
+        self.triggers_dialog = Some(TriggersDialog::new(&self.player_profile.trigger_config));
+    }
+
+    fn handle_triggers_dialog_event(&mut self, event: KeyEvent) {
+        let Some(dialog) = self.triggers_dialog.as_mut() else {
+            return;
+        };
+        match event.code {
+            KeyCode::Up => dialog.move_cursor(-1),
+            KeyCode::Down => dialog.move_cursor(1),
+            KeyCode::Char(' ') => dialog.toggle_selected(),
+            KeyCode::Esc => {
+                self.triggers_dialog = None;
+            }
+            KeyCode::Enter => {
+                if dialog.draft_equals_saved() {
+                    self.triggers_dialog = None;
+                    return;
+                }
+                let draft = dialog.draft().clone();
+                match self.save_trigger_config(draft) {
+                    Ok(saved) => {
+                        if let Some(dialog) = self.triggers_dialog.as_mut() {
+                            dialog.commit_saved(saved.clone());
+                        }
+                        self.player_profile.trigger_config = saved;
+                        self.triggers_dialog = None;
+                    }
+                    Err(message) => {
+                        if let Some(dialog) = self.triggers_dialog.as_mut() {
+                            dialog.set_footer_error(message);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn save_trigger_config(
+        &mut self,
+        config: triggers::TriggerConfig,
+    ) -> Result<triggers::TriggerConfig, &'static str> {
+        if !self.user_config_loaded {
+            self.load_user_config();
+        }
+        let Some(manager) = self.config_manager.as_mut() else {
+            return Err(SAVE_ERROR_CONFIG_UNAVAILABLE);
+        };
+
+        manager
+            .save_trigger_config(&config)
+            .map_err(|_| SAVE_ERROR_PERSIST_FAILED)?;
+        Ok(config)
+    }
+
     fn save_selected_guilds_with_auxiliary(
         &mut self,
         guild_selection: GuildSelection,
@@ -1030,6 +1115,7 @@ mod tests {
             guild_dialog: None,
             generic_commands: GenericCommands::default(),
             generic_commands_dialog: None,
+            triggers_dialog: None,
             settings_dialog: None,
             player_logger: None,
             raw_logger: None,

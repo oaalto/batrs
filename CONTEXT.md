@@ -22,9 +22,17 @@ Guild Dialog owns focus, cursors, keystroke handling, and guild-specific text in
 
 ## Player Profile
 
-The Player Profile is the per-player runtime configuration loaded from the user's batrs player file. It includes selected guilds, the active guild primary background, settings, and generic command preferences.
+The Player Profile is the per-player runtime configuration loaded from the user's batrs player file. It includes selected guilds, the active guild primary background, settings, generic command preferences, and trigger group toggles.
 
 The Player Profile owns the interpretation of persisted player settings into runtime profile effects, while configuration file I/O and TOML migration remain owned by the config module.
+
+## Trigger Chain
+
+The Trigger Chain is the fixed-order pipeline that processes each incoming game line: guild triggers, spell vocals, common triggers, then core triggers (prompt, short score, recovery bracket).
+
+Trigger group toggles live on the Player Profile under `[triggers]` in the player TOML file. Omitted section or omitted keys mean the group is enabled. Players edit toggles in-session via `/triggers` (same login and config-load gates as `/generic`) or by hand-editing TOML; successful save from the dialog updates the in-memory profile immediately without restart.
+
+Disabling guild triggers skips all guild trigger modules for the line, including secondary status effects from guild triggers. Guild selection in `/guilds` is independent of the guild-trigger toggle. v1 supports enable/disable only; reordering, per-rule editing, and a dynamic group registry are out of scope.
 
 ## Command Dispatch
 
