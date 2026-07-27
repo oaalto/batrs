@@ -1,9 +1,10 @@
 use crate::abilities;
+use crate::abilities::use_skill;
 use crate::ansi::StyledLine;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
-use crate::guilds::{ReaverGuild, use_skill};
+use crate::guilds::ReaverGuild;
 use std::collections::HashMap;
 
 impl ReaverGuild {

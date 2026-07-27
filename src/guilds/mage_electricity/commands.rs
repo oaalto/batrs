@@ -1,10 +1,10 @@
 //! Slash commands for Mage Electricity (lightning school; extended beyond the minimal core set).
 
 use crate::abilities;
+use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
 use crate::guilds::MageElectricityGuild;
-use crate::guilds::cast_spell;
 use std::collections::HashMap;
 
 macro_rules! mage_electricity_targeted_cast {

@@ -67,7 +67,7 @@ pub use triad::TriadGuild;
 pub use tzarakk::TzarakkGuild;
 
 use crate::automation::Automation;
-use crate::command::{Command, Data};
+use crate::command::Command;
 use crate::triggers::Trigger;
 use std::collections::HashMap;
 
@@ -75,53 +75,4 @@ pub trait Guild {
     fn commands(&self) -> HashMap<String, Command>;
     fn triggers(&self) -> Vec<Trigger>;
     fn register_automation(&self, _automation: &mut Automation) {}
-}
-
-pub fn use_skill(skill_name: &str, data: &Data) -> String {
-    crate::abilities::use_skill(skill_name, data)
-}
-
-pub fn cast_spell(spell_name: &str, data: &Data) -> String {
-    crate::abilities::cast_spell(spell_name, data)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn use_skill_builds_targeted_commands() {
-        let empty = Data {
-            cmd: "use".to_string(),
-            args: "".to_string(),
-        };
-        let with_args = Data {
-            cmd: "use".to_string(),
-            args: "orc".to_string(),
-        };
-
-        assert_eq!(use_skill("scythe swipe", &empty), "@use 'scythe swipe'");
-        assert_eq!(
-            use_skill("scythe swipe", &with_args),
-            "@target orc;use 'scythe swipe' orc"
-        );
-    }
-
-    #[test]
-    fn cast_spell_builds_targeted_commands() {
-        let empty = Data {
-            cmd: "cast".to_string(),
-            args: "".to_string(),
-        };
-        let with_args = Data {
-            cmd: "cast".to_string(),
-            args: "goblin".to_string(),
-        };
-
-        assert_eq!(cast_spell("word of spite", &empty), "@cast 'word of spite'");
-        assert_eq!(
-            cast_spell("word of spite", &with_args),
-            "@target goblin;cast 'word of spite' goblin"
-        );
-    }
 }

@@ -1,10 +1,10 @@
 //! Slash commands for Mage Fire, including spells beyond the minimal core set.
 
 use crate::abilities;
+use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
 use crate::guilds::MageFireGuild;
-use crate::guilds::cast_spell;
 use std::collections::HashMap;
 
 macro_rules! mage_fire_targeted_cast {

@@ -1,7 +1,8 @@
 use crate::abilities;
+use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
-use crate::guilds::{TriadGuild, cast_spell};
+use crate::guilds::TriadGuild;
 use std::collections::HashMap;
 
 impl TriadGuild {

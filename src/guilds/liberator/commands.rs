@@ -1,9 +1,10 @@
 //! Slash commands for Liberator.
 
 use crate::abilities;
+use crate::abilities::use_skill;
 use crate::command;
 use crate::command::Command;
-use crate::guilds::{LiberatorGuild, use_skill};
+use crate::guilds::LiberatorGuild;
 use std::collections::HashMap;
 
 /// `liberator select weakest non armoursmith,guardian,weaponsmith,soldier,locksmith,ranger`

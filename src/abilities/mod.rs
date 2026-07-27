@@ -136,6 +136,23 @@ mod tests {
     }
 
     #[test]
+    fn cast_spell_matches_targeted_form() {
+        let empty = Data {
+            cmd: String::new(),
+            args: String::new(),
+        };
+        let with_args = Data {
+            cmd: String::new(),
+            args: "goblin".to_string(),
+        };
+        assert_eq!(cast_spell("word of spite", &empty), "@cast 'word of spite'");
+        assert_eq!(
+            cast_spell("word of spite", &with_args),
+            "@target goblin;cast 'word of spite' goblin"
+        );
+    }
+
+    #[test]
     fn quoted_tails_and_suffix_helpers() {
         assert_eq!(
             cast_quoted_tail("flame shield", "me"),

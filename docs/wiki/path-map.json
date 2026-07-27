@@ -21,6 +21,11 @@
       "allowSkip": true
     },
     {
+      "sources": ["src/abilities/**"],
+      "wikiPages": ["docs/wiki/concepts/abilities.md"],
+      "allowSkip": true
+    },
+    {
       "sources": ["src/guilds/**"],
       "wikiPages": ["docs/wiki/concepts/guild-catalog.md", "docs/wiki/subsystems/batrs-client.md"],
       "allowSkip": true

@@ -1,14 +1,15 @@
 use crate::abilities;
+use crate::abilities::use_skill;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
+use crate::guilds::MonkGuild;
 use crate::guilds::monk::{
     AREA_SKILL_1, ARMOUR_SKILL_1, ARMOUR_SKILL_2, ARMOUR_SKILL_3, AVOID_SKILL_1,
     CURRENT_AREA_SKILL_VAR, CURRENT_ARMOUR_SKILL_VAR, CURRENT_AVOID_SKILL_VAR,
     CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_1, DISRUPT_SKILL_2, DOING_MEDITATION_FLAG,
     KATA_DONE_FLAG,
 };
-use crate::guilds::{MonkGuild, use_skill};
 use std::collections::HashMap;
 
 impl MonkGuild {

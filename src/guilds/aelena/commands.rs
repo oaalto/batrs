@@ -1,9 +1,9 @@
 use crate::abilities;
+use crate::abilities::{cast_spell, use_skill};
 use crate::ansi::StyledLine;
 use crate::command;
 use crate::command::Command;
 use crate::guilds::AelenaGuild;
-use crate::guilds::{cast_spell, use_skill};
 use std::collections::HashMap;
 
 impl AelenaGuild {

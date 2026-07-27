@@ -1,6 +1,7 @@
+use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
-use crate::guilds::{SeminaryGuild, cast_spell};
+use crate::guilds::SeminaryGuild;
 use std::collections::HashMap;
 
 impl SeminaryGuild {

@@ -1,10 +1,10 @@
 //! Slash commands for Mage Acid.
 
 use crate::abilities;
+use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
 use crate::guilds::MageAcidGuild;
-use crate::guilds::cast_spell;
 use std::collections::HashMap;
 
 macro_rules! mage_acid_targeted_cast {

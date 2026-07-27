@@ -1,7 +1,8 @@
 use crate::abilities;
+use crate::abilities::use_skill;
 use crate::command;
 use crate::command::Command;
-use crate::guilds::{NergalGuild, use_skill};
+use crate::guilds::NergalGuild;
 use std::collections::HashMap;
 
 impl NergalGuild {

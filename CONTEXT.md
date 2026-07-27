@@ -20,6 +20,14 @@ Ship as one PR with separate commits per concern (`refactor:` browse extraction,
 
 Guild Dialog owns focus, cursors, keystroke handling, and guild-specific text inputs (mount, sabre weapon, Riftwalker entities); optional-input visibility stays in dialog, not in browse.
 
+## Abilities
+
+Abilities is the bounded context for canonical BatMUD `use` and `cast` command-line formatting. It owns `use_skill`, `cast_spell`, and related helpers that build logical command lines and wrap them with the client send prefix.
+
+Guild command modules consume Abilities for ability-line formatting; they import `use_skill` and `cast_spell` directly from Abilities rather than through Guild re-exports.
+
+Command Dispatch does not own guild `use`/`cast` formatting — that concern is orthogonal to slash-command precedence and login gating.
+
 ## Player Profile
 
 The Player Profile is the per-player runtime configuration loaded from the user's batrs player file. It includes selected guilds, the active guild primary background, settings, generic command preferences, and trigger group toggles.

@@ -1,7 +1,8 @@
 use crate::abilities;
+use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
-use crate::guilds::{CurateGuild, cast_spell};
+use crate::guilds::CurateGuild;
 use std::collections::HashMap;
 
 impl CurateGuild {

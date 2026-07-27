@@ -23,9 +23,11 @@ The Guild Catalog is the canonical Rust-source list of BatMUD guild keywords kno
 - Guild Dialog (`src/app/dialogs/guild_dialog.rs`) delegates browse labels and drill rows to browse; it keeps focus, cursors, keystroke handling, and guild-specific text inputs.
 - Implementation: `src/guilds/catalog/`, `src/guilds/grouping.rs`.
 - Per-guild behavior lives under `src/guilds/<guild>/` (commands and triggers).
+- Guild command modules import `use_skill` and `cast_spell` from Abilities (`src/abilities/mod.rs`), not from the Guild root module.
 
 ## Related
 
+- [Abilities](abilities.md)
 - [batrs client application](../subsystems/batrs-client.md)
 - `CONTEXT.md` — Guild Catalog section
 - [Guild overview in user manual](../../guilds/index.md)

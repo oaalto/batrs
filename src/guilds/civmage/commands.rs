@@ -1,7 +1,8 @@
 use crate::abilities;
+use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
-use crate::guilds::{CivmageGuild, cast_spell};
+use crate::guilds::CivmageGuild;
 use std::collections::HashMap;
 
 impl CivmageGuild {

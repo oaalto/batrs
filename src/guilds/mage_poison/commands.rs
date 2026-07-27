@@ -4,10 +4,10 @@
 //! where spell names overlap, so multi-guild configs keep distinct shortcuts.
 
 use crate::abilities;
+use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
 use crate::guilds::MagePoisonGuild;
-use crate::guilds::cast_spell;
 use std::collections::HashMap;
 
 macro_rules! mage_poison_targeted_cast {

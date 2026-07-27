@@ -1,7 +1,8 @@
+use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
+use crate::guilds::PsionicistGuild;
 use crate::guilds::riftwalker::RIFTWALKER_HAS_ENTITY_FLAG;
-use crate::guilds::{PsionicistGuild, cast_spell};
 use std::collections::HashMap;
 
 impl PsionicistGuild {

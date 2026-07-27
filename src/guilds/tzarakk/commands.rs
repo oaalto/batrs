@@ -1,9 +1,10 @@
 use crate::abilities;
+use crate::abilities::use_skill;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
+use crate::guilds::TzarakkGuild;
 use crate::guilds::tzarakk::MOUNT_SUMMONED_FLAG;
-use crate::guilds::{TzarakkGuild, use_skill};
 use std::collections::HashMap;
 
 impl TzarakkGuild {

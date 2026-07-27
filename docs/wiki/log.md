@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-07-27] ingest | Move guild wrappers to Abilities
+
+- Updated: [Abilities](concepts/abilities.md), [Guild Catalog](concepts/guild-catalog.md)
+- Sources: `CONTEXT.md`, `src/abilities/mod.rs`, `docs/features/move-guild-wrappers-to-abilities/prd.md`
+- Notes: Documented Abilities bounded context, targeted-command formatting rules, and guild→Abilities import seam.
+
 ## [2026-07-27] update | Configurable trigger chain
 
 - Updated: [Command Dispatch](concepts/command-dispatch.md), [Player Profile](concepts/player-profile.md)

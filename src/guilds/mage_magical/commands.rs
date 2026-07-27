@@ -1,9 +1,9 @@
 //! Slash commands for Mage Magical, including spells beyond the minimal core set.
 
+use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
 use crate::guilds::MageMagicalGuild;
-use crate::guilds::cast_spell;
 use std::collections::HashMap;
 
 macro_rules! mage_magical_targeted_cast {

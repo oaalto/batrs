@@ -2,6 +2,7 @@
 
 ## Concepts
 
+- [Abilities](concepts/abilities.md)
 - [Combat Awareness](concepts/combat-awareness.md)
 - [Command Dispatch](concepts/command-dispatch.md)
 - [Guild Catalog](concepts/guild-catalog.md)

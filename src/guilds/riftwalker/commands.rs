@@ -1,13 +1,14 @@
 use crate::abilities;
+use crate::abilities::cast_spell;
 use crate::ansi::StyledLine;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
+use crate::guilds::RiftwalkerGuild;
 use crate::guilds::riftwalker::{
     AIR_SKILL, EARTH_SKILL, FIRE_SKILL, RIFTWALKER_ELEMENT_VAR, RIFTWALKER_HAS_ENTITY_FLAG,
     RIFTWALKER_SKILL_VAR, WATER_SKILL,
 };
-use crate::guilds::{RiftwalkerGuild, cast_spell};
 use std::collections::HashMap;
 
 impl RiftwalkerGuild {
