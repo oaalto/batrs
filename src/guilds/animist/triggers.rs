@@ -1,7 +1,9 @@
 use crate::ansi::TextStyle;
 use crate::automation::Action;
 use crate::guilds::AnimistGuild;
+use crate::guilds::animist::companion_combat_rules::companion_rules_arc;
 use crate::secondary_status::SecondaryStatusEffect;
+use crate::triggers::rule_engine::apply_rules;
 use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
@@ -13,6 +15,7 @@ impl AnimistGuild {
             Self::spirit_appears_trigger,
             Self::soul_companion_training_trigger,
             Self::soul_companion_sword_hit_trigger,
+            Self::soul_companion_combat_hilite_trigger,
         ]
     }
 
@@ -64,6 +67,19 @@ impl AnimistGuild {
         }
         TriggerEffects::none()
     }
+
+    pub fn soul_companion_combat_hilite_trigger(
+        line: &TriggerLine<'_>,
+        facts: &TriggerFacts,
+    ) -> TriggerEffects {
+        let mut output = TriggerEffects::default();
+        let Some(name) = facts.player_name() else {
+            return output;
+        };
+        let rules = companion_rules_arc(name);
+        apply_rules(rules.iter(), line.plain_line, facts, &mut output);
+        output
+    }
 }
 
 /// Percent may use non-ASCII digits; trailing status text (e.g. `+`) is optional.
@@ -83,13 +99,23 @@ mod tests {
     use crate::ansi::StyledLine;
     use crate::secondary_status::SecondaryStatus;
     use crate::triggers::{Trigger, TriggerFacts, TriggerLine};
+    use unicode_segmentation::UnicodeSegmentation;
 
     fn run(
         trigger: Trigger,
         line_text: &str,
         status: &mut SecondaryStatus,
     ) -> (TriggerEffects, StyledLine) {
-        let output = trigger(&TriggerLine::new(line_text), &TriggerFacts::default());
+        run_with_facts(trigger, line_text, &TriggerFacts::default(), status)
+    }
+
+    fn run_with_facts(
+        trigger: Trigger,
+        line_text: &str,
+        facts: &TriggerFacts,
+        status: &mut SecondaryStatus,
+    ) -> (TriggerEffects, StyledLine) {
+        let output = trigger(&TriggerLine::new(line_text), facts);
         for effect in output.secondary_status.clone() {
             status.apply_effect(effect);
         }
@@ -187,5 +213,126 @@ mod tests {
 
         assert_eq!(line.styled_chars[0].color, AnsiCode::Blue);
         assert!(line.styled_chars[0].bold);
+    }
+
+    #[test]
+    fn soul_companion_announcement_matches_bracketed_player_name() {
+        let text = "A blue-glowing soul companion [Nynn].";
+        let facts = TriggerFacts::new(Default::default(), Default::default(), None, Some("Nynn"));
+        let mut status = SecondaryStatus::default();
+        let (_, styled) = run_with_facts(
+            AnimistGuild::soul_companion_combat_hilite_trigger,
+            text,
+            &facts,
+            &mut status,
+        );
+        for styled_char in &styled.styled_chars {
+            assert_eq!(styled_char.color, AnsiCode::Blue, "whole line blue");
+        }
+    }
+
+    #[test]
+    fn soul_companion_announcement_requires_application_player_name() {
+        let text = "A blue-glowing soul companion [Nynn].";
+        let facts = TriggerFacts::new(Default::default(), Default::default(), None, Some("Other"));
+        let mut status = SecondaryStatus::default();
+        let (_, styled) = run_with_facts(
+            AnimistGuild::soul_companion_combat_hilite_trigger,
+            text,
+            &facts,
+            &mut status,
+        );
+        assert_eq!(
+            styled.styled_chars[0].color,
+            AnsiCode::DefaultColor,
+            "wrong name: no highlight"
+        );
+    }
+
+    #[test]
+    fn avatar_hits_other_highlights_once_in_blue() {
+        let text = "Nynn hits orc once with force.";
+        let facts = TriggerFacts::new(Default::default(), Default::default(), None, Some("Nynn"));
+        let mut status = SecondaryStatus::default();
+        let (_, styled) = run_with_facts(
+            AnimistGuild::soul_companion_combat_hilite_trigger,
+            text,
+            &facts,
+            &mut status,
+        );
+        let once_byte = text.find("once").expect("once in line");
+        let idx = styled
+            .plain_line
+            .get(..once_byte)
+            .map(|s| s.graphemes(true).count())
+            .unwrap_or(0);
+        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Blue);
+        assert_eq!(styled.styled_chars[idx + 1].color, AnsiCode::Blue);
+        assert_eq!(styled.styled_chars[idx + 2].color, AnsiCode::Blue);
+        assert_eq!(styled.styled_chars[idx + 3].color, AnsiCode::Blue);
+    }
+
+    #[test]
+    fn avatar_hits_other_uses_capitalized_player_name_for_digit_count() {
+        let text = "Odefu hits Man 4 times causing a nasty laceration.";
+        let facts = TriggerFacts::new(Default::default(), Default::default(), None, Some("odefu"));
+        let mut status = SecondaryStatus::default();
+        let (_, styled) = run_with_facts(
+            AnimistGuild::soul_companion_combat_hilite_trigger,
+            text,
+            &facts,
+            &mut status,
+        );
+        let count_byte = text.find("4 times").expect("count in line");
+        let idx = styled
+            .plain_line
+            .get(..count_byte)
+            .map(|s| s.graphemes(true).count())
+            .unwrap_or(0);
+
+        assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
+        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Red);
+    }
+
+    #[test]
+    fn avatar_hits_other_uses_capitalized_player_name_for_twice() {
+        let text = "Odefu hits Man twice inducing a nasty lesion.";
+        let facts = TriggerFacts::new(Default::default(), Default::default(), None, Some("odefu"));
+        let mut status = SecondaryStatus::default();
+        let (_, styled) = run_with_facts(
+            AnimistGuild::soul_companion_combat_hilite_trigger,
+            text,
+            &facts,
+            &mut status,
+        );
+        let twice_byte = text.find("twice").expect("twice in line");
+        let idx = styled
+            .plain_line
+            .get(..twice_byte)
+            .map(|s| s.graphemes(true).count())
+            .unwrap_or(0);
+
+        assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
+        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Magenta);
+    }
+
+    #[test]
+    fn other_hits_avatar_whole_line_magenta_and_twice_highlighted() {
+        let text = "Orc hits Nynn twice as hard.";
+        let facts = TriggerFacts::new(Default::default(), Default::default(), None, Some("Nynn"));
+        let mut status = SecondaryStatus::default();
+        let (_, styled) = run_with_facts(
+            AnimistGuild::soul_companion_combat_hilite_trigger,
+            text,
+            &facts,
+            &mut status,
+        );
+        assert!(
+            styled
+                .styled_chars
+                .iter()
+                .all(|c| c.color == AnsiCode::Magenta)
+        );
+        assert!(styled.styled_chars.iter().any(|c| c.bold));
     }
 }

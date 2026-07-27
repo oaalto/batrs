@@ -45,7 +45,7 @@ impl ReaverGuild {
 
     pub fn reaver_threaten_logical(data: &command::Data) -> String {
         if !data.args.is_empty() {
-            format!("reaver threaten {}", &data.args)
+            format!("reaver threaten {}", data.args)
         } else {
             String::default()
         }
@@ -80,7 +80,7 @@ impl ReaverGuild {
         } else {
             command::send(abilities::client_send_line(&format!(
                 "reaver threaten {}",
-                &data.args
+                data.args
             )))
         }
     }
@@ -164,7 +164,7 @@ impl ReaverGuild {
         if !data.args.is_empty() {
             return command::send(abilities::client_send_line(&format!(
                 "use 'prayer to destruction' {}",
-                &data.args
+                data.args
             )));
         }
         vec![command::output(StyledLine::new("No target!"))]
@@ -216,7 +216,7 @@ impl ReaverGuild {
         } else {
             command::send(abilities::client_send_line(&format!(
                 "cast 'word of attrition' {}",
-                &data.args
+                data.args
             )))
         }
     }
@@ -287,7 +287,7 @@ impl ReaverGuild {
             if ctx.flag("prayer_done") {
                 return command::send(abilities::client_send_line(&format!(
                     "cast 'call armour' amount {}",
-                    &data.args
+                    data.args
                 )));
             }
 
@@ -313,7 +313,7 @@ impl ReaverGuild {
             if ctx.flag("prayer_done") {
                 return command::send(abilities::client_send_line(&format!(
                     "cast 'spirit drain' {} amount 100",
-                    &data.args
+                    data.args
                 )));
             }
 

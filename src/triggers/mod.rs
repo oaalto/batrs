@@ -8,8 +8,10 @@ use std::ops::Range;
 use std::sync::LazyLock;
 
 mod common;
+pub(crate) mod money_summary;
 mod prompt;
 mod recovery_bracket;
+pub(crate) mod rule_engine;
 mod short_score;
 mod spell_vocal_data;
 mod spell_vocals;
@@ -217,4 +219,46 @@ pub fn process(facts: &TriggerFacts, guilds: &[Box<dyn Guild>], line: &str) -> T
     }
 
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ansi::AnsiCode;
+    use crate::ansi::StyledLine;
+    use crate::guilds::{AnimistGuild, MonkGuild};
+    use std::collections::HashMap;
+
+    fn companion_line_is_blue(output: &TriggerEffects, line: &str) -> bool {
+        let mut styled = StyledLine::new(line);
+        output.apply_line_effects_to(&mut styled);
+        styled
+            .styled_chars
+            .iter()
+            .all(|c| c.color == AnsiCode::Blue)
+    }
+
+    #[test]
+    fn process_without_animist_skips_companion_combat_hilite() {
+        let text = "A blue-glowing soul companion [Nynn].";
+        let facts = TriggerFacts::new(HashMap::new(), HashMap::new(), None, Some("Nynn"));
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(MonkGuild::default())];
+        let output = process(&facts, &guilds, text);
+        assert!(
+            !companion_line_is_blue(&output, text),
+            "companion hilite should not run without Animist active"
+        );
+    }
+
+    #[test]
+    fn process_with_animist_applies_companion_combat_hilite() {
+        let text = "A blue-glowing soul companion [Nynn].";
+        let facts = TriggerFacts::new(HashMap::new(), HashMap::new(), None, Some("Nynn"));
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(AnimistGuild::default())];
+        let output = process(&facts, &guilds, text);
+        assert!(
+            companion_line_is_blue(&output, text),
+            "companion hilite should run when Animist is active"
+        );
+    }
 }

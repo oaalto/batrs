@@ -218,7 +218,7 @@ impl Display for StyledLine {
             .collect::<Vec<String>>()
             .join(", ");
 
-        write!(f, "{}: {}", &self.plain_line, blocks)
+        write!(f, "{}: {}", self.plain_line, blocks)
     }
 }
 

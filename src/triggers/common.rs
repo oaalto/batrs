@@ -1,441 +1,12 @@
-use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::combat_awareness::NOT_IN_COMBAT_LINE;
-use crate::triggers::{LineEffect, TriggerEffects, TriggerFacts, TriggerLine};
-use log::warn;
-use regex::{Captures, Regex};
-use std::sync::{Arc, LazyLock, Mutex};
-
-#[derive(Clone, Copy)]
-enum HiliteTarget {
-    Whole,
-    Group(usize),
-}
-
-enum RuleCondition {
-    FlagSet(&'static str),
-}
-
-enum RuleAction {
-    Hilite {
-        target: HiliteTarget,
-        style: TextStyle,
-    },
-    MoneySummary {
-        list_index: usize,
-    },
-    Echo {
-        text: &'static str,
-        style: TextStyle,
-    },
-    Send(&'static str),
-}
-
-enum RuleMatcher {
-    Simple(&'static str),
-    Regex(Regex),
-}
-
-struct Rule {
-    priority: i32,
-    order: usize,
-    matcher: RuleMatcher,
-    condition: Option<RuleCondition>,
-    actions: Vec<RuleAction>,
-}
-
-enum MatchData<'a> {
-    Simple,
-    Regex(Captures<'a>),
-}
-
-impl RuleMatcher {
-    fn match_line<'a>(&self, line: &'a str) -> Option<MatchData<'a>> {
-        match self {
-            RuleMatcher::Simple(pattern) => {
-                if line == *pattern {
-                    Some(MatchData::Simple)
-                } else {
-                    None
-                }
-            }
-            RuleMatcher::Regex(regex) => regex.captures(line).map(MatchData::Regex),
-        }
-    }
-}
-
-impl Rule {
-    fn condition_met(&self, facts: &TriggerFacts) -> bool {
-        match self.condition {
-            Some(RuleCondition::FlagSet(key)) => facts.flag_is_set(key),
-            None => true,
-        }
-    }
-
-    fn apply(&self, match_data: &MatchData<'_>, output: &mut TriggerEffects) {
-        for action in self.actions.iter().filter(|action| {
-            matches!(
-                action,
-                RuleAction::Hilite {
-                    target: HiliteTarget::Whole,
-                    ..
-                }
-            )
-        }) {
-            apply_rule_action(action, match_data, output);
-        }
-
-        for action in &self.actions {
-            if matches!(
-                action,
-                RuleAction::Hilite {
-                    target: HiliteTarget::Whole,
-                    ..
-                }
-            ) {
-                continue;
-            }
-            apply_rule_action(action, match_data, output);
-        }
-    }
-}
-
-fn apply_rule_action(action: &RuleAction, match_data: &MatchData<'_>, output: &mut TriggerEffects) {
-    match action {
-        RuleAction::Hilite {
-            target: HiliteTarget::Whole,
-            style,
-        } => {
-            output.original.edits.push(LineEffect::StyleLine(*style));
-        }
-        RuleAction::Hilite {
-            target: HiliteTarget::Group(index),
-            style,
-        } => {
-            if let MatchData::Regex(captures) = match_data {
-                apply_capture_hilite(output, captures, *index, *style);
-            }
-        }
-        RuleAction::MoneySummary { list_index } => {
-            if let MatchData::Regex(captures) = match_data
-                && let Some(m) = captures.get(*list_index)
-            {
-                push_money_summary(m.as_str(), &mut output.lines);
-            }
-        }
-        RuleAction::Echo { text, style } => {
-            let mut line = StyledLine::new(text);
-            line.set_line_style(*style);
-            output.lines.push(line);
-        }
-        RuleAction::Send(template) => {
-            output.actions.push(Action::Send((*template).to_string()));
-        }
-    }
-}
-
-fn apply_capture_hilite(
-    output: &mut TriggerEffects,
-    captures: &Captures<'_>,
-    index: usize,
-    style: TextStyle,
-) {
-    let Some(m) = captures.get(index) else {
-        return;
-    };
-    output.original.edits.push(LineEffect::StylePlainByteRange {
-        range: m.range(),
-        style,
-    });
-}
-
-fn tf_hilite(code: &str, target: HiliteTarget) -> RuleAction {
-    let style = tf_style(code);
-    RuleAction::Hilite { target, style }
-}
-
-fn tf_echo(code: &str, text: &'static str) -> RuleAction {
-    let style = tf_style(code);
-    RuleAction::Echo { text, style }
-}
-
-fn tf_style(code: &str) -> TextStyle {
-    match code {
-        "Cred" => TextStyle::RED,
-        "Cgreen" => TextStyle::GREEN,
-        "Cyellow" => TextStyle::YELLOW,
-        "Cblue" => TextStyle::BLUE,
-        "Cmagenta" => TextStyle::MAGENTA,
-        "Ccyan" => TextStyle::CYAN,
-        "Cwhite" => TextStyle::WHITE,
-        "BCred" => TextStyle::BRIGHT_RED,
-        "BCgreen" => TextStyle::BRIGHT_GREEN,
-        "BCyellow" => TextStyle::BRIGHT_YELLOW,
-        "BCblue" => TextStyle::BRIGHT_BLUE,
-        "BCmagenta" => TextStyle::BRIGHT_MAGENTA,
-        "BCcyan" => TextStyle::BRIGHT_CYAN,
-        "BCwhite" => TextStyle::BRIGHT_WHITE,
-        _ => TextStyle::WHITE,
-    }
-}
-
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum CoinType {
-    Anipium,
-    Batium,
-    Mithril,
-    Platinum,
-}
-
-impl CoinType {
-    fn from_str(value: &str) -> Option<Self> {
-        match value {
-            "anipium" => Some(Self::Anipium),
-            "batium" => Some(Self::Batium),
-            "mithril" => Some(Self::Mithril),
-            "platinum" => Some(Self::Platinum),
-            _ => None,
-        }
-    }
-
-    fn display_name(self) -> &'static str {
-        match self {
-            Self::Anipium => "Anipium",
-            Self::Batium => "Batium",
-            Self::Mithril => "Mithril",
-            Self::Platinum => "Platinum",
-        }
-    }
-
-    fn multiplier(self) -> u64 {
-        match self {
-            Self::Anipium => 50,
-            Self::Batium => 100,
-            Self::Mithril => 500,
-            Self::Platinum => 10,
-        }
-    }
-
-    fn order_index(self) -> usize {
-        match self {
-            Self::Anipium => 0,
-            Self::Batium => 1,
-            Self::Mithril => 2,
-            Self::Platinum => 3,
-        }
-    }
-}
-
-fn push_money_summary(list_text: &str, output_lines: &mut Vec<StyledLine>) {
-    let normalized = list_text.trim().replace(" and ", ", ");
-    let mut counts = [None; 4];
-    let mut last_index = None;
-
-    for entry in normalized.split(", ") {
-        let mut parts = entry.splitn(2, ' ');
-        let amount = parts.next().and_then(|value| value.parse::<u64>().ok());
-        let coin = parts.next().and_then(CoinType::from_str);
-
-        let (Some(amount), Some(coin)) = (amount, coin) else {
-            return;
-        };
-
-        let idx = coin.order_index();
-        if counts[idx].is_some() {
-            return;
-        }
-        if let Some(last_idx) = last_index
-            && idx <= last_idx
-        {
-            return;
-        }
-
-        counts[idx] = Some(amount);
-        last_index = Some(idx);
-    }
-
-    if counts.iter().all(|value| value.is_none()) {
-        return;
-    }
-
-    let mut total = 0u64;
-    for coin in [
-        CoinType::Platinum,
-        CoinType::Anipium,
-        CoinType::Batium,
-        CoinType::Mithril,
-    ] {
-        if let Some(amount) = counts[coin.order_index()] {
-            let value = amount * coin.multiplier();
-            total += value;
-            output_lines.push(StyledLine::new(&format!(
-                "{} {} = {}",
-                coin.display_name(),
-                amount,
-                value
-            )));
-        }
-    }
-
-    output_lines.push(StyledLine::new(&format!("Total = {}", total)));
-}
-
-fn push_rule(
-    rules: &mut Vec<Rule>,
-    order: &mut usize,
-    matcher: RuleMatcher,
-    priority: i32,
-    condition: Option<RuleCondition>,
-    actions: Vec<RuleAction>,
-) {
-    rules.push(Rule {
-        priority,
-        order: *order,
-        matcher,
-        condition,
-        actions,
-    });
-    *order += 1;
-}
-
-static COMPANION_RULES_CACHE: Mutex<Option<(String, Arc<Vec<Rule>>)>> = Mutex::new(None);
-
-fn companion_rules_arc(name: &str) -> Arc<Vec<Rule>> {
-    let Some(name) = companion_rule_name(name) else {
-        return Arc::new(Vec::new());
-    };
-
-    let mut guard = COMPANION_RULES_CACHE.lock().unwrap_or_else(|poisoned| {
-        warn!("companion rules cache mutex was poisoned; clearing cache");
-        let mut guard = poisoned.into_inner();
-        *guard = None;
-        guard
-    });
-    if guard
-        .as_ref()
-        .is_some_and(|(stored, _)| stored.as_str() == name)
-    {
-        return Arc::clone(&guard.as_ref().unwrap().1);
-    }
-    let built = Arc::new(build_companion_rules(&name));
-    *guard = Some((name, Arc::clone(&built)));
-    built
-}
-
-fn companion_rule_name(name: &str) -> Option<String> {
-    let trimmed = name.trim();
-    let mut chars = trimmed.chars();
-    let first = chars.next()?;
-
-    let mut normalized = first.to_uppercase().collect::<String>();
-    normalized.push_str(&chars.as_str().to_lowercase());
-    Some(normalized)
-}
-
-fn push_companion_regex_rule(
-    rules: &mut Vec<Rule>,
-    order: &mut usize,
-    pattern: String,
-    actions: Vec<RuleAction>,
-) {
-    let Some(regex) = Regex::new(&pattern).ok() else {
-        warn!("failed to compile companion trigger regex; pattern={pattern:?}");
-        return;
-    };
-    push_rule(rules, order, RuleMatcher::Regex(regex), 1000, None, actions);
-}
-
-/// Soul-companion combat lines for Fueryon/Odefu-style companions, with the character name
-/// taken from the application instead of hardcoded Fueryon/Odefu.
-fn build_companion_rules(name: &str) -> Vec<Rule> {
-    let escaped = regex::escape(name);
-    let mut rules = Vec::new();
-    let mut order = 0usize;
-
-    // "{name} hits <other> …" — attacker is the player character (green), count is group 2.
-    push_companion_regex_rule(
-        &mut rules,
-        &mut order,
-        format!(
-            r"^{} hits (.+) (?:once|twice|thrice|\d+ times) (.+)\.$",
-            escaped
-        ),
-        vec![tf_hilite("Cgreen", HiliteTarget::Whole)],
-    );
-    push_companion_regex_rule(
-        &mut rules,
-        &mut order,
-        format!(r"^{} hits (.+) (once) (.+)\.$", escaped),
-        vec![tf_hilite("Cblue", HiliteTarget::Group(2))],
-    );
-    push_companion_regex_rule(
-        &mut rules,
-        &mut order,
-        format!(r"^{} hits (.+) (twice) (.+)\.$", escaped),
-        vec![tf_hilite("Cmagenta", HiliteTarget::Group(2))],
-    );
-    push_companion_regex_rule(
-        &mut rules,
-        &mut order,
-        format!(r"^{} hits (.+) (thrice) (.+)\.$", escaped),
-        vec![tf_hilite("BCred", HiliteTarget::Group(2))],
-    );
-    push_companion_regex_rule(
-        &mut rules,
-        &mut order,
-        format!(r"^{} hits (.+) (\d+ times) (.+)\.$", escaped),
-        vec![tf_hilite("Cred", HiliteTarget::Group(2))],
-    );
-
-    // "<other> hits {name} …" — player is the target (magenta), count is group 2.
-    push_companion_regex_rule(
-        &mut rules,
-        &mut order,
-        format!(
-            r"^(.+) hits {} (?:once|twice|thrice|\d+ times) (.+)\.$",
-            escaped
-        ),
-        vec![tf_hilite("Cmagenta", HiliteTarget::Whole)],
-    );
-    push_companion_regex_rule(
-        &mut rules,
-        &mut order,
-        format!(r"^(.+) hits {} (once) (.+)\.$", escaped),
-        vec![tf_hilite("Cblue", HiliteTarget::Group(2))],
-    );
-    push_companion_regex_rule(
-        &mut rules,
-        &mut order,
-        format!(r"^(.+) hits {} (twice) (.+)\.$", escaped),
-        vec![tf_hilite("BCmagenta", HiliteTarget::Group(2))],
-    );
-    push_companion_regex_rule(
-        &mut rules,
-        &mut order,
-        format!(r"^(.+) hits {} (thrice) (.+)\.$", escaped),
-        vec![tf_hilite("BCred", HiliteTarget::Group(2))],
-    );
-    push_companion_regex_rule(
-        &mut rules,
-        &mut order,
-        format!(r"^(.+) hits {} (\d+ times) (.+)\.$", escaped),
-        vec![tf_hilite("Cred", HiliteTarget::Group(2))],
-    );
-
-    push_companion_regex_rule(
-        &mut rules,
-        &mut order,
-        format!(r"^A blue-glowing soul companion \[{}\]\.?$", escaped),
-        vec![tf_hilite("Cblue", HiliteTarget::Whole)],
-    );
-
-    rules.sort_by(|a, b| {
-        b.priority
-            .cmp(&a.priority)
-            .then_with(|| a.order.cmp(&b.order))
-    });
-    rules
-}
+use crate::triggers::rule_engine::{
+    HiliteTarget, Rule, RuleAction, RuleCondition, RuleMatcher, apply_rules, push_rule, sort_rules,
+    tf_echo, tf_hilite,
+};
+use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
+use regex::Regex;
+use std::sync::LazyLock;
 
 static RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     let mut rules = Vec::new();
@@ -1024,17 +595,12 @@ static RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
         vec![RuleAction::Send("@dig grave")],
     );
 
-    rules.sort_by(|a, b| {
-        b.priority
-            .cmp(&a.priority)
-            .then_with(|| a.order.cmp(&b.order))
-    });
+    sort_rules(&mut rules);
     rules
 });
 
 pub fn trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
     let mut output = TriggerEffects::default();
-    let plain_line = line.plain_line.to_string();
     if let Some(rig) = facts.rig()
         && !rig.is_empty()
     {
@@ -1043,28 +609,14 @@ pub fn trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
             .push(Action::SetVar("rig".to_string(), rig.to_string()));
     }
 
-    let companion_rules = facts
-        .player_name()
-        .map(companion_rules_arc)
-        .unwrap_or_else(|| Arc::new(Vec::new()));
-
-    for rule in RULES.iter().chain(companion_rules.iter()) {
-        let Some(match_data) = rule.matcher.match_line(&plain_line) else {
-            continue;
-        };
-        if !rule.condition_met(facts) {
-            continue;
-        }
-        rule.apply(&match_data, &mut output);
-    }
-
+    apply_rules(RULES.iter(), line.plain_line, facts, &mut output);
     output
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ansi::AnsiCode;
+    use crate::ansi::{AnsiCode, StyledLine};
     use crate::automation::Automation;
     use unicode_segmentation::UnicodeSegmentation;
 
@@ -1130,7 +682,7 @@ mod tests {
     }
 
     #[test]
-    fn money_summary_allows_missing_coin_types() {
+    fn money_summary_through_trigger_emits_summary_lines() {
         let (output, _line, _automation) =
             run_trigger("It contains 2 anipium and 1 platinum coins.", None, None);
 
@@ -1143,72 +695,6 @@ mod tests {
             lines,
             vec!["Platinum 1 = 10", "Anipium 2 = 100", "Total = 110"]
         );
-    }
-
-    #[test]
-    fn soul_companion_announcement_matches_bracketed_player_name() {
-        let text = "A blue-glowing soul companion [Nynn].";
-        let (_output, styled, _automation) = run_trigger(text, None, Some("Nynn"));
-        for styled_char in &styled.styled_chars {
-            assert_eq!(styled_char.color, AnsiCode::Blue, "whole line blue");
-        }
-    }
-
-    #[test]
-    fn soul_companion_announcement_requires_application_player_name() {
-        let text = "A blue-glowing soul companion [Nynn].";
-        let (_output, styled, _automation) = run_trigger(text, None, Some("Other"));
-        assert_eq!(
-            styled.styled_chars[0].color,
-            AnsiCode::DefaultColor,
-            "wrong name: no highlight"
-        );
-    }
-
-    #[test]
-    fn avatar_hits_other_highlights_once_in_blue() {
-        let text = "Nynn hits orc once with force.";
-        let (_output, styled, _automation) = run_trigger(text, None, Some("Nynn"));
-        let once_byte = text.find("once").expect("once in line");
-        let idx = styled
-            .plain_line
-            .get(..once_byte)
-            .map(|s| s.graphemes(true).count())
-            .unwrap_or(0);
-        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Blue);
-        assert_eq!(styled.styled_chars[idx + 1].color, AnsiCode::Blue);
-        assert_eq!(styled.styled_chars[idx + 2].color, AnsiCode::Blue);
-        assert_eq!(styled.styled_chars[idx + 3].color, AnsiCode::Blue);
-    }
-
-    #[test]
-    fn avatar_hits_other_uses_capitalized_player_name_for_digit_count() {
-        let text = "Odefu hits Man 4 times causing a nasty laceration.";
-        let (_output, styled, _automation) = run_trigger(text, None, Some("odefu"));
-        let count_byte = text.find("4 times").expect("count in line");
-        let idx = styled
-            .plain_line
-            .get(..count_byte)
-            .map(|s| s.graphemes(true).count())
-            .unwrap_or(0);
-
-        assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
-        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Red);
-    }
-
-    #[test]
-    fn avatar_hits_other_uses_capitalized_player_name_for_twice() {
-        let text = "Odefu hits Man twice inducing a nasty lesion.";
-        let (_output, styled, _automation) = run_trigger(text, None, Some("odefu"));
-        let twice_byte = text.find("twice").expect("twice in line");
-        let idx = styled
-            .plain_line
-            .get(..twice_byte)
-            .map(|s| s.graphemes(true).count())
-            .unwrap_or(0);
-
-        assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
-        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Magenta);
     }
 
     #[test]
@@ -1295,18 +781,5 @@ mod tests {
                 .iter()
                 .all(|c| c.color == AnsiCode::DefaultColor && !c.bold)
         );
-    }
-
-    #[test]
-    fn other_hits_avatar_whole_line_magenta_and_twice_highlighted() {
-        let text = "Orc hits Nynn twice as hard.";
-        let (_output, styled, _automation) = run_trigger(text, None, Some("Nynn"));
-        assert!(
-            styled
-                .styled_chars
-                .iter()
-                .all(|c| c.color == AnsiCode::Magenta)
-        );
-        assert!(styled.styled_chars.iter().any(|c| c.bold));
     }
 }

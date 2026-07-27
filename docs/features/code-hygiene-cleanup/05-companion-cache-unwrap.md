@@ -6,7 +6,7 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** superseded by `extract-trigger-rule-engine` (companion cache relocated to Animist `companion_combat_rules` with poison-safe handling)
 
 ## Acceptance criteria
 

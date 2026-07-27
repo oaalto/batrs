@@ -1,4 +1,5 @@
 mod commands;
+mod companion_combat_rules;
 mod triggers;
 
 use crate::abilities;

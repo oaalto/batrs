@@ -1,5 +1,9 @@
 # Engineering Wiki Log
 
+## [2026-07-27] skip | Extract trigger rule engine
+
+- Notes: Internal module extraction and Animist companion gating behavior change; no durable wiki concept updates required.
+
 ## [2026-07-24] update | Clear Command documentation sweep (ticket 02)
 
 - Updated: [Command Dispatch](concepts/command-dispatch.md)
