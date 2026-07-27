@@ -449,6 +449,7 @@ impl BatApp {
 
         let input = self.input.take_displayed_input();
         self.input.push_history(input);
+        self.input.clear_current_typed_input();
     }
 
     fn run_automation(&mut self, line: &str) {

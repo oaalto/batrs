@@ -381,6 +381,26 @@ mod tests {
     }
 
     #[test]
+    fn history_navigation_returns_to_empty_input_after_submit() {
+        // Regression: after submitting a command, navigating history up then
+        // down must return an empty input, not the previously submitted command.
+        let mut state = InputState::new();
+        state.insert_char('l');
+        state.insert_char('o');
+        state.insert_char('o');
+        state.insert_char('k');
+        let history_entry = state.take_displayed_input();
+        state.push_history(history_entry);
+        state.clear_current_typed_input();
+
+        state.move_history(-1);
+        assert_eq!(state.displayed_input(), "look");
+
+        state.move_history(1);
+        assert_eq!(state.displayed_input(), "");
+    }
+
+    #[test]
     fn hidden_input_cursor_offset_starts_after_prompt() {
         let state = InputState::new();
 
