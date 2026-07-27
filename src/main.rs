@@ -5,10 +5,7 @@ use crate::app::{
     AppEvent, BatApp, ConnectionChannels, ConnectionCoordinator, ConnectionId,
     INITIAL_CONNECTION_ID, ReconnectResult,
 };
-use crossterm::event::{
-    self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
-    Event,
-};
+use crossterm::event::{self, DisableBracketedPaste, EnableBracketedPaste, Event};
 use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
@@ -47,12 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
-    execute!(
-        stdout,
-        EnterAlternateScreen,
-        EnableBracketedPaste,
-        EnableMouseCapture
-    )?;
+    execute!(stdout, EnterAlternateScreen, EnableBracketedPaste)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
@@ -67,7 +59,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     disable_raw_mode()?;
     execute!(
         terminal.backend_mut(),
-        DisableMouseCapture,
         DisableBracketedPaste,
         LeaveAlternateScreen
     )?;
@@ -118,7 +109,6 @@ fn run_app(
 fn handle_terminal_event(event: Event, app: &mut BatApp) {
     match event {
         Event::Key(key) => app.handle_key_event(key),
-        Event::Mouse(mouse) => app.handle_mouse_event(mouse),
         Event::Paste(text) => app.handle_paste_event(text),
         _ => {}
     }
