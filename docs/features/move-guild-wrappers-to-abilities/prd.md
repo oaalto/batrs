@@ -2,7 +2,7 @@
 
 ## Status
 
-`ready-for-agent` — synthesized from grill session (Jul 2026).
+done
 
 ## Problem Statement
 
@@ -138,4 +138,4 @@ Ship as one atomic pull request: code migration, test relocation, PRD correction
 - Caller count verified at twenty-four guild command modules (import-only changes; no other callers of Guild re-exported `use_skill` / `cast_spell`).
 - Guild root module shrinks by the two wrapper functions and their tests (~10 lines of implementation plus test code).
 - Wiki `sources` frontmatter should cite `CONTEXT.md`, Abilities module source, and this PRD.
-- Label: `ready-for-agent`.
+- Label: `done`.

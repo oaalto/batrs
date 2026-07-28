@@ -8,7 +8,7 @@ Document the Abilities bounded context in the domain glossary and engineering wi
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Guild root module no longer exports `use_skill` or `cast_spell` pass-through functions; no callers import them from Guild
 - [x] All guild command modules that used Guild wrappers now use named Abilities imports; combined Guild imports split so only Guild-owned items remain; call sites unchanged

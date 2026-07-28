@@ -1,5 +1,13 @@
 # Engineering Wiki Log
 
+## [2026-07-28] skip | Code hygiene cleanup backlog close-out
+
+- Notes: Jul 2026 audit slices (stats test gating, telnet UTF-8, config/logging migration, companion cache, LazyLock) verified shipped in code; PRD and tickets marked done. No wiki concept updates required.
+
+## [2026-07-28] skip | Move guild wrappers to Abilities backlog close-out
+
+- Notes: Feature shipped in `a7c2f26`; PRD and ticket status aligned to done. Wiki ingest already recorded 2026-07-27.
+
 ## [2026-07-27] ingest | Move guild wrappers to Abilities
 
 - Updated: [Abilities](concepts/abilities.md), [Guild Catalog](concepts/guild-catalog.md)

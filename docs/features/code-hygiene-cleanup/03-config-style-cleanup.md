@@ -6,15 +6,15 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done — `src/config.rs` uses `log::warn!` / `log::error!`; no clippy style suppressions remain.
 
 ## Acceptance criteria
 
-- [ ] `#[allow(clippy::collapsible_if)]` removed; nested `if` in `load_user` migration rewrite flattened or restructured
-- [ ] Config migration and invalid-config messages use `log::warn!` / `log::error!` instead of `eprintln!`
-- [ ] Fallback behavior unchanged: invalid player config still yields defaults
-- [ ] All existing config module tests pass
-- [ ] `cargo clippy --all-targets --all-features -- -D warnings` passes
+- [x] `#[allow(clippy::collapsible_if)]` removed; nested `if` in `load_user` migration rewrite flattened or restructured
+- [x] Config migration and invalid-config messages use `log::warn!` / `log::error!` instead of `eprintln!`
+- [x] Fallback behavior unchanged: invalid player config still yields defaults
+- [x] All existing config module tests pass
+- [x] `cargo clippy --all-targets --all-features -- -D warnings` passes
 
 ## Test seam
 

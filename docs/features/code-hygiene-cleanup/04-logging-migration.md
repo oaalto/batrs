@@ -6,16 +6,16 @@
 
 **Blocked by:** None — can start immediately (may land after 03 without conflict)
 
-**Status:** ready-for-agent
+**Status:** done — no production `eprintln!` in `src/`; app shell, main, and config use `log` macros.
 
 ## Acceptance criteria
 
-- [ ] Production `eprintln!` in application shell (~15), main connection setup (~2), and styled-line helper (~1) replaced with appropriate `log` levels
-- [ ] Message text preserved where practical for grep continuity
-- [ ] `env_logger` already initialized in main — no new logging dependency
-- [ ] Test code may keep `eprintln!`
-- [ ] `cargo clippy --all-targets --all-features -- -D warnings` passes
-- [ ] Full test suite passes
+- [x] Production `eprintln!` in application shell (~15), main connection setup (~2), and styled-line helper (~1) replaced with appropriate `log` levels
+- [x] Message text preserved where practical for grep continuity
+- [x] `env_logger` already initialized in main — no new logging dependency
+- [x] Test code may keep `eprintln!`
+- [x] `cargo clippy --all-targets --all-features -- -D warnings` passes
+- [x] Full test suite passes
 
 ## Test seam
 

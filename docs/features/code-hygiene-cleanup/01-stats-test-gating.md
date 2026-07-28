@@ -8,15 +8,15 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done — shipped via `secondary-status-extraction`; test helpers gated with `#[cfg(test)]` on `src/secondary_status.rs`.
 
 ## Acceptance criteria
 
-- [ ] `#[allow(dead_code)]` removed from `merge_riftwalker_battle_hp`, `has_nergal_minions`, and `has_nergal_resource_status`
-- [ ] Those three items gated with `#[cfg(test)]` (or deleted and tests updated to assert state directly)
-- [ ] Production code unchanged: `merge_riftwalker_battle_hp_from_listen` remains the live HP-merge path
-- [ ] All existing stats module unit tests pass
-- [ ] `cargo clippy --all-targets --all-features -- -D warnings` passes
+- [x] `#[allow(dead_code)]` removed from `merge_riftwalker_battle_hp`, `has_nergal_minions`, and `has_nergal_resource_status`
+- [x] Those three items gated with `#[cfg(test)]` (or deleted and tests updated to assert state directly)
+- [x] Production code unchanged: `merge_riftwalker_battle_hp_from_listen` remains the live HP-merge path
+- [x] All existing stats module unit tests pass
+- [x] `cargo clippy --all-targets --all-features -- -D warnings` passes
 
 ## Test seam
 

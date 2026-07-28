@@ -6,14 +6,14 @@
 
 **Blocked by:** None — can start immediately; **recommended after 01–05** to avoid merge churn
 
-**Status:** ready-for-agent
+**Status:** done — all `lazy_static!` uses migrated to `LazyLock`; `lazy_static` removed from `Cargo.toml`.
 
 ## Acceptance criteria
 
-- [ ] All `lazy_static!` uses migrated to `LazyLock` (or `OnceLock` where appropriate) across trigger and guild modules (~31 files)
-- [ ] `lazy_static` removed from `Cargo.toml` if no remaining uses
-- [ ] Trigger behavior unchanged: all trigger/guild tests pass
-- [ ] `cargo clippy --all-targets --all-features -- -D warnings` passes
+- [x] All `lazy_static!` uses migrated to `LazyLock` (or `OnceLock` where appropriate) across trigger and guild modules (~31 files)
+- [x] `lazy_static` removed from `Cargo.toml` if no remaining uses
+- [x] Trigger behavior unchanged: all trigger/guild tests pass
+- [x] `cargo clippy --all-targets --all-features -- -D warnings` passes
 
 ## Test seam
 

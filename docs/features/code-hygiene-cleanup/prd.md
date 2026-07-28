@@ -2,7 +2,7 @@
 
 ## Status
 
-`ready-for-agent` — synthesized from static audit (Jul 2026). `cargo clippy --all-targets --all-features` is clean; findings are latent smells, not active compiler warnings.
+done — Jul 2026 audit findings resolved organically across secondary-status extraction, connect-session-lifecycle (telnet buffer), extract-trigger-rule-engine (companion cache), and incremental logging/LazyLock migrations. No remaining `#[allow(...)]`, `eprintln!`, or `lazy_static!` in `src/`.
 
 ## Problem Statement
 
@@ -165,6 +165,6 @@ Proposed order: **clippy gate** (repo-wide) + **stats tests** (Slice A) + **teln
 
 ### Triage
 
-- **Label:** `ready-for-agent`
+- **Label:** `done`
 - **Parent feature:** `code-hygiene-cleanup`
 - **Slices:** `docs/features/code-hygiene-cleanup/` (01–06; 01–05 parallel, 06 optional wide refactor)
