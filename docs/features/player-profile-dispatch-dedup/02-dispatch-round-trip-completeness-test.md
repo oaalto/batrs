@@ -27,4 +27,4 @@ Scope is persist + known slot only. Do not cover guild-dialog or sparse-extra se
 
 ## Status
 
-ready-for-agent
+done

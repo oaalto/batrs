@@ -2,7 +2,7 @@
 
 ## Status
 
-ready-for-agent
+done
 
 ## Problem Statement
 

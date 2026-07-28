@@ -28,4 +28,4 @@ None — can start immediately.
 
 ## Status
 
-ready-for-agent
+done

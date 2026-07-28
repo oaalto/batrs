@@ -30,4 +30,4 @@ Wire `mod.rs` to call through the new submodules. Runtime, TOML orchestration, a
 
 ## Status
 
-ready-for-agent
+done

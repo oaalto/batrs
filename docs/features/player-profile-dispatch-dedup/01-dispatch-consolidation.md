@@ -39,4 +39,4 @@ None — can start immediately (prerequisite: deepen-player-profile-settings sli
 
 ## Status
 
-ready-for-agent
+done
