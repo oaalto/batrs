@@ -1,7 +1,9 @@
-use crate::config::{is_truthy_setting_value, GenericCommandsConfig, UserSettings};
+use crate::config::{GenericCommandsConfig, UserSettings, is_truthy_setting_value};
 use crate::guilds::catalog::{DEFAULT_GUILD_PRIMARY_KEYWORD, GuildSelection};
-use crate::player_profile::automation::{automation_flags_for_settings, automation_vars_for_settings};
-use crate::player_profile::registry::{SettingDefinition, SettingKind, SettingSlot, SETTINGS_DEFS};
+use crate::player_profile::automation::{
+    automation_flags_for_settings, automation_vars_for_settings,
+};
+use crate::player_profile::registry::{SETTINGS_DEFS, SettingDefinition, SettingKind, SettingSlot};
 use crate::triggers::TriggerConfig;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -159,7 +161,6 @@ pub fn runtime_profile_from_parts(
         guild_dialog_defaults,
     }
 }
-
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlayerRuntimeProfile {

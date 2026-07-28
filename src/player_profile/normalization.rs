@@ -1,6 +1,8 @@
 use crate::config::{PlayerToml, SettingEntry};
 use crate::guilds::catalog::GuildSelection;
-use crate::player_profile::registry::{definition_for_key, SettingDefinition, SettingKind, SettingSlot, SETTINGS_DEFS};
+use crate::player_profile::registry::{
+    SETTINGS_DEFS, SettingDefinition, SettingKind, SettingSlot, definition_for_key,
+};
 use std::collections::HashMap;
 
 pub fn normalize_settings_entries(entries: Vec<SettingEntry>) -> (Vec<SettingEntry>, bool) {

@@ -1,5 +1,5 @@
 use crate::player_profile::registry::{AutomationExport, SETTINGS_DEFS};
-use crate::player_profile::runtime::{read_known_slot, KnownProfileSettings};
+use crate::player_profile::runtime::{KnownProfileSettings, read_known_slot};
 
 pub fn automation_flags_for_settings(settings: &KnownProfileSettings) -> Vec<(String, bool)> {
     SETTINGS_DEFS

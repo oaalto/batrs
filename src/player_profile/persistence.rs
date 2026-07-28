@@ -1,5 +1,5 @@
-use crate::config::{is_truthy_setting_value, SettingsTable};
-use crate::player_profile::registry::{SettingDefinition, PersistSlot};
+use crate::config::{SettingsTable, is_truthy_setting_value};
+use crate::player_profile::registry::{PersistSlot, SettingDefinition};
 
 pub fn read_persist(table: &SettingsTable, definition: &SettingDefinition) -> String {
     match definition.persist {

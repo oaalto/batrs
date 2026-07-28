@@ -144,5 +144,7 @@ pub const SETTINGS_DEFS: &[SettingDefinition] = &[
 ];
 
 pub fn definition_for_key(key: &str) -> Option<&'static SettingDefinition> {
-    SETTINGS_DEFS.iter().find(|definition| definition.key == key)
+    SETTINGS_DEFS
+        .iter()
+        .find(|definition| definition.key == key)
 }

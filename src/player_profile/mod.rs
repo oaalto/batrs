@@ -1,16 +1,16 @@
-pub mod registry;
+pub mod automation;
 pub mod normalization;
 pub mod persistence;
-pub mod automation;
+pub mod registry;
 pub mod runtime;
 
-pub use registry::{RIFTWALKER_ENTITY_LABEL_KEYS, TZARAKK_MOUNT_KEY, SABRE_WEAPON_KEY};
+pub use registry::{RIFTWALKER_ENTITY_LABEL_KEYS, SABRE_WEAPON_KEY, TZARAKK_MOUNT_KEY};
 pub use runtime::{InterpretedPlayerProfile, PlayerRuntimeProfile};
 
-use crate::config::{PlayerToml, SettingsTable, SettingEntry, UserSettings};
+use crate::config::{PlayerToml, SettingEntry, SettingsTable, UserSettings};
 use crate::player_profile::normalization::{normalize_player_guilds, normalize_settings_entries};
 use crate::player_profile::persistence::{read_persist, write_persist};
-use crate::player_profile::registry::{definition_for_key, SETTINGS_DEFS};
+use crate::player_profile::registry::{SETTINGS_DEFS, definition_for_key};
 
 pub fn interpret_player_toml(player: PlayerToml) -> InterpretedPlayerProfile {
     let mut normalized_player = player;
@@ -94,9 +94,9 @@ mod tests {
     use super::*;
     use crate::config::SettingEntry;
     use crate::player_profile::registry::{
-        DEFAULT_RIFTWALKER_ENTITY_LABEL, IS_LICH_KEY, RIFTWALKER_ENTITY_AIR_KEY,
-        RIFTWALKER_ENTITY_EARTH_KEY, RIFTWALKER_ENTITY_FIRE_KEY, RIFTWALKER_ENTITY_WATER_KEY,
-        RIG_KEY, SettingSlot, TZARAKK_MOUNT_KEY,
+        IS_LICH_KEY, RIFTWALKER_ENTITY_AIR_KEY, RIFTWALKER_ENTITY_EARTH_KEY,
+        RIFTWALKER_ENTITY_FIRE_KEY, RIFTWALKER_ENTITY_WATER_KEY, RIG_KEY, SettingSlot,
+        TZARAKK_MOUNT_KEY,
     };
 
     fn settings(entries: &[(&str, &str)]) -> UserSettings {
@@ -346,7 +346,10 @@ mod tests {
         for value in ["yes", "true", "1", "TRUE", "Yes"] {
             let player = PlayerToml {
                 settings: crate::config::SettingsTable {
-                    extra: std::collections::HashMap::from([(IS_LICH_KEY.to_string(), value.to_string())]),
+                    extra: std::collections::HashMap::from([(
+                        IS_LICH_KEY.to_string(),
+                        value.to_string(),
+                    )]),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -374,7 +377,10 @@ mod tests {
     fn is_lich_explicit_false_dropped_from_extra_on_normalize() {
         let player = PlayerToml {
             settings: crate::config::SettingsTable {
-                extra: std::collections::HashMap::from([(IS_LICH_KEY.to_string(), "false".to_string())]),
+                extra: std::collections::HashMap::from([(
+                    IS_LICH_KEY.to_string(),
+                    "false".to_string(),
+                )]),
                 ..Default::default()
             },
             ..Default::default()
@@ -412,7 +418,10 @@ mod tests {
     fn unknown_settings_preserved_in_extra_round_trip() {
         let player = PlayerToml {
             settings: crate::config::SettingsTable {
-                extra: std::collections::HashMap::from([("custom_flag".to_string(), "on".to_string())]),
+                extra: std::collections::HashMap::from([(
+                    "custom_flag".to_string(),
+                    "on".to_string(),
+                )]),
                 ..Default::default()
             },
             ..Default::default()
@@ -452,10 +461,7 @@ mod tests {
                 (TZARAKK_MOUNT_KEY.to_string(), "Vedir".to_string()),
                 (SABRE_WEAPON_KEY.to_string(), "sabre".to_string()),
                 (RIFTWALKER_ENTITY_FIRE_KEY.to_string(), "flame".to_string()),
-                (
-                    RIFTWALKER_ENTITY_AIR_KEY.to_string(),
-                    "entity".to_string()
-                ),
+                (RIFTWALKER_ENTITY_AIR_KEY.to_string(), "entity".to_string()),
                 (
                     RIFTWALKER_ENTITY_WATER_KEY.to_string(),
                     "entity".to_string()
