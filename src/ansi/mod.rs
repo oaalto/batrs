@@ -1,10 +1,12 @@
 mod ansi_codes;
 mod ansi_colors;
+mod effect;
 mod styled_line;
 mod styled_text_block;
 mod text_style;
 
 pub use ansi_codes::*;
+pub use effect::LineEffect;
 pub use styled_line::*;
 pub use text_style::*;
 

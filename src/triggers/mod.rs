@@ -5,8 +5,9 @@ use crate::secondary_status::SecondaryStatusEffect;
 use crate::stats::StatsEffect;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::ops::Range;
 use std::sync::LazyLock;
+
+pub use crate::ansi::LineEffect;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TriggerConfig {
@@ -119,38 +120,6 @@ impl TriggerFacts {
 pub struct OriginalLineEffects {
     pub gag: bool,
     pub edits: Vec<LineEffect>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum LineEffect {
-    StyleLine(TextStyle),
-    StyleBlock {
-        text: String,
-        style: TextStyle,
-    },
-    StylePlainByteRange {
-        range: Range<usize>,
-        style: TextStyle,
-    },
-    InsertPlainAfterPlainByteIdx {
-        byte_idx: usize,
-        suffix: String,
-    },
-}
-
-impl LineEffect {
-    pub fn apply_to(&self, line: &mut StyledLine) {
-        match self {
-            LineEffect::StyleLine(style) => line.set_line_style(*style),
-            LineEffect::StyleBlock { text, style } => line.set_block_style(text, *style),
-            LineEffect::StylePlainByteRange { range, style } => {
-                line.set_plain_byte_range_style(range.clone(), *style);
-            }
-            LineEffect::InsertPlainAfterPlainByteIdx { byte_idx, suffix } => {
-                line.insert_plain_after_plain_byte_idx(*byte_idx, suffix);
-            }
-        }
-    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
