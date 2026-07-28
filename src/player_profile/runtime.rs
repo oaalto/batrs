@@ -33,7 +33,7 @@ impl KnownProfileSettings {
         for definition in SETTINGS_DEFS {
             let raw = setting_value(settings, definition.key);
             let value = normalized_setting_value(definition, raw);
-            write_known_slot(&mut known, definition, value);
+            definition.slot.write(&mut known, value);
         }
         known
     }
@@ -59,11 +59,9 @@ impl GuildDialogProfileDefaults {
             .iter()
             .filter(|definition| definition.guild_dialog)
         {
-            write_guild_dialog_slot(
-                &mut defaults,
-                definition.slot,
-                read_known_slot(settings, definition.slot),
-            );
+            definition
+                .slot
+                .write_guild_dialog(&mut defaults, definition.slot.read(settings));
         }
         defaults
     }
@@ -94,43 +92,6 @@ fn normalized_setting_value(definition: &SettingDefinition, raw: String) -> Stri
                 definition.default.to_string()
             }
         }
-    }
-}
-
-fn write_guild_dialog_slot(
-    defaults: &mut GuildDialogProfileDefaults,
-    slot: SettingSlot,
-    value: String,
-) {
-    match slot {
-        SettingSlot::TzarakkMount => defaults.tzarakk_mount = value,
-        SettingSlot::SabreWeapon => defaults.sabre_weapon = value,
-        SettingSlot::RiftwalkerEntity(index) => defaults.riftwalker_entity_labels[index] = value,
-        SettingSlot::Rig | SettingSlot::IsLich => {}
-    }
-}
-
-pub(crate) fn read_known_slot(settings: &KnownProfileSettings, slot: SettingSlot) -> String {
-    match slot {
-        SettingSlot::Rig => settings.rig.clone(),
-        SettingSlot::TzarakkMount => settings.tzarakk_mount.clone(),
-        SettingSlot::SabreWeapon => settings.sabre_weapon.clone(),
-        SettingSlot::RiftwalkerEntity(index) => settings.riftwalker_entity_labels[index].clone(),
-        SettingSlot::IsLich => settings.is_lich.to_string(),
-    }
-}
-
-fn write_known_slot(
-    settings: &mut KnownProfileSettings,
-    definition: &SettingDefinition,
-    value: String,
-) {
-    match definition.slot {
-        SettingSlot::Rig => settings.rig = value,
-        SettingSlot::TzarakkMount => settings.tzarakk_mount = value,
-        SettingSlot::SabreWeapon => settings.sabre_weapon = value,
-        SettingSlot::RiftwalkerEntity(index) => settings.riftwalker_entity_labels[index] = value,
-        SettingSlot::IsLich => settings.is_lich = is_truthy_setting_value(&value),
     }
 }
 

@@ -9,7 +9,6 @@ pub use runtime::{InterpretedPlayerProfile, PlayerRuntimeProfile};
 
 use crate::config::{PlayerToml, SettingEntry, SettingsTable, UserSettings};
 use crate::player_profile::normalization::{normalize_player_guilds, normalize_settings_entries};
-use crate::player_profile::persistence::{read_persist, write_persist};
 use crate::player_profile::registry::{SETTINGS_DEFS, definition_for_key};
 
 pub fn interpret_player_toml(player: PlayerToml) -> InterpretedPlayerProfile {
@@ -49,7 +48,7 @@ pub fn user_settings_from_player(player: &PlayerToml) -> UserSettings {
         .iter()
         .map(|definition| SettingEntry {
             key: definition.key.to_string(),
-            value: read_persist(&player.settings, definition),
+            value: definition.persist.read(&player.settings, definition.key),
         })
         .collect::<Vec<_>>();
     let mut keys: Vec<String> = player.settings.extra.keys().cloned().collect();
@@ -71,7 +70,12 @@ fn settings_table_from_normalized_entries(entries: &[SettingEntry]) -> SettingsT
     let mut table = SettingsTable::default();
     for entry in entries {
         if let Some(definition) = definition_for_key(&entry.key) {
-            write_persist(&mut table, definition, entry.value.clone());
+            definition.persist.write(
+                &mut table,
+                definition.key,
+                entry.value.clone(),
+                definition.sparse_when_default,
+            );
         } else {
             table.extra.insert(entry.key.clone(), entry.value.clone());
         }
@@ -95,7 +99,7 @@ mod tests {
     use crate::config::SettingEntry;
     use crate::player_profile::registry::{
         IS_LICH_KEY, RIFTWALKER_ENTITY_AIR_KEY, RIFTWALKER_ENTITY_EARTH_KEY,
-        RIFTWALKER_ENTITY_FIRE_KEY, RIFTWALKER_ENTITY_WATER_KEY, RIG_KEY, SettingSlot,
+        RIFTWALKER_ENTITY_FIRE_KEY, RIFTWALKER_ENTITY_WATER_KEY, RIG_KEY, SettingKind, SettingSlot,
         TZARAKK_MOUNT_KEY,
     };
 
@@ -316,6 +320,54 @@ mod tests {
             assert!(
                 entries.iter().any(|entry| entry.key == definition.key),
                 "missing normalized entry for {}",
+                definition.key
+            );
+        }
+    }
+
+    #[test]
+    fn registry_dispatch_round_trips_persist_and_slot() {
+        for definition in SETTINGS_DEFS {
+            let (persist_sentinel, expected_persist) = if definition.sparse_when_default {
+                ("yes".to_string(), "yes".to_string())
+            } else {
+                let value = format!("rt-{}", definition.key);
+                (value.clone(), value)
+            };
+            let mut table = SettingsTable::default();
+            definition.persist.write(
+                &mut table,
+                definition.key,
+                persist_sentinel,
+                definition.sparse_when_default,
+            );
+            assert_eq!(
+                definition.persist.read(&table, definition.key),
+                expected_persist,
+                "persist round-trip failed for {}",
+                definition.key
+            );
+
+            let (write_value, expected_read) = match definition.kind {
+                SettingKind::Bool => ("yes".to_string(), "true".to_string()),
+                SettingKind::String => {
+                    let value = format!("slot-{}", definition.key);
+                    (value.clone(), value)
+                }
+            };
+            let mut known = runtime::runtime_profile_from_parts(
+                Vec::new(),
+                crate::guilds::catalog::DEFAULT_GUILD_PRIMARY_KEYWORD,
+                UserSettings::default(),
+                crate::config::GenericCommandsConfig::default(),
+                crate::triggers::TriggerConfig::default(),
+            )
+            .settings;
+            definition.slot.write(&mut known, write_value);
+            assert_eq!(
+                definition.slot.read(&known),
+                expected_read,
+                "slot round-trip failed for {}",
                 definition.key
             );
         }

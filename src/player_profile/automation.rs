@@ -1,5 +1,5 @@
 use crate::player_profile::registry::{AutomationExport, SETTINGS_DEFS};
-use crate::player_profile::runtime::{KnownProfileSettings, read_known_slot};
+use crate::player_profile::runtime::KnownProfileSettings;
 
 pub fn automation_flags_for_settings(settings: &KnownProfileSettings) -> Vec<(String, bool)> {
     SETTINGS_DEFS
@@ -8,7 +8,7 @@ pub fn automation_flags_for_settings(settings: &KnownProfileSettings) -> Vec<(St
         .map(|definition| {
             (
                 definition.key.to_string(),
-                crate::config::is_truthy_setting_value(&read_known_slot(settings, definition.slot)),
+                crate::config::is_truthy_setting_value(&definition.slot.read(settings)),
             )
         })
         .collect()
@@ -18,11 +18,6 @@ pub fn automation_vars_for_settings(settings: &KnownProfileSettings) -> Vec<(Str
     SETTINGS_DEFS
         .iter()
         .filter(|definition| matches!(definition.automation_export, AutomationExport::Var))
-        .map(|definition| {
-            (
-                definition.key.to_string(),
-                read_known_slot(settings, definition.slot),
-            )
-        })
+        .map(|definition| (definition.key.to_string(), definition.slot.read(settings)))
         .collect()
 }
