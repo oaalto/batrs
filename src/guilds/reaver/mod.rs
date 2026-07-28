@@ -23,6 +23,7 @@ impl Guild for ReaverGuild {
     }
 
     fn register_automation(&self, automation: &mut Automation) {
+        // `prayer_done` flips on the destruction-prayer line; pending `cast_*` flags fire there.
         automation.add_waiter(Waiter {
             pattern: PRAYER_DONE_REGEX.clone(),
             consume: false,

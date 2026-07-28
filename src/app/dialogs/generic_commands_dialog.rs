@@ -1,8 +1,8 @@
 use crate::generic_commands::{GenericCommandGroup, GenericCommands};
 
 pub(crate) struct GenericCommandsDialog {
-    /// Flattened list of items for navigation: (group_index, command_index)
-    /// where command_index is None for group rows
+    /// Flattened navigation rows: `(group_index, command_index)`.
+    /// `command_index == None` is a group header; `group_index == usize::MAX` is the synthetic "All Commands" row.
     items: Vec<(usize, Option<usize>)>,
     groups: Vec<GenericCommandGroup>,
     cursor: usize,
@@ -13,18 +13,13 @@ impl GenericCommandsDialog {
         let mut items: Vec<(usize, Option<usize>)> = Vec::new();
         let mut groups = Vec::new();
 
-        // Add "All" pseudo-item using usize::MAX as special marker
         items.push((usize::MAX, None));
 
-        // Flatten groups and their commands
         for (group_idx, group) in generic.groups.iter().enumerate() {
-            // Add group row
             items.push((group_idx, None));
-            // Add command rows
             for cmd_idx in 0..group.commands.len() {
                 items.push((group_idx, Some(cmd_idx)));
             }
-            // Clone the group for internal state
             groups.push(group.clone());
         }
 
@@ -50,14 +45,12 @@ impl GenericCommandsDialog {
         };
 
         if let Some(cmd_idx) = cmd_idx {
-            // Toggle individual command
             if let Some(group) = self.groups.get_mut(group_idx)
                 && let Some(cmd) = group.commands.get_mut(cmd_idx)
             {
                 cmd.enabled = !cmd.enabled;
             }
         } else if group_idx == usize::MAX {
-            // "All" pseudo-item - toggle all groups and commands
             let all_enabled = self
                 .groups
                 .iter()
@@ -69,7 +62,6 @@ impl GenericCommandsDialog {
                 }
             }
         } else {
-            // Group row - toggle all commands in this group
             if let Some(group) = self.groups.get_mut(group_idx) {
                 let all_enabled = group.selection_state() == Some(true);
                 let new_state = !all_enabled;
@@ -81,7 +73,6 @@ impl GenericCommandsDialog {
     }
 
     pub(crate) fn to_config(&self) -> (Vec<String>, Vec<String>) {
-        // Groups that are fully enabled
         let enabled_groups: Vec<String> = self
             .groups
             .iter()
@@ -89,7 +80,6 @@ impl GenericCommandsDialog {
             .map(|g| g.name.clone())
             .collect();
 
-        // Individual disabled commands (when group is not fully disabled)
         let disabled_commands: Vec<String> = self
             .groups
             .iter()
@@ -110,7 +100,6 @@ impl GenericCommandsDialog {
             .iter()
             .map(|(group_idx, cmd_idx)| {
                 if *group_idx == usize::MAX {
-                    // "All" pseudo-item
                     let all_enabled = self
                         .groups
                         .iter()
@@ -122,7 +111,6 @@ impl GenericCommandsDialog {
                         level: 0,
                     }
                 } else if let Some(cmd_idx) = cmd_idx {
-                    // Command row
                     let group = &self.groups[*group_idx];
                     let cmd = &group.commands[*cmd_idx];
                     crate::ui::GenericCommandViewModel {
@@ -132,7 +120,6 @@ impl GenericCommandsDialog {
                         level: 2,
                     }
                 } else {
-                    // Group row
                     let group = &self.groups[*group_idx];
                     let state = group.selection_state();
                     crate::ui::GenericCommandViewModel {

@@ -10,7 +10,6 @@ use std::collections::HashMap;
 impl TzarakkGuild {
     pub fn get_commands(&self) -> HashMap<String, Command> {
         HashMap::from([
-            // Skills
             ("ut".to_string(), Self::use_trample as Command),
             ("ur".to_string(), Self::use_rampage as Command),
             ("cs".to_string(), Self::use_charge as Command),
@@ -19,23 +18,19 @@ impl TzarakkGuild {
                 Self::use_create_hunting_trophy as Command,
             ),
             ("uhs".to_string(), Self::use_harvest_soul as Command),
-            // Spells
             ("cpc".to_string(), Self::cast_preserve_corpse as Command),
             ("cst".to_string(), Self::cast_steed_of_tzarakk as Command),
             ("cban".to_string(), Self::cast_banish_mount as Command),
             ("csdb".to_string(), Self::cast_summon_dire_boar as Command),
-            // Utility
             ("med".to_string(), Self::use_meditation as Command),
             ("dmed".to_string(), Self::use_dark_meditation as Command),
             ("sleep".to_string(), Self::do_sleep as Command),
-            // Modes
             ("feed_mode".to_string(), Self::set_feed_mode as Command),
             ("heal_mode".to_string(), Self::set_heal_mode as Command),
             ("hunt_mode".to_string(), Self::set_hunt_mode as Command),
         ])
     }
 
-    // Skill handlers
     pub fn use_trample(
         data: &command::Data,
         _ctx: &command::CommandEnvironment,
@@ -73,7 +68,6 @@ impl TzarakkGuild {
         command::send(abilities::client_send_line("use 'harvest soul' corpse"))
     }
 
-    // Spell handlers
     pub fn cast_preserve_corpse(
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
@@ -102,7 +96,6 @@ impl TzarakkGuild {
         command::send(abilities::cast_quoted_with_suffix("summon dire boar", ""))
     }
 
-    // Utility handlers
     pub fn use_meditation(
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
@@ -129,7 +122,6 @@ impl TzarakkGuild {
         remount_then_send(abilities::compound_send(&["dismount", &logical]))
     }
 
-    // Mode handlers
     pub fn set_feed_mode(
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
@@ -158,6 +150,8 @@ impl TzarakkGuild {
     }
 }
 
+/// Dismount for meditate/sleep, then mark mount summoned so [`TzarakkGuild::register_automation`]
+/// re-mounts on the next wake/camp-fail line.
 fn remount_then_send(send: String) -> Vec<command::CommandEffect> {
     vec![
         command::automation(Action::SetFlag(MOUNT_SUMMONED_FLAG.to_string(), true)),

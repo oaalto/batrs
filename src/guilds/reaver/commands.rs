@@ -11,7 +11,6 @@ impl ReaverGuild {
     pub fn get_commands(&self) -> HashMap<String, Command> {
         HashMap::from([
             ("rt".to_string(), Self::command_reaver_threaten as Command),
-            // Skills
             ("uss".to_string(), Self::use_scythe_swipe as Command),
             ("urc".to_string(), Self::use_rampant_cutting as Command),
             ("urs".to_string(), Self::use_reaver_strike as Command),
@@ -27,11 +26,11 @@ impl ReaverGuild {
                 "upd".to_string(),
                 Self::use_prayer_to_destruction as Command,
             ),
-            // Spells
             ("cws".to_string(), Self::cast_word_of_spite as Command),
             ("cb".to_string(), Self::cast_word_of_blasting as Command),
             ("cwd".to_string(), Self::cast_word_of_destruction as Command),
             ("cwa".to_string(), Self::cast_word_of_attrition as Command),
+            // Legacy duplicate of `cb` — both map to word of blasting.
             ("cwb".to_string(), Self::cast_word_of_blasting as Command),
             ("cwsl".to_string(), Self::cast_word_of_slaughter as Command),
             ("cwg".to_string(), Self::cast_word_of_genocide as Command),
@@ -52,6 +51,7 @@ impl ReaverGuild {
         }
     }
 
+    /// When args name a target, prefix `reaver threaten` before the skill cast.
     fn compound_threaten_use(data: &command::Data, skill: &str) -> String {
         let threaten = Self::reaver_threaten_logical(data);
         let use_part = abilities::targeted_use(skill, &data.args);
@@ -62,6 +62,7 @@ impl ReaverGuild {
         }
     }
 
+    /// Same threaten prefix as [`Self::compound_threaten_use`], for spells.
     fn compound_threaten_cast(data: &command::Data, spell: &str) -> String {
         let threaten = Self::reaver_threaten_logical(data);
         let cast_part = abilities::targeted_cast(spell, &data.args);
@@ -85,8 +86,6 @@ impl ReaverGuild {
             )))
         }
     }
-
-    // SKILLS
 
     pub fn use_scythe_swipe(
         data: &command::Data,
@@ -170,8 +169,6 @@ impl ReaverGuild {
         }
         vec![command::output(StyledLine::new("No target!"))]
     }
-
-    // SPELLS
 
     pub fn cast_word_of_spite(
         data: &command::Data,
@@ -331,6 +328,8 @@ impl ReaverGuild {
     }
 }
 
+/// Queue one prayer-gated spell: clear sibling pending flags, set `flag` for automation in
+/// [`ReaverGuild::register_automation`].
 fn prayer_flag_effects(flag: &str) -> Vec<command::CommandEffect> {
     let flags = [
         "cast_shattered_feast",

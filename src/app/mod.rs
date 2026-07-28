@@ -973,7 +973,6 @@ impl BatApp {
             return;
         };
 
-        // Save guilds
         let keys = guild_selection.persisted_keys();
         if let Err(e) =
             manager.save_user_guilds(&keys, guild_selection.primary_background_keyword())
@@ -981,7 +980,6 @@ impl BatApp {
             warn!("failed to save user guilds: {e}");
         }
 
-        // Save mount name
         if let Err(e) = manager.save_user_setting(player_profile::TZARAKK_MOUNT_KEY, &mount_name) {
             warn!("failed to save tzarakk mount name: {e}");
         }

@@ -1,6 +1,9 @@
+//! Cross-guild slash aliases (cures, navigator spells, rip actions).
+//!
+//! Config: empty `enabled_groups` enables every group; `disabled_commands` is a per-alias deny list.
+
 use crate::abilities;
 
-/// An individual generic command with an alias and structured execution shape.
 #[derive(Debug, Clone)]
 pub struct GenericCommand {
     pub alias: String,
@@ -81,7 +84,6 @@ impl GenericCommandExecution {
     }
 }
 
-/// A group of related generic commands
 #[derive(Debug, Clone)]
 pub struct GenericCommandGroup {
     pub name: String,
@@ -112,7 +114,6 @@ impl GenericCommandGroup {
     }
 }
 
-/// Container for all generic command groups
 #[derive(Debug, Clone)]
 pub struct GenericCommands {
     pub groups: Vec<GenericCommandGroup>,
@@ -125,7 +126,6 @@ impl Default for GenericCommands {
 }
 
 impl GenericCommands {
-    /// Create with all predefined groups enabled
     pub fn with_predefined_groups() -> Self {
         Self {
             groups: vec![
@@ -146,13 +146,10 @@ impl GenericCommands {
             .map(|command| command.render(args))
     }
 
-    /// Apply configuration to enable/disable groups and specific commands
     pub fn apply_config(&mut self, enabled_groups: &[String], disabled_commands: &[String]) {
-        // If enabled_groups is empty, all groups are enabled by default
         let filter_groups = !enabled_groups.is_empty();
 
         for group in &mut self.groups {
-            // Check if group should be enabled
             let group_enabled = if filter_groups {
                 enabled_groups.iter().any(|g| g == &group.name)
             } else {
@@ -160,13 +157,10 @@ impl GenericCommands {
             };
 
             for cmd in &mut group.commands {
-                // Command is enabled if its group is enabled AND it's not in disabled_commands
                 cmd.enabled = group_enabled && !disabled_commands.iter().any(|d| d == &cmd.alias);
             }
         }
     }
-
-    // Predefined command groups
 
     fn cure_spells_group() -> GenericCommandGroup {
         GenericCommandGroup::new(
@@ -305,7 +299,7 @@ mod tests {
     #[test]
     fn render_command_returns_only_enabled() {
         let mut generic = GenericCommands::default();
-        generic.groups[0].commands[0].enabled = false; // Disable clw
+        generic.groups[0].commands[0].enabled = false;
 
         assert!(generic.render_command("clw", "orc").is_none());
         assert_eq!(
@@ -319,9 +313,9 @@ mod tests {
         let mut generic = GenericCommands::default();
         generic.apply_config(&["cure_spells".to_string()], &[]);
 
-        assert!(generic.groups[0].commands[0].enabled); // cure_spells enabled
-        assert!(!generic.groups[1].commands[0].enabled); // common_spells disabled
-        assert!(!generic.groups[2].commands[0].enabled); // navigator disabled
+        assert!(generic.groups[0].commands[0].enabled);
+        assert!(!generic.groups[1].commands[0].enabled);
+        assert!(!generic.groups[2].commands[0].enabled);
     }
 
     #[test]
@@ -329,9 +323,9 @@ mod tests {
         let mut generic = GenericCommands::default();
         generic.apply_config(&[], &["clw".to_string(), "cww".to_string()]);
 
-        assert!(!generic.groups[0].commands[0].enabled); // clw disabled
-        assert!(generic.groups[0].commands[1].enabled); // csw still enabled
-        assert!(!generic.groups[1].commands[0].enabled); // cww disabled
+        assert!(!generic.groups[0].commands[0].enabled);
+        assert!(generic.groups[0].commands[1].enabled);
+        assert!(!generic.groups[1].commands[0].enabled);
     }
 
     #[test]

@@ -210,7 +210,7 @@ impl TzarakkGuild {
             output
                 .actions
                 .push(Action::SetFlag(MOUNT_SUMMONED_FLAG.to_string(), true));
-            // Auto-set feed mode after summoning
+            // Same rip_action as `/feed_mode` — chaosfeed twice after loot on fresh mount.
             output.actions.push(Action::Send(
                 "@rip_action set get all from corpse;tzarakk chaosfeed corpse;tzarakk chaosfeed corpse;drop zinc;drop mowgles".to_string()
             ));
@@ -338,7 +338,6 @@ mod tests {
     fn round_trigger_does_nothing_when_not_mounted() {
         let mut status = SecondaryStatus::default();
         let automation = Automation::new();
-        // mount_summoned is false by default
 
         let (output, _) = run(
             TzarakkGuild::round_trigger,

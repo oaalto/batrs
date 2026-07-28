@@ -29,17 +29,14 @@ pub struct CombatScanRow {
 }
 
 impl CombatScanRow {
-    /// Enemy or combatant name from the scan line.
     pub fn name(&self) -> &str {
         &self.name
     }
 
-    /// Parsed health condition phrase.
     pub fn condition(&self) -> CombatCondition {
         self.condition
     }
 
-    /// Remaining health percent from the scan line.
     pub fn percent(&self) -> i32 {
         self.percent
     }
