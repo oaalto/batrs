@@ -47,6 +47,7 @@ fn default_true() -> bool {
 
 mod common;
 pub(crate) mod money_summary;
+mod player_combat_rules;
 mod prompt;
 mod recovery_bracket;
 pub(crate) mod rule_engine;
@@ -293,6 +294,24 @@ mod tests {
             .styled_chars
             .iter()
             .all(|c| c.color == AnsiCode::Blue)
+    }
+
+    fn player_hit_line_is_green(output: &TriggerEffects, line: &str) -> bool {
+        let mut styled = StyledLine::new(line);
+        output.apply_line_effects_to(&mut styled);
+        styled.styled_chars[0].color == AnsiCode::Green
+    }
+
+    #[test]
+    fn process_without_animist_applies_player_combat_hit_hilite() {
+        let text = "Fueryon hits Reaver 5 times causing a nasty laceration.";
+        let facts = TriggerFacts::new(HashMap::new(), HashMap::new(), None, Some("Fueryon"));
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(MonkGuild::default())];
+        let output = process(&facts, &guilds, text, &TriggerConfig::default());
+        assert!(
+            player_hit_line_is_green(&output, text),
+            "player combat hit hilite should run without Animist active"
+        );
     }
 
     #[test]

@@ -1,12 +1,13 @@
 use crate::automation::Action;
 use crate::combat_awareness::NOT_IN_COMBAT_LINE;
+use crate::triggers::player_combat_rules::player_combat_rules_arc;
 use crate::triggers::rule_engine::{
     HiliteTarget, Rule, RuleAction, RuleCondition, RuleMatcher, apply_rules, push_rule, sort_rules,
     tf_echo, tf_hilite,
 };
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use regex::Regex;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 static RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     let mut rules = Vec::new();
@@ -609,7 +610,17 @@ pub fn trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
             .push(Action::SetVar("rig".to_string(), rig.to_string()));
     }
 
-    apply_rules(RULES.iter(), line.plain_line, facts, &mut output);
+    let player_combat_rules = facts
+        .player_name()
+        .map(player_combat_rules_arc)
+        .unwrap_or_else(|| Arc::new(Vec::new()));
+
+    apply_rules(
+        RULES.iter().chain(player_combat_rules.iter()),
+        line.plain_line,
+        facts,
+        &mut output,
+    );
     output
 }
 
@@ -781,5 +792,64 @@ mod tests {
                 .iter()
                 .all(|c| c.color == AnsiCode::DefaultColor && !c.bold)
         );
+    }
+
+    #[test]
+    fn avatar_hits_other_highlights_once_in_blue() {
+        let text = "Nynn hits orc once with force.";
+        let (_output, styled, _) = run_trigger(text, None, Some("Nynn"));
+        let once_byte = text.find("once").expect("once in line");
+        let idx = styled
+            .plain_line
+            .get(..once_byte)
+            .map(|s| s.graphemes(true).count())
+            .unwrap_or(0);
+        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Blue);
+        assert_eq!(styled.styled_chars[idx + 1].color, AnsiCode::Blue);
+        assert_eq!(styled.styled_chars[idx + 2].color, AnsiCode::Blue);
+        assert_eq!(styled.styled_chars[idx + 3].color, AnsiCode::Blue);
+    }
+
+    #[test]
+    fn avatar_hits_other_uses_capitalized_player_name_for_digit_count() {
+        let text = "Odefu hits Man 4 times causing a nasty laceration.";
+        let (_output, styled, _) = run_trigger(text, None, Some("odefu"));
+        let count_byte = text.find("4 times").expect("count in line");
+        let idx = styled
+            .plain_line
+            .get(..count_byte)
+            .map(|s| s.graphemes(true).count())
+            .unwrap_or(0);
+
+        assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
+        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Red);
+    }
+
+    #[test]
+    fn avatar_hits_other_uses_capitalized_player_name_for_twice() {
+        let text = "Odefu hits Man twice inducing a nasty lesion.";
+        let (_output, styled, _) = run_trigger(text, None, Some("odefu"));
+        let twice_byte = text.find("twice").expect("twice in line");
+        let idx = styled
+            .plain_line
+            .get(..twice_byte)
+            .map(|s| s.graphemes(true).count())
+            .unwrap_or(0);
+
+        assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
+        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Magenta);
+    }
+
+    #[test]
+    fn other_hits_avatar_whole_line_magenta_and_twice_highlighted() {
+        let text = "Orc hits Nynn twice as hard.";
+        let (_output, styled, _) = run_trigger(text, None, Some("Nynn"));
+        assert!(
+            styled
+                .styled_chars
+                .iter()
+                .all(|c| c.color == AnsiCode::Magenta)
+        );
+        assert!(styled.styled_chars.iter().any(|c| c.bold));
     }
 }

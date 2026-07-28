@@ -99,7 +99,6 @@ mod tests {
     use crate::ansi::StyledLine;
     use crate::secondary_status::SecondaryStatus;
     use crate::triggers::{Trigger, TriggerFacts, TriggerLine};
-    use unicode_segmentation::UnicodeSegmentation;
 
     fn run(
         trigger: Trigger,
@@ -247,92 +246,5 @@ mod tests {
             AnsiCode::DefaultColor,
             "wrong name: no highlight"
         );
-    }
-
-    #[test]
-    fn avatar_hits_other_highlights_once_in_blue() {
-        let text = "Nynn hits orc once with force.";
-        let facts = TriggerFacts::new(Default::default(), Default::default(), None, Some("Nynn"));
-        let mut status = SecondaryStatus::default();
-        let (_, styled) = run_with_facts(
-            AnimistGuild::soul_companion_combat_hilite_trigger,
-            text,
-            &facts,
-            &mut status,
-        );
-        let once_byte = text.find("once").expect("once in line");
-        let idx = styled
-            .plain_line
-            .get(..once_byte)
-            .map(|s| s.graphemes(true).count())
-            .unwrap_or(0);
-        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Blue);
-        assert_eq!(styled.styled_chars[idx + 1].color, AnsiCode::Blue);
-        assert_eq!(styled.styled_chars[idx + 2].color, AnsiCode::Blue);
-        assert_eq!(styled.styled_chars[idx + 3].color, AnsiCode::Blue);
-    }
-
-    #[test]
-    fn avatar_hits_other_uses_capitalized_player_name_for_digit_count() {
-        let text = "Odefu hits Man 4 times causing a nasty laceration.";
-        let facts = TriggerFacts::new(Default::default(), Default::default(), None, Some("odefu"));
-        let mut status = SecondaryStatus::default();
-        let (_, styled) = run_with_facts(
-            AnimistGuild::soul_companion_combat_hilite_trigger,
-            text,
-            &facts,
-            &mut status,
-        );
-        let count_byte = text.find("4 times").expect("count in line");
-        let idx = styled
-            .plain_line
-            .get(..count_byte)
-            .map(|s| s.graphemes(true).count())
-            .unwrap_or(0);
-
-        assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
-        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Red);
-    }
-
-    #[test]
-    fn avatar_hits_other_uses_capitalized_player_name_for_twice() {
-        let text = "Odefu hits Man twice inducing a nasty lesion.";
-        let facts = TriggerFacts::new(Default::default(), Default::default(), None, Some("odefu"));
-        let mut status = SecondaryStatus::default();
-        let (_, styled) = run_with_facts(
-            AnimistGuild::soul_companion_combat_hilite_trigger,
-            text,
-            &facts,
-            &mut status,
-        );
-        let twice_byte = text.find("twice").expect("twice in line");
-        let idx = styled
-            .plain_line
-            .get(..twice_byte)
-            .map(|s| s.graphemes(true).count())
-            .unwrap_or(0);
-
-        assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
-        assert_eq!(styled.styled_chars[idx].color, AnsiCode::Magenta);
-    }
-
-    #[test]
-    fn other_hits_avatar_whole_line_magenta_and_twice_highlighted() {
-        let text = "Orc hits Nynn twice as hard.";
-        let facts = TriggerFacts::new(Default::default(), Default::default(), None, Some("Nynn"));
-        let mut status = SecondaryStatus::default();
-        let (_, styled) = run_with_facts(
-            AnimistGuild::soul_companion_combat_hilite_trigger,
-            text,
-            &facts,
-            &mut status,
-        );
-        assert!(
-            styled
-                .styled_chars
-                .iter()
-                .all(|c| c.color == AnsiCode::Magenta)
-        );
-        assert!(styled.styled_chars.iter().any(|c| c.bold));
     }
 }
