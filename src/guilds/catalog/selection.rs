@@ -1,7 +1,7 @@
 use crate::guilds::Guild;
 
 use super::{
-    GuildCatalogEntry, GuildGroupingClass, GuildKey, entry_for_key,
+    GuildCatalogEntry, GuildGroupingClass, GuildKey, entry_for_key, entry_for_persisted_key,
     playable_entry_for_persisted_key,
 };
 
@@ -89,10 +89,19 @@ impl GuildSelection {
     }
 
     pub fn build_guilds(&self) -> Vec<Box<dyn Guild>> {
-        self.keys
-            .iter()
-            .filter_map(|key| entry_for_key(*key).and_then(GuildCatalogEntry::build))
-            .collect()
+        let mut guilds = Vec::new();
+        if self.primary_background_keyword() == "good_religious"
+            && let Some(guild) =
+                entry_for_persisted_key("good_religious").and_then(|entry| entry.build())
+        {
+            guilds.push(guild);
+        }
+        for key in &self.keys {
+            if let Some(guild) = entry_for_key(*key).and_then(GuildCatalogEntry::build) {
+                guilds.push(guild);
+            }
+        }
+        guilds
     }
 }
 
@@ -239,6 +248,31 @@ mod tests {
             Some("good_religious"),
         );
 
-        assert_eq!(selection.build_guilds().len(), 2);
+        assert_eq!(selection.build_guilds().len(), 3);
+    }
+
+    #[test]
+    fn build_guilds_injects_good_religious_for_empty_selection() {
+        let selection = GuildSelection::from_persisted_keys(&[], Some("good_religious"));
+        let guilds = selection.build_guilds();
+
+        assert_eq!(guilds.len(), 1);
+        assert!(guilds[0].commands().contains_key("ccs"));
+    }
+
+    #[test]
+    fn build_guilds_prepends_good_religious_before_selected_guilds() {
+        let selection =
+            GuildSelection::from_persisted_keys(&keys(&["monk"]), Some("good_religious"));
+        let guilds = selection.build_guilds();
+
+        assert_eq!(guilds.len(), 2);
+        assert!(guilds[0].commands().contains_key("ccf"));
+    }
+
+    #[test]
+    fn build_guilds_skips_good_religious_for_other_primary() {
+        let selection = GuildSelection::from_persisted_keys(&[], Some("civilized"));
+        assert!(selection.build_guilds().is_empty());
     }
 }

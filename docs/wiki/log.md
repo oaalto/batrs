@@ -1,5 +1,9 @@
 # Engineering Wiki Log
 
+## [2026-07-31] skip | Good Religious guild spells
+
+- Notes: Background-only guild auto-injection and spell shortcuts documented in `CONTEXT.md`; no wiki concept page updates in this slice.
+
 ## [2026-07-28] skip | Code hygiene cleanup backlog close-out
 
 - Notes: Jul 2026 audit slices (stats test gating, telnet UTF-8, config/logging migration, companion cache, LazyLock) verified shipped in code; PRD and tickets marked done. No wiki concept updates required.

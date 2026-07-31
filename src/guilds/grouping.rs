@@ -119,4 +119,14 @@ mod tests {
                 .any(|&ix| entries[ix].persisted_key == "kharim")
         );
     }
+
+    #[test]
+    fn good_religious_excluded_from_playable_drill_indices() {
+        let entries = catalog::playable_entries_list();
+        let bucket_ix = thematic_index_for_keyword("good_religious").expect("theme");
+        let indices = &guild_grouping().thematic[bucket_ix].playable_def_indices;
+        for &ix in indices {
+            assert_ne!(entries[ix].persisted_key, "good_religious");
+        }
+    }
 }

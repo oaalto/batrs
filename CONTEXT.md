@@ -2,7 +2,21 @@
 
 ## Guild Catalog
 
-The Guild Catalog is the canonical Rust-source list of BatMUD guild keywords known to batrs. It includes playable guilds that can be enabled for a player and unimplemented BatMUD guild keywords that still matter for thematic grouping.
+The Guild Catalog is the canonical Rust-source list of BatMUD guild keywords known to batrs. It includes playable guilds that can be enabled for a player, background-only guild modules auto-injected from the primary theme keyword, and unimplemented BatMUD guild keywords that still matter for thematic grouping.
+
+**Good Religious** is a background-only guild module (`good_religious` catalog key, `GuildPlayability::BackgroundOnly`). It is buildable for command dispatch but excluded from `/guilds` drill toggles and `playable_entries()`. When the player's guild primary background keyword is `good_religious`, `GuildSelection::build_guilds` prepends the Good Religious guild before guilds built from player-selected keys — including when the persisted guild key list is empty. Background guilds merge first in command dispatch (`or_insert` first registration wins), so Good Religious aliases win over later guilds and generic fallbacks.
+
+Good Religious spell shortcuts:
+
+| Alias | Bare send line | With args |
+|-------|----------------|-----------|
+| `ccs` | `cast 'celestial spark'` | targeted cast (`target <t>;cast 'celestial spark' <t>`) |
+| `clw` | `cast 'cure light wounds' me` | `cast 'cure light wounds' <args>` |
+| `csw` | `cast 'cure serious wounds' me` | `cast 'cure serious wounds' <args>` |
+| `ccw` | `cast 'cure critical wounds' me` | `cast 'cure critical wounds' <args>` |
+| `ccf` | `cast 'create food'` | `cast 'create food'` (args ignored) |
+
+Interim rule until a dedicated background→guild map exists: background guild(s) first, player-selected guilds after.
 
 The Guild Catalog browse module (`guilds/catalog/browse.rs`) owns PickBackground labels (`browse_labels()`), drill source (`GuildDrillSource`), drill row structure (`drill_rows(source, entry_count)`), and the `GuildBrowseRow` type (`Banner` + `Toggle { definition_index }`).
 

@@ -1,10 +1,10 @@
 use super::{
     AelenaGuild, AnimistGuild, BarbarianGuild, ChannellersGuild, CivmageGuild, CurateGuild,
-    DiscipleGuild, FolkloristGuild, Guild, InnerCircleGuild, KharimGuild, LiberatorGuild,
-    MageAcidGuild, MageAsphyxiationGuild, MageColdGuild, MageElectricityGuild, MageFireGuild,
-    MageGuild, MageMagicalGuild, MagePoisonGuild, MonkGuild, NergalGuild, PsionicistGuild,
-    RangerGuild, ReaverGuild, RiftwalkerGuild, SabresGuild, SeminaryGuild, SpiderGuild, TigerGuild,
-    TriadGuild, TzarakkGuild,
+    DiscipleGuild, FolkloristGuild, GoodReligiousGuild, Guild, InnerCircleGuild, KharimGuild,
+    LiberatorGuild, MageAcidGuild, MageAsphyxiationGuild, MageColdGuild, MageElectricityGuild,
+    MageFireGuild, MageGuild, MageMagicalGuild, MagePoisonGuild, MonkGuild, NergalGuild,
+    PsionicistGuild, RangerGuild, ReaverGuild, RiftwalkerGuild, SabresGuild, SeminaryGuild,
+    SpiderGuild, TigerGuild, TriadGuild, TzarakkGuild,
 };
 
 mod browse;
@@ -37,6 +37,7 @@ pub enum GuildKey {
     Druids,
     Explorer,
     Folklorist,
+    GoodReligious,
     Inf,
     InnerCircle,
     Kharim,
@@ -81,7 +82,13 @@ pub enum GuildGroupingClass {
 
 #[derive(Clone, Copy)]
 pub enum GuildPlayability {
-    Playable { build: GuildFactory },
+    Playable {
+        build: GuildFactory,
+    },
+    /// Buildable for background auto-injection; excluded from drill toggles and selection.
+    BackgroundOnly {
+        build: GuildFactory,
+    },
     Unimplemented,
 }
 
@@ -100,7 +107,9 @@ impl GuildCatalogEntry {
 
     pub fn build(&self) -> Option<Box<dyn Guild>> {
         match self.playability {
-            GuildPlayability::Playable { build } => Some(build()),
+            GuildPlayability::Playable { build } | GuildPlayability::BackgroundOnly { build } => {
+                Some(build())
+            }
             GuildPlayability::Unimplemented => None,
         }
     }
@@ -119,6 +128,22 @@ const fn playable(
         display_name,
         grouping,
         playability: GuildPlayability::Playable { build },
+    }
+}
+
+const fn background_only(
+    key: GuildKey,
+    persisted_key: &'static str,
+    display_name: &'static str,
+    grouping: GuildGroupingClass,
+    build: GuildFactory,
+) -> GuildCatalogEntry {
+    GuildCatalogEntry {
+        key,
+        persisted_key,
+        display_name,
+        grouping,
+        playability: GuildPlayability::BackgroundOnly { build },
     }
 }
 
@@ -153,6 +178,7 @@ guild_factory!(build_civmage, CivmageGuild);
 guild_factory!(build_curate, CurateGuild);
 guild_factory!(build_disciple, DiscipleGuild);
 guild_factory!(build_folklorist, FolkloristGuild);
+guild_factory!(build_good_religious, GoodReligiousGuild);
 guild_factory!(build_inner_circle, InnerCircleGuild);
 guild_factory!(build_kharim, KharimGuild);
 guild_factory!(build_liberator, LiberatorGuild);
@@ -318,6 +344,13 @@ pub static GUILD_CATALOG: &[GuildCatalogEntry] = &[
         "Riftwalker",
         GuildGroupingClass::Thematic(1),
         build_riftwalker,
+    ),
+    background_only(
+        GuildKey::GoodReligious,
+        "good_religious",
+        "Good Religious",
+        GuildGroupingClass::Thematic(2),
+        build_good_religious,
     ),
     playable(
         GuildKey::Animist,
@@ -572,7 +605,9 @@ mod tests {
 
     #[test]
     fn unimplemented_entries_do_not_build() {
-        let unimplemented = entries().iter().filter(|entry| !entry.is_playable());
+        let unimplemented = entries()
+            .iter()
+            .filter(|entry| matches!(entry.playability, GuildPlayability::Unimplemented));
         for entry in unimplemented {
             assert!(
                 entry.build().is_none(),
@@ -580,6 +615,13 @@ mod tests {
                 entry.persisted_key
             );
         }
+    }
+
+    #[test]
+    fn background_only_entries_build_but_are_not_playable() {
+        let entry = entry_for_persisted_key("good_religious").expect("good religious entry");
+        assert!(!entry.is_playable());
+        assert!(entry.build().is_some());
     }
 
     #[test]
