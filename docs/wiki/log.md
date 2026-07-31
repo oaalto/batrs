@@ -1,5 +1,23 @@
 # Engineering Wiki Log
 
+## [2026-07-31] skip | Guild dialog save primary on drill open
+
+- Touched: `src/app/dialogs/guild_dialog.rs`
+- Reason: bugfix only; no durable wiki concept change.
+
+## [2026-07-31] update | Multi-background guild drill filtering
+
+- Updated: [Guild Catalog](concepts/guild-catalog.md), [Guild Background Map](concepts/guild-background-map.md)
+- Sources: `src/guilds/grouping.rs`, `src/guilds/catalog/browse.rs`
+- Notes: `/guilds` multi-background section filters by thematic eligibility rules from the background map.
+
+## [2026-07-31] ingest | Guild background map and stub guilds
+
+- Created: [Guild Background Map](concepts/guild-background-map.md)
+- Updated: [Guild Catalog](concepts/guild-catalog.md)
+- Sources: `CONTEXT.md`, `src/guilds/catalog/mod.rs`, `src/guilds/stub.rs`, BatMUD background→guild reference
+- Notes: Documented thematic and multi-background membership; background-only auto-injection for all five themes; stub implementations for previously unimplemented catalog entries.
+
 ## [2026-07-31] skip | Good Religious guild spells
 
 - Notes: Background-only guild auto-injection and spell shortcuts documented in `CONTEXT.md`; no wiki concept page updates in this slice.

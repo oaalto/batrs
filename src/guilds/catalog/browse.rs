@@ -2,7 +2,7 @@
 
 use super::THEMES_UX_ORDER;
 use crate::guilds::grouping::{
-    MULTI_BACKGROUND_LABEL, guild_grouping, visible_indices_multi_drill,
+    MULTI_BACKGROUND_LABEL, guild_grouping, visible_indices_multi_drill_for,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -25,7 +25,16 @@ pub fn browse_labels() -> Vec<&'static str> {
         .collect()
 }
 
-pub fn drill_rows(source: GuildDrillSource, entry_count: usize) -> Vec<GuildBrowseRow> {
+pub fn drill_rows(
+    source: GuildDrillSource,
+    entry_count: usize,
+    multi_filter_thematic: usize,
+) -> Vec<GuildBrowseRow> {
+    let multi_filtered: Vec<usize> = visible_indices_multi_drill_for(multi_filter_thematic)
+        .into_iter()
+        .filter(|definition_index| *definition_index < entry_count)
+        .collect();
+
     match source {
         GuildDrillSource::Thematic(thematic_ix) => {
             let bucket = &guild_grouping().thematic[thematic_ix];
@@ -36,20 +45,9 @@ pub fn drill_rows(source: GuildDrillSource, entry_count: usize) -> Vec<GuildBrow
                 .filter(|definition_index| *definition_index < entry_count)
                 .collect();
 
-            let multi_filtered: Vec<usize> = visible_indices_multi_drill()
-                .into_iter()
-                .filter(|definition_index| *definition_index < entry_count)
-                .collect();
-
             thematic_drill_rows(&thematic_indices, &multi_filtered)
         }
-        GuildDrillSource::MultiOnly => {
-            let multis: Vec<_> = visible_indices_multi_drill()
-                .into_iter()
-                .filter(|definition_index| *definition_index < entry_count)
-                .collect();
-            multi_only_drill_rows(&multis)
-        }
+        GuildDrillSource::MultiOnly => multi_only_drill_rows(&multi_filtered),
     }
 }
 
@@ -135,7 +133,7 @@ mod tests {
 
     #[test]
     fn thematic_drill_empty_when_entry_count_zero() {
-        let rows = drill_rows(GuildDrillSource::Thematic(0), 0);
+        let rows = drill_rows(GuildDrillSource::Thematic(0), 0, 0);
         assert_eq!(
             banner_texts(&rows),
             vec!["Nothing implemented yet for this thematic drill."]
@@ -158,7 +156,7 @@ mod tests {
 
     #[test]
     fn multi_only_drill_empty_when_entry_count_zero() {
-        let rows = drill_rows(GuildDrillSource::MultiOnly, 0);
+        let rows = drill_rows(GuildDrillSource::MultiOnly, 0, 0);
         assert_eq!(
             banner_texts(&rows),
             vec!["No multi-background guilds implemented."]
@@ -177,7 +175,11 @@ mod tests {
             .unwrap_or(0);
 
         for thematic_ix in 0..THEMES_UX_ORDER.len() {
-            let rows = drill_rows(GuildDrillSource::Thematic(thematic_ix), entry_count);
+            let rows = drill_rows(
+                GuildDrillSource::Thematic(thematic_ix),
+                entry_count,
+                thematic_ix,
+            );
             for index in toggle_indices(&rows) {
                 assert!(
                     index < entry_count,
@@ -186,7 +188,7 @@ mod tests {
             }
         }
 
-        let rows = drill_rows(GuildDrillSource::MultiOnly, entry_count);
+        let rows = drill_rows(GuildDrillSource::MultiOnly, entry_count, 0);
         for index in toggle_indices(&rows) {
             assert!(
                 index < entry_count,

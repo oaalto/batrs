@@ -102,6 +102,7 @@ impl GuildDialog {
 
     pub(crate) fn open_drill_from_browse_cursor(&mut self) {
         let source = if self.browse_cursor < THEMES_UX_ORDER.len() {
+            self.apply_thematic_primary_selection();
             GuildDrillSource::Thematic(self.browse_cursor)
         } else {
             GuildDrillSource::MultiOnly
@@ -125,7 +126,11 @@ impl GuildDialog {
     }
 
     fn rebuild_drill_rows(&mut self, source: GuildDrillSource) {
-        self.drill_rows = drill_rows(source, self.entries.len());
+        let multi_filter_thematic = match source {
+            GuildDrillSource::Thematic(thematic_ix) => thematic_ix,
+            GuildDrillSource::MultiOnly => self.active_primary,
+        };
+        self.drill_rows = drill_rows(source, self.entries.len(), multi_filter_thematic);
         self.place_cursor_first_toggle_if_any();
     }
 
@@ -900,6 +905,38 @@ mod guild_dialog_keystroke_tests {
         apply_guild_dialog_keystroke(&mut dialog, key_character('b'));
         assert_eq!(dialog.riftwalker_entity_labels()[0], "a");
         assert_eq!(dialog.riftwalker_entity_labels()[1], "b");
+    }
+
+    #[test]
+    fn opening_thematic_drill_sets_primary_so_save_keeps_thematic_guild() {
+        let entries = catalog::playable_entries_list();
+        let count = entries.len();
+        let mut dialog = GuildDialog::new(
+            entries.clone(),
+            vec![false; count],
+            DEFAULT_GUILD_PRIMARY_KEYWORD,
+            String::new(),
+            String::new(),
+            super::default_riftwalker_entity_labels(),
+        );
+
+        dialog.browse_cursor = THEMES_UX_ORDER
+            .iter()
+            .position(|(keyword, _)| *keyword == "magical")
+            .expect("magical");
+        dialog.open_drill_from_browse_cursor();
+
+        assert_eq!(dialog.active_primary_keyword(), "magical");
+
+        let mage_index = entries
+            .iter()
+            .position(|entry| entry.key == GuildKey::Mage)
+            .expect("mage");
+        dialog.selected[mage_index] = true;
+
+        let selection = dialog.guild_selection();
+        assert!(selection.is_selected(GuildKey::Mage));
+        assert_eq!(selection.primary_background_keyword(), "magical");
     }
 
     #[test]

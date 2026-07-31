@@ -191,7 +191,10 @@ mod tests {
             Box::new(GoodReligiousGuild::default()),
             Box::new(SpiderGuild::default()),
         ];
-        assert_eq!(dispatch_send("csw", &guilds), "@cast 'cure serious wounds' me");
+        assert_eq!(
+            dispatch_send("csw", &guilds),
+            "@cast 'cure serious wounds' me"
+        );
     }
 
     #[test]
@@ -200,7 +203,10 @@ mod tests {
             Box::new(GoodReligiousGuild::default()),
             Box::new(TriadGuild::default()),
         ];
-        assert_eq!(dispatch_send("ccw", &guilds), "@cast 'cure critical wounds' me");
+        assert_eq!(
+            dispatch_send("ccw", &guilds),
+            "@cast 'cure critical wounds' me"
+        );
     }
 
     #[test]

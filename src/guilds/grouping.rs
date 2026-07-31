@@ -1,9 +1,9 @@
 //! Guild membership groups derived from the typed Guild Catalog.
-//! Thematic buckets are mutually exclusive for saved preferences; `background_multi` guilds overlap every thematic drill.
+//! Thematic buckets are mutually exclusive for saved preferences; multi-background guilds filter per theme.
 
 use std::sync::OnceLock;
 
-use super::catalog::{self, GuildCatalogEntry, GuildGroupingClass};
+use super::catalog::{self, GuildCatalogEntry, GuildGroupingClass, GuildKey};
 
 pub const MULTI_BACKGROUND_LABEL: &str = "Multi-Background";
 pub use catalog::{
@@ -60,8 +60,27 @@ pub fn guild_grouping() -> &'static GuildGrouping {
     })
 }
 
-pub fn visible_indices_multi_drill() -> Vec<usize> {
-    guild_grouping().multi_playable_indices.clone()
+/// Whether a multi-background guild appears in `/guilds` drill for the given thematic index.
+pub fn multi_guild_eligible_for_thematic(guild_key: GuildKey, thematic_ix: usize) -> bool {
+    use GuildKey::*;
+    match guild_key {
+        Cavalier | Squire => matches!(thematic_ix, 0 | 4),
+        Disciple => matches!(thematic_ix, 0 | 3 | 4),
+        Kharim => matches!(thematic_ix, 3 | 4),
+        Navigator => matches!(thematic_ix, 0 | 2 | 3 | 4),
+        Explorer | Inf | Sailor | Treenav => true,
+        _ => false,
+    }
+}
+
+pub fn visible_indices_multi_drill_for(thematic_ix: usize) -> Vec<usize> {
+    let entries = catalog::playable_entries_list();
+    guild_grouping()
+        .multi_playable_indices
+        .iter()
+        .copied()
+        .filter(|&ix| multi_guild_eligible_for_thematic(entries[ix].key, thematic_ix))
+        .collect()
 }
 
 /// Clear selected flags for thematic guilds outside `active_thematic`, keep multi and in-bucket thematic.
@@ -88,6 +107,7 @@ pub fn clear_selected_outside_thematic_bucket(
 
 #[cfg(test)]
 mod tests {
+    use super::THEMES_UX_ORDER;
     use super::*;
 
     #[test]
@@ -120,13 +140,52 @@ mod tests {
         );
     }
 
-    #[test]
-    fn good_religious_excluded_from_playable_drill_indices() {
+    fn multi_keys_for_thematic(thematic_ix: usize) -> Vec<&'static str> {
         let entries = catalog::playable_entries_list();
-        let bucket_ix = thematic_index_for_keyword("good_religious").expect("theme");
-        let indices = &guild_grouping().thematic[bucket_ix].playable_def_indices;
-        for &ix in indices {
-            assert_ne!(entries[ix].persisted_key, "good_religious");
+        visible_indices_multi_drill_for(thematic_ix)
+            .into_iter()
+            .map(|ix| entries[ix].persisted_key)
+            .collect()
+    }
+
+    #[test]
+    fn magical_multi_drill_shows_universal_guilds_only() {
+        let magical_ix = thematic_index_for_keyword("magical").expect("magical");
+        assert_eq!(
+            multi_keys_for_thematic(magical_ix),
+            vec!["explorer", "inf", "sailor", "treenav"]
+        );
+    }
+
+    #[test]
+    fn civilized_multi_drill_includes_cavalier_not_kharim() {
+        let civilized_ix = thematic_index_for_keyword("civilized").expect("civilized");
+        let keys = multi_keys_for_thematic(civilized_ix);
+        assert!(keys.contains(&"cavalier"));
+        assert!(keys.contains(&"navigator"));
+        assert!(!keys.contains(&"kharim"));
+    }
+
+    #[test]
+    fn nomad_multi_drill_includes_kharim_and_cavalier() {
+        let nomad_ix = thematic_index_for_keyword("nomad").expect("nomad");
+        let keys = multi_keys_for_thematic(nomad_ix);
+        assert!(keys.contains(&"kharim"));
+        assert!(keys.contains(&"cavalier"));
+    }
+
+    #[test]
+    fn background_only_entries_excluded_from_playable_drill_indices() {
+        let entries = catalog::playable_entries_list();
+        for &(keyword, _) in THEMES_UX_ORDER {
+            let bucket_ix = thematic_index_for_keyword(keyword).expect("theme");
+            let indices = &guild_grouping().thematic[bucket_ix].playable_def_indices;
+            for &ix in indices {
+                assert_ne!(
+                    entries[ix].persisted_key, keyword,
+                    "background keyword {keyword} must not appear in drill toggles"
+                );
+            }
         }
     }
 }

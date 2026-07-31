@@ -1,3 +1,5 @@
+mod stub;
+
 mod aelena;
 mod animist;
 mod barbarian;
@@ -64,6 +66,12 @@ pub use riftwalker::RiftwalkerGuild;
 pub use sabres::SabresGuild;
 pub use seminary::SeminaryGuild;
 pub use spider::SpiderGuild;
+pub use stub::{
+    AlchemistsGuild, ArchersGuild, BardGuild, BeastmasterGuild, CavalierGuild,
+    CivilizedFightersGuild, CivilizedGuild, CrimsonGuild, DruidsGuild, EvilReligiousGuild,
+    ExplorerGuild, InfGuild, KnightGuild, MagicalGuild, MerchantGuild, NavigatorGuild, NomadGuild,
+    NunGuild, RunemagesGuild, SailorGuild, SquireGuild, TarmalenGuild, TemplarGuild, TreenavGuild,
+};
 pub use tiger::TigerGuild;
 pub use triad::TriadGuild;
 pub use tzarakk::TzarakkGuild;

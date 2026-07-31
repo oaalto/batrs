@@ -2,9 +2,13 @@
 
 ## Guild Catalog
 
-The Guild Catalog is the canonical Rust-source list of BatMUD guild keywords known to batrs. It includes playable guilds that can be enabled for a player, background-only guild modules auto-injected from the primary theme keyword, and unimplemented BatMUD guild keywords that still matter for thematic grouping.
+The Guild Catalog is the canonical Rust-source list of BatMUD guild keywords known to batrs. It includes playable guilds that can be enabled for a player, background-only guild modules auto-injected from the primary theme keyword, and stub guild modules for BatMUD guilds not yet given commands or triggers.
 
-**Good Religious** is a background-only guild module (`good_religious` catalog key, `GuildPlayability::BackgroundOnly`). It is buildable for command dispatch but excluded from `/guilds` drill toggles and `playable_entries()`. When the player's guild primary background keyword is `good_religious`, `GuildSelection::build_guilds` prepends the Good Religious guild before guilds built from player-selected keys — including when the persisted guild key list is empty. Background guilds merge first in command dispatch (`or_insert` first registration wins), so Good Religious aliases win over later guilds and generic fallbacks.
+Each thematic background (`civilized`, `magical`, `good_religious`, `evil_religious`, `nomad`) has a **background-only** catalog entry (`GuildPlayability::BackgroundOnly`). It is buildable for command dispatch but excluded from `/guilds` drill toggles and `playable_entries()`. When the player's guild primary background keyword matches, `GuildSelection::build_guilds` prepends that background guild before guilds built from player-selected keys — including when the persisted guild key list is empty. Background guilds merge first in command dispatch (`or_insert` first registration wins).
+
+See `docs/wiki/concepts/guild-background-map.md` for the full background→guild membership table.
+
+**Good Religious** (`good_religious`) is the only background guild with spell shortcuts implemented so far. The other four background modules (`civilized`, `magical`, `evil_religious`, `nomad`) are empty stubs ready for future background spells.
 
 Good Religious spell shortcuts:
 
@@ -16,7 +20,7 @@ Good Religious spell shortcuts:
 | `ccw` | `cast 'cure critical wounds' me` | `cast 'cure critical wounds' <args>` |
 | `ccf` | `cast 'create food'` | `cast 'create food'` (args ignored) |
 
-Interim rule until a dedicated background→guild map exists: background guild(s) first, player-selected guilds after.
+Interim rule until per-background spell tables exist: background guild(s) first, player-selected guilds after.
 
 The Guild Catalog browse module (`guilds/catalog/browse.rs`) owns PickBackground labels (`browse_labels()`), drill source (`GuildDrillSource`), drill row structure (`drill_rows(source, entry_count)`), and the `GuildBrowseRow` type (`Banner` + `Toggle { definition_index }`).
 

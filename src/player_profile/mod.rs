@@ -237,7 +237,7 @@ mod tests {
     }
 
     #[test]
-    fn interpret_player_toml_filters_unimplemented_and_unknown_guilds() {
+    fn interpret_player_toml_filters_unknown_guilds() {
         let player = PlayerToml {
             guilds: Some(vec![
                 "animist".to_string(),
@@ -252,11 +252,11 @@ mod tests {
         assert!(interpreted.changed);
         assert_eq!(
             interpreted.normalized_player.guilds,
-            Some(vec!["animist".to_string()])
+            Some(vec!["alchemists".to_string()])
         );
         assert_eq!(
             interpreted.runtime.guild_selection.persisted_keys(),
-            vec!["animist".to_string()]
+            vec!["alchemists".to_string()]
         );
     }
 

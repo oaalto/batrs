@@ -90,9 +90,14 @@ impl GuildSelection {
 
     pub fn build_guilds(&self) -> Vec<Box<dyn Guild>> {
         let mut guilds = Vec::new();
-        if self.primary_background_keyword() == "good_religious"
-            && let Some(guild) =
-                entry_for_persisted_key("good_religious").and_then(|entry| entry.build())
+        if let Some(guild) = entry_for_persisted_key(self.primary_background_keyword())
+            .filter(|entry| {
+                matches!(
+                    entry.playability,
+                    super::GuildPlayability::BackgroundOnly { .. }
+                )
+            })
+            .and_then(|entry| entry.build())
         {
             guilds.push(guild);
         }
@@ -252,12 +257,21 @@ mod tests {
     }
 
     #[test]
-    fn build_guilds_injects_good_religious_for_empty_selection() {
-        let selection = GuildSelection::from_persisted_keys(&[], Some("good_religious"));
-        let guilds = selection.build_guilds();
-
-        assert_eq!(guilds.len(), 1);
-        assert!(guilds[0].commands().contains_key("ccs"));
+    fn build_guilds_injects_background_guild_for_empty_selection() {
+        for keyword in [
+            "good_religious",
+            "evil_religious",
+            "civilized",
+            "magical",
+            "nomad",
+        ] {
+            let selection = GuildSelection::from_persisted_keys(&[], Some(keyword));
+            assert_eq!(
+                selection.build_guilds().len(),
+                1,
+                "expected background guild for {keyword}"
+            );
+        }
     }
 
     #[test]
@@ -271,8 +285,20 @@ mod tests {
     }
 
     #[test]
-    fn build_guilds_skips_good_religious_for_other_primary() {
-        let selection = GuildSelection::from_persisted_keys(&[], Some("civilized"));
-        assert!(selection.build_guilds().is_empty());
+    fn build_guilds_injects_only_matching_background_guild() {
+        let selection = GuildSelection::from_persisted_keys(&[], Some("magical"));
+        let guilds = selection.build_guilds();
+
+        assert_eq!(guilds.len(), 1);
+        assert!(!guilds[0].commands().contains_key("ccs"));
+    }
+
+    #[test]
+    fn build_guilds_injects_good_religious_spell_commands() {
+        let selection = GuildSelection::from_persisted_keys(&[], Some("good_religious"));
+        let guilds = selection.build_guilds();
+
+        assert_eq!(guilds.len(), 1);
+        assert!(guilds[0].commands().contains_key("ccs"));
     }
 }

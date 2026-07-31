@@ -1,10 +1,14 @@
 use super::{
-    AelenaGuild, AnimistGuild, BarbarianGuild, ChannellersGuild, CivmageGuild, CurateGuild,
-    DiscipleGuild, FolkloristGuild, GoodReligiousGuild, Guild, InnerCircleGuild, KharimGuild,
-    LiberatorGuild, MageAcidGuild, MageAsphyxiationGuild, MageColdGuild, MageElectricityGuild,
-    MageFireGuild, MageGuild, MageMagicalGuild, MagePoisonGuild, MonkGuild, NergalGuild,
-    PsionicistGuild, RangerGuild, ReaverGuild, RiftwalkerGuild, SabresGuild, SeminaryGuild,
-    SpiderGuild, TigerGuild, TriadGuild, TzarakkGuild,
+    AelenaGuild, AlchemistsGuild, AnimistGuild, ArchersGuild, BarbarianGuild, BardGuild,
+    BeastmasterGuild, CavalierGuild, ChannellersGuild, CivilizedFightersGuild, CivilizedGuild,
+    CivmageGuild, CrimsonGuild, CurateGuild, DiscipleGuild, DruidsGuild, EvilReligiousGuild,
+    ExplorerGuild, FolkloristGuild, GoodReligiousGuild, Guild, InfGuild, InnerCircleGuild,
+    KharimGuild, KnightGuild, LiberatorGuild, MageAcidGuild, MageAsphyxiationGuild, MageColdGuild,
+    MageElectricityGuild, MageFireGuild, MageGuild, MageMagicalGuild, MagePoisonGuild,
+    MagicalGuild, MerchantGuild, MonkGuild, NavigatorGuild, NergalGuild, NomadGuild, NunGuild,
+    PsionicistGuild, RangerGuild, ReaverGuild, RiftwalkerGuild, RunemagesGuild, SabresGuild,
+    SailorGuild, SeminaryGuild, SpiderGuild, SquireGuild, TarmalenGuild, TemplarGuild, TigerGuild,
+    TreenavGuild, TriadGuild, TzarakkGuild,
 };
 
 mod browse;
@@ -30,11 +34,13 @@ pub enum GuildKey {
     Cavalier,
     Channellers,
     Civmage,
+    Civilized,
     CivilizedFighters,
     Crimson,
     Curate,
     Disciple,
     Druids,
+    EvilReligious,
     Explorer,
     Folklorist,
     GoodReligious,
@@ -43,6 +49,7 @@ pub enum GuildKey {
     Kharim,
     Knight,
     Liberator,
+    Magical,
     Mage,
     MageAcid,
     MageAsphyxiation,
@@ -53,6 +60,7 @@ pub enum GuildKey {
     MagePoison,
     Merchant,
     Monk,
+    Nomad,
     Navigator,
     Nergal,
     Nun,
@@ -89,7 +97,6 @@ pub enum GuildPlayability {
     BackgroundOnly {
         build: GuildFactory,
     },
-    Unimplemented,
 }
 
 pub struct GuildCatalogEntry {
@@ -110,7 +117,6 @@ impl GuildCatalogEntry {
             GuildPlayability::Playable { build } | GuildPlayability::BackgroundOnly { build } => {
                 Some(build())
             }
-            GuildPlayability::Unimplemented => None,
         }
     }
 }
@@ -147,21 +153,6 @@ const fn background_only(
     }
 }
 
-const fn unimplemented(
-    key: GuildKey,
-    persisted_key: &'static str,
-    display_name: &'static str,
-    grouping: GuildGroupingClass,
-) -> GuildCatalogEntry {
-    GuildCatalogEntry {
-        key,
-        persisted_key,
-        display_name,
-        grouping,
-        playability: GuildPlayability::Unimplemented,
-    }
-}
-
 macro_rules! guild_factory {
     ($factory_name:ident, $guild_type:ty) => {
         fn $factory_name() -> Box<dyn Guild> {
@@ -171,17 +162,31 @@ macro_rules! guild_factory {
 }
 
 guild_factory!(build_aelena, AelenaGuild);
+guild_factory!(build_alchemists, AlchemistsGuild);
 guild_factory!(build_animist, AnimistGuild);
+guild_factory!(build_archers, ArchersGuild);
 guild_factory!(build_barbarian, BarbarianGuild);
+guild_factory!(build_bard, BardGuild);
+guild_factory!(build_beastmaster, BeastmasterGuild);
+guild_factory!(build_cavalier, CavalierGuild);
 guild_factory!(build_channellers, ChannellersGuild);
+guild_factory!(build_civilized, CivilizedGuild);
+guild_factory!(build_civilized_fighters, CivilizedFightersGuild);
 guild_factory!(build_civmage, CivmageGuild);
+guild_factory!(build_crimson, CrimsonGuild);
 guild_factory!(build_curate, CurateGuild);
 guild_factory!(build_disciple, DiscipleGuild);
+guild_factory!(build_druids, DruidsGuild);
+guild_factory!(build_evil_religious, EvilReligiousGuild);
+guild_factory!(build_explorer, ExplorerGuild);
 guild_factory!(build_folklorist, FolkloristGuild);
 guild_factory!(build_good_religious, GoodReligiousGuild);
+guild_factory!(build_inf, InfGuild);
 guild_factory!(build_inner_circle, InnerCircleGuild);
 guild_factory!(build_kharim, KharimGuild);
+guild_factory!(build_knight, KnightGuild);
 guild_factory!(build_liberator, LiberatorGuild);
+guild_factory!(build_magical, MagicalGuild);
 guild_factory!(build_mage, MageGuild);
 guild_factory!(build_mage_acid, MageAcidGuild);
 guild_factory!(build_mage_asphyxiation, MageAsphyxiationGuild);
@@ -190,31 +195,50 @@ guild_factory!(build_mage_electricity, MageElectricityGuild);
 guild_factory!(build_mage_fire, MageFireGuild);
 guild_factory!(build_mage_magical, MageMagicalGuild);
 guild_factory!(build_mage_poison, MagePoisonGuild);
+guild_factory!(build_merchant, MerchantGuild);
 guild_factory!(build_monk, MonkGuild);
+guild_factory!(build_navigator, NavigatorGuild);
 guild_factory!(build_nergal, NergalGuild);
+guild_factory!(build_nomad, NomadGuild);
+guild_factory!(build_nun, NunGuild);
 guild_factory!(build_psionicist, PsionicistGuild);
 guild_factory!(build_ranger, RangerGuild);
 guild_factory!(build_reaver, ReaverGuild);
 guild_factory!(build_riftwalker, RiftwalkerGuild);
+guild_factory!(build_runemages, RunemagesGuild);
 guild_factory!(build_sabres, SabresGuild);
+guild_factory!(build_sailor, SailorGuild);
 guild_factory!(build_seminary, SeminaryGuild);
 guild_factory!(build_spider, SpiderGuild);
+guild_factory!(build_squire, SquireGuild);
+guild_factory!(build_tarmalen, TarmalenGuild);
+guild_factory!(build_templar, TemplarGuild);
 guild_factory!(build_tiger, TigerGuild);
+guild_factory!(build_treenav, TreenavGuild);
 guild_factory!(build_triad, TriadGuild);
 guild_factory!(build_tzarakk, TzarakkGuild);
 
 pub static GUILD_CATALOG: &[GuildCatalogEntry] = &[
-    unimplemented(
+    background_only(
+        GuildKey::Civilized,
+        "civilized",
+        "Civilized",
+        GuildGroupingClass::Thematic(0),
+        build_civilized,
+    ),
+    playable(
         GuildKey::Alchemists,
         "alchemists",
         "Alchemists",
         GuildGroupingClass::Thematic(0),
+        build_alchemists,
     ),
-    unimplemented(
+    playable(
         GuildKey::CivilizedFighters,
         "civilized_fighters",
         "Civilized Fighters",
         GuildGroupingClass::Thematic(0),
+        build_civilized_fighters,
     ),
     playable(
         GuildKey::Civmage,
@@ -230,23 +254,26 @@ pub static GUILD_CATALOG: &[GuildCatalogEntry] = &[
         GuildGroupingClass::Thematic(0),
         build_folklorist,
     ),
-    unimplemented(
+    playable(
         GuildKey::Knight,
         "knight",
         "Knight",
         GuildGroupingClass::Thematic(0),
+        build_knight,
     ),
-    unimplemented(
+    playable(
         GuildKey::Merchant,
         "merchant",
         "Merchant",
         GuildGroupingClass::Thematic(0),
+        build_merchant,
     ),
-    unimplemented(
+    playable(
         GuildKey::Runemages,
         "runemages",
         "Runemages",
         GuildGroupingClass::Thematic(0),
+        build_runemages,
     ),
     playable(
         GuildKey::Sabres,
@@ -255,11 +282,19 @@ pub static GUILD_CATALOG: &[GuildCatalogEntry] = &[
         GuildGroupingClass::Thematic(0),
         build_sabres,
     ),
-    unimplemented(
+    playable(
         GuildKey::Bard,
         "bard",
         "Bard",
         GuildGroupingClass::Thematic(0),
+        build_bard,
+    ),
+    background_only(
+        GuildKey::Magical,
+        "magical",
+        "Magical",
+        GuildGroupingClass::Thematic(1),
+        build_magical,
     ),
     playable(
         GuildKey::Channellers,
@@ -359,11 +394,12 @@ pub static GUILD_CATALOG: &[GuildCatalogEntry] = &[
         GuildGroupingClass::Thematic(2),
         build_animist,
     ),
-    unimplemented(
+    playable(
         GuildKey::Druids,
         "druids",
         "Druids",
         GuildGroupingClass::Thematic(2),
+        build_druids,
     ),
     playable(
         GuildKey::Liberator,
@@ -379,18 +415,33 @@ pub static GUILD_CATALOG: &[GuildCatalogEntry] = &[
         GuildGroupingClass::Thematic(2),
         build_monk,
     ),
-    unimplemented(GuildKey::Nun, "nun", "Nun", GuildGroupingClass::Thematic(2)),
-    unimplemented(
+    playable(
+        GuildKey::Nun,
+        "nun",
+        "Nun",
+        GuildGroupingClass::Thematic(2),
+        build_nun,
+    ),
+    playable(
         GuildKey::Tarmalen,
         "tarmalen",
         "Tarmalen",
         GuildGroupingClass::Thematic(2),
+        build_tarmalen,
     ),
-    unimplemented(
+    playable(
         GuildKey::Templar,
         "templar",
         "Templar",
         GuildGroupingClass::Thematic(2),
+        build_templar,
+    ),
+    background_only(
+        GuildKey::EvilReligious,
+        "evil_religious",
+        "Evil Religious",
+        GuildGroupingClass::Thematic(3),
+        build_evil_religious,
     ),
     playable(
         GuildKey::Aelena,
@@ -455,11 +506,19 @@ pub static GUILD_CATALOG: &[GuildCatalogEntry] = &[
         GuildGroupingClass::Thematic(3),
         build_tzarakk,
     ),
-    unimplemented(
+    background_only(
+        GuildKey::Nomad,
+        "nomad",
+        "Nomad",
+        GuildGroupingClass::Thematic(4),
+        build_nomad,
+    ),
+    playable(
         GuildKey::Archers,
         "archers",
         "Archers",
         GuildGroupingClass::Thematic(4),
+        build_archers,
     ),
     playable(
         GuildKey::Barbarian,
@@ -468,11 +527,12 @@ pub static GUILD_CATALOG: &[GuildCatalogEntry] = &[
         GuildGroupingClass::Thematic(4),
         build_barbarian,
     ),
-    unimplemented(
+    playable(
         GuildKey::Beastmaster,
         "beastmaster",
         "Beastmaster",
         GuildGroupingClass::Thematic(4),
+        build_beastmaster,
     ),
     playable(
         GuildKey::Ranger,
@@ -481,17 +541,19 @@ pub static GUILD_CATALOG: &[GuildCatalogEntry] = &[
         GuildGroupingClass::Thematic(4),
         build_ranger,
     ),
-    unimplemented(
+    playable(
         GuildKey::Crimson,
         "crimson",
         "Crimson",
         GuildGroupingClass::Thematic(4),
+        build_crimson,
     ),
-    unimplemented(
+    playable(
         GuildKey::Cavalier,
         "cavalier",
         "Cavalier",
         GuildGroupingClass::Multi,
+        build_cavalier,
     ),
     playable(
         GuildKey::Disciple,
@@ -500,13 +562,20 @@ pub static GUILD_CATALOG: &[GuildCatalogEntry] = &[
         GuildGroupingClass::Multi,
         build_disciple,
     ),
-    unimplemented(
+    playable(
         GuildKey::Explorer,
         "explorer",
         "Explorer",
         GuildGroupingClass::Multi,
+        build_explorer,
     ),
-    unimplemented(GuildKey::Inf, "inf", "Inf", GuildGroupingClass::Multi),
+    playable(
+        GuildKey::Inf,
+        "inf",
+        "Inf",
+        GuildGroupingClass::Multi,
+        build_inf,
+    ),
     playable(
         GuildKey::Kharim,
         "kharim",
@@ -514,29 +583,33 @@ pub static GUILD_CATALOG: &[GuildCatalogEntry] = &[
         GuildGroupingClass::Multi,
         build_kharim,
     ),
-    unimplemented(
+    playable(
         GuildKey::Navigator,
         "navigator",
         "Navigator",
         GuildGroupingClass::Multi,
+        build_navigator,
     ),
-    unimplemented(
+    playable(
         GuildKey::Sailor,
         "sailor",
         "Sailor",
         GuildGroupingClass::Multi,
+        build_sailor,
     ),
-    unimplemented(
+    playable(
         GuildKey::Squire,
         "squire",
         "Squire",
         GuildGroupingClass::Multi,
+        build_squire,
     ),
-    unimplemented(
+    playable(
         GuildKey::Treenav,
         "treenav",
         "Treenav",
         GuildGroupingClass::Multi,
+        build_treenav,
     ),
 ];
 
@@ -604,30 +677,19 @@ mod tests {
     }
 
     #[test]
-    fn unimplemented_entries_do_not_build() {
-        let unimplemented = entries()
-            .iter()
-            .filter(|entry| matches!(entry.playability, GuildPlayability::Unimplemented));
-        for entry in unimplemented {
-            assert!(
-                entry.build().is_none(),
-                "unimplemented entry built {}",
-                entry.persisted_key
-            );
+    fn background_only_entries_build_but_are_not_playable() {
+        for &(keyword, _) in THEMES_UX_ORDER {
+            let entry = entry_for_persisted_key(keyword).expect("background entry");
+            assert!(!entry.is_playable(), "{keyword} must not be playable");
+            assert!(entry.build().is_some(), "{keyword} must build");
         }
     }
 
     #[test]
-    fn background_only_entries_build_but_are_not_playable() {
-        let entry = entry_for_persisted_key("good_religious").expect("good religious entry");
-        assert!(!entry.is_playable());
-        assert!(entry.build().is_some());
-    }
-
-    #[test]
-    fn catalog_includes_unimplemented_grouping_keywords() {
+    fn catalog_includes_newly_playable_grouping_keywords() {
         assert!(entry_for_persisted_key("alchemists").is_some());
         assert!(entry_for_persisted_key("navigator").is_some());
         assert!(entry_for_persisted_key("treenav").is_some());
+        assert!(playable_entry_for_persisted_key("alchemists").is_some());
     }
 }
