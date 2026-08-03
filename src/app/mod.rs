@@ -1421,6 +1421,79 @@ mod tests {
     }
 
     #[test]
+    fn scan_row_before_echo_stays_out_of_game_output() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+
+        app.process_input_lines(vec![
+            "*** Round 1 ***".to_string(),
+            "Guard is slightly hurt (70%).".to_string(),
+            "scan all".to_string(),
+            "The rain falls.".to_string(),
+        ]);
+        drain_commands(&command_receiver);
+
+        assert_eq!(
+            app.output.plain_lines(),
+            vec!["*** Round 1 ***", "The rain falls."]
+        );
+        assert_eq!(app.combat_awareness.snapshot().len(), 1);
+    }
+
+    #[test]
+    fn late_probe_response_after_echo_timeout_stays_out_of_game_output() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+
+        app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
+        drain_commands(&command_receiver);
+
+        let filler = vec!["filler".to_string(); 30];
+        app.process_input_lines(filler);
+        app.process_input_lines(vec![
+            "scan all".to_string(),
+            "Guard is slightly hurt (70%).".to_string(),
+            "The rain falls.".to_string(),
+        ]);
+
+        let output = app.output.plain_lines();
+        assert!(
+            !output.iter().any(|line| line.contains("scan all")),
+            "probe echo must not reach game output"
+        );
+        assert!(
+            !output
+                .iter()
+                .any(|line| line.contains("Guard is slightly hurt")),
+            "probe rows must not reach game output"
+        );
+        assert!(output.contains(&"The rain falls."));
+        assert_eq!(app.combat_awareness.snapshot().len(), 1);
+    }
+
+    #[test]
+    fn round_header_before_probe_echo_stays_out_of_game_output() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+
+        app.process_input_lines(vec![
+            "*** Round 1 ***".to_string(),
+            "*** Round 2 ***".to_string(),
+            "scan all".to_string(),
+            "Guard is slightly hurt (70%).".to_string(),
+            "Guard swings.".to_string(),
+        ]);
+        assert_eq!(
+            drain_commands(&command_receiver),
+            vec!["@sc", "#scan all", "@sc", "#scan all"]
+        );
+        assert_eq!(
+            app.output.plain_lines(),
+            vec!["*** Round 1 ***", "*** Round 2 ***", "Guard swings."]
+        );
+    }
+
+    #[test]
     fn user_game_commands_probe_every_other_send_after_user_command() {
         let (mut app, command_receiver) = test_app();
         log_in(&mut app);

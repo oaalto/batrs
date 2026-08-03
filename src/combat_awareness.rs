@@ -2,7 +2,6 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 pub const PROBE_COMMAND: &str = "#scan all";
-const PROBE_ECHO: &str = "scan all";
 pub const NOT_IN_COMBAT_LINE: &str = "You are not in combat right now.";
 const MAX_LINES_WAITING_FOR_ECHO: u8 = 30;
 
@@ -157,60 +156,27 @@ impl CombatAwareness {
         if is_round_header(line) {
             if self.phase == ProbePhase::CapturingRows {
                 self.complete_scan();
+            } else if self.phase == ProbePhase::WaitingForEcho {
+                self.abandon_in_flight_probe();
             }
             self.active = true;
-            let _ = self.request_probe();
+            let mut effects = vec![
+                CombatAwarenessEffect::RoundStarted,
+                CombatAwarenessEffect::SendShortScore,
+            ];
+            if self.request_probe().is_some() {
+                effects.push(CombatAwarenessEffect::SendProbe);
+            }
             return LineHandlingResult {
                 gag: false,
-                effects: vec![
-                    CombatAwarenessEffect::RoundStarted,
-                    CombatAwarenessEffect::SendShortScore,
-                    CombatAwarenessEffect::SendProbe,
-                ],
+                effects,
             };
         }
 
         match self.phase {
-            ProbePhase::Idle => LineHandlingResult {
-                gag: false,
-                effects: Vec::new(),
-            },
-            ProbePhase::WaitingForEcho => {
-                if line == PROBE_ECHO {
-                    self.phase = ProbePhase::CapturingRows;
-                    self.lines_waiting_for_echo = 0;
-                    self.pending_rows.clear();
-                    LineHandlingResult {
-                        gag: true,
-                        effects: Vec::new(),
-                    }
-                } else {
-                    self.lines_waiting_for_echo = self.lines_waiting_for_echo.saturating_add(1);
-                    if self.lines_waiting_for_echo >= MAX_LINES_WAITING_FOR_ECHO {
-                        self.phase = ProbePhase::Idle;
-                        self.lines_waiting_for_echo = 0;
-                    }
-                    LineHandlingResult {
-                        gag: false,
-                        effects: Vec::new(),
-                    }
-                }
-            }
-            ProbePhase::CapturingRows => {
-                if let Some(row) = parse_scan_row(line) {
-                    self.pending_rows.push(row);
-                    LineHandlingResult {
-                        gag: true,
-                        effects: Vec::new(),
-                    }
-                } else {
-                    self.complete_scan();
-                    LineHandlingResult {
-                        gag: false,
-                        effects: Vec::new(),
-                    }
-                }
-            }
+            ProbePhase::Idle => self.handle_idle_line(line),
+            ProbePhase::WaitingForEcho => self.handle_waiting_for_echo(line),
+            ProbePhase::CapturingRows => self.handle_capturing_rows(line),
         }
     }
 
@@ -239,11 +205,100 @@ impl CombatAwareness {
         }
     }
 
+    fn abandon_in_flight_probe(&mut self) {
+        self.phase = ProbePhase::Idle;
+        self.lines_waiting_for_echo = 0;
+        self.pending_rows.clear();
+    }
+
+    fn handle_idle_line(&mut self, line: &str) -> LineHandlingResult {
+        if !self.active {
+            return LineHandlingResult {
+                gag: false,
+                effects: Vec::new(),
+            };
+        }
+        if is_probe_echo(line) {
+            self.phase = ProbePhase::CapturingRows;
+            self.pending_rows.clear();
+            return LineHandlingResult {
+                gag: true,
+                effects: Vec::new(),
+            };
+        }
+        if let Some(row) = parse_scan_row(line) {
+            self.phase = ProbePhase::CapturingRows;
+            self.pending_rows.push(row);
+            return LineHandlingResult {
+                gag: true,
+                effects: Vec::new(),
+            };
+        }
+        LineHandlingResult {
+            gag: false,
+            effects: Vec::new(),
+        }
+    }
+
+    fn handle_waiting_for_echo(&mut self, line: &str) -> LineHandlingResult {
+        if is_probe_echo(line) {
+            self.phase = ProbePhase::CapturingRows;
+            self.lines_waiting_for_echo = 0;
+            self.pending_rows.clear();
+            return LineHandlingResult {
+                gag: true,
+                effects: Vec::new(),
+            };
+        }
+        if let Some(row) = parse_scan_row(line) {
+            self.phase = ProbePhase::CapturingRows;
+            self.lines_waiting_for_echo = 0;
+            self.pending_rows.push(row);
+            return LineHandlingResult {
+                gag: true,
+                effects: Vec::new(),
+            };
+        }
+        self.lines_waiting_for_echo = self.lines_waiting_for_echo.saturating_add(1);
+        if self.lines_waiting_for_echo >= MAX_LINES_WAITING_FOR_ECHO {
+            self.abandon_in_flight_probe();
+        }
+        LineHandlingResult {
+            gag: false,
+            effects: Vec::new(),
+        }
+    }
+
+    fn handle_capturing_rows(&mut self, line: &str) -> LineHandlingResult {
+        if is_probe_echo(line) {
+            return LineHandlingResult {
+                gag: true,
+                effects: Vec::new(),
+            };
+        }
+        if let Some(row) = parse_scan_row(line) {
+            self.pending_rows.push(row);
+            return LineHandlingResult {
+                gag: true,
+                effects: Vec::new(),
+            };
+        }
+        self.complete_scan();
+        LineHandlingResult {
+            gag: false,
+            effects: Vec::new(),
+        }
+    }
+
     fn complete_scan(&mut self) {
         self.snapshot = std::mem::take(&mut self.pending_rows);
         self.phase = ProbePhase::Idle;
         self.lines_waiting_for_echo = 0;
     }
+}
+
+fn is_probe_echo(line: &str) -> bool {
+    line == "scan all" || line == PROBE_COMMAND
 }
 
 fn parse_scan_row(line: &str) -> Option<CombatScanRow> {
@@ -418,5 +473,83 @@ mod tests {
         }
 
         assert!(state.is_idle());
+    }
+
+    #[test]
+    fn scan_row_before_echo_is_gagged() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
+
+        assert!(
+            state
+                .handle_incoming_line("Guard is slightly hurt (70%).")
+                .gag
+        );
+        assert!(state.handle_incoming_line("scan all").gag);
+        assert!(!state.handle_incoming_line("done").gag);
+        assert_eq!(state.snapshot().len(), 1);
+    }
+
+    #[test]
+    fn hash_scan_all_echo_is_gagged() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
+
+        assert!(state.handle_incoming_line("#scan all").gag);
+        assert!(
+            state
+                .handle_incoming_line("Guard is slightly hurt (70%).")
+                .gag
+        );
+    }
+
+    #[test]
+    fn orphan_probe_response_during_idle_combat_is_gagged() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
+
+        for _ in 0..MAX_LINES_WAITING_FOR_ECHO {
+            state.handle_incoming_line("ordinary output");
+        }
+        assert!(state.is_idle());
+
+        assert!(state.handle_incoming_line("scan all").gag);
+        assert!(
+            state
+                .handle_incoming_line("Guard is slightly hurt (70%).")
+                .gag
+        );
+        assert!(!state.handle_incoming_line("done").gag);
+        assert_eq!(state.snapshot().len(), 1);
+    }
+
+    #[test]
+    fn second_probe_echo_during_capturing_rows_is_gagged() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
+        state.handle_incoming_line("scan all");
+        state.handle_incoming_line("Guard is slightly hurt (70%).");
+
+        assert!(state.handle_incoming_line("scan all").gag);
+        assert!(!state.handle_incoming_line("done").gag);
+        assert_eq!(state.snapshot().len(), 1);
+    }
+
+    #[test]
+    fn round_header_during_waiting_for_echo_requests_fresh_probe_once() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
+        assert!(!state.is_idle());
+
+        let result = state.handle_incoming_line("*** Round 2 ***");
+        assert_eq!(
+            result.effects,
+            vec![
+                CombatAwarenessEffect::RoundStarted,
+                CombatAwarenessEffect::SendShortScore,
+                CombatAwarenessEffect::SendProbe,
+            ]
+        );
+        assert!(!state.is_idle());
     }
 }
