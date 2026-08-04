@@ -136,14 +136,19 @@ fn combat_condition_color(condition: CombatCondition) -> Color {
 fn combat_row_spans(row: &CombatScanRow) -> Vec<Span<'static>> {
     let condition = row.condition();
     let color = combat_condition_color(condition);
-    vec![
+    let mut spans = vec![
         Span::styled(row.name().to_string(), enemy_name_style()),
         Span::styled(" is ", normal_text_style()),
         Span::styled(condition.label().to_string(), Style::default().fg(color)),
         Span::styled(" (", normal_text_style()),
         Span::styled(row.percent().to_string(), Style::default().fg(color)),
-        Span::styled("%).", normal_text_style()),
-    ]
+        Span::styled("%)", normal_text_style()),
+    ];
+    if let Some(status) = row.status() {
+        spans.push(Span::styled(format!(" [{status}]"), normal_text_style()));
+    }
+    spans.push(Span::styled(".", normal_text_style()));
+    spans
 }
 
 fn wrap_combat_pieces(pieces: Vec<Vec<Span<'static>>>, width: u16) -> Vec<Line<'static>> {
@@ -771,6 +776,24 @@ mod tests {
             .find(|span| span.content.as_ref() == "50")
             .expect("percent span");
         assert_eq!(percent.style.fg, Some(palette::CYAN));
+    }
+
+    #[test]
+    fn render_combat_status_appends_scan_status_in_brackets() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
+        state.handle_incoming_line("scan all");
+        state.handle_incoming_line("Guard is in a good shape (90%) and stunned.");
+        state.handle_incoming_line("done");
+
+        let lines = render_combat_status_lines(state.is_active(), state.snapshot(), 120);
+        assert_eq!(line_text(&lines[0]), "Guard is good (90%) [stunned].");
+        let status = lines[0]
+            .spans
+            .iter()
+            .find(|span| span.content.as_ref() == " [stunned]")
+            .expect("status span");
+        assert_eq!(status.style.fg, Some(palette::TEXT));
     }
 
     #[test]

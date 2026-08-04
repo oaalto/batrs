@@ -25,6 +25,7 @@ pub struct CombatScanRow {
     name: String,
     condition: CombatCondition,
     percent: i32,
+    status: Option<String>,
 }
 
 impl CombatScanRow {
@@ -38,6 +39,10 @@ impl CombatScanRow {
 
     pub fn percent(&self) -> i32 {
         self.percent
+    }
+
+    pub fn status(&self) -> Option<&str> {
+        self.status.as_deref()
     }
 }
 
@@ -307,10 +312,15 @@ fn parse_scan_row(line: &str) -> Option<CombatScanRow> {
     let condition = CombatCondition::parse(captures.name("condition")?.as_str())?;
     let percent = captures.name("percent")?.as_str().parse::<i32>().ok()?;
 
+    let status = captures
+        .name("status")
+        .map(|m| m.as_str().trim().to_string());
+
     Some(CombatScanRow {
         name: name.to_string(),
         condition,
         percent,
+        status,
     })
 }
 
@@ -318,7 +328,7 @@ static ROUND_HEADER_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[\*]+ Round .* [\*]+$").unwrap());
 static SCAN_ROW_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"^(?P<name>.+) is (?P<condition>in excellent shape|in a good shape|slightly hurt|noticeably hurt|not in a good shape|in bad shape|in very bad shape|near death) \((?P<percent>[0-9]+)%\)\.$"
+        r"^(?P<name>.+) is (?P<condition>in excellent shape|in a good shape|slightly hurt|noticeably hurt|not in a good shape|in bad shape|in very bad shape|near death) \((?P<percent>[0-9]+)%\)(?: and (?P<status>.+))?\.$"
     )
     .unwrap()
 });
@@ -533,6 +543,25 @@ mod tests {
         assert!(state.handle_incoming_line("scan all").gag);
         assert!(!state.handle_incoming_line("done").gag);
         assert_eq!(state.snapshot().len(), 1);
+    }
+
+    #[test]
+    fn scan_row_with_status_suffix_is_parsed_into_snapshot() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
+        state.handle_incoming_line("scan all");
+        assert!(
+            state
+                .handle_incoming_line("Guard is in a good shape (90%) and stunned.")
+                .gag
+        );
+        state.handle_incoming_line("done");
+
+        assert_eq!(state.snapshot().len(), 1);
+        assert_eq!(state.snapshot()[0].name(), "Guard");
+        assert_eq!(state.snapshot()[0].condition(), CombatCondition::Good);
+        assert_eq!(state.snapshot()[0].percent(), 90);
+        assert_eq!(state.snapshot()[0].status(), Some("stunned"));
     }
 
     #[test]

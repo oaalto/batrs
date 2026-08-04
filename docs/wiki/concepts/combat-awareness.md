@@ -2,7 +2,7 @@
 title: Combat Awareness
 type: concept
 status: current
-updated: 2026-07-23
+updated: 2026-08-04
 sources:
   - CONTEXT.md
   - src/combat_awareness.rs
@@ -63,7 +63,7 @@ Combat Awareness exposes snapshot data only. The UI layer renders combat status 
 
 - Combat begins on a round header matching `^[\*]+ Round .* [\*]+$`; ends on `You are not in combat right now.` (`NOT_IN_COMBAT_LINE`).
 - Probe rows are gagged from scrollback and automation; internal probe responses on combat end are gagged when probe phase is active.
-- Scan rows capture name, condition phrase, and health percent; each completed scan replaces the prior snapshot (`CONTEXT.md`, `combat_awareness.rs`).
+- Scan rows capture name, condition phrase, health percent, and optional scan status (`and <status>`); the HUD renders status in brackets (`[status]`). Each completed scan replaces the prior snapshot (`CONTEXT.md`, `combat_awareness.rs`, `ui/mod.rs`).
 - Next round header while capturing completes the prior scan into the snapshot (`src/combat_awareness.rs`, `handle_incoming_line`).
 
 ## Related

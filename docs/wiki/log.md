@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-08-04] ingest | Combat scan status suffix
+
+- Updated: [Combat Awareness](concepts/combat-awareness.md)
+- Sources: `CONTEXT.md`, `src/combat_awareness.rs`, `src/ui/mod.rs`
+- Notes: `#scan all` rows may include an optional `and <status>` suffix; HUD renders it as `[status]`.
+
 ## [2026-07-31] skip | Guild dialog save primary on drill open
 
 - Touched: `src/app/dialogs/guild_dialog.rs`
