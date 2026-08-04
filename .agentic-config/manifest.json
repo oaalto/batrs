@@ -1,7 +1,7 @@
 {
   "manifestVersion": "1",
   "agenticConfigVersion": "2026.06.26",
-  "generatedAt": "2026-07-23T05:35:21.295Z",
+  "generatedAt": "2026-08-04T03:57:12.642Z",
   "selection": {
     "version": "1",
     "targetAgent": {
@@ -77,7 +77,8 @@
       "vertical-slice-migration",
       "wayfinder",
       "workflow",
-      "zoom-out"
+      "zoom-out",
+      "grill-with-docs-batch"
     ],
     "rules": [
       "ponytail",
@@ -193,6 +194,7 @@
     "skill.wayfinder",
     "skill.workflow",
     "skill.zoom-out",
+    "skill.grill-with-docs-batch",
     "rule.ponytail",
     "rule.commit",
     "rule.decision-making",
@@ -229,7 +231,6 @@
   "autoIncluded": [
     "USAGE.md",
     "docs/agent-commands.md",
-    "docs/features/",
     "CONTEXT.md",
     "docs/adr/",
     "docs/eslint-deferred-rules.md",
@@ -249,7 +250,8 @@
     "docs/agents/triage-labels.md",
     "docs/agents/domain.md",
     "AGENTS.md",
-    "docs/features/.gitkeep"
+    "docs/prds/",
+    "docs/issues/"
   ],
   "targetAgent": {
     "id": "pi"
@@ -557,6 +559,7 @@
     ".agents/skills/vertical-slice-migration/SKILL.md": "sha256:2b4bf7e889b40a0e6c440537d21be9005173db8759ba665a78f8fd84a8ecacfc",
     ".agents/skills/workflow/SKILL.md": "sha256:0317887a4e967975e9fd59229cbdd1a49fdf6ef4cddbdfbfb4be7b1e2b4e6ee5",
     ".agents/skills/zoom-out/SKILL.md": "sha256:2a6894c7f9b1c9c55f451c625a834c4f377e217b623a85280e55db5fe9cacf48",
+    ".agents/skills/grill-with-docs-batch/SKILL.md": "sha256:494751bce3721913708cbb9387562fe1309eb51fc6bdbc606c40476732145a48",
     "AGENTS.md": "sha256:f670ff58c20beecae6405d7ba3bc7aa6287d6baa3e3435a15fdd296500200d8a",
     ".agents/rules/adr-discipline.md": "sha256:73ce654af9b67f33bdf55b6828e40ab6b276dbe99288f5dd6023418b43324cd3",
     ".agents/rules/documentation.md": "sha256:f417a82cd3b04e190e4a1f32ef627adc8563f593aa42432ad33035d552a1369e",
@@ -581,17 +584,17 @@
     ".agents/rules/rust-workflow-gates.md": "sha256:5988cf4b10dc860ec62cb4f930f0d3f370912a9fcbcb39ab57c04935bdf954d6"
   },
   "contentHashes": {
-    "AGENTS.md": "sha256:775c880c359bf1bdaf58756c7cb3ff39f112b8cdcd7d6899dbc0345fe2676e41",
+    "AGENTS.md": "sha256:b90a7ca30492702b0e22ad6da57f7039499a7f5ed9690cceca9a2e730e5b087a",
     "docs/agent-commands.md": "sha256:e5925f5ee0f3b740e65ab6ae0a9eb4840b426a1d3c1ec503d5906a05315dcd83",
-    "docs/wiki/index.md": "sha256:fe435541228e1814efb678dc5f19930d9dd655c00af1fec80fbf5db6d3d62f13",
-    "docs/wiki/log.md": "sha256:07d0f7faea6934928971943260e5d7e49c6e0ce1735cabb1f9609184ce1ad1b6",
-    "docs/wiki/path-map.json": "sha256:07d7bfb79f7b2b06676bd259b67157cd8cc2283d13c5ff737872b6ca0d337387",
-    "docs/wiki/subsystems/batrs-client.md": "sha256:d187c4a20489adf7909af7d0d7c3e0823a91c3536d5e6be45f47efab78e5d5cf",
-    "docs/wiki/concepts/command-dispatch.md": "sha256:55ec571dcf08439ac64c0ba31fdc5894024386872231db0f2c69282255a92f12",
-    "docs/wiki/concepts/guild-catalog.md": "sha256:442faff1313be84eebc5ee2eea02b602a540f7aa7ccbb28dff95da79db92514d",
-    "docs/wiki/concepts/combat-awareness.md": "sha256:05dcccb84a9f15b15d905142c8d3f540aa43caf9d20eacc208b66a619ffd8a63",
-    "docs/wiki/concepts/player-profile.md": "sha256:e4725b5d82f342b8e8a6efc1e7c8606b6ee11797a61ec0e4fbc35edf971d0a1f",
-    "docs/wiki/concepts/nergal-status.md": "sha256:ff80b9368e60a9495f4217c1825b7bee8ac53788ccb68fea3253c0d91eb2f449",
+    "docs/wiki/index.md": "sha256:1905fa864eb580d37cab36969a8a124ab1371cf673ed9f62b36fcd02ad9e4bef",
+    "docs/wiki/log.md": "sha256:30c360acfc59c6bfb2dcbe519adc8a47cf3739c10821d13bc6c84a5432e8adc8",
+    "docs/wiki/path-map.json": "sha256:32752c708f15be42fdae8c7ada39e9193bb3065a81668a5e4624fbb60e8765dd",
+    "docs/wiki/subsystems/batrs-client.md": "sha256:082eb92e3134522bd2f65b95a6866baf1e56dfca26ba41b08a1e2c6116fa4f20",
+    "docs/wiki/concepts/command-dispatch.md": "sha256:5850f617f2ad3d849bf35a87de90f0036db4d5b2faf5dd0b71d57a509db27d35",
+    "docs/wiki/concepts/guild-catalog.md": "sha256:796b46439bac175fb9aaf73eb86c5bbf30805e3ffe5dc85e8e09fb4bfd746ebb",
+    "docs/wiki/concepts/combat-awareness.md": "sha256:ab9d25be2e8a01822527e6f81c3cbb2c6ccddc93b66feef65246259eacaa02a2",
+    "docs/wiki/concepts/player-profile.md": "sha256:6abfba42131bc7b03f4c85cbc310d0c480922e382ba1f38edacbd44843d13651",
+    "docs/wiki/concepts/nergal-status.md": "sha256:eec9f09d1b0ed64e5dbdff90cacdaf2a82acb2eb969223b3290f8e9502f57858",
     ".agents/skills/workflow/SKILL.md": "sha256:34623a41fe632a6c9798c1020eee789bb7fe9cdc36a592bb33c4a9d922eed88a",
     ".agents/skills/repo-navigation/SKILL.md": "sha256:6dd937a68822ce3ea5a8521e3b3acb4799024acf8ecf0aa501f501ecb8381501",
     ".agents/skills/review/SKILL.md": "sha256:acd574a7ce7a864f970d69456ec8ad09f360be7b36bbd2e9e421c67785500796",
@@ -599,6 +602,12 @@
     ".agents/rules/logging-practices.md": "sha256:0cf56d6f4d03b55bafbc32a2e48f01782bc4b9ab8654a84afcf1427bd5043a6b",
     ".agents/rules/vertical-slice-boundaries.md": "sha256:54761a76b2129615e0f73991c1781cee814e354e5ef5dda0522d528983f1b32d",
     ".agents/rules/functional-programming.md": "sha256:b03f7b381037ea9c478c08f1813a4d25f8c477deb14f264cdbe47861a6026e5a",
-    ".agents/skills/grill-with-docs/SKILL.md": "sha256:ca0c55724c66399ad8d2917a3f16b2d2e5910e4a07fca748a9ca3661f04ebe95"
+    ".agents/skills/grill-with-docs/SKILL.md": "sha256:ca0c55724c66399ad8d2917a3f16b2d2e5910e4a07fca748a9ca3661f04ebe95",
+    ".agents/skills/grill-with-docs-batch/SKILL.md": "sha256:4d61f80201abbb5944846aaceb7402e673f13b776ca62ae5b46ae20c4dabce20",
+    ".pi/skills/triage/SKILL.md": "sha256:243d90672edf50fcecaefeca63abb343be0b6ead0afcf1c0dabf6770644deec6",
+    ".pi/skills/wayfinder/SKILL.md": "sha256:05608d53b40c078a76eca53fc31bda9c17d7806df6de98299c47180288afb3d5",
+    ".pi/skills/improve-codebase-architecture/SKILL.md": "sha256:1d7ec755bae504bda4af2d5c4a42b4fedd09aa911297f410e594aece9b9f048e",
+    ".pi/skills/to-spec/SKILL.md": "sha256:5b0332935b5ce4123a0a6503ffc201731c49c7ec075765be322f0e85f2710ed4",
+    ".pi/skills/to-tickets/SKILL.md": "sha256:89e8fc5452c7410fe6b0101ef68c9608202893df8375a7a2f0190bf82f856f02"
   }
 }

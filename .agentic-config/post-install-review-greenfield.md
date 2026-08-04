@@ -13,7 +13,7 @@ You are helping a human **finish installing** an agent setup bundle in the **cur
 - **Engineering wiki:** enabled — `docs/wiki/` installed (index, schema, log, topic directories)
 - **Graphify:** not installed in this bundle
 - **Headroom:** enabled — runtime install steps in `.agentic-config/install.sh`; see `.agentic-config/INSTALL.md` for proxy, MCP, or Pi extension workflow
-- **Skills added:** wiki, code-review, codebase-design, diagnosing-bugs, domain-modeling, grill-with-docs, grilling, handoff, implement, improve-codebase-architecture, ponytail, prototype, repo-navigation, research, resolving-merge-conflicts, review, tdd, teach, to-spec, to-tickets, triage, vertical-slice-migration, wayfinder, workflow, zoom-out
+- **Skills added:** wiki, code-review, codebase-design, diagnosing-bugs, domain-modeling, grill-with-docs, grilling, handoff, implement, improve-codebase-architecture, ponytail, prototype, repo-navigation, research, resolving-merge-conflicts, review, tdd, teach, to-spec, to-tickets, triage, vertical-slice-migration, wayfinder, workflow, zoom-out, grill-with-docs-batch
 - **Rules added:** ponytail, commit, decision-making, definition-of-done, role, signature, strict-output-execution, adr-discipline, documentation, domain-language, dependency-boundaries, vertical-slice-boundaries, current-state, restricted-operations, testing, api-design-basics, code-format, functional-programming, result-handling, warning-hygiene, logging-practices, runtime-handoff, headroom-consultation, rust-api-semver, rust-dependency-hygiene, rust-error-handling, rust-observability, rust-testing-strategy, rust-workflow-gates
 - **Install record:** `.agentic-config/manifest.json` (files and selections), `.agentic-config/install-plan.json` (installer steps when present)
 
@@ -175,6 +175,61 @@ Harmonize Ponytail (lazy minimalism / YAGNI ladder) with other selected catalog 
 4. **Pi implicit install (rule and/or skill):** On Pi targets, `install.sh` runs implicit `pi install` for Ponytail when the catalog skill or rule is selected. Audit overlap among the bundled rule, Pi extension injection, and upstream slash skills. Consolidate always-on ladder text in the bundled rule; use stub pointers in extension overlap rather than triplicating the full ladder.
 
 Ground edits in repo evidence. Do not remove Ponytail’s non-negotiables (trust boundaries, security, accessibility, required checks).
+
+### Planning skills tailoring (`to-spec` / `to-tickets`)
+
+When `to-spec` and `to-tickets` is in `.agentic-config/manifest.json` `selection.skills`:
+
+The bundled planning skills ship with upstream Matt Pocock defaults (publish to the issue tracker). Before editing, **ask the human which tailoring options to apply** — present the menu below with **recommended defaults** from installation context.
+
+**Installation context (pre-check recommendations):**
+
+- **Issue tracker:** `repo-prd` — recommend Git-based `docs/prds/` and `docs/issues/` output options.
+- **Bundle paths:** `docs/prds/` is auto-included — recommend per-feature PRD folder options for `to-spec`.
+- **Bundle paths:** `docs/issues/` is auto-included — recommend local issue file options for `to-tickets`.
+- **Both planning skills selected** — recommend cross-link and matching `<feature_name>` folder layout.
+
+**Workflow:**
+
+1. **Ask one question** listing the applicable menu options. Pre-check your recommendations; let the human uncheck any they decline.
+2. **Investigate first** — infer monorepo packages, test runners, and any existing `docs/prds/` / `docs/issues/` layout from repo discovery; do not ask what evidence already provides.
+3. Apply **only approved** options to bundled paths: `.agents/skills/to-spec/SKILL.md` and `.agents/skills/to-tickets/SKILL.md`. Do not edit upstream-installed copies.
+4. When `repo-prd` issue tracker is configured, keep `docs/agents/issue-tracker-repo-prd.md` (or the agent-setup equivalent from the bundle) aligned with approved path conventions.
+
+#### Tailoring menu
+
+Present only options that apply to the selected skills. Omit rows for skills not in `selection.skills`.
+
+**Shared (when monorepo or multi-package layout is detected):**
+
+- [ ] **Monorepo packages in explore steps** — Add top-level package names to exploration notes in each selected planning skill (step 1 for `to-spec`; step 2 for `to-tickets`).
+
+**Test runner (when a UI/frontend package lacks a configured runner):**
+
+- [ ] **Frontend test guidance** — Note the missing runner in the module-sketch step; add a Vitest/Jest bullet under Testing Decisions (`to-spec`) or vertical-slice rules (`to-tickets`).
+
+**`to-spec` output (recommend checked when `agentSetup.issueTracker.type` is `repo-prd` or `docs/prds/` is auto-included):**
+
+- [ ] **Save PRDs to Git** — Replace "publish to the issue tracker" with save-to-directory wording.
+- [ ] **Per-feature PRD folders** — Add a `<feature_name>` slug step; save to `docs/prds/<feature_name>/prd.md` and create the directory when missing.
+
+**`to-tickets` output (recommend checked when `repo-prd` or `docs/issues/` is auto-included; pair with per-feature PRD folders when both skills are selected):**
+
+- [ ] **Read PRDs from `docs/prds/`** — In gather context, read `docs/prds/<feature_name>/prd.md` when the source is a PRD.
+- [ ] **Save issues locally** — Replace the publish step with `docs/issues/<feature_name>/<slice-slug>.md`.
+- [ ] **Per-feature issue folders** — Derive `<feature_name>` from the PRD path or user input; reference sibling slice paths in **Blocked by**; link **Parent** to `docs/prds/<feature_name>/prd.md` when a PRD exists.
+
+**Consistency (when any Git path option above is approved):**
+
+- [ ] **Frontmatter descriptions** — Update `description` fields so they match approved output paths (not "publish to the issue tracker" when saving to Git).
+- [ ] **Cross-link skills** — When both `to-spec` and `to-tickets` are selected, ensure path conventions match and `to-tickets` references the PRD folder layout `to-spec` uses.
+
+**External issue tracker** (GitHub, GitLab, etc. — not `repo-prd`):
+
+- Default: leave publish-to-tracker wording unless the human opts into Git-based planning artifacts.
+- If Git paths are approved anyway, note they coexist with the external tracker; keep triage-label instructions unless the human asks to remove them.
+
+Ground edits in repo evidence. Preserve workflow structure, frontmatter identity, and PRD/issue templates.
 
 ### Save content hashes (mandatory after editing)
 

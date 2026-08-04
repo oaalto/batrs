@@ -130,20 +130,28 @@ Ensure `~/.local/bin` is on PATH so the `headroom` CLI is discoverable after ins
 
 ### Native Windows (`install.ps1`)
 
-PyPI `headroom-ai` publishes prebuilt wheels for **Linux and macOS only** — not for native Windows. On Windows, `uv tool install` builds the Rust extension from source and needs **Rust (`cargo` on PATH)** and **Visual Studio Build Tools** with the **Desktop development with C++** workload (`link.exe`). `install.ps1` exits before `headroom-tool-install` when either prerequisite is missing.
+PyPI `headroom-ai` publishes prebuilt wheels for **Linux and macOS only** — not for native Windows. On Windows, `uv tool install` builds `headroom-ai` from source and needs **Rust (`cargo` on PATH)** and **Visual Studio Build Tools** with the **Desktop development with C++** workload (`link.exe`). `install.ps1` exits before `headroom-tool-install` when either prerequisite is missing.
 
-Without that toolchain you will see `linker 'link.exe' not found` / maturin failures if you bypass the check.
+Headroom depends on **`ast-grep-cli`**, which publishes a Windows wheel containing a prebuilt `sg.exe`. Windows Defender/SmartScreen often quarantines that binary during `uv` extraction (os error 225: "contains a virus or potentially unwanted software") before any source build runs. **`install.ps1` passes `--no-binary-package ast-grep-cli`** on native Windows so `uv` compiles `ast-grep-cli` from source instead — the locally built `sg.exe` is not flagged.
+
+Without the Rust/MSVC toolchain you will see `linker 'link.exe' not found` / maturin failures if you bypass the check.
+
+Manual install (outside `install.ps1`):
+
+```powershell
+uv tool install --force --no-binary-package ast-grep-cli 'headroom-ai[proxy,mcp]'
+```
 
 Alternatives:
 
 - Run Headroom under **WSL** or another Linux environment and point the Pi extension/proxy at that runtime.
 - Install [Build Tools for Visual Studio](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the C++ workload, then re-run `.\.agentic-config\install.ps1`.
 
-| Step kind               | Command                                                | Required when on                            |
-| ----------------------- | ------------------------------------------------------ | ------------------------------------------- |
-| `headroom-tool-install` | `uv tool install 'headroom-ai[proxy,mcp]'`             | runtime, MCP, or Pi extension               |
-| `headroom-mcp-install`  | `headroom mcp install`                                 | MCP sub-option (Cursor, Claude Code, Codex) |
-| `headroom-pi-extension` | `pi install -l npm:@ryan_nookpi/pi-extension-headroom` | Pi extension on Pi target                   |
+| Step kind               | Command                                                                                        | Required when on                            |
+| ----------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `headroom-tool-install` | `uv tool install 'headroom-ai[proxy,mcp]'` (Windows: `--no-binary-package ast-grep-cli` added) | runtime, MCP, or Pi extension               |
+| `headroom-mcp-install`  | `headroom mcp install`                                                                         | MCP sub-option (Cursor, Claude Code, Codex) |
+| `headroom-pi-extension` | `pi install -l npm:@ryan_nookpi/pi-extension-headroom`                                         | Pi extension on Pi target                   |
 
 **Docs:** https://github.com/headroomlabs-ai/headroom
 

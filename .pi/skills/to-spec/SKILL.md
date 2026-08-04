@@ -1,6 +1,6 @@
 ---
 name: to-spec
-description: Turn the current conversation into a spec and publish it to the project issue tracker — no interview, just synthesis of what you've already discussed.
+description: Turn the current conversation into a spec and save it to Git at docs/features/<feature_name>/prd.md — no interview, just synthesis of what you've already discussed.
 disable-model-invocation: true
 ---
 
@@ -16,7 +16,7 @@ The issue tracker and triage label vocabulary should have been provided to you.
 
 Check with the user that these seams match their expectations.
 
-3. Write the spec using the template below, then publish it to the project issue tracker as `docs/features/<feature_name>/prd.md`. Apply the `ready-for-agent` triage label - no need for additional triage.
+3. Derive a `<feature_name>` slug from the feature topic (kebab-case). Create `docs/features/<feature_name>/` when missing. Write the spec using the template below to `docs/features/<feature_name>/prd.md`. Set `## Status` near the top (draft / in review / accepted / superseded). Apply the `ready-for-agent` triage label in the file — no external tracker publish.
 
 <spec-template>
 

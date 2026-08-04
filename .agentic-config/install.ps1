@@ -61,7 +61,8 @@ $ToolHelp = @{
   headroom = @(
     "Docs:    https://github.com/headroomlabs-ai/headroom"
     "Note:    Installed by the headroom-tool-install step via ``uv tool install 'headroom-ai[proxy,mcp]'``."
-    "Note:    PyPI has no Windows wheels; native Windows builds from source (Rust) and needs MSVC C++ Build Tools (link.exe) or WSL."
+    "Note:    PyPI headroom-ai has no Windows wheels; install.ps1 also passes --no-binary-package ast-grep-cli (Defender quarantine on prebuilt sg.exe)."
+    "Note:    Native Windows needs Rust (cargo) and MSVC C++ Build Tools (link.exe), or WSL."
     "Install: add %USERPROFILE%\.local\bin to PATH (uv tool install places the CLI there)."
   )
   cargo = @(
@@ -90,11 +91,30 @@ function Show-ToolHelp([string]$Tool) {
 function Show-HeadroomWindowsBuildHelp {
   if ($env:OS -ne "Windows_NT") { return }
   Write-Host ""
-  Write-Host "  Headroom runtime on native Windows builds from source (PyPI has Linux/macOS wheels only)."
+  Write-Host "  Headroom runtime on native Windows builds headroom-ai and ast-grep-cli from source"
+  Write-Host "  (PyPI headroom-ai has Linux/macOS wheels only; ast-grep-cli Windows wheels may be"
+  Write-Host "  quarantined by Defender - install.ps1 passes --no-binary-package ast-grep-cli)."
   Write-Host "  Install Rust (https://rustup.rs/) and Visual Studio Build Tools with"
   Write-Host "  Desktop development with C++ (provides link.exe), or use WSL/Linux instead."
   Write-Host "  Docs:    https://github.com/headroomlabs-ai/headroom"
   Write-Host ""
+}
+
+function Get-HeadroomToolInstallArgs($stepArgs) {
+  # Windows: skip ast-grep-cli prebuilt wheel (Defender false positive on sg.exe during uv extract).
+  return @(
+    $stepArgs[0], $stepArgs[1], $stepArgs[2],
+    "--no-binary-package", "ast-grep-cli",
+    $stepArgs[3]
+  )
+}
+
+function Get-HeadroomToolInstallCommand($step) {
+  $package = $step.args[3]
+  if ($env:OS -eq "Windows_NT") {
+    return "uv tool install --force --no-binary-package ast-grep-cli '$package'"
+  }
+  return $step.command
 }
 
 function Test-MsvcLinkAvailable {
@@ -277,14 +297,18 @@ foreach ($step in $plan.steps) {
     Write-Host "[warn] $($step.id) missing prerequisite, continuing (-Force)"
   }
 
-  Write-Host "[run] $($step.id): $($step.command)"
+  $runCommand = if ($step.id -eq "headroom-tool-install") { Get-HeadroomToolInstallCommand $step } else { $step.command }
+  Write-Host "[run] $($step.id): $runCommand"
   if (-not $DryRun) {
     Push-Location $ProjectRoot
     try {
       $exitCode = 0
       if ($null -ne $step.exe) {
         $args = @()
-        if ($null -ne $step.args) { $args = $step.args }
+        if ($null -ne $step.args) { $args = @($step.args) }
+        if ($step.id -eq "headroom-tool-install" -and $env:OS -eq "Windows_NT") {
+          $args = Get-HeadroomToolInstallArgs $args
+        }
         & $step.exe @args
         $exitCode = $LASTEXITCODE
       } else {
