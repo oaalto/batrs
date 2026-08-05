@@ -108,6 +108,7 @@ mod tests {
         command::CommandEnvironment::new(
             HashMap::from([(MOUNT_SUMMONED_FLAG.to_string(), true)]),
             HashMap::new(),
+            crate::guilds::MonkSkillsConfig::default(),
         )
     }
 

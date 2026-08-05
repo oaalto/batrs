@@ -91,7 +91,11 @@ mod tests {
     fn ctx_with_entity(has_entity: bool) -> CommandEnvironment {
         let mut flags = std::collections::HashMap::new();
         flags.insert(INNER_CIRCLE_HAS_ENTITY_FLAG.to_string(), has_entity);
-        CommandEnvironment::new(flags, HashMap::new())
+        CommandEnvironment::new(
+            flags,
+            HashMap::new(),
+            crate::guilds::MonkSkillsConfig::default(),
+        )
     }
 
     fn ctx_default() -> CommandEnvironment {

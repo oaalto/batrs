@@ -94,6 +94,7 @@ mod tests {
         command::CommandEnvironment::new(
             HashMap::from([(CEREMONY_DONE_FLAG.to_string(), ceremony_done)]),
             HashMap::new(),
+            crate::guilds::MonkSkillsConfig::default(),
         )
     }
 

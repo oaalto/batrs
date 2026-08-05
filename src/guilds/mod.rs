@@ -57,7 +57,7 @@ pub use mage_electricity::MageElectricityGuild;
 pub use mage_fire::MageFireGuild;
 pub use mage_magical::MageMagicalGuild;
 pub use mage_poison::MagePoisonGuild;
-pub use monk::MonkGuild;
+pub use monk::{MonkGuild, MonkSkillTrack, MonkSkillsConfig};
 pub use nergal::NergalGuild;
 pub use psionicist::PsionicistGuild;
 pub use ranger::RangerGuild;

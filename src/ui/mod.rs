@@ -24,6 +24,7 @@ pub struct ViewModel<'a> {
     pub guild_dialog: Option<GuildDialogViewModel>,
     pub generic_commands_dialog: Option<GenericCommandsDialogViewModel>,
     pub triggers_dialog: Option<TriggersDialogViewModel>,
+    pub monk_dialog: Option<MonkDialogViewModel>,
     pub settings_dialog: Option<SettingsDialogViewModel>,
 }
 
@@ -104,6 +105,18 @@ pub struct TriggersDialogViewModel {
     pub cursor: usize,
     pub footer_line1: String,
     pub footer_line2: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub enum MonkDialogRowViewModel {
+    Header(String),
+    Skill { label: String, enabled: bool },
+}
+
+pub struct MonkDialogViewModel {
+    pub rows: Vec<MonkDialogRowViewModel>,
+    pub highlight_index: usize,
+    pub footer_line1: String,
 }
 
 pub struct Renderer;
@@ -283,6 +296,9 @@ impl Renderer {
         }
         if let Some(dialog) = &view.triggers_dialog {
             render_triggers_dialog(frame, dialog);
+        }
+        if let Some(dialog) = &view.monk_dialog {
+            render_monk_dialog(frame, dialog);
         }
         if let Some(dialog) = &view.settings_dialog {
             render_settings_dialog(frame, dialog);
@@ -696,6 +712,57 @@ fn render_triggers_dialog(frame: &mut Frame<'_>, dialog: &TriggersDialogViewMode
     }
 }
 
+fn render_monk_dialog(frame: &mut Frame<'_>, dialog: &MonkDialogViewModel) {
+    let area = centered_rect(70, 70, frame.area());
+    frame.render_widget(Clear, area);
+
+    let dialog_style = Style::default().bg(palette::SURFACE).fg(palette::TEXT);
+    let background = Paragraph::new("").style(dialog_style);
+    frame.render_widget(background, area);
+
+    let block = Block::default()
+        .title("Monk Skills")
+        .borders(Borders::ALL)
+        .style(dialog_style);
+    frame.render_widget(&block, area);
+    let inner = block.inner(area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1), Constraint::Length(1)])
+        .split(inner);
+
+    let items = dialog
+        .rows
+        .iter()
+        .enumerate()
+        .map(|(index, row)| match row {
+            MonkDialogRowViewModel::Header(title) => ListItem::new(format!("{title}:")).style(
+                Style::default()
+                    .fg(palette::TEXT)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            MonkDialogRowViewModel::Skill { label, enabled } => {
+                let marker = if *enabled { "[x]" } else { "[ ]" };
+                let prefix = if index == dialog.highlight_index {
+                    "> "
+                } else {
+                    "  "
+                };
+                ListItem::new(format!("{prefix}{marker} {label}"))
+            }
+        })
+        .collect::<Vec<ListItem<'_>>>();
+
+    let list = List::new(items).style(dialog_style);
+    frame.render_widget(list, chunks[0]);
+
+    frame.render_widget(
+        Paragraph::new(dialog.footer_line1.as_str()).style(dialog_style),
+        chunks[1],
+    );
+}
+
 fn centered_rect(percent_x: u16, percent_y: u16, rect: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -814,6 +881,7 @@ mod tests {
             guild_dialog: None,
             generic_commands_dialog: None,
             triggers_dialog: None,
+            monk_dialog: None,
             settings_dialog: None,
         };
 

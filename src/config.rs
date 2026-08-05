@@ -1,3 +1,4 @@
+use crate::guilds::MonkSkillsConfig;
 use crate::player_profile::{self, PlayerRuntimeProfile};
 use crate::triggers::TriggerConfig;
 use serde::{Deserialize, Serialize};
@@ -48,6 +49,8 @@ pub struct PlayerToml {
     pub generic_commands: GenericCommandsConfig,
     #[serde(default, skip_serializing_if = "TriggerConfig::is_default")]
     pub triggers: TriggerConfig,
+    #[serde(default, skip_serializing_if = "MonkSkillsConfig::is_default")]
+    pub monk_skills: MonkSkillsConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
@@ -313,6 +316,23 @@ impl ConfigManager {
         persist_player_to_path(path, player)
     }
 
+    pub fn save_monk_skills_config(&mut self, config: &MonkSkillsConfig) -> io::Result<()> {
+        let Some(path) = self.user_config_path.as_ref() else {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "user config path not set",
+            ));
+        };
+        let Some(player) = self.player_config.as_mut() else {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "player config not loaded",
+            ));
+        };
+        player.monk_skills = config.clone();
+        persist_player_to_path(path, player)
+    }
+
     #[cfg(test)]
     pub(crate) fn with_test_base_dir(base_dir: PathBuf) -> Self {
         Self {
@@ -384,6 +404,7 @@ fn migrate_legacy_config(raw: &str) -> Result<PlayerToml, SettingsError> {
         settings: player_profile::settings_table_from_entries(&entry_vec),
         generic_commands: GenericCommandsConfig::default(),
         triggers: TriggerConfig::default(),
+        monk_skills: MonkSkillsConfig::default(),
     })
 }
 
@@ -595,6 +616,7 @@ mod tests {
                 common_triggers: false,
                 core_triggers: true,
             },
+            monk_skills: MonkSkillsConfig::default(),
         };
         let text = toml::to_string_pretty(&original).unwrap();
         assert!(!text.contains("spell_vocals"));
@@ -627,6 +649,7 @@ mod tests {
             },
             generic_commands: GenericCommandsConfig::default(),
             triggers: TriggerConfig::default(),
+            monk_skills: MonkSkillsConfig::default(),
         };
         let text = toml::to_string_pretty(&original).unwrap();
         let parsed: PlayerToml = toml::from_str(&text).unwrap();
@@ -650,6 +673,7 @@ mod tests {
             },
             generic_commands: GenericCommandsConfig::default(),
             triggers: TriggerConfig::default(),
+            monk_skills: MonkSkillsConfig::default(),
         };
         let text = toml::to_string_pretty(&original).unwrap();
         let parsed: PlayerToml = toml::from_str(&text).unwrap();
@@ -674,6 +698,7 @@ mod tests {
             },
             generic_commands: GenericCommandsConfig::default(),
             triggers: TriggerConfig::default(),
+            monk_skills: MonkSkillsConfig::default(),
         };
         let settings = player_profile::user_settings_from_player(&player);
         assert_eq!(settings.get("rig"), Some("bag"));
@@ -697,6 +722,7 @@ mod tests {
             },
             generic_commands: GenericCommandsConfig::default(),
             triggers: TriggerConfig::default(),
+            monk_skills: MonkSkillsConfig::default(),
         };
         let text = toml::to_string_pretty(&original).unwrap();
         let parsed: PlayerToml = toml::from_str(&text).unwrap();
@@ -721,6 +747,7 @@ mod tests {
             },
             generic_commands: GenericCommandsConfig::default(),
             triggers: TriggerConfig::default(),
+            monk_skills: MonkSkillsConfig::default(),
         };
         let settings = player_profile::user_settings_from_player(&player);
         assert_eq!(settings.get("sabre_weapon"), Some("sabre"));
@@ -756,6 +783,7 @@ mod tests {
             },
             generic_commands: GenericCommandsConfig::default(),
             triggers: TriggerConfig::default(),
+            monk_skills: MonkSkillsConfig::default(),
         };
         let text = toml::to_string_pretty(&original).unwrap();
         let parsed: PlayerToml = toml::from_str(&text).unwrap();

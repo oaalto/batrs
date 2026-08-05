@@ -2,6 +2,7 @@ use crate::ansi::StyledLine;
 use crate::automation::Action;
 use crate::generic_commands::GenericCommands;
 use crate::guilds::Guild;
+use crate::guilds::MonkSkillsConfig;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
@@ -36,6 +37,10 @@ static BUILTINS: LazyLock<HashMap<String, BuiltinCommand>> = LazyLock::new(|| {
             BuiltinCommand::new(builtin_open_settings, true),
         ),
         (
+            "/monk".to_string(),
+            BuiltinCommand::new(builtin_open_monk, true),
+        ),
+        (
             "/raw_logs".to_string(),
             BuiltinCommand::new(builtin_toggle_raw_logs, false),
         ),
@@ -46,7 +51,7 @@ static BUILTINS: LazyLock<HashMap<String, BuiltinCommand>> = LazyLock::new(|| {
     ])
 });
 
-const HELP_LINES: [&str; 10] = [
+const HELP_LINES: [&str; 11] = [
     "Client slash commands:",
     "/help - Shows client slash commands.",
     "/quit - Closes the client.",
@@ -55,6 +60,7 @@ const HELP_LINES: [&str; 10] = [
     "/generic - Opens generic shortcut groups.",
     "/triggers - Toggle built-in trigger groups.",
     "/settings - Opens the settings editor.",
+    "/monk - Configure monk skill tracks.",
     "/raw_logs - Toggles raw log capture.",
     "/clear - Redraws the display from memory (fixes screen artifacts).",
 ];
@@ -84,7 +90,7 @@ pub fn dispatch(
         return Vec::new();
     }
 
-    let env = CommandEnvironment::new(input.flags, input.vars);
+    let env = CommandEnvironment::new(input.flags, input.vars, input.monk_skills);
     let mut guild_cmds: HashMap<String, Command> = HashMap::new();
     for g in guilds {
         for (key, handler) in g.commands() {
@@ -112,6 +118,7 @@ pub struct CommandDispatchInput {
     logged_in: bool,
     flags: HashMap<String, bool>,
     vars: HashMap<String, String>,
+    monk_skills: MonkSkillsConfig,
 }
 
 impl CommandDispatchInput {
@@ -120,12 +127,14 @@ impl CommandDispatchInput {
         logged_in: bool,
         flags: HashMap<String, bool>,
         vars: HashMap<String, String>,
+        monk_skills: MonkSkillsConfig,
     ) -> Self {
         Self {
             line: line.to_string(),
             logged_in,
             flags,
             vars,
+            monk_skills,
         }
     }
 }
@@ -148,6 +157,7 @@ pub enum DialogKind {
     GenericCommands,
     Triggers,
     Settings,
+    Monk,
 }
 
 struct BuiltinCommand {
@@ -168,21 +178,34 @@ impl BuiltinCommand {
 pub struct CommandEnvironment {
     flags: HashMap<String, bool>,
     vars: HashMap<String, String>,
+    monk_skills: MonkSkillsConfig,
 }
 
 impl CommandEnvironment {
-    pub fn new(flags: HashMap<String, bool>, vars: HashMap<String, String>) -> Self {
-        Self { flags, vars }
+    pub fn new(
+        flags: HashMap<String, bool>,
+        vars: HashMap<String, String>,
+        monk_skills: MonkSkillsConfig,
+    ) -> Self {
+        Self {
+            flags,
+            vars,
+            monk_skills,
+        }
     }
 
     #[cfg(test)]
     pub fn empty() -> Self {
-        Self::new(HashMap::new(), HashMap::new())
+        Self::new(HashMap::new(), HashMap::new(), MonkSkillsConfig::default())
     }
 
     #[cfg(test)]
     pub fn with_vars(flags: HashMap<String, bool>, vars: HashMap<String, String>) -> Self {
-        Self::new(flags, vars)
+        Self::new(flags, vars, MonkSkillsConfig::default())
+    }
+
+    pub fn monk_skills(&self) -> &MonkSkillsConfig {
+        &self.monk_skills
     }
 
     pub fn flag(&self, key: &str) -> bool {
@@ -296,6 +319,10 @@ fn builtin_open_settings(_data: &ParsedCommand) -> Vec<CommandEffect> {
     vec![CommandEffect::OpenDialog(DialogKind::Settings)]
 }
 
+fn builtin_open_monk(_data: &ParsedCommand) -> Vec<CommandEffect> {
+    vec![CommandEffect::OpenDialog(DialogKind::Monk)]
+}
+
 fn builtin_toggle_raw_logs(_data: &ParsedCommand) -> Vec<CommandEffect> {
     vec![CommandEffect::ToggleRawLogs]
 }
@@ -333,7 +360,13 @@ mod tests {
 
     fn dispatch_line(line: &str, logged_in: bool, guilds: &[Box<dyn Guild>]) -> Vec<CommandEffect> {
         dispatch(
-            CommandDispatchInput::new(line, logged_in, HashMap::new(), HashMap::new()),
+            CommandDispatchInput::new(
+                line,
+                logged_in,
+                HashMap::new(),
+                HashMap::new(),
+                MonkSkillsConfig::default(),
+            ),
             guilds,
             &GenericCommands::default(),
         )
@@ -414,6 +447,7 @@ mod tests {
         assert!(lines.contains(&"/generic - Opens generic shortcut groups."));
         assert!(lines.contains(&"/triggers - Toggle built-in trigger groups."));
         assert!(lines.contains(&"/settings - Opens the settings editor."));
+        assert!(lines.contains(&"/monk - Configure monk skill tracks."));
         assert!(lines.contains(&"/raw_logs - Toggles raw log capture."));
         assert!(
             lines.contains(&"/clear - Redraws the display from memory (fixes screen artifacts).")

@@ -576,6 +576,7 @@ mod tests {
             automation.snapshot_vars(),
             None,
             None,
+            crate::guilds::MonkSkillsConfig::default(),
         )
     }
 

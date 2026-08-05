@@ -19,7 +19,7 @@ use crate::config::{ConfigManager, GenericCommandsConfig, UserSettings};
 use crate::generic_commands::GenericCommands;
 use crate::guilds::{
     Guild,
-    catalog::{self, GuildSelection},
+    catalog::{self, GuildKey, GuildSelection},
     grouping::{DEFAULT_GUILD_PRIMARY_KEYWORD, thematic_index_for_keyword},
 };
 use crate::player_profile::{self, PlayerRuntimeProfile};
@@ -29,8 +29,8 @@ use crate::ui::{Renderer, ViewModel};
 use crate::{command, triggers};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use dialogs::{
-    GenericCommandsDialog, GuildDialog, SAVE_ERROR_CONFIG_UNAVAILABLE, SAVE_ERROR_PERSIST_FAILED,
-    SettingsDialog, TriggersDialog, apply_guild_dialog_keystroke,
+    GenericCommandsDialog, GuildDialog, MonkDialog, SAVE_ERROR_CONFIG_UNAVAILABLE,
+    SAVE_ERROR_PERSIST_FAILED, SettingsDialog, TriggersDialog, apply_guild_dialog_keystroke,
 };
 use input_state::InputState;
 use libmudtelnet::events::TelnetEvents;
@@ -104,6 +104,7 @@ pub struct BatApp {
     generic_commands: GenericCommands,
     generic_commands_dialog: Option<GenericCommandsDialog>,
     triggers_dialog: Option<TriggersDialog>,
+    monk_dialog: Option<MonkDialog>,
     settings_dialog: Option<SettingsDialog>,
     player_logger: Option<PlayerLogger>,
     raw_logger: Option<RawLogger>,
@@ -152,6 +153,7 @@ impl BatApp {
             generic_commands: GenericCommands::default(),
             generic_commands_dialog: None,
             triggers_dialog: None,
+            monk_dialog: None,
             settings_dialog: None,
             player_logger: PlayerLogger::new().ok(),
             raw_logger: RawLogger::new().ok(),
@@ -211,6 +213,7 @@ impl BatApp {
                     self.automation.snapshot_vars(),
                     self.player_profile.settings.rig_for_triggers(),
                     self.session.login_name(),
+                    self.player_profile.monk_skills_config.clone(),
                 );
                 let result = triggers::process(
                     &facts,
@@ -300,6 +303,10 @@ impl BatApp {
             self.handle_settings_dialog_event(event);
             return;
         }
+        if self.monk_dialog.is_some() {
+            self.handle_monk_dialog_event(event);
+            return;
+        }
         match event.code {
             KeyCode::Enter => self.submit_input(),
             KeyCode::PageUp => self.scrollback.page_up(),
@@ -337,6 +344,7 @@ impl BatApp {
             || self.generic_commands_dialog.is_some()
             || self.triggers_dialog.is_some()
             || self.settings_dialog.is_some()
+            || self.monk_dialog.is_some()
         {
             return;
         }
@@ -399,7 +407,8 @@ impl BatApp {
             show_cursor: self.guild_dialog.is_none()
                 && self.generic_commands_dialog.is_none()
                 && self.triggers_dialog.is_none()
-                && self.settings_dialog.is_none(),
+                && self.settings_dialog.is_none()
+                && self.monk_dialog.is_none(),
             guild_dialog: self.guild_dialog.as_ref().map(|dialog| dialog.view_model()),
             generic_commands_dialog: self
                 .generic_commands_dialog
@@ -409,6 +418,7 @@ impl BatApp {
                 .triggers_dialog
                 .as_ref()
                 .map(|dialog| dialog.view_model()),
+            monk_dialog: self.monk_dialog.as_ref().map(|dialog| dialog.view_model()),
             settings_dialog: self
                 .settings_dialog
                 .as_ref()
@@ -428,6 +438,7 @@ impl BatApp {
                         false,
                         self.automation.snapshot_flags(),
                         self.automation.snapshot_vars(),
+                        self.player_profile.monk_skills_config.clone(),
                     ),
                     &self.selected_guilds,
                     &self.generic_commands,
@@ -457,6 +468,7 @@ impl BatApp {
                 true,
                 self.automation.snapshot_flags(),
                 self.automation.snapshot_vars(),
+                self.player_profile.monk_skills_config.clone(),
             ),
             &self.selected_guilds,
             &self.generic_commands,
@@ -515,6 +527,7 @@ impl BatApp {
                     command::DialogKind::GenericCommands => self.open_generic_commands_dialog(),
                     command::DialogKind::Triggers => self.open_triggers_dialog(),
                     command::DialogKind::Settings => self.open_settings_dialog(),
+                    command::DialogKind::Monk => self.open_monk_dialog(),
                 },
                 command::CommandEffect::Reconnect => self.start_reconnect(),
                 command::CommandEffect::ToggleRawLogs => self.toggle_raw_logs(),
@@ -669,6 +682,7 @@ impl BatApp {
         } else {
             self.apply_player_profile_to_automation();
         }
+        self.clamp_monk_rotation_vars();
         self.apply_player_profile_to_generic_commands();
     }
 
@@ -959,6 +973,84 @@ impl BatApp {
         Ok(config)
     }
 
+    fn open_monk_dialog(&mut self) {
+        if !self.session.is_logged_in() {
+            return;
+        }
+        if !self.user_config_loaded {
+            self.load_user_config();
+        }
+        if !self.guild_selection.is_selected(GuildKey::Monk) {
+            self.output
+                .append_lines(vec![StyledLine::new("Enable monk in /guilds first.")]);
+            return;
+        }
+
+        self.monk_dialog = Some(MonkDialog::new(&self.player_profile.monk_skills_config));
+    }
+
+    fn handle_monk_dialog_event(&mut self, event: KeyEvent) {
+        let Some(dialog) = self.monk_dialog.as_mut() else {
+            return;
+        };
+        match event.code {
+            KeyCode::Up => dialog.move_cursor(-1),
+            KeyCode::Down => dialog.move_cursor(1),
+            KeyCode::Char(' ') => dialog.toggle_selected(),
+            KeyCode::Esc => {
+                self.monk_dialog = None;
+            }
+            KeyCode::Enter => {
+                if dialog.draft_equals_saved() {
+                    self.monk_dialog = None;
+                    return;
+                }
+                let draft = dialog.draft().clone();
+                match self.save_monk_skills_config(draft) {
+                    Ok(saved) => {
+                        if let Some(dialog) = self.monk_dialog.as_mut() {
+                            dialog.commit_saved(saved.clone());
+                        }
+                        self.player_profile.monk_skills_config = saved;
+                        self.clamp_monk_rotation_vars();
+                        self.monk_dialog = None;
+                    }
+                    Err(message) => {
+                        if let Some(dialog) = self.monk_dialog.as_mut() {
+                            dialog.set_footer_error(message);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn save_monk_skills_config(
+        &mut self,
+        config: crate::guilds::MonkSkillsConfig,
+    ) -> Result<crate::guilds::MonkSkillsConfig, &'static str> {
+        if !self.user_config_loaded {
+            self.load_user_config();
+        }
+        let Some(manager) = self.config_manager.as_mut() else {
+            return Err(SAVE_ERROR_CONFIG_UNAVAILABLE);
+        };
+
+        manager
+            .save_monk_skills_config(&config)
+            .map_err(|_| SAVE_ERROR_PERSIST_FAILED)?;
+        Ok(config)
+    }
+
+    fn clamp_monk_rotation_vars(&mut self) {
+        let config = self.player_profile.monk_skills_config.clone();
+        let vars = self.automation.snapshot_vars();
+        for (key, value) in config.clamp_rotation_vars(&vars) {
+            self.automation.set_var(&key, value);
+        }
+    }
+
     fn save_selected_guilds_with_auxiliary(
         &mut self,
         guild_selection: GuildSelection,
@@ -1114,6 +1206,7 @@ mod tests {
             generic_commands: GenericCommands::default(),
             generic_commands_dialog: None,
             triggers_dialog: None,
+            monk_dialog: None,
             settings_dialog: None,
             player_logger: None,
             raw_logger: None,

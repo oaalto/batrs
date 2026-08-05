@@ -217,7 +217,13 @@ mod tests {
     #[test]
     fn soul_companion_announcement_matches_bracketed_player_name() {
         let text = "A blue-glowing soul companion [Nynn].";
-        let facts = TriggerFacts::new(Default::default(), Default::default(), None, Some("Nynn"));
+        let facts = TriggerFacts::new(
+            Default::default(),
+            Default::default(),
+            None,
+            Some("Nynn"),
+            crate::guilds::MonkSkillsConfig::default(),
+        );
         let mut status = SecondaryStatus::default();
         let (_, styled) = run_with_facts(
             AnimistGuild::soul_companion_combat_hilite_trigger,
@@ -233,7 +239,13 @@ mod tests {
     #[test]
     fn soul_companion_announcement_requires_application_player_name() {
         let text = "A blue-glowing soul companion [Nynn].";
-        let facts = TriggerFacts::new(Default::default(), Default::default(), None, Some("Other"));
+        let facts = TriggerFacts::new(
+            Default::default(),
+            Default::default(),
+            None,
+            Some("Other"),
+            crate::guilds::MonkSkillsConfig::default(),
+        );
         let mut status = SecondaryStatus::default();
         let (_, styled) = run_with_facts(
             AnimistGuild::soul_companion_combat_hilite_trigger,

@@ -25,6 +25,7 @@ pub fn interpret_player_toml(player: PlayerToml) -> InterpretedPlayerProfile {
         settings,
         normalized_player.generic_commands.clone(),
         normalized_player.triggers.clone(),
+        normalized_player.monk_skills.clone(),
     );
 
     InterpretedPlayerProfile {
@@ -123,6 +124,7 @@ mod tests {
             UserSettings::default(),
             crate::config::GenericCommandsConfig::default(),
             crate::triggers::TriggerConfig::default(),
+            crate::guilds::MonkSkillsConfig::default(),
         );
 
         assert_eq!(
@@ -164,6 +166,7 @@ mod tests {
             ]),
             crate::config::GenericCommandsConfig::default(),
             crate::triggers::TriggerConfig::default(),
+            crate::guilds::MonkSkillsConfig::default(),
         );
 
         assert_eq!(
@@ -205,6 +208,7 @@ mod tests {
             ]),
             crate::config::GenericCommandsConfig::default(),
             crate::triggers::TriggerConfig::default(),
+            crate::guilds::MonkSkillsConfig::default(),
         );
 
         assert_eq!(
@@ -231,6 +235,7 @@ mod tests {
             UserSettings::default(),
             generic_commands_config.clone(),
             crate::triggers::TriggerConfig::default(),
+            crate::guilds::MonkSkillsConfig::default(),
         );
 
         assert_eq!(profile.generic_commands_config, generic_commands_config);
@@ -361,6 +366,7 @@ mod tests {
                 UserSettings::default(),
                 crate::config::GenericCommandsConfig::default(),
                 crate::triggers::TriggerConfig::default(),
+                crate::guilds::MonkSkillsConfig::default(),
             )
             .settings;
             definition.slot.write(&mut known, write_value);
@@ -459,6 +465,7 @@ mod tests {
             settings(&[(RIG_KEY, "bag")]),
             crate::config::GenericCommandsConfig::default(),
             crate::triggers::TriggerConfig::default(),
+            crate::guilds::MonkSkillsConfig::default(),
         );
 
         assert_eq!(profile.settings.rig, "bag");
@@ -504,6 +511,7 @@ mod tests {
             ]),
             crate::config::GenericCommandsConfig::default(),
             crate::triggers::TriggerConfig::default(),
+            crate::guilds::MonkSkillsConfig::default(),
         );
 
         assert_eq!(

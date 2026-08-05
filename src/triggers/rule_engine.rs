@@ -293,7 +293,13 @@ mod tests {
 
         let mut flags = std::collections::HashMap::new();
         flags.insert("is_lich".to_string(), true);
-        let facts = TriggerFacts::new(flags, Default::default(), None, None);
+        let facts = TriggerFacts::new(
+            flags,
+            Default::default(),
+            None,
+            None,
+            crate::guilds::MonkSkillsConfig::default(),
+        );
         let (output, _) = run_rule("drain", &rules[0], &facts);
         assert!(matches!(&output.actions[0], Action::Send(cmd) if cmd == "@lich drain"));
     }

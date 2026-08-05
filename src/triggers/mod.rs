@@ -1,6 +1,7 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::guilds::Guild;
+use crate::guilds::MonkSkillsConfig;
 use crate::secondary_status::SecondaryStatusEffect;
 use crate::stats::StatsEffect;
 use serde::{Deserialize, Serialize};
@@ -82,6 +83,7 @@ pub struct TriggerFacts {
     vars: HashMap<String, String>,
     pub rig: Option<String>,
     pub player_name: Option<String>,
+    monk_skills: MonkSkillsConfig,
 }
 
 impl TriggerFacts {
@@ -90,13 +92,19 @@ impl TriggerFacts {
         vars: HashMap<String, String>,
         rig: Option<&str>,
         player_name: Option<&str>,
+        monk_skills: MonkSkillsConfig,
     ) -> Self {
         Self {
             flags,
             vars,
             rig: rig.map(str::to_string),
             player_name: player_name.map(str::to_string),
+            monk_skills,
         }
+    }
+
+    pub fn monk_skills(&self) -> &MonkSkillsConfig {
+        &self.monk_skills
     }
 
     pub fn flag_is_set(&self, key: &str) -> bool {
@@ -274,7 +282,13 @@ mod tests {
     #[test]
     fn process_without_animist_applies_player_combat_hit_hilite() {
         let text = "Fueryon hits Reaver 5 times causing a nasty laceration.";
-        let facts = TriggerFacts::new(HashMap::new(), HashMap::new(), None, Some("Fueryon"));
+        let facts = TriggerFacts::new(
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("Fueryon"),
+            MonkSkillsConfig::default(),
+        );
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(MonkGuild::default())];
         let output = process(&facts, &guilds, text, &TriggerConfig::default());
         assert!(
@@ -286,7 +300,13 @@ mod tests {
     #[test]
     fn process_without_animist_skips_companion_combat_hilite() {
         let text = "A blue-glowing soul companion [Nynn].";
-        let facts = TriggerFacts::new(HashMap::new(), HashMap::new(), None, Some("Nynn"));
+        let facts = TriggerFacts::new(
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("Nynn"),
+            MonkSkillsConfig::default(),
+        );
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(MonkGuild::default())];
         let output = process(&facts, &guilds, text, &TriggerConfig::default());
         assert!(
@@ -298,7 +318,13 @@ mod tests {
     #[test]
     fn process_with_animist_applies_companion_combat_hilite() {
         let text = "A blue-glowing soul companion [Nynn].";
-        let facts = TriggerFacts::new(HashMap::new(), HashMap::new(), None, Some("Nynn"));
+        let facts = TriggerFacts::new(
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("Nynn"),
+            MonkSkillsConfig::default(),
+        );
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(AnimistGuild::default())];
         let output = process(&facts, &guilds, text, &TriggerConfig::default());
         assert!(
@@ -310,7 +336,13 @@ mod tests {
     #[test]
     fn process_with_guild_triggers_disabled_skips_companion_combat_hilite() {
         let text = "A blue-glowing soul companion [Nynn].";
-        let facts = TriggerFacts::new(HashMap::new(), HashMap::new(), None, Some("Nynn"));
+        let facts = TriggerFacts::new(
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("Nynn"),
+            MonkSkillsConfig::default(),
+        );
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(AnimistGuild::default())];
         let config = TriggerConfig {
             guild_triggers: false,

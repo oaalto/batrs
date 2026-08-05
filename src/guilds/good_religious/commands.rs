@@ -162,7 +162,13 @@ mod tests {
 
     fn dispatch_send(cmd: &str, guilds: &[Box<dyn Guild>]) -> String {
         let effects = dispatch(
-            CommandDispatchInput::new(cmd, true, HashMap::new(), HashMap::new()),
+            CommandDispatchInput::new(
+                cmd,
+                true,
+                HashMap::new(),
+                HashMap::new(),
+                crate::guilds::MonkSkillsConfig::default(),
+            ),
             guilds,
             &GenericCommands::default(),
         );

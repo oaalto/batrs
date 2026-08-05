@@ -41,6 +41,11 @@
       "allowSkip": true
     },
     {
+      "sources": ["src/guilds/monk/**"],
+      "wikiPages": ["docs/wiki/concepts/monk-skill-tracks.md"],
+      "allowSkip": true
+    },
+    {
       "sources": ["src/player_profile.rs", "src/config.rs"],
       "wikiPages": ["docs/wiki/concepts/player-profile.md"],
       "allowSkip": true

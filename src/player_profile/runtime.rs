@@ -1,4 +1,5 @@
 use crate::config::{GenericCommandsConfig, UserSettings, is_truthy_setting_value};
+use crate::guilds::MonkSkillsConfig;
 use crate::guilds::catalog::{DEFAULT_GUILD_PRIMARY_KEYWORD, GuildSelection};
 use crate::player_profile::automation::{
     automation_flags_for_settings, automation_vars_for_settings,
@@ -101,6 +102,7 @@ pub fn runtime_profile_from_parts(
     settings: UserSettings,
     generic_commands_config: GenericCommandsConfig,
     trigger_config: TriggerConfig,
+    monk_skills_config: MonkSkillsConfig,
 ) -> PlayerRuntimeProfile {
     let known_settings = KnownProfileSettings::from_user_settings(&settings);
     let guild_selection =
@@ -116,6 +118,7 @@ pub fn runtime_profile_from_parts(
         guild_primary_background,
         generic_commands_config,
         trigger_config,
+        monk_skills_config,
         settings: known_settings,
         automation_vars,
         automation_flags,
@@ -129,6 +132,7 @@ pub struct PlayerRuntimeProfile {
     pub guild_primary_background: String,
     pub generic_commands_config: GenericCommandsConfig,
     pub trigger_config: TriggerConfig,
+    pub monk_skills_config: MonkSkillsConfig,
     pub settings: KnownProfileSettings,
     pub automation_vars: Vec<(String, String)>,
     pub automation_flags: Vec<(String, bool)>,
@@ -149,6 +153,7 @@ impl Default for PlayerRuntimeProfile {
             UserSettings::default(),
             GenericCommandsConfig::default(),
             TriggerConfig::default(),
+            MonkSkillsConfig::default(),
         )
     }
 }

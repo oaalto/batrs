@@ -652,6 +652,7 @@ mod tests {
             automation.snapshot_vars(),
             rig,
             player_name,
+            crate::guilds::MonkSkillsConfig::default(),
         );
         let mut styled_line = StyledLine::new(line);
         let output = trigger(&TriggerLine::new(line), &facts);

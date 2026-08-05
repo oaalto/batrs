@@ -52,3 +52,7 @@ Turn whole groups of shortcuts (cures, travel spells, and so on) on or off. Chan
 ### Settings (`/settings`)
 
 Edit key/value settings in a simple list. Saving updates your profile file on disk.
+
+### Monk skills (`/monk`)
+
+Available when **monk** is enabled in **`/guilds`**. Configure which chain slots are unlocked on each skill track (disrupt, armour, area, avoid). Checkbox rows use prefix-chain rules. Saved under **`[monk_skills]`** in the player profile.

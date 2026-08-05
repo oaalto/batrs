@@ -48,7 +48,9 @@ Command Dispatch does not own guild `use`/`cast` formatting — that concern is 
 
 ## Player Profile
 
-The Player Profile is the per-player runtime configuration loaded from the user's batrs player file. It includes selected guilds, the active guild primary background, settings, generic command preferences, and trigger group toggles.
+The Player Profile is the per-player runtime configuration loaded from the user's batrs player file. It includes selected guilds, the active guild primary background, settings, generic command preferences, trigger group toggles, and monk skill-track availability.
+
+Monk **skill tracks** (disrupt, armour, area, avoid) each have three chain slots. Availability is stored under `[monk_skills]` in the player TOML; omitted section means all slots enabled. Prefix-chain UI rules apply in `/monk`: selecting a later slot auto-enables earlier ones; deselecting an earlier slot auto-deselects later ones. Config persists when monk is deselected in `/guilds` and is reapplied when monk is re-enabled.
 
 The Player Profile owns the interpretation of persisted player settings into runtime profile effects, while configuration file I/O and TOML migration remain owned by the config module.
 

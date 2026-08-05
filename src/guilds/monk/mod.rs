@@ -1,5 +1,8 @@
 mod commands;
+pub mod skills_config;
 mod triggers;
+
+pub use skills_config::{MonkSkillTrack, MonkSkillsConfig};
 
 use crate::automation::Automation;
 use crate::command::Command;

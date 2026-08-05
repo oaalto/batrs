@@ -161,6 +161,7 @@ mod tests {
         CommandEnvironment::new(
             HashMap::from([(RIFTWALKER_HAS_ENTITY_FLAG.to_string(), has)]),
             HashMap::new(),
+            crate::guilds::MonkSkillsConfig::default(),
         )
     }
 

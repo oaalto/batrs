@@ -1,5 +1,12 @@
 # Engineering Wiki Log
 
+## [2026-08-05] update | Monk skill tracks and `/monk` dialog
+
+- Created: [Monk Skill Tracks](concepts/monk-skill-tracks.md)
+- Updated: [Player Profile](concepts/player-profile.md), `CONTEXT.md`, `docs/guilds/monk.md`, `docs/manual/ui.md`
+- Sources: `src/guilds/monk/skills_config.rs`, `src/app/dialogs/monk_dialog.rs`, `src/config.rs`
+- Notes: `[monk_skills]` profile section; prefix-chain UI; rotation gating vs line coloring split.
+
 ## [2026-08-04] ingest | Combat scan status suffix
 
 - Updated: [Combat Awareness](concepts/combat-awareness.md)
