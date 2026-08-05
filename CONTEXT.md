@@ -100,7 +100,7 @@ For scrollback disposition, the character name is the BatMUD login name held in 
 
 ## Combat Awareness
 
-Combat Awareness is batrs' interpretation of whether the player is currently in BatMUD combat. It begins when combat round output is observed and ends when BatMUD reports that the player is not in combat.
+Combat Awareness is batrs' interpretation of whether the player is currently in BatMUD combat. It begins when combat round output is observed and ends when BatMUD emits a canonical combat-end line: `You are not in combat right now.` (`NOT_IN_COMBAT_LINE`) or `You can see Death, clad in black, collect your corpse.` (`DEATH_COMBAT_END_LINE`).
 
 A Combat Scan Snapshot is the latest observed set of combatants and their health from a completed scan result. Each completed scan result replaces the previous snapshot rather than appending to it. Scan rows may include an optional **scan status** suffix (`and <status>`) shown in the HUD as `[status]`.
 

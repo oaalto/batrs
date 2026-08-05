@@ -3,6 +3,11 @@ use std::sync::LazyLock;
 
 pub const PROBE_COMMAND: &str = "#scan all";
 pub const NOT_IN_COMBAT_LINE: &str = "You are not in combat right now.";
+pub const DEATH_COMBAT_END_LINE: &str = "You can see Death, clad in black, collect your corpse.";
+
+pub fn is_combat_end_line(line: &str) -> bool {
+    line == NOT_IN_COMBAT_LINE || line == DEATH_COMBAT_END_LINE
+}
 const MAX_LINES_WAITING_FOR_ECHO: u8 = 30;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -149,7 +154,7 @@ impl CombatAwareness {
     }
 
     pub fn handle_incoming_line(&mut self, line: &str) -> LineHandlingResult {
-        if line == NOT_IN_COMBAT_LINE {
+        if is_combat_end_line(line) {
             let internal_probe = self.phase != ProbePhase::Idle;
             self.end_combat();
             return LineHandlingResult {
@@ -444,6 +449,42 @@ mod tests {
         state.handle_incoming_line("done");
 
         let result = state.handle_incoming_line(NOT_IN_COMBAT_LINE);
+        assert_eq!(
+            result,
+            LineHandlingResult {
+                gag: false,
+                effects: vec![CombatAwarenessEffect::CombatEnded],
+            }
+        );
+    }
+
+    #[test]
+    fn death_combat_end_clears_state_and_emits_combat_ended() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
+
+        let result = state.handle_incoming_line(DEATH_COMBAT_END_LINE);
+        assert_eq!(
+            result,
+            LineHandlingResult {
+                gag: true,
+                effects: vec![CombatAwarenessEffect::CombatEnded],
+            }
+        );
+        assert!(!state.is_active());
+        assert!(state.snapshot().is_empty());
+        assert!(state.is_idle());
+    }
+
+    #[test]
+    fn organic_death_combat_end_is_visible() {
+        let mut state = CombatAwareness::default();
+        state.handle_incoming_line("*** Round 1 ***");
+        state.handle_incoming_line("scan all");
+        state.handle_incoming_line("Guard is noticeably hurt (50%).");
+        state.handle_incoming_line("done");
+
+        let result = state.handle_incoming_line(DEATH_COMBAT_END_LINE);
         assert_eq!(
             result,
             LineHandlingResult {

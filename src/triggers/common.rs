@@ -1,5 +1,5 @@
 use crate::automation::Action;
-use crate::combat_awareness::NOT_IN_COMBAT_LINE;
+use crate::combat_awareness::{DEATH_COMBAT_END_LINE, NOT_IN_COMBAT_LINE};
 use crate::triggers::player_combat_rules::player_combat_rules_arc;
 use crate::triggers::rule_engine::{
     HiliteTarget, Rule, RuleAction, RuleCondition, RuleMatcher, apply_rules, push_rule, sort_rules,
@@ -590,6 +590,15 @@ static RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     push_rule(
         &mut rules,
         &mut order,
+        RuleMatcher::Simple(DEATH_COMBAT_END_LINE),
+        1000,
+        Some(RuleCondition::FlagSet("is_lich")),
+        vec![RuleAction::Send("@lich drain")],
+    );
+
+    push_rule(
+        &mut rules,
+        &mut order,
         RuleMatcher::Simple("The consumed life force fills your being with ecstacy!"),
         10,
         None,
@@ -732,6 +741,19 @@ mod tests {
     #[test]
     fn lich_not_in_combat_sends_drain_when_is_lich() {
         let (output, _, _) = run_trigger_with_setup(NOT_IN_COMBAT_LINE, None, None, |auto| {
+            auto.set_flag("is_lich", true);
+        });
+        assert!(
+            output
+                .actions
+                .iter()
+                .any(|a| matches!(a, Action::Send(cmd) if cmd == "@lich drain"))
+        );
+    }
+
+    #[test]
+    fn lich_death_combat_end_sends_drain_when_is_lich() {
+        let (output, _, _) = run_trigger_with_setup(DEATH_COMBAT_END_LINE, None, None, |auto| {
             auto.set_flag("is_lich", true);
         });
         assert!(

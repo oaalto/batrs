@@ -2,7 +2,7 @@
 title: Combat Awareness
 type: concept
 status: current
-updated: 2026-08-04
+updated: 2026-08-05
 sources:
   - CONTEXT.md
   - src/combat_awareness.rs
@@ -23,7 +23,7 @@ The application calls Combat Awareness once per incoming line and fans out `Comb
 `src/combat_awareness.rs` owns:
 
 - Canonical round-header matching (`is_round_header`, `ROUND_HEADER_REGEX`)
-- Canonical combat-end line (`NOT_IN_COMBAT_LINE`)
+- Canonical combat-end lines (`NOT_IN_COMBAT_LINE`, `DEATH_COMBAT_END_LINE`) and matcher (`is_combat_end_line`)
 - Probe phase machine and `PROBE_COMMAND` (`#scan all`)
 - Snapshot parsing and storage (`CombatScanRow`, `CombatAwareness::snapshot()`)
 - Combat-active state (`CombatAwareness::is_active()`)
@@ -31,7 +31,7 @@ The application calls Combat Awareness once per incoming line and fans out `Comb
 
 Combat Awareness does **not** own short-score diff accumulation (`combat_round_active` stays in stats), ratatui rendering, automation flag mutation, or guild-specific kata interrupt behavior.
 
-Triggers and guild modules import canonical constants/matchers from Combat Awareness rather than redefining them (for example monk kata interrupt uses `NOT_IN_COMBAT_LINE`; common lich drain uses the same constant).
+Triggers and guild modules import canonical constants/matchers from Combat Awareness rather than redefining them (for example monk kata interrupt uses `is_combat_end_line`; common lich drain uses both combat-end constants).
 
 ## CombatAwarenessEffect and app fan-out
 
@@ -53,7 +53,7 @@ enum CombatAwarenessEffect {
 | `SendShortScore` | send `@sc` |
 | `SendProbe` | send `#scan all` |
 
-Round header emits `RoundStarted`, `SendShortScore`, and `SendProbe` together. Combat ends on `NOT_IN_COMBAT_LINE` with `CombatEnded` only. Lifecycle is reported once per line through this path; there is no parallel `combat_round` trigger or common-trigger `in_battle` lifecycle path.
+Round header emits `RoundStarted`, `SendShortScore`, and `SendProbe` together. Combat ends on a canonical combat-end line (`is_combat_end_line`) with `CombatEnded` only. Lifecycle is reported once per line through this path; there is no parallel `combat_round` trigger or common-trigger `in_battle` lifecycle path.
 
 ## UI rendering seam
 
@@ -61,7 +61,7 @@ Combat Awareness exposes snapshot data only. The UI layer renders combat status 
 
 ## Verified Facts
 
-- Combat begins on a round header matching `^[\*]+ Round .* [\*]+$`; ends on `You are not in combat right now.` (`NOT_IN_COMBAT_LINE`).
+- Combat begins on a round header matching `^[\*]+ Round .* [\*]+$`; ends on `You are not in combat right now.` (`NOT_IN_COMBAT_LINE`) or `You can see Death, clad in black, collect your corpse.` (`DEATH_COMBAT_END_LINE`), matched via `is_combat_end_line`.
 - Probe rows are gagged from scrollback and automation; internal probe responses on combat end are gagged when probe phase is active.
 - Scan rows capture name, condition phrase, health percent, and optional scan status (`and <status>`); the HUD renders status in brackets (`[status]`). Each completed scan replaces the prior snapshot (`CONTEXT.md`, `combat_awareness.rs`, `ui/mod.rs`).
 - Next round header while capturing completes the prior scan into the snapshot (`src/combat_awareness.rs`, `handle_incoming_line`).

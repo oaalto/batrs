@@ -107,6 +107,12 @@
 - Sources: `src/combat_awareness.rs`, `src/ui/mod.rs`, `src/app/mod.rs`
 - Notes: Combat status presentation moved to UI layer; domain exposes snapshot data only.
 
+## [2026-08-05] update | Death line combat-end detection
+
+- Updated: [Combat Awareness](concepts/combat-awareness.md), `CONTEXT.md`
+- Sources: `src/combat_awareness.rs`, `src/guilds/monk/triggers.rs`, `src/triggers/common.rs`
+- Notes: Added `DEATH_COMBAT_END_LINE` and `is_combat_end_line`; monk kata interrupt and lich drain use both canonical combat-end lines.
+
 ## [2026-07-23] update | Combat Awareness cohesion (ticket 01)
 
 - Updated: [Combat Awareness](concepts/combat-awareness.md), `CONTEXT.md`, `docs/wiki/path-map.json`

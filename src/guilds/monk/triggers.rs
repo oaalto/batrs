@@ -53,6 +53,10 @@ impl MonkGuild {
                 "Reset current monk skill slots to defaults.",
             ),
             TriggerCatalogEntry::new(
+                crate::combat_awareness::DEATH_COMBAT_END_LINE,
+                "Reset current monk skill slots to defaults.",
+            ),
+            TriggerCatalogEntry::new(
                 r"^Your movement prevents you from doing the skill\.$",
                 "Reset current monk skill slots to defaults.",
             ),
@@ -114,7 +118,7 @@ impl MonkGuild {
                 .push(Action::SetFlag(DOING_MEDITATION_FLAG.to_string(), false));
         }
 
-        if line == crate::combat_awareness::NOT_IN_COMBAT_LINE
+        if crate::combat_awareness::is_combat_end_line(line)
             || INTERRUPTS.iter().any(|regex| regex.is_match(line))
         {
             output
@@ -609,6 +613,20 @@ mod tests {
         assert!(matches!(
             &output.actions[3],
             Action::SetVar(key, value) if key == CURRENT_AVOID_SKILL_VAR && value == AVOID_SKILL_1
+        ));
+    }
+
+    #[test]
+    fn death_combat_end_resets_current_skills() {
+        let output = MonkGuild::state_trigger(
+            &TriggerLine::new(crate::combat_awareness::DEATH_COMBAT_END_LINE),
+            &TriggerFacts::default(),
+        );
+
+        assert_eq!(output.actions.len(), 4);
+        assert!(matches!(
+            &output.actions[0],
+            Action::SetVar(key, value) if key == CURRENT_DISRUPT_SKILL_VAR && value == DISRUPT_SKILL_1
         ));
     }
 
