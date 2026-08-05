@@ -42,8 +42,16 @@ impl Guild for MonkGuild {
         self.get_commands()
     }
 
+    fn shortcut_catalog(&self) -> Vec<crate::command::ShortcutEntry> {
+        self.get_shortcut_catalog()
+    }
+
     fn triggers(&self) -> Vec<Trigger> {
         self.get_triggers()
+    }
+
+    fn trigger_catalog(&self) -> Vec<crate::command::TriggerCatalogEntry> {
+        self.get_trigger_catalog()
     }
 
     fn register_automation(&self, automation: &mut Automation) {

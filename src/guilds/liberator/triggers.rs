@@ -1,6 +1,7 @@
 //! Line highlights for Liberator guild output.
 
 use crate::ansi::TextStyle;
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::LiberatorGuild;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use regex::Regex;
@@ -12,6 +13,27 @@ static GHOST_FAREWELL: LazyLock<Regex> =
 impl LiberatorGuild {
     pub fn get_triggers(&self) -> Vec<crate::triggers::Trigger> {
         vec![Self::liberator_highlight_trigger]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        vec![
+            TriggerCatalogEntry::new(
+                "You swing and miss your mark!",
+                "Highlight bright red on miss.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your greater light spell flickers briefly and disappears.",
+                "Highlight bright red when greater light ends.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your holy glow fades.",
+                "Highlight bright red when holy glow fades.",
+            ),
+            TriggerCatalogEntry::new(
+                r"Ghost of (.+) whispers 'I must leave now. Good luck.'",
+                "Highlight red when a ghost farewells.",
+            ),
+        ]
     }
 
     pub fn liberator_highlight_trigger(

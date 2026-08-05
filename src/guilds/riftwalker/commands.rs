@@ -4,6 +4,7 @@ use crate::ansi::StyledLine;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::RiftwalkerGuild;
 use crate::guilds::riftwalker::{
     AIR_SKILL, EARTH_SKILL, FIRE_SKILL, RIFTWALKER_ELEMENT_VAR, RIFTWALKER_HAS_ENTITY_FLAG,
@@ -57,6 +58,50 @@ impl RiftwalkerGuild {
             ("rwdiag".to_string(), Self::cmd_diag as Command),
             ("rwfix".to_string(), Self::cmd_fix as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("ufire", "Set entity skill to blazing sunder (fire)."),
+            ShortcutEntry::new("uair", "Set entity skill to suffocating embrace (air)."),
+            ShortcutEntry::new("uearth", "Set entity skill to earthen cover (earth)."),
+            ShortcutEntry::new(
+                "uwater",
+                "Set entity skill to subjugating backwash (water).",
+            ),
+            ShortcutEntry::new("ccs", "Use the current rift entity skill."),
+            ShortcutEntry::new("estat", "List gem entities by element or args."),
+            ShortcutEntry::new(
+                "csum",
+                "Cast summon rift entity and set element skill vars.",
+            ),
+            ShortcutEntry::new("cdis", "Cast dismiss rift entity."),
+            ShortcutEntry::new("cb", "Cast beckon rift entity."),
+            ShortcutEntry::new("ctrl", "Cast establish entity control."),
+            ShortcutEntry::new("ctrll", "Cast establish entity control with duration 10."),
+            ShortcutEntry::new("cer", "Cast regenerate rift entity."),
+            ShortcutEntry::new(
+                "cte",
+                "Cast transform rift entity with optional element hint.",
+            ),
+            ShortcutEntry::new("cs", "Open with spark birth then use current entity skill."),
+            ShortcutEntry::new("css", "Open with rift pulse then use current entity skill."),
+            ShortcutEntry::new(
+                "csd",
+                "Open with dimensional leech then use current entity skill.",
+            ),
+            ShortcutEntry::new("csb", "Cast spark birth only."),
+            ShortcutEntry::new("crp", "Cast rift pulse only."),
+            ShortcutEntry::new("cdl", "Cast dimensional leech only."),
+            ShortcutEntry::new("cfa", "Cast force absorption on entity or a target."),
+            ShortcutEntry::new("cmie", "Cast mirror image on entity."),
+            ShortcutEntry::new("cam", "Cast absorbing meld."),
+            ShortcutEntry::new("ciw", "Cast iron will on entity or a target."),
+            ShortcutEntry::new("zz", "Stop entity gem cmd use."),
+            ShortcutEntry::new("gwield", "Send gem cmd wield with args."),
+            ShortcutEntry::new("rwdiag", "Print has_entity diagnostics in the client."),
+            ShortcutEntry::new("rwfix", "Show client-only fix note for external scripts."),
+        ]
     }
 
     pub fn set_skill_fire(

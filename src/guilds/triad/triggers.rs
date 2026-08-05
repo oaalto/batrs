@@ -1,4 +1,5 @@
 use crate::ansi::TextStyle;
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::TriadGuild;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use regex::Regex;
@@ -7,6 +8,23 @@ use std::sync::LazyLock;
 impl TriadGuild {
     pub fn get_triggers(&self) -> Vec<crate::triggers::Trigger> {
         vec![Self::triad_highlight_trigger]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        vec![
+            TriggerCatalogEntry::new(
+                r"^The curse on your (.+) fades away\.$",
+                "Highlight bright red when a curse fades.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You fail to reach (.+)\.$",
+                "Highlight bright red on failed reach.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You harm (.+) (a little|some|a good bit|a lot|really much)\.$",
+                "Highlight bright green on harm result.",
+            ),
+        ]
     }
 
     pub fn triad_highlight_trigger(

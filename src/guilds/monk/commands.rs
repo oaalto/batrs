@@ -3,6 +3,7 @@ use crate::abilities::use_skill;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::MonkGuild;
 use crate::guilds::monk::{
     CURRENT_AREA_SKILL_VAR, CURRENT_ARMOUR_SKILL_VAR, CURRENT_AVOID_SKILL_VAR,
@@ -31,6 +32,27 @@ impl MonkGuild {
             ("uek".to_string(), Self::use_earthquake_kick as Command),
             ("uas".to_string(), Self::use_avalanche_slam as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("cs", "Use kiai-cry at a target (resets rotation vars)."),
+            ShortcutEntry::new("ujl", "Use joint lock (resets rotation)."),
+            ShortcutEntry::new("upw", "Use pattern weave (resets rotation)."),
+            ShortcutEntry::new("usk", "Use skulking (resets rotation)."),
+            ShortcutEntry::new("ip", "Use iron palm (resets rotation)."),
+            ShortcutEntry::new("kata", "Use kata (resets rotation)."),
+            ShortcutEntry::new("med", "Use meditation, queuing kata first when needed."),
+            ShortcutEntry::new("umb", "Use mind over body on self or a target."),
+            ShortcutEntry::new("uds", "Use the current disrupt-track skill."),
+            ShortcutEntry::new("uaa", "Use the current area-track skill."),
+            ShortcutEntry::new("uar", "Use the current armour-track skill."),
+            ShortcutEntry::new("uav", "Use the current avoid-track skill."),
+            ShortcutEntry::new("uws", "Set disrupt skill to wave crest strike and use it."),
+            ShortcutEntry::new("ugk", "Set disrupt skill to geyser force kick and use it."),
+            ShortcutEntry::new("uek", "Set armour skill to earthquake kick and use it."),
+            ShortcutEntry::new("uas", "Set armour skill to avalanche slam and use it."),
+        ]
     }
 
     pub fn use_kiai_cry(

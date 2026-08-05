@@ -1,4 +1,5 @@
 use crate::ansi::{StyledLine, TextStyle};
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::SpiderGuild;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use regex::Regex;
@@ -12,6 +13,64 @@ const STAB_BLOCKED: &str = "You make a great stabbing maneuver, but your enemy b
 impl SpiderGuild {
     pub fn get_triggers(&self) -> Vec<crate::triggers::Trigger> {
         vec![Self::spider_highlight_trigger]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        vec![
+            TriggerCatalogEntry::new(
+                HEAVY_WEIGHT_EXPIRY,
+                "Highlight bright magenta and emit HEAVY WEIGHT OFF banner.",
+            ),
+            TriggerCatalogEntry::new(
+                QUEEN_SMILES_HELPS,
+                "Highlight bright green when Spider Queen helps control the demon.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^(.+)'s demon feels easier to control than usual\.$",
+                "Highlight bright yellow on easier demon control.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^(.+)s spider demon draws power from you\.$",
+                "Highlight bright red when spider demon draws power.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^A wound opens on your palm and you guide the (.+) blood at (.+)!$",
+                "Highlight bright green on blood palm attack.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^A shower of (.+) blood flies from (.+)'s palm at (.+)!$",
+                "Highlight bright green on shower of blood.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^Stream of blood from (.+)'s wound flies to you, tasting refreshing!$",
+                "Highlight bright green on blood refresh.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You stab with (.+) causing blood to fly everywhere!$",
+                "Highlight bright green on stab blood spray.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You twist your blade inside (.+)'s belly!$",
+                "Highlight bright green on twist blade.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^(.+) cringes from pain as your venomed blade bites into (.+) flesh!$",
+                "Highlight bright green on venom cringe.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^(.+) suffers as poison from your blade flows into (.+) system!$",
+                "Highlight bright green on poison flow.",
+            ),
+            TriggerCatalogEntry::new(
+                LOSING_BODY_CONTROL,
+                "Highlight bright red on losing body control.",
+            ),
+            TriggerCatalogEntry::new(STAB_BLOCKED, "Highlight bright red when stab is blocked."),
+            TriggerCatalogEntry::new(
+                r"^You fail to stab (.+) with (.+)!$",
+                "Highlight bright red on failed stab.",
+            ),
+        ]
     }
 
     pub fn spider_highlight_trigger(

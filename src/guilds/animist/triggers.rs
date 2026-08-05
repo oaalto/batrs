@@ -1,5 +1,6 @@
 use crate::ansi::TextStyle;
 use crate::automation::Action;
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::AnimistGuild;
 use crate::guilds::animist::companion_combat_rules::companion_rules_arc;
 use crate::secondary_status::SecondaryStatusEffect;
@@ -16,6 +17,31 @@ impl AnimistGuild {
             Self::soul_companion_training_trigger,
             Self::soul_companion_sword_hit_trigger,
             Self::soul_companion_combat_hilite_trigger,
+        ]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        vec![
+            TriggerCatalogEntry::new(
+                r"(?i)^Your\s+soul\s+companion\s*:\s*(.+?)\s+\((\d+)%\)\s*(.*?)\s*$",
+                "Gag line and update soul companion secondary status.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^(.+) spirit slowly appears, answering your call\.$",
+                "Send lead my spirit when a spirit appears.",
+            ),
+            TriggerCatalogEntry::new(
+                "You feel slightly better at fighting with your soul companion.",
+                "Highlight blue on soul companion training progress.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^(.+)'s soul companion swings his sword in (.+) arc, and hits.*$",
+                "Highlight light blue on soul companion sword hit.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^A blue-glowing soul companion \[<player>\]\.?$",
+                "Highlight blue soul companion announcement (uses configured player name).",
+            ),
         ]
     }
 

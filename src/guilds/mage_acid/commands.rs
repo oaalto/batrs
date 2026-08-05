@@ -4,6 +4,7 @@ use crate::abilities;
 use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::MageAcidGuild;
 use std::collections::HashMap;
 
@@ -35,6 +36,21 @@ impl MageAcidGuild {
             ),
             ("cashield".to_string(), Self::cast_acid_shield as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("cdi", "Cast disruption."),
+            ShortcutEntry::new("caw", "Cast acid wind."),
+            ShortcutEntry::new("caa", "Cast acid arrow."),
+            ShortcutEntry::new("car", "Cast acid ray."),
+            ShortcutEntry::new("cab", "Cast acid blast."),
+            ShortcutEntry::new("carain", "Cast acid rain."),
+            ShortcutEntry::new("cas", "Cast acid storm."),
+            ShortcutEntry::new("clb", "Cast lock biter."),
+            ShortcutEntry::new("ccshield", "Cast corrosion shield on self or a target."),
+            ShortcutEntry::new("cashield", "Cast acid shield on self or a target."),
+        ]
     }
 
     mage_acid_targeted_cast!(cast_disruption, "disruption");

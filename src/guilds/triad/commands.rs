@@ -2,6 +2,7 @@ use crate::abilities;
 use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::TriadGuild;
 use std::collections::HashMap;
 
@@ -15,6 +16,17 @@ impl TriadGuild {
             ("cmc".to_string(), Self::cast_mellon_collie),
             ("caoh".to_string(), Self::cast_aura_of_hate),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("cclw", "Cast cause light wounds."),
+            ShortcutEntry::new("ccsw", "Cast cause serious wounds."),
+            ShortcutEntry::new("ccw", "Cast cause critical wounds."),
+            ShortcutEntry::new("cda", "Cast damn armament on weapon2."),
+            ShortcutEntry::new("cmc", "Cast mellon collie."),
+            ShortcutEntry::new("caoh", "Cast aura of hate."),
+        ]
     }
 
     fn cast_cause_light_wounds(

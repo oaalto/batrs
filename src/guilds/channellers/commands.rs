@@ -1,12 +1,17 @@
 use crate::abilities;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::ChannellersGuild;
 use std::collections::HashMap;
 
 impl ChannellersGuild {
     pub fn get_commands(&self) -> HashMap<String, Command> {
         HashMap::from([("cdr".to_string(), Self::cast_drain_room as Command)])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![ShortcutEntry::new("cdr", "Cast drain room.")]
     }
 
     pub fn cast_drain_room(

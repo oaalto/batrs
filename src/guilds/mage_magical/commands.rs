@@ -3,6 +3,7 @@
 use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::MageMagicalGuild;
 use std::collections::HashMap;
 
@@ -37,6 +38,21 @@ impl MageMagicalGuild {
                 Self::cast_summon_lesser_spores as Command,
             ),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("cmm", "Cast magic missile."),
+            ShortcutEntry::new("cgoa", "Cast golden arrow."),
+            ShortcutEntry::new("clevb", "Cast levin bolt."),
+            ShortcutEntry::new("cmdisp", "Cast magic dispersion."),
+            ShortcutEntry::new("cmerup", "Cast magic eruption."),
+            ShortcutEntry::new("cmwave", "Cast magic wave."),
+            ShortcutEntry::new("cmbeac", "Cast mana beacon."),
+            ShortcutEntry::new("crpars", "Cast repulsor aura."),
+            ShortcutEntry::new("csgsp", "Cast summon greater spores."),
+            ShortcutEntry::new("cslsp", "Cast summon lesser spores."),
+        ]
     }
 
     mage_magical_targeted_cast!(cast_magic_missile, "magic missile");

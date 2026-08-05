@@ -3,6 +3,7 @@ use crate::abilities::use_skill;
 use crate::ansi::StyledLine;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::KharimGuild;
 use std::collections::HashMap;
 
@@ -43,6 +44,44 @@ impl KharimGuild {
             ("fromdevice".to_string(), Self::nav_fromdevice as Command),
             ("kharim_help".to_string(), Self::help as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("ufp", "Use foul play."),
+            ShortcutEntry::new("uam", "Use deceitful act of mercy."),
+            ShortcutEntry::new("ufr", "Use feigned remorse."),
+            ShortcutEntry::new("usd", "Use scourge of dark steel."),
+            ShortcutEntry::new("uvb", "Use vampiric blow."),
+            ShortcutEntry::new("ucc", "Use chaotic circulation."),
+            ShortcutEntry::new("cfa", "Cast flame arrow."),
+            ShortcutEntry::new("cbf", "Cast blade of fire."),
+            ShortcutEntry::new("cac", "Cast aura of chaos."),
+            ShortcutEntry::new("kharim_rip", "Rip macro rip macro."),
+            ShortcutEntry::new("tositwar", "Navigate to sitwar trainer."),
+            ShortcutEntry::new("fromsitwar", "Navigate from sitwar."),
+            ShortcutEntry::new("tomelee", "Navigate to melee trainer."),
+            ShortcutEntry::new("frommelee", "Navigate from melee."),
+            ShortcutEntry::new("tosw", "Navigate to spell trainer."),
+            ShortcutEntry::new("fromsw", "Navigate from sw."),
+            ShortcutEntry::new("tose", "Navigate to se trainer."),
+            ShortcutEntry::new("fromse", "Navigate from se."),
+            ShortcutEntry::new("tonw", "Navigate to nw (scout)."),
+            ShortcutEntry::new("fromnw", "Navigate from nw."),
+            ShortcutEntry::new("tone", "Navigate to ne (attack skills)."),
+            ShortcutEntry::new("fromne", "Navigate from ne."),
+            ShortcutEntry::new("tokitan", "Navigate to kitan."),
+            ShortcutEntry::new("fromkitan", "Navigate from kitan."),
+            ShortcutEntry::new("tosouls", "Navigate to souls room."),
+            ShortcutEntry::new("fromsouls", "Navigate from souls."),
+            ShortcutEntry::new("tocloud", "Navigate to cloud."),
+            ShortcutEntry::new("fromcloud", "Navigate from cloud."),
+            ShortcutEntry::new("toswords", "Navigate to sword hotel."),
+            ShortcutEntry::new("fromswords", "Navigate from sword hotel."),
+            ShortcutEntry::new("todevice", "Navigate to device."),
+            ShortcutEntry::new("fromdevice", "Navigate from device."),
+            ShortcutEntry::new("kharim_help", "Route help (client-only)."),
+        ]
     }
 
     pub fn use_foul_play(

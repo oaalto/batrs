@@ -2,6 +2,7 @@ use crate::abilities;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::AnimistGuild;
 use crate::guilds::animist::{
     CEREMONY_DONE_FLAG, CONJURING_MOUNT_FLAG, DISMISSING_MOUNT_FLAG, JOINING_SOUL_FLAG,
@@ -18,6 +19,22 @@ impl AnimistGuild {
             ("csum".to_string(), Self::cast_conjure_mount as Command),
             ("cdis".to_string(), Self::cast_dismiss_mount as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("cere", "Use ceremony."),
+            ShortcutEntry::new("csoul", "Cast separate soul."),
+            ShortcutEntry::new("cjoin", "Cast join soul (after ceremony if needed)."),
+            ShortcutEntry::new(
+                "csum",
+                "Cast conjure animal soul (after ceremony if needed).",
+            ),
+            ShortcutEntry::new(
+                "cdis",
+                "Cast animal soul link to dismiss mount (after ceremony if needed).",
+            ),
+        ]
     }
 
     pub fn use_ceremony(

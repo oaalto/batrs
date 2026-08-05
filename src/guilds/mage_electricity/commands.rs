@@ -4,6 +4,7 @@ use crate::abilities;
 use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::MageElectricityGuild;
 use std::collections::HashMap;
 
@@ -38,6 +39,21 @@ impl MageElectricityGuild {
                 Self::cast_magnetic_levitation as Command,
             ),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("csg", "Cast shocking grasp."),
+            ShortcutEntry::new("clb", "Cast lightning bolt."),
+            ShortcutEntry::new("cbl", "Cast blast lightning."),
+            ShortcutEntry::new("cfl", "Cast forked lightning."),
+            ShortcutEntry::new("ce", "Cast electrocution."),
+            ShortcutEntry::new("ccl", "Cast chain lightning."),
+            ShortcutEntry::new("cls", "Cast lightning storm."),
+            ShortcutEntry::new("cench", "Cast energy channeling."),
+            ShortcutEntry::new("cltshield", "Cast lightning shield on self or a target."),
+            ShortcutEntry::new("cmaglev", "Cast magnetic levitation."),
+        ]
     }
 
     mage_electricity_targeted_cast!(cast_shocking_grasp, "shocking grasp");

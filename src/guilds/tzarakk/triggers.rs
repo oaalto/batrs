@@ -1,5 +1,6 @@
 use crate::ansi::TextStyle;
 use crate::automation::Action;
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::TzarakkGuild;
 use crate::guilds::tzarakk::{DISMOUNTED_FLAG, MOUNT_SUMMONED_FLAG, TZARAKK_MOUNT_VAR};
 use crate::secondary_status::SecondaryStatusEffect;
@@ -62,6 +63,79 @@ impl TzarakkGuild {
             Self::charge_result_trigger,
             Self::steed_summoned_trigger,
             Self::mount_status_trigger,
+        ]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        vec![
+            TriggerCatalogEntry::new(
+                r"^'(Vedir|Orthos)', .+ \[Rider: You\]$",
+                "Set mount-summoned flag when riding Vedir or Orthos.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^\*+ Round .+ \*+$",
+                "Send mount examine each combat round when mounted.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^A faint fog-like substance flows from corpse of (.+) to (.+)'s lifeless eyes replenishing it (.+)\.$",
+                "Chaosfeed corpse and examine mount when tracked mount is replenished.",
+            ),
+            TriggerCatalogEntry::new(
+                "The ice makes a sound below your mount, scaring it!",
+                "Highlight bright red and set dismounted flag.",
+            ),
+            TriggerCatalogEntry::new(
+                "You are knocked off your mount!",
+                "Highlight bright red and set dismounted flag.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your mount throws you!",
+                "Highlight bright red and set dismounted flag.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(.+) appears in a violent burst of chaos\.",
+                "Mount tracked steed when it appears.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^(.+) is DEAD, R\.I\.P\.$",
+                "Highlight bright red and remount when dismounted and mount dies.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You get up on (.+) and begin to ride\.$",
+                "Clear dismounted flag and set mount-summoned flag.",
+            ),
+            TriggerCatalogEntry::new(
+                "You pray for Tzarakk to receive his mount.",
+                "Clear mount status, clear mount flag, and set rip_action loot macro.",
+            ),
+            TriggerCatalogEntry::new(
+                r"You fail to hit your foe with (.+)",
+                "Highlight red on charge miss.",
+            ),
+            TriggerCatalogEntry::new(
+                "You charge towards your enemy, but alas -- a clean miss.",
+                "Highlight red on charge miss.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your mount snorts and does not respond.",
+                "Highlight red on charge miss.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your mount is too confused to comply.",
+                "Highlight red on charge miss.",
+            ),
+            TriggerCatalogEntry::new(
+                r"You manage to hit your foe with (.+) as you pass by\.",
+                "Highlight blue on charge hit.",
+            ),
+            TriggerCatalogEntry::new(
+                r"A bizarre mist starts to form itself rapidly, and within moments a dark morbid",
+                "Mount steed, set mount flag, and configure rip_action chaosfeed macro.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^(Orthos|Vedir) is (.+) \((\d+)%\)\.?$",
+                "Gag line and update mount secondary status.",
+            ),
         ]
     }
 

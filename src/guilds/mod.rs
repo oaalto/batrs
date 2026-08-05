@@ -77,12 +77,18 @@ pub use triad::TriadGuild;
 pub use tzarakk::TzarakkGuild;
 
 use crate::automation::Automation;
-use crate::command::Command;
+use crate::command::{Command, ShortcutEntry, TriggerCatalogEntry};
 use crate::triggers::Trigger;
 use std::collections::HashMap;
 
 pub trait Guild {
     fn commands(&self) -> HashMap<String, Command>;
     fn triggers(&self) -> Vec<Trigger>;
+    fn shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        Vec::new()
+    }
+    fn trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        Vec::new()
+    }
     fn register_automation(&self, _automation: &mut Automation) {}
 }

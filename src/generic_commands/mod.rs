@@ -7,17 +7,23 @@ use crate::abilities;
 #[derive(Debug, Clone)]
 pub struct GenericCommand {
     pub alias: String,
+    description: &'static str,
     execution: GenericCommandExecution,
     pub enabled: bool,
 }
 
 impl GenericCommand {
-    fn new(alias: &str, execution: GenericCommandExecution) -> Self {
+    fn new(alias: &str, description: &'static str, execution: GenericCommandExecution) -> Self {
         Self {
             alias: alias.to_string(),
+            description,
             execution,
             enabled: true,
         }
+    }
+
+    pub fn description(&self) -> &'static str {
+        self.description
     }
 
     pub fn display_command(&self) -> String {
@@ -169,10 +175,12 @@ impl GenericCommands {
             vec![
                 GenericCommand::new(
                     "clw",
+                    "Cast cure light wounds (defaults target to me).",
                     GenericCommandExecution::append_args_default("cast 'cure light wounds'", "me"),
                 ),
                 GenericCommand::new(
                     "csw",
+                    "Cast cure serious wounds (defaults target to me).",
                     GenericCommandExecution::append_args_default(
                         "cast 'cure serious wounds'",
                         "me",
@@ -180,6 +188,7 @@ impl GenericCommands {
                 ),
                 GenericCommand::new(
                     "clwf",
+                    "Repeat cast cure light wounds (defaults target to me).",
                     GenericCommandExecution::append_args_default(
                         "repeat inf cast 'cure light wounds'",
                         "me",
@@ -187,6 +196,7 @@ impl GenericCommands {
                 ),
                 GenericCommand::new(
                     "cswf",
+                    "Repeat cast cure serious wounds (defaults target to me).",
                     GenericCommandExecution::append_args_default(
                         "repeat inf cast 'cure serious wounds'",
                         "me",
@@ -203,14 +213,17 @@ impl GenericCommands {
             vec![
                 GenericCommand::new(
                     "cww",
+                    "Cast water walking (defaults target to me).",
                     GenericCommandExecution::append_args_default("cast 'water walking'", "me"),
                 ),
                 GenericCommand::new(
                     "cinv",
+                    "Cast invisibility (defaults target to me).",
                     GenericCommandExecution::append_args_default("cast 'invisibility'", "me"),
                 ),
                 GenericCommand::new(
                     "cinf",
+                    "Cast infravision (defaults target to me).",
                     GenericCommandExecution::append_args_default("cast 'infravision'", "me"),
                 ),
             ],
@@ -224,18 +237,22 @@ impl GenericCommands {
             vec![
                 GenericCommand::new(
                     "ctwe",
+                    "Cast teleport with error.",
                     GenericCommandExecution::fixed("cast 'teleport with error'"),
                 ),
                 GenericCommand::new(
                     "ctw",
+                    "Cast teleport without error.",
                     GenericCommandExecution::fixed("cast 'teleport without error'"),
                 ),
                 GenericCommand::new(
                     "cr",
+                    "Cast relocate at optional target.",
                     GenericCommandExecution::append_args("cast 'relocate'"),
                 ),
                 GenericCommand::new(
                     "chw",
+                    "Cast heavy weight (defaults target to me).",
                     GenericCommandExecution::append_args_default("cast 'heavy weight'", "me"),
                 ),
             ],
@@ -247,8 +264,16 @@ impl GenericCommands {
             "common_skills",
             "Common Skills",
             vec![
-                GenericCommand::new("ufb", GenericCommandExecution::fixed("use 'fire building'")),
-                GenericCommand::new("camp", GenericCommandExecution::fixed("use 'camping'")),
+                GenericCommand::new(
+                    "ufb",
+                    "Use fire building.",
+                    GenericCommandExecution::fixed("use 'fire building'"),
+                ),
+                GenericCommand::new(
+                    "camp",
+                    "Use camping.",
+                    GenericCommandExecution::fixed("use 'camping'"),
+                ),
             ],
         )
     }
@@ -260,18 +285,21 @@ impl GenericCommands {
             vec![
                 GenericCommand::new(
                     "lich_rip",
+                    "Set rip action: loot corpse and drop zinc/mowgles.",
                     GenericCommandExecution::fixed(
                         "rip_action set get all from corpse;drop zinc;drop mowgles",
                     ),
                 ),
                 GenericCommand::new(
                     "normal_rip",
+                    "Set rip action: loot, dig grave, drop zinc/mowgles.",
                     GenericCommandExecution::fixed(
                         "rip_action set get all from corpse;dig grave;drop zinc;drop mowgles",
                     ),
                 ),
                 GenericCommand::new(
                     "dig_rip",
+                    "Set rip action: loot, dig grave, drop zinc/mowgles.",
                     GenericCommandExecution::fixed(
                         "rip_action set get all from corpse;dig grave;drop zinc;drop mowgles",
                     ),
@@ -334,8 +362,16 @@ mod tests {
             "test",
             "Test",
             vec![
-                GenericCommand::new("a", GenericCommandExecution::fixed("cmd a")),
-                GenericCommand::new("b", GenericCommandExecution::fixed("cmd b")),
+                GenericCommand::new(
+                    "a",
+                    "Test command a.",
+                    GenericCommandExecution::fixed("cmd a"),
+                ),
+                GenericCommand::new(
+                    "b",
+                    "Test command b.",
+                    GenericCommandExecution::fixed("cmd b"),
+                ),
             ],
         );
         assert_eq!(group.selection_state(), Some(true));
@@ -347,8 +383,16 @@ mod tests {
             "test",
             "Test",
             vec![
-                GenericCommand::new("a", GenericCommandExecution::fixed("cmd a")),
-                GenericCommand::new("b", GenericCommandExecution::fixed("cmd b")),
+                GenericCommand::new(
+                    "a",
+                    "Test command a.",
+                    GenericCommandExecution::fixed("cmd a"),
+                ),
+                GenericCommand::new(
+                    "b",
+                    "Test command b.",
+                    GenericCommandExecution::fixed("cmd b"),
+                ),
             ],
         );
         group.commands[0].enabled = false;

@@ -1,6 +1,7 @@
 //! Line highlights for Kharim guild output.
 
 use crate::ansi::TextStyle;
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::KharimGuild;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use regex::Regex;
@@ -17,6 +18,39 @@ static ATTACK_FUTILE: LazyLock<Regex> =
 impl KharimGuild {
     pub fn get_triggers(&self) -> Vec<crate::triggers::Trigger> {
         vec![Self::kharim_highlight_trigger]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        vec![
+            TriggerCatalogEntry::new(
+                "Chaotic force closes the bleeding wound in your body.",
+                "Highlight bright green on chaotic healing.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your blood circulation normalizes.",
+                "Highlight bright yellow on circulation normalize.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your thirst for blood is growing insatiable.",
+                "Highlight bright yellow on growing blood thirst.",
+            ),
+            TriggerCatalogEntry::new(
+                "The flames surrounding your chaos blade subside.",
+                "Highlight yellow when chaos blade flames subside.",
+            ),
+            TriggerCatalogEntry::new(
+                r"Your chaos aura of (.+) reacts to the assault!",
+                "Highlight green on chaos aura reaction.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(.+) notices your foul intentions and evades your attempt\.",
+                "Highlight red when foul intentions are evaded.",
+            ),
+            TriggerCatalogEntry::new(
+                r"Your attempts to attack (.+) become futile\.",
+                "Highlight red when attacks become futile.",
+            ),
+        ]
     }
 
     pub fn kharim_highlight_trigger(

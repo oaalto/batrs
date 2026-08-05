@@ -3,11 +3,41 @@
 #[cfg(test)]
 use crate::ansi::StyledLine;
 use crate::ansi::TextStyle;
+use crate::command::TriggerCatalogEntry;
 use crate::triggers::LineEffect;
 use regex::Regex;
 use std::sync::LazyLock;
 #[cfg(test)]
 use unicode_segmentation::UnicodeSegmentation;
+
+pub fn magic_lore_analysis_catalog_entries() -> Vec<TriggerCatalogEntry> {
+    vec![
+        TriggerCatalogEntry::new(
+            r"(.+) (screams in pain\.)",
+            "Highlight screams in pain green (magic lore analysis).",
+        ),
+        TriggerCatalogEntry::new(
+            r"(.+) (writhes in agony\.)",
+            "Highlight writhes in agony blue (magic lore analysis).",
+        ),
+        TriggerCatalogEntry::new(
+            r"(.+) (shudders from the force of the attack\.)",
+            "Highlight shudders cyan (magic lore analysis).",
+        ),
+        TriggerCatalogEntry::new(
+            r"(.+) (grunts from the pain\.)",
+            "Highlight grunts yellow (magic lore analysis).",
+        ),
+        TriggerCatalogEntry::new(
+            r"(.+) (winces a little from the pain\.)",
+            "Highlight winces magenta (magic lore analysis).",
+        ),
+        TriggerCatalogEntry::new(
+            r"(.+) (shrugs off the attack\.)",
+            "Highlight shrugs red (magic lore analysis).",
+        ),
+    ]
+}
 
 /// Returns a tiered damage-reaction style effect when `line` matches an analysis pattern.
 pub fn magic_lore_analysis_effect(line: &str) -> Option<LineEffect> {

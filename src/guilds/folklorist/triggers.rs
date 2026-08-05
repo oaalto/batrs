@@ -1,4 +1,5 @@
 use crate::ansi::TextStyle;
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::FolkloristGuild;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 
@@ -7,6 +8,13 @@ const MINOR_PROTECTION_FADES: &str = "The minor protection fades away.";
 impl FolkloristGuild {
     pub fn get_triggers(&self) -> Vec<crate::triggers::Trigger> {
         vec![Self::folklorist_highlight_trigger]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        vec![TriggerCatalogEntry::new(
+            MINOR_PROTECTION_FADES,
+            "Highlight bright red when minor protection fades.",
+        )]
     }
 
     pub fn folklorist_highlight_trigger(

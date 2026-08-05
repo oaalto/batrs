@@ -2,6 +2,7 @@ use crate::abilities;
 use crate::abilities::use_skill;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::DiscipleGuild;
 use std::collections::HashMap;
 
@@ -12,6 +13,14 @@ impl DiscipleGuild {
             ("uc".to_string(), Self::use_clawed_strike as Command),
             ("ukd".to_string(), Self::use_kiss_of_death as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("ucs", "Use chaotic spawn with optional target."),
+            ShortcutEntry::new("uc", "Use clawed strike."),
+            ShortcutEntry::new("ukd", "Kiss of death."),
+        ]
     }
 
     pub fn use_chaotic_spawn(

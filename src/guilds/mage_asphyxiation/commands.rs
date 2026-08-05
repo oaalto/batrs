@@ -4,6 +4,7 @@ use crate::abilities;
 use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::MageAsphyxiationGuild;
 use std::collections::HashMap;
 
@@ -32,6 +33,21 @@ impl MageAsphyxiationGuild {
             ("cvglobe".to_string(), Self::cast_vacuum_globe as Command),
             ("cvacb".to_string(), Self::cast_vacuumbolt as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("cairshield", "Cast air shield on self or a target."),
+            ShortcutEntry::new("caowind", "Cast aura of wind."),
+            ShortcutEntry::new("cbvac", "Cast blast vacuum."),
+            ShortcutEntry::new("cchaosb", "Cast chaos bolt."),
+            ShortcutEntry::new("cetherb", "Cast ether boundary."),
+            ShortcutEntry::new("cstrang", "Cast strangulation."),
+            ShortcutEntry::new("csuff", "Cast suffocation."),
+            ShortcutEntry::new("cvball", "Cast vacuum ball."),
+            ShortcutEntry::new("cvglobe", "Cast vacuum globe."),
+            ShortcutEntry::new("cvacb", "Cast vacuumbolt."),
+        ]
     }
 
     pub fn cast_air_shield(

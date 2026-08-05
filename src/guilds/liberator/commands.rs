@@ -4,6 +4,7 @@ use crate::abilities;
 use crate::abilities::use_skill;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::LiberatorGuild;
 use std::collections::HashMap;
 
@@ -52,6 +53,28 @@ impl LiberatorGuild {
                 Self::use_ghost_channeling_camp as Command,
             ),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new(
+                "lib_autoselect",
+                "Set liberator autoselect for non-specialists.",
+            ),
+            ShortcutEntry::new("cgl", "Cast ghost light."),
+            ShortcutEntry::new("cgc", "Ghost chill."),
+            ShortcutEntry::new("cga", "Cast ghost armour."),
+            ShortcutEntry::new("cgs", "Cast ghost sword at a required target."),
+            ShortcutEntry::new("cgcom", "Cast ghost companion."),
+            ShortcutEntry::new("clink", "Cast ghost link on self or a target."),
+            ShortcutEntry::new("crs", "Cast restful sleep."),
+            ShortcutEntry::new("chg", "Cast holy glow."),
+            ShortcutEntry::new("us", "Use slash."),
+            ShortcutEntry::new("ugs", "Ghost slash."),
+            ShortcutEntry::new("urs", "Use radiant slash."),
+            ShortcutEntry::new("ugcf", "Use ghost channeling (fire) on weakest ranger."),
+            ShortcutEntry::new("ugcc", "Use ghost channeling (camp) on weakest ranger."),
+        ]
     }
 
     pub fn lib_autoselect(

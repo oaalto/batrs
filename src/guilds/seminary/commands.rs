@@ -1,12 +1,17 @@
 use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::SeminaryGuild;
 use std::collections::HashMap;
 
 impl SeminaryGuild {
     pub fn get_commands(&self) -> HashMap<String, Command> {
         HashMap::from([("chb".to_string(), Self::cast_harm_body as Command)])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![ShortcutEntry::new("chb", "Cast harm body.")]
     }
 
     pub fn cast_harm_body(

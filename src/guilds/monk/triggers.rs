@@ -1,5 +1,6 @@
 use crate::ansi::TextStyle;
 use crate::automation::Action;
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::MonkGuild;
 use crate::guilds::monk::commands::reset_current_skill_actions;
 use crate::guilds::monk::{
@@ -14,6 +15,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 struct MonkRule {
+    pattern_text: &'static str,
     pattern: Regex,
     color: Option<TextStyle>,
     set_var: Option<(&'static str, &'static str, u8)>,
@@ -26,6 +28,62 @@ impl MonkGuild {
             Self::skill_result_trigger,
             sects_triggers::sect_cultivation_hilite_trigger,
         ]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        let mut entries = vec![
+            TriggerCatalogEntry::new(
+                r"^You perform the kata\.$",
+                "Set kata-done flag; send meditation when flagged.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You perform the peaceful (.+) kata\.$",
+                "Set kata-done flag; send meditation when flagged.",
+            ),
+            TriggerCatalogEntry::new(
+                "You start concentrating on the skill.",
+                "Clear kata-done flag.",
+            ),
+            TriggerCatalogEntry::new(
+                "You sit down and start meditating.",
+                "Clear doing-meditation flag.",
+            ),
+            TriggerCatalogEntry::new(
+                crate::combat_awareness::NOT_IN_COMBAT_LINE,
+                "Reset current monk skill slots to defaults.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^Your movement prevents you from doing the skill\.$",
+                "Reset current monk skill slots to defaults.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^GgrTF:  ---- SKILL STOPPED ----$",
+                "Reset current monk skill slots to defaults.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You lose your concentration and cannot do the skill\.$",
+                "Reset current monk skill slots to defaults.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You break your skill attempt\.$",
+                "Reset current monk skill slots to defaults.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You stop concentrating on the skill and begin searching for a proper place to rest\.$",
+                "Reset current monk skill slots to defaults.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You start chanting\.$",
+                "Reset current monk skill slots to defaults.",
+            ),
+        ];
+        entries.extend(
+            MONK_RULES
+                .iter()
+                .map(|rule| TriggerCatalogEntry::new(rule.pattern_text, describe_monk_rule(rule))),
+        );
+        entries.extend(sects_triggers::sect_cultivation_catalog_entries());
+        entries
     }
 
     pub fn state_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
@@ -428,14 +486,32 @@ static MONK_RULES: LazyLock<Vec<MonkRule>> = LazyLock::new(|| {
 });
 
 fn rule(
-    pattern: &str,
+    pattern: &'static str,
     color: Option<TextStyle>,
     set_var: Option<(&'static str, &'static str, u8)>,
 ) -> MonkRule {
     MonkRule {
+        pattern_text: pattern,
         pattern: Regex::new(pattern).unwrap(),
         color,
         set_var,
+    }
+}
+
+fn describe_monk_rule(rule: &MonkRule) -> String {
+    let mut parts = Vec::new();
+    if let Some(style) = rule.color {
+        parts.push(format!("Highlight line {style:?}."));
+    }
+    if let Some((key, value, slot)) = rule.set_var {
+        parts.push(format!(
+            "Update {key} to {value:?} when slot {slot} is enabled."
+        ));
+    }
+    if parts.is_empty() {
+        "Monk skill result line.".to_string()
+    } else {
+        parts.join(" ")
     }
 }
 

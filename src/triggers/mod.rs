@@ -212,6 +212,10 @@ impl TriggerEffects {
 
 pub type Trigger = fn(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects;
 
+pub fn common_trigger_catalog() -> Vec<crate::command::TriggerCatalogEntry> {
+    common::trigger_catalog()
+}
+
 pub fn process(
     facts: &TriggerFacts,
     guilds: &[Box<dyn Guild>],

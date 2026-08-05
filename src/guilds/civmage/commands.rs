@@ -2,6 +2,7 @@ use crate::abilities;
 use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::CivmageGuild;
 use std::collections::HashMap;
 
@@ -25,6 +26,21 @@ impl CivmageGuild {
             ("chf".to_string(), Self::repeat_heal_self as Command),
             ("cmi".to_string(), Self::cast_mirror_image as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("cld", "Cast lift of load on self or a target."),
+            ShortcutEntry::new("cid", "Cast identify on self or a target."),
+            ShortcutEntry::new("cfd", "Cast floating disc."),
+            ShortcutEntry::new("gad", "Get all items from floating disc."),
+            ShortcutEntry::new("gaad", "Get all armour from floating disc."),
+            ShortcutEntry::new("gawd", "Get all weapons from floating disc."),
+            ShortcutEntry::new("pd", "Put noeq items in floating disc."),
+            ShortcutEntry::new("ch", "Cast heal self."),
+            ShortcutEntry::new("chf", "Heal self (repeat)."),
+            ShortcutEntry::new("cmi", "Cast mirror image on self or a target."),
+        ]
     }
 
     pub fn cast_lift_of_load(

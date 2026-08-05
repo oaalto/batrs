@@ -1,6 +1,7 @@
 use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::PsionicistGuild;
 use crate::guilds::riftwalker::RIFTWALKER_HAS_ENTITY_FLAG;
 use std::collections::HashMap;
@@ -23,6 +24,28 @@ impl PsionicistGuild {
             ("ch".to_string(), Self::cast_heal_self as Command),
             ("chf".to_string(), Self::repeat_heal_self as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("cms", "Cast mindseize."),
+            ShortcutEntry::new("cmb", "Cast mind blast."),
+            ShortcutEntry::new("cp", "Cast psibolt."),
+            ShortcutEntry::new("cpb", "Cast psi blast."),
+            ShortcutEntry::new("cmd", "Cast mind disruption."),
+            ShortcutEntry::new("cpc", "Cast psychic crush."),
+            ShortcutEntry::new("cps", "Cast psychic storm."),
+            ShortcutEntry::new(
+                "cfs",
+                "Cast force shield on entity or self when no target given.",
+            ),
+            ShortcutEntry::new("cpshield", "Cast psionic shield."),
+            ShortcutEntry::new("cmdev", "Cast mind development."),
+            ShortcutEntry::new("cgo", "Cast phaze shift."),
+            ShortcutEntry::new("med", "Use meditation."),
+            ShortcutEntry::new("ch", "Cast heal self."),
+            ShortcutEntry::new("chf", "Repeat cast heal self indefinitely."),
+        ]
     }
 
     pub fn cast_mindseize(

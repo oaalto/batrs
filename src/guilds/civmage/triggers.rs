@@ -1,11 +1,28 @@
 use crate::ansi::{StyledLine, TextStyle};
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::CivmageGuild;
+use crate::guilds::magic_lore_analysis::magic_lore_analysis_catalog_entries;
 use crate::guilds::magic_lore_analysis::magic_lore_analysis_effect;
 use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 
 impl CivmageGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
         vec![Self::civmage_trigger]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        let mut entries = vec![
+            TriggerCatalogEntry::new(
+                "You feel odd. Not weaker, but...",
+                "Highlight bright red on lift side-effect warning.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your disc wavers dangerously.",
+                "Emit floating-disc-down banner.",
+            ),
+        ];
+        entries.extend(magic_lore_analysis_catalog_entries());
+        entries
     }
 
     pub fn civmage_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {

@@ -6,6 +6,7 @@ use super::{INNER_CIRCLE_HAS_ENTITY_FLAG, InnerCircleGuild};
 use crate::abilities;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 
 impl InnerCircleGuild {
     pub fn get_commands(&self) -> HashMap<String, Command> {
@@ -18,6 +19,18 @@ impl InnerCircleGuild {
             ),
             ("caoa".to_string(), Self::cast_armour_of_aether as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("cbi", "Cast blurred image on me, entity, or a target."),
+            ShortcutEntry::new("cfw", "Cast feather weight on me or a target."),
+            ShortcutEntry::new(
+                "csp",
+                "Cast shield of protection on me, entity, or a target.",
+            ),
+            ShortcutEntry::new("caoa", "Cast armour of aether on me, entity, or a target."),
+        ]
     }
 
     pub fn cast_blurred_image(

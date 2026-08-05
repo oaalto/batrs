@@ -1,4 +1,5 @@
 use crate::ansi::{StyledLine, TextStyle};
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::DiscipleGuild;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use regex::Regex;
@@ -27,6 +28,35 @@ impl DiscipleGuild {
             Self::spawn_going_down_trigger,
             Self::red_hilites_trigger,
             Self::green_hilites_trigger,
+        ]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        vec![
+            TriggerCatalogEntry::new(
+                "You feel like the pulse of chaos inside you is slowing down!",
+                "Highlight bright red and emit spawn-going-down banner.",
+            ),
+            TriggerCatalogEntry::new(
+                "You feel exhausted, being here in the light.",
+                "Highlight bright red on light exhaustion.",
+            ),
+            TriggerCatalogEntry::new(
+                "You try to attack your enemy but fall over your own feet.",
+                "Highlight bright red on fumbled attack.",
+            ),
+            TriggerCatalogEntry::new(
+                "You feel the chaos pulse inside you!",
+                "Highlight green on chaos pulse.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your (.+) tentacle strikes (.+).",
+                "Highlight green on tentacle strike.",
+            ),
+            TriggerCatalogEntry::new(
+                "You force yourself deeper into the chaos frenzy!",
+                "Highlight green on deeper frenzy.",
+            ),
         ]
     }
 

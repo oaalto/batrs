@@ -4,6 +4,7 @@ use crate::abilities;
 use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::MageFireGuild;
 use std::collections::HashMap;
 
@@ -32,6 +33,21 @@ impl MageFireGuild {
             ("cmets".to_string(), Self::cast_meteor_swarm as Command),
             ("cserf".to_string(), Self::cast_searing_fervor as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("cfa", "Cast flame arrow."),
+            ShortcutEntry::new("cf", "Cast firebolt."),
+            ShortcutEntry::new("cfb", "Cast fire blast."),
+            ShortcutEntry::new("cflshield", "Cast flame shield on self or a target."),
+            ShortcutEntry::new("chred", "Cast heat reduction."),
+            ShortcutEntry::new("clvb", "Cast lava blast."),
+            ShortcutEntry::new("clvs", "Cast lava storm."),
+            ShortcutEntry::new("cmetb", "Cast meteor blast."),
+            ShortcutEntry::new("cmets", "Cast meteor swarm."),
+            ShortcutEntry::new("cserf", "Cast searing fervor."),
+        ]
     }
 
     mage_fire_targeted_cast!(cast_flame_arrow, "flame arrow");

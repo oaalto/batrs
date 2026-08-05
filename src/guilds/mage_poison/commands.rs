@@ -7,6 +7,7 @@ use crate::abilities;
 use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::MagePoisonGuild;
 use std::collections::HashMap;
 
@@ -46,6 +47,26 @@ impl MagePoisonGuild {
             ("ctoxdil".to_string(), Self::cast_toxic_dilution as Command),
             ("cmpvs".to_string(), Self::cast_venom_strike as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("ckcloud", "Cast killing cloud."),
+            ShortcutEntry::new("cnoxf", "Cast noxious fumes."),
+            ShortcutEntry::new("cmpb", "Cast poison blast."),
+            ShortcutEntry::new("cpscan", "Cast poison scan."),
+            ShortcutEntry::new("cpspr", "Cast poison spray."),
+            ShortcutEntry::new("cpowb", "Cast power blast."),
+            ShortcutEntry::new(
+                "cdetoxsh",
+                "Cast shield of detoxification on self or a target.",
+            ),
+            ShortcutEntry::new("ccrsp", "Cast summon carnal spores."),
+            ShortcutEntry::new("cpgrsp", "Cast summon greater spores."),
+            ShortcutEntry::new("cmpthorn", "Cast thorn spray."),
+            ShortcutEntry::new("ctoxdil", "Cast toxic dilution."),
+            ShortcutEntry::new("cmpvs", "Cast venom strike."),
+        ]
     }
 
     mage_poison_targeted_cast!(cast_killing_cloud, "killing cloud");

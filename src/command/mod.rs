@@ -1,10 +1,17 @@
+mod catalog;
+mod show;
+
 use crate::ansi::StyledLine;
 use crate::automation::Action;
 use crate::generic_commands::GenericCommands;
 use crate::guilds::Guild;
 use crate::guilds::MonkSkillsConfig;
+use crate::guilds::catalog::GuildSelection;
+use crate::triggers::TriggerConfig;
 use std::collections::HashMap;
 use std::sync::LazyLock;
+
+pub use catalog::{ShortcutEntry, TriggerCatalogEntry};
 
 static BUILTINS: LazyLock<HashMap<String, BuiltinCommand>> = LazyLock::new(|| {
     HashMap::from([
@@ -48,10 +55,11 @@ static BUILTINS: LazyLock<HashMap<String, BuiltinCommand>> = LazyLock::new(|| {
             "/clear".to_string(),
             BuiltinCommand::new(builtin_clear, false),
         ),
+        ("/show".to_string(), BuiltinCommand::new(builtin_show, true)),
     ])
 });
 
-const HELP_LINES: [&str; 11] = [
+const HELP_LINES: [&str; 12] = [
     "Client slash commands:",
     "/help - Shows client slash commands.",
     "/quit - Closes the client.",
@@ -59,6 +67,7 @@ const HELP_LINES: [&str; 11] = [
     "/guilds - Opens the guild picker.",
     "/generic - Opens generic shortcut groups.",
     "/triggers - Toggle built-in trigger groups.",
+    "/show - List active shortcuts or line triggers.",
     "/settings - Opens the settings editor.",
     "/monk - Configure monk skill tracks.",
     "/raw_logs - Toggles raw log capture.",
@@ -77,6 +86,21 @@ pub fn dispatch(
         } else {
             Vec::new()
         };
+    }
+
+    if parsed.name() == "/show" {
+        if !input.logged_in {
+            return Vec::new();
+        }
+        return show::dispatch_show(
+            &parsed,
+            &show::ShowContext {
+                guild_selection: &input.guild_selection,
+                active_guilds: guilds,
+                generic,
+                trigger_config: &input.trigger_config,
+            },
+        );
     }
 
     if let Some(builtin) = BUILTINS.get(parsed.name()) {
@@ -119,6 +143,8 @@ pub struct CommandDispatchInput {
     flags: HashMap<String, bool>,
     vars: HashMap<String, String>,
     monk_skills: MonkSkillsConfig,
+    guild_selection: GuildSelection,
+    trigger_config: TriggerConfig,
 }
 
 impl CommandDispatchInput {
@@ -128,6 +154,8 @@ impl CommandDispatchInput {
         flags: HashMap<String, bool>,
         vars: HashMap<String, String>,
         monk_skills: MonkSkillsConfig,
+        guild_selection: GuildSelection,
+        trigger_config: TriggerConfig,
     ) -> Self {
         Self {
             line: line.to_string(),
@@ -135,6 +163,8 @@ impl CommandDispatchInput {
             flags,
             vars,
             monk_skills,
+            guild_selection,
+            trigger_config,
         }
     }
 }
@@ -331,11 +361,17 @@ fn builtin_clear(_data: &ParsedCommand) -> Vec<CommandEffect> {
     vec![CommandEffect::Redraw]
 }
 
+fn builtin_show(_data: &ParsedCommand) -> Vec<CommandEffect> {
+    Vec::new()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::generic_commands::GenericCommands;
     use crate::guilds::Guild;
+    use crate::guilds::catalog::GuildSelection;
+    use crate::triggers::TriggerConfig;
     use std::collections::HashMap;
 
     struct DummyGuild;
@@ -366,6 +402,8 @@ mod tests {
                 HashMap::new(),
                 HashMap::new(),
                 MonkSkillsConfig::default(),
+                GuildSelection::default(),
+                TriggerConfig::default(),
             ),
             guilds,
             &GenericCommands::default(),
@@ -446,6 +484,7 @@ mod tests {
         assert!(lines.contains(&"/guilds - Opens the guild picker."));
         assert!(lines.contains(&"/generic - Opens generic shortcut groups."));
         assert!(lines.contains(&"/triggers - Toggle built-in trigger groups."));
+        assert!(lines.contains(&"/show - List active shortcuts or line triggers."));
         assert!(lines.contains(&"/settings - Opens the settings editor."));
         assert!(lines.contains(&"/monk - Configure monk skill tracks."));
         assert!(lines.contains(&"/raw_logs - Toggles raw log capture."));
@@ -522,6 +561,39 @@ mod tests {
         let effects = dispatch_line("clw", true, &[]);
 
         assert_eq!(send_effects(&effects), vec!["@cast 'cure light wounds' me"]);
+    }
+
+    #[test]
+    fn dispatch_show_requires_login() {
+        let effects = dispatch_line("/show commands", false, &[]);
+        assert!(effects.is_empty());
+    }
+
+    #[test]
+    fn dispatch_show_monk_lists_shortcuts() {
+        use crate::guilds::MonkGuild;
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(MonkGuild::default())];
+        let effects = dispatch(
+            CommandDispatchInput::new(
+                "/show commands monk",
+                true,
+                HashMap::new(),
+                HashMap::new(),
+                MonkSkillsConfig::default(),
+                GuildSelection::from_persisted_keys(&["monk".to_string()], Some("magical")),
+                TriggerConfig::default(),
+            ),
+            &guilds,
+            &GenericCommands::default(),
+        );
+        let lines: Vec<&str> = effects
+            .iter()
+            .filter_map(|effect| match effect {
+                CommandEffect::Output(line) => Some(line.plain_line.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert!(lines.iter().any(|line| line.contains("kata -")));
     }
 
     #[test]

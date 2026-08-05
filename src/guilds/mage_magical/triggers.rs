@@ -1,10 +1,16 @@
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::MageMagicalGuild;
+use crate::guilds::magic_lore_analysis::magic_lore_analysis_catalog_entries;
 use crate::guilds::magic_lore_analysis::magic_lore_analysis_effect;
 use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 
 impl MageMagicalGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
         vec![Self::mage_magical_trigger]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        magic_lore_analysis_catalog_entries()
     }
 
     pub fn mage_magical_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {

@@ -2,6 +2,7 @@ use crate::abilities;
 use crate::ansi::StyledLine;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::FolkloristGuild;
 use std::collections::HashMap;
 
@@ -27,6 +28,21 @@ impl FolkloristGuild {
             ("cmp".to_string(), Self::cast_minor_protection as Command),
             ("cfp".to_string(), Self::cast_field_of_poison as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("usc", "Use study creature at a required target."),
+            ShortcutEntry::new("uel", "Eye of loraen."),
+            ShortcutEntry::new("upl", "Plant lore."),
+            ShortcutEntry::new("cpb", "Cast poison blast."),
+            ShortcutEntry::new("cvs", "Venom strike."),
+            ShortcutEntry::new("cts", "Cast thorn spray."),
+            ShortcutEntry::new("chb", "Cast herbal poison blast at a required target."),
+            ShortcutEntry::new("chh", "Use herbal healing."),
+            ShortcutEntry::new("cmp", "Cast minor protection."),
+            ShortcutEntry::new("cfp", "Cast field of poison."),
+        ]
     }
 
     pub fn use_study_creature(

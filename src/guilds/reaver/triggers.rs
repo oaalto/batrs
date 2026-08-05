@@ -1,4 +1,5 @@
 use crate::ansi::TextStyle;
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::ReaverGuild;
 use crate::triggers::Trigger;
 use crate::triggers::{LineEffect, TriggerEffects, TriggerFacts, TriggerLine};
@@ -90,6 +91,127 @@ impl ReaverGuild {
             Self::magenta_hilites_trigger,
             Self::green_hilites_trigger,
             Self::red_hilites_trigger,
+        ]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        vec![
+            TriggerCatalogEntry::new(
+                "You make a quick slash across (.+) body with your weapon.",
+                "Highlight blue on scythe swipe.",
+            ),
+            TriggerCatalogEntry::new(
+                "You slash upwards across (.+) torso with great force.",
+                "Highlight blue on rampant cutting hit.",
+            ),
+            TriggerCatalogEntry::new(
+                "...and then strike again with a downwards blow!",
+                "Highlight blue on rampant cutting follow-up.",
+            ),
+            TriggerCatalogEntry::new(
+                "You score a nasty cut on (.+) shoulder.",
+                "Highlight blue on reaver strike.",
+            ),
+            TriggerCatalogEntry::new(
+                "You attack and swing again",
+                "Highlight blue on reaver strike follow-up.",
+            ),
+            TriggerCatalogEntry::new(
+                "You attack and swing a THIRD time",
+                "Highlight blue on reaver strike third swing.",
+            ),
+            TriggerCatalogEntry::new(
+                "(.+) shifts position and you cannot hit the (.+) time.",
+                "Highlight bright red on failed attack timing.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your frenzied attempts to destroy (.+) are easily deflected.",
+                "Highlight bright red on deflected frenzy.",
+            ),
+            TriggerCatalogEntry::new(
+                "You score a \\(?KILLING BLOW\\)? on (.+)!?",
+                "Highlight KILLING BLOW bright red.",
+            ),
+            TriggerCatalogEntry::new(
+                "Can only be used once per 10 minutes.",
+                "Gag threaten cooldown message.",
+            ),
+            TriggerCatalogEntry::new(
+                "You speak the ancient (.+) '(.+)'",
+                "Highlight Ruun name and word bright white.",
+            ),
+            TriggerCatalogEntry::new(
+                "You feel you have released (.+) amount of destructive energy.",
+                "Highlight destructive energy amount cyan.",
+            ),
+            TriggerCatalogEntry::new(
+                "You feel you have released (.+) amounts of destructive energy.",
+                "Highlight destructive energy amount cyan.",
+            ),
+            TriggerCatalogEntry::new(
+                "You cut (.+) arm open with a powerful strike.",
+                "Highlight blue on arm cut.",
+            ),
+            TriggerCatalogEntry::new(
+                "You follow with a third strike to the cheek, coating (.+) face with blood!",
+                "Highlight blue on cheek strike.",
+            ),
+            TriggerCatalogEntry::new(
+                "You attack and immediately hit (.+) stomach, throwing a crimson spray!",
+                "Highlight blue on stomach strike.",
+            ),
+            TriggerCatalogEntry::new(
+                "You FINALLY shove your weapon right through (.+) chest!",
+                "Highlight blue on chest strike.",
+            ),
+            TriggerCatalogEntry::new(
+                "You rake your weapon across (.+)",
+                "Highlight blue on rake strike.",
+            ),
+            TriggerCatalogEntry::new(
+                "You slam your weapon into (.+)",
+                "Highlight blue on slam strike.",
+            ),
+            TriggerCatalogEntry::new(
+                "You feel the power slip from (.+).",
+                "Highlight bright magenta on power slip.",
+            ),
+            TriggerCatalogEntry::new(
+                "You see (.+) revert to its normal shape.",
+                "Highlight bright magenta on shape revert.",
+            ),
+            TriggerCatalogEntry::new(
+                "(.+) has been blighted!",
+                "Highlight green on blight success.",
+            ),
+            TriggerCatalogEntry::new(
+                "Targets of race (.+) are added to your list.",
+                "Highlight green on race target added.",
+            ),
+            TriggerCatalogEntry::new(
+                "Targets of type (.+) are added to your list.",
+                "Highlight green on type target added.",
+            ),
+            TriggerCatalogEntry::new(
+                "Weapon type (.+) added to your list.",
+                "Highlight green on weapon type added.",
+            ),
+            TriggerCatalogEntry::new(
+                "Clothing type (.+) added to your list.",
+                "Highlight green on clothing type added.",
+            ),
+            TriggerCatalogEntry::new(
+                "The (.+) is destroyed in a mass of sparks!",
+                "Highlight green on item destroyed.",
+            ),
+            TriggerCatalogEntry::new(
+                "The (.+) is smashed into a million pieces!",
+                "Highlight green on item smashed.",
+            ),
+            TriggerCatalogEntry::new(
+                "You strike at (.+) but do no significant damage.",
+                "Highlight red on insignificant strike.",
+            ),
         ]
     }
 

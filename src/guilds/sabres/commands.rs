@@ -3,6 +3,7 @@ use crate::abilities::use_skill;
 use crate::ansi::StyledLine;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::SabresGuild;
 use crate::guilds::sabres::SABRE_WEAPON_VAR;
 use std::collections::HashMap;
@@ -18,6 +19,15 @@ impl SabresGuild {
             ("ug".to_string(), Self::use_gloveknock as Command),
             ("wsw".to_string(), Self::wield_sabre_weapon as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("ul", "Use lounging."),
+            ShortcutEntry::new("usf", "Use sabre fence."),
+            ShortcutEntry::new("ug", "Use gloveknock."),
+            ShortcutEntry::new("wsw", "Wield configured sabre weapon."),
+        ]
     }
 
     fn sabre_weapon_trimmed(ctx: &command::CommandEnvironment) -> Option<&str> {

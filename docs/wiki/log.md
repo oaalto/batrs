@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-08-05] update | `/show` command
+
+- Updated: [Command Dispatch](concepts/command-dispatch.md), `CONTEXT.md`, `docs/manual/commands.md`
+- Sources: `src/command/show.rs`, `src/command/catalog.rs`, `src/guilds/*/commands.rs`, `src/guilds/*/triggers.rs`
+- Notes: login-gated `/show commands|triggers [guild|generic]`; introspection metadata co-located with guild registrations.
+
 ## [2026-08-05] update | Monk skill tracks and `/monk` dialog
 
 - Created: [Monk Skill Tracks](concepts/monk-skill-tracks.md)

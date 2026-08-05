@@ -2,6 +2,7 @@ use crate::abilities;
 use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::CurateGuild;
 use std::collections::HashMap;
 
@@ -13,6 +14,18 @@ impl CurateGuild {
             ("cmcan".to_string(), Self::cast_mobile_cannon as Command),
             ("dmed".to_string(), Self::use_dark_meditation as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("ch", "Cast hemorrhage."),
+            ShortcutEntry::new("ca", "Cast aneurysm."),
+            ShortcutEntry::new("cmcan", "Cast mobile cannon."),
+            ShortcutEntry::new(
+                "dmed",
+                "Use dark meditation (sacrifice hp, sp, or endurance).",
+            ),
+        ]
     }
 
     pub fn cast_hemorrhage(

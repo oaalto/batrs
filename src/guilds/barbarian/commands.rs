@@ -1,12 +1,20 @@
 use crate::abilities;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::BarbarianGuild;
 use std::collections::HashMap;
 
 impl BarbarianGuild {
     pub fn get_commands(&self) -> HashMap<String, Command> {
         HashMap::from([("barb_rip".to_string(), Self::barb_rip as Command)])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![ShortcutEntry::new(
+            "barb_rip",
+            "Rip macro: loot corpse, barbburn, drop junk.",
+        )]
     }
 
     pub fn barb_rip(

@@ -2,6 +2,7 @@ use crate::abilities;
 use crate::abilities::{cast_spell, use_skill};
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::MageGuild;
 use std::collections::HashMap;
 
@@ -57,6 +58,42 @@ impl MageGuild {
             ("cww".to_string(), Self::cast_water_walking as Command),
             ("cwor".to_string(), Self::cast_word_of_recall as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("cere", "Use ceremony."),
+            ShortcutEntry::new("ucs", "Use create staff."),
+            ShortcutEntry::new("cad", "Cast aura detection."),
+            ShortcutEntry::new("cct", "Cast chill touch."),
+            ShortcutEntry::new("ccf", "Cast create food."),
+            ShortcutEntry::new("cd", "Cast darkness."),
+            ShortcutEntry::new("cdi", "Cast disruption."),
+            ShortcutEntry::new("cfa", "Cast flame arrow."),
+            ShortcutEntry::new("cfab", "Cast force absorption."),
+            ShortcutEntry::new("cf", "Cast floating."),
+            ShortcutEntry::new("cfl", "Cast floating letters."),
+            ShortcutEntry::new("ch", "Cast heal self."),
+            ShortcutEntry::new("chf", "Heal self (repeat)."),
+            ShortcutEntry::new("ci", "Cast identify on self or a target."),
+            ShortcutEntry::new("cinv", "Cast invisibility."),
+            ShortcutEntry::new("cl", "Cast light."),
+            ShortcutEntry::new("cmm", "Cast magic missile."),
+            ShortcutEntry::new("cmb", "Cast mana barrier."),
+            ShortcutEntry::new("cmi", "Cast mirror image on self or a target."),
+            ShortcutEntry::new("cms", "Cast moon sense."),
+            ShortcutEntry::new("cpb", "Cast prismatic burst."),
+            ShortcutEntry::new("cr", "Cast relocate."),
+            ShortcutEntry::new("csi", "Cast see invisible."),
+            ShortcutEntry::new("csm", "Cast see magic."),
+            ShortcutEntry::new("csg", "Cast shocking grasp."),
+            ShortcutEntry::new("ctwe", "Cast teleport with error."),
+            ShortcutEntry::new("ctw", "Cast teleport without error."),
+            ShortcutEntry::new("cts", "Cast thorn spray."),
+            ShortcutEntry::new("cv", "Cast vacuumbolt."),
+            ShortcutEntry::new("cww", "Cast water walking."),
+            ShortcutEntry::new("cwor", "Cast word of recall."),
+        ]
     }
 
     pub fn use_ceremony(

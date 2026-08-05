@@ -1,6 +1,7 @@
 //! Sect cultivation and mantra lines shared by Tiger and Monk.
 
 use crate::ansi::TextStyle;
+use crate::command::TriggerCatalogEntry;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
@@ -15,6 +16,23 @@ static RECITE_WITHOUT_CULTIVATION: LazyLock<Regex> = LazyLock::new(|| {
     )
     .unwrap()
 });
+
+pub fn sect_cultivation_catalog_entries() -> Vec<TriggerCatalogEntry> {
+    vec![
+        TriggerCatalogEntry::new(
+            r"^You have finished cultivating (.+)\.$",
+            "Highlight green when cultivation finishes.",
+        ),
+        TriggerCatalogEntry::new(
+            r"^Your mantra of (.+) is no longer active\.$",
+            "Highlight yellow when a mantra expires.",
+        ),
+        TriggerCatalogEntry::new(
+            r"^You decide not to recite the (.+) as you are not actively cultivating anything\.$",
+            "Highlight red when reciting without active cultivation.",
+        ),
+    ]
+}
 
 pub fn sect_cultivation_hilite_trigger(
     line: &TriggerLine<'_>,

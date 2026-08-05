@@ -1,5 +1,6 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::RiftwalkerGuild;
 use crate::guilds::riftwalker::{
     AIR_SKILL, EARTH_SKILL, ENTITY_LABEL_AIR, ENTITY_LABEL_EARTH, ENTITY_LABEL_FIRE,
@@ -22,6 +23,100 @@ static RIFTWALKER_BATTLE_LABEL: LazyLock<Regex> =
 impl RiftwalkerGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
         vec![Self::primary_trigger]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        vec![
+            TriggerCatalogEntry::new(
+                r"(?i)^--=\s+(.+?)\s+HP:([0-9]+)\(([^)]+)\)(?:\s+(\[[^\]]*\]))?(?:\s+(\[[^\]]*\]))?(?:\s+(\[[^\]]*\]))?",
+                "Gag battle-listen HP line and update entity secondary status.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(?i)^--=\s+(.+?)\s+=--\s*$",
+                "Gag battle-listen label line and merge entity label.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(?i)^Your\s+(?:<entity>)\s+begins to warp, seeming to become unstable\. It folds in on itself and vanishes!$",
+                "Clear entity status and has-entity flag on entity loss.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(?i)^Your soul cries out in anguish as your faithful companion is slain!$",
+                "Clear entity status and has-entity flag on entity loss.",
+            ),
+            TriggerCatalogEntry::new(
+                "crumpled piece of paper flies through the air",
+                "Send keep paper and highlight green.",
+            ),
+            TriggerCatalogEntry::new(
+                "A dazzling spark races along the stream of green light between you",
+                "Send keep spark collection macro.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(?i)^.+\s+(?:fire|air|water|earth)\s+<entity>\s+.+with power \[yours\]$",
+                "Sync entity skill, element, and has-entity flag from status line.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(?i)^Your\s+(?:<entity>)\s+is prepared to do the skill\.?$",
+                "Emit entity skill banner and highlight bright blue.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(?i)^Your\s+(?:<entity>)\s+loses its concentration and cannot do the skill\.$",
+                "Emit skill-down notice for current entity skill.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your air <entity> falters and its wispy tendrils fall to its sides.",
+                "Emit SUFFOCATING EMBRACE IS DOWN notice when air skill active.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your earth <entity> hunches down looking much less solid than a second ago.",
+                "Emit EARTHEN COVER IS DOWN notice when earth skill active.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your water <entity> stops glowing and its skin becomes still.",
+                "Emit SUBJUGATING BACKWASH IS DOWN notice when water skill active.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^(?:Fire|Air|Water|Earth)\s+<entity>\s+hits .+ (once|twice|thrice) .+\.$",
+                "Highlight green on entity hit count.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^(?:Fire|Air|Water|Earth)\s+<entity> is stunned\.$",
+                "Highlight red when entity is stunned.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^Your (.+)\s+(?:<entity>)\s+does some strange combat maneuver but doesn't hit anything\.$",
+                "Highlight bright red on entity miss.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(?i)^(?:A|An)\s+(.+)\s+(air|fire|water|earth)\s+<entity>\s+(.+?)\s+with power \[yours\]$",
+                "Highlight summon line by element color.",
+            ),
+            TriggerCatalogEntry::new("Entity sense:", "Highlight Entity sense label bright blue."),
+            TriggerCatalogEntry::new(
+                r"(?i)^Air\s+<entity>\s+embraces .+ with its wispy tendrils\.$",
+                "Highlight bright blue on air embrace.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(?i)^A wave of blue light bursts forth from your\s+(?:<entity>)\s+and hits you in the chest\.$",
+                "Highlight bright blue on backwash self-hit.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(?i)^Water\s+<entity>\s+starts to glow,.+shore\.$",
+                "Highlight bright blue on water glow.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(?i)^.+\s+(?:<entity>)\s+starts concentrating on a new offensive skill\.$",
+                "Highlight bright white on new offensive skill.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(?i)^You manage to regain control of your\s+(?:<entity>)\s+before the connection is completely broken!$",
+                "Highlight green on regained entity control.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(?i)^(?:A|An)\s+(?P<pre>.+)\s+(?P<nn>(?:<entity>))\s+(?P<aur>glowing|shimmering|gleaming|sizzling|sparkling|glittering|radiating|throbbing|pulsating|blazing)\s+with power \[yours\]$",
+                "Highlight aura word on summon line by aura type.",
+            ),
+        ]
     }
 
     pub fn primary_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {

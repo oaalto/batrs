@@ -1,4 +1,5 @@
 use crate::ansi::TextStyle;
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::TigerGuild;
 use crate::guilds::sects_triggers;
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
@@ -26,6 +27,33 @@ impl TigerGuild {
             Self::green_hilites_trigger,
             sects_triggers::sect_cultivation_hilite_trigger,
         ]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        let mut entries = vec![
+            TriggerCatalogEntry::new(
+                r"(.+) manages to resist your claws!",
+                "Highlight bright red when claws are resisted.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^Your fists are no longer surrounded by Curath's black flames\.$",
+                "Highlight bright red when black flames end.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You do a complex attack maneuver but miss\.$",
+                "Highlight bright red on missed maneuver.",
+            ),
+            TriggerCatalogEntry::new(
+                r"As (.+) drops to (.+) knees you leap in for the kill!",
+                "Highlight green on leap-for-kill setup.",
+            ),
+            TriggerCatalogEntry::new(
+                r"You manage to stun (.+)\.$",
+                "Highlight green on stun success.",
+            ),
+        ];
+        entries.extend(sects_triggers::sect_cultivation_catalog_entries());
+        entries
     }
 
     pub fn red_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {

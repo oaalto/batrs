@@ -3,6 +3,7 @@ use crate::abilities::{cast_spell, use_skill};
 use crate::ansi::StyledLine;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::AelenaGuild;
 use std::collections::HashMap;
 
@@ -43,6 +44,35 @@ impl AelenaGuild {
             ),
             ("rip_eye".to_string(), Self::rip_harvest_eye as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("csa", "Cast sting of aelena."),
+            ShortcutEntry::new("csd", "Apply slow death poison then cast sting of aelena."),
+            ShortcutEntry::new(
+                "crb",
+                "Apply rusted blade poison then cast sting of aelena.",
+            ),
+            ShortcutEntry::new(
+                "cbt",
+                "Apply black trance poison then cast sting of aelena.",
+            ),
+            ShortcutEntry::new("cb", "Cast bite of the black widow."),
+            ShortcutEntry::new("ccb", "Cast command blade."),
+            ShortcutEntry::new("uw", "Use wound."),
+            ShortcutEntry::new("ut", "Use thrust."),
+            ShortcutEntry::new("ud", "Use dissection."),
+            ShortcutEntry::new("fc", "Familiar consume."),
+            ShortcutEntry::new("fssd", "Store slow death poison in familiar."),
+            ShortcutEntry::new("fsrb", "Store rusted blade poison in familiar."),
+            ShortcutEntry::new("fsbt", "Store black trance poison in familiar."),
+            ShortcutEntry::new("rip_consume", "Rip consume rip macro."),
+            ShortcutEntry::new("rip_dissect", "Rip dissect rip macro."),
+            ShortcutEntry::new("rip_lung", "Rip harvest lung rip macro."),
+            ShortcutEntry::new("rip_spleen", "Rip harvest spleen from corpse."),
+            ShortcutEntry::new("rip_eye", "Rip harvest eye rip macro."),
+        ]
     }
 
     pub fn cast_sting_of_aelena(

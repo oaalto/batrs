@@ -3,6 +3,7 @@ use crate::abilities::{cast_spell, use_skill};
 use crate::ansi::StyledLine;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::TigerGuild;
 use crate::guilds::tzarakk::MOUNT_SUMMONED_FLAG;
 use std::collections::HashMap;
@@ -18,6 +19,18 @@ impl TigerGuild {
             ("cff".to_string(), Self::cast_flame_fists as Command),
             ("usn".to_string(), Self::use_sneak as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("ip", "Use iron palm."),
+            ShortcutEntry::new("dm", "Dim mak."),
+            ShortcutEntry::new("med", "Dismount first if mounted, then use meditation."),
+            ShortcutEntry::new("upl", "Pick locks."),
+            ShortcutEntry::new("tc", "Cast tiger claw."),
+            ShortcutEntry::new("cff", "Cast flame fists."),
+            ShortcutEntry::new("usn", "Use sneak."),
+        ]
     }
 
     pub fn use_iron_palm(

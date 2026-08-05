@@ -48,6 +48,13 @@ enum MatchData<'a> {
 }
 
 impl RuleMatcher {
+    pub(crate) fn pattern_display(&self) -> String {
+        match self {
+            RuleMatcher::Simple(pattern) => (*pattern).to_string(),
+            RuleMatcher::Regex(regex) => regex.as_str().to_string(),
+        }
+    }
+
     fn match_line<'a>(&self, line: &'a str) -> Option<MatchData<'a>> {
         match self {
             RuleMatcher::Simple(pattern) => {
@@ -96,6 +103,32 @@ impl Rule {
             apply_rule_action(action, match_data, output);
         }
     }
+}
+
+pub(crate) fn describe_rule_actions(actions: &[RuleAction]) -> String {
+    let mut parts = Vec::new();
+    for action in actions {
+        match action {
+            RuleAction::Hilite { .. } => parts.push("Highlight line"),
+            RuleAction::MoneySummary { .. } => parts.push("Show money summary"),
+            RuleAction::Echo { text, .. } => parts.push(*text),
+            RuleAction::Send(template) => parts.push(template),
+        }
+    }
+    parts.dedup();
+    parts.join("; ")
+}
+
+pub(crate) fn rule_catalog_entries(rules: &[Rule]) -> Vec<crate::command::TriggerCatalogEntry> {
+    rules
+        .iter()
+        .map(|rule| {
+            crate::command::TriggerCatalogEntry::new(
+                rule.matcher.pattern_display(),
+                describe_rule_actions(&rule.actions),
+            )
+        })
+        .collect()
 }
 
 pub(crate) fn apply_rules<'a>(

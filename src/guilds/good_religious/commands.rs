@@ -1,6 +1,7 @@
 use crate::abilities::{cast_quoted_with_suffix, cast_spell};
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::GoodReligiousGuild;
 use std::collections::HashMap;
 
@@ -16,6 +17,16 @@ impl GoodReligiousGuild {
             ),
             ("ccf".to_string(), Self::cast_create_food as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("ccs", "Cast celestial spark."),
+            ShortcutEntry::new("clw", "Cast cure light wounds on me or a target."),
+            ShortcutEntry::new("csw", "Cast cure serious wounds on me or a target."),
+            ShortcutEntry::new("ccw", "Cast cure critical wounds on me or a target."),
+            ShortcutEntry::new("ccf", "Cast create food."),
+        ]
     }
 
     fn cast_celestial_spark(
@@ -168,6 +179,8 @@ mod tests {
                 HashMap::new(),
                 HashMap::new(),
                 crate::guilds::MonkSkillsConfig::default(),
+                crate::guilds::catalog::GuildSelection::default(),
+                crate::triggers::TriggerConfig::default(),
             ),
             guilds,
             &GenericCommands::default(),

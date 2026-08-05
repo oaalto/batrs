@@ -1,6 +1,7 @@
 use crate::abilities;
 use crate::ansi::TextStyle;
 use crate::automation::Action;
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::sabres::{SABRE_WEAPON_VAR, SabresGuild};
 use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
 use regex::Regex;
@@ -37,6 +38,53 @@ impl SabresGuild {
             Self::proficiency_blue_trigger,
             Self::gloveknock_wield_trigger,
             Self::green_wield_trigger,
+        ]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        vec![
+            TriggerCatalogEntry::new(
+                BATTLE_CADENCE,
+                "Highlight blue on battle cadence extra attack.",
+            ),
+            TriggerCatalogEntry::new(
+                LOUNGING_YELLOW,
+                "Highlight bright yellow when lounging mood returns.",
+            ),
+            TriggerCatalogEntry::new(
+                LOUNGING_GREEN,
+                "Highlight bright green when lounging finishes.",
+            ),
+            TriggerCatalogEntry::new(FUMBLING_LINE, "Highlight bright red while fumbling weapon."),
+            TriggerCatalogEntry::new(FENCE_RED_HILITE[0], "Highlight bright red on fencing miss."),
+            TriggerCatalogEntry::new(
+                FENCE_RED_HILITE[1],
+                "Highlight bright red on failed weapon grab.",
+            ),
+            TriggerCatalogEntry::new(
+                FENCE_GREEN_HILITE[0],
+                "Highlight bright green on faster technique.",
+            ),
+            TriggerCatalogEntry::new(
+                "You feel more proficient in",
+                "Highlight blue prefix on proficiency gain.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You swing your arm and hit (.+) straight on the nose, bloodying it bad!$",
+                "Rewield configured sabre after gloveknock hit.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You slam (.+) on the jaw very hard making (.+) cry out in pain!$",
+                "Rewield configured sabre after gloveknock hit.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^With a swift and precise punch you strike (.+) on his face,$",
+                "Rewield configured sabre after gloveknock hit.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^You wield (.+) in your right (.+)\.$",
+                "Highlight green on wield success.",
+            ),
         ]
     }
 

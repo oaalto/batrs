@@ -2,6 +2,7 @@ use crate::abilities;
 use crate::abilities::use_skill;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::NergalGuild;
 use std::collections::HashMap;
 
@@ -26,6 +27,25 @@ impl NergalGuild {
             ("udh".to_string(), Self::use_dreary_hibernation),
             ("us".to_string(), Self::use_stab),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("cere", "Use ceremony."),
+            ShortcutEntry::new("cep", "Cast enthralling parasite."),
+            ShortcutEntry::new("chv", "Cast harvest vitae."),
+            ShortcutEntry::new("ccg", "Cast corrupt ground."),
+            ShortcutEntry::new("ceh", "Cast evaluate host."),
+            ShortcutEntry::new("crp", "Cast reap potentia."),
+            ShortcutEntry::new("cps", "Cast parasitic swarm."),
+            ShortcutEntry::new("cee", "Cast end enthrallment."),
+            ShortcutEntry::new("cne", "Cast nourish enthralled."),
+            ShortcutEntry::new("cce", "Cast call forth enthralled."),
+            ShortcutEntry::new("aura", "Use embrace the gifts (aura)."),
+            ShortcutEntry::new("mutation", "Use embrace the gifts (mutation)."),
+            ShortcutEntry::new("udh", "Use dreary hibernation."),
+            ShortcutEntry::new("us", "Use stab at a required target."),
+        ]
     }
 
     fn use_ceremony(

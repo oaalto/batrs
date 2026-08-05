@@ -13,6 +13,10 @@ impl Guild for RangerGuild {
         self.get_commands()
     }
 
+    fn shortcut_catalog(&self) -> Vec<crate::command::ShortcutEntry> {
+        self.get_shortcut_catalog()
+    }
+
     fn triggers(&self) -> Vec<Trigger> {
         Vec::new()
     }

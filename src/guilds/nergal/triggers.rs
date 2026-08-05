@@ -1,5 +1,6 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::NergalGuild;
 use crate::secondary_status::{NergalMinion, NergalResourceStatus, SecondaryStatusEffect};
 use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
@@ -9,6 +10,86 @@ use std::sync::LazyLock;
 impl NergalGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
         vec![Self::nergal_trigger]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        vec![
+            TriggerCatalogEntry::new(
+                r"^::\.\.:\. (.+) \[Hp: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*, Sp: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*, Ep: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*\]$",
+                "Gag line and upsert Nergal minion secondary status.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^::\.\.:\. \[Vitae: ([0-9]+)/([0-9]+)  Potentia: ([0-9]+)/([0-9]+), Evolution points: ([0-9]+)\]$",
+                "Gag line and update Nergal resource secondary status.",
+            ),
+            TriggerCatalogEntry::new(
+                r"Your connection to your parasite is severed completely\. .+ jerks violently couple of times and collapses",
+                "Clear Nergal minions on unsummon.",
+            ),
+            TriggerCatalogEntry::new(
+                r"You end the connection to your parasite, making the host jerk couple of times violently\. After couple of seconds .+ collapses and stops moving at all",
+                "Clear Nergal minions on unsummon.",
+            ),
+            TriggerCatalogEntry::new(
+                r"You order the parasite to return .+ and lay dormant there until you have use for it again\.",
+                "Clear Nergal minions on unsummon.",
+            ),
+            TriggerCatalogEntry::new(
+                r"You 'release' the host from the parasites influence\. The host jerks violently couple of times",
+                "Clear Nergal minions on unsummon.",
+            ),
+            TriggerCatalogEntry::new("DEAD, R.I.P.", "Send nergal score alias on death line."),
+            TriggerCatalogEntry::new("Potentia: 1000/1000", "Echo green POTENTIA IS FULL notice."),
+            TriggerCatalogEntry::new(
+                "Your body can't handle any more of potentia!",
+                "Echo red POTENTIA IS FULL notice and highlight red.",
+            ),
+            TriggerCatalogEntry::new("Vitae: 1000/1000", "Echo green VITAE IS FULL notice."),
+            TriggerCatalogEntry::new(
+                "Your body can't handle any more of vitae!",
+                "Echo red VITAE IS FULL notice and highlight red.",
+            ),
+            TriggerCatalogEntry::new(
+                "looks a lot less in pain as colonies start to disappear",
+                "Highlight cyan on colony fade.",
+            ),
+            TriggerCatalogEntry::new(
+                r"You feel you harvest (.+) amount of vitae\.\.",
+                "Highlight cyan on vitae harvest.",
+            ),
+            TriggerCatalogEntry::new(
+                r"You feel you harvest (.+) amount of potentia\.\.",
+                "Highlight cyan on potentia harvest.",
+            ),
+            TriggerCatalogEntry::new(
+                "You feel your insight of evolution expanding",
+                "Highlight cyan on evolution insight.",
+            ),
+            TriggerCatalogEntry::new(
+                "You hear deep inside your head the parasite whispers more secrets of",
+                "Highlight green on parasite whisper.",
+            ),
+            TriggerCatalogEntry::new(
+                "You hear deep inside your head the parasite whispering to you secrets of",
+                "Highlight green on parasite whisper.",
+            ),
+            TriggerCatalogEntry::new(
+                "looks relieved as the aether line fades away",
+                "Highlight blue on aether line fade.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(.*) manages to scratch (.*) skin infecting the tissue under the skin with nasty disease",
+                "Highlight green on aura scratch.",
+            ),
+            TriggerCatalogEntry::new(
+                r"(.*) plunges towards (.*) and manages to sink its disease infecting nails into (.*) flesh!",
+                "Highlight green on aura plunge.",
+            ),
+            TriggerCatalogEntry::new(
+                r"You can feel essence flowing into you from (.*) as (.*) sinks its nails into its victim!",
+                "Highlight green on aura essence flow.",
+            ),
+        ]
     }
 
     pub fn nergal_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {

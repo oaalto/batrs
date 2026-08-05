@@ -2,6 +2,7 @@ use crate::abilities;
 use crate::ansi::{StyledLine, TextStyle};
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::SpiderGuild;
 use std::collections::HashMap;
 
@@ -25,6 +26,27 @@ impl SpiderGuild {
             ("crmp".to_string(), Self::cast_remove_poison),
             ("us".to_string(), Self::use_stab),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("csw", "Cast spider wrath."),
+            ShortcutEntry::new("chs", "Cast hunger of the spider at a required target."),
+            ShortcutEntry::new("csum", "Cast spider demon conjuration on self or a target."),
+            ShortcutEntry::new("ctrl", "Cast spider demon control on self or a target."),
+            ShortcutEntry::new("csac", "Cast spider demon sacrifice."),
+            ShortcutEntry::new("cban", "Cast spider demon banishment on self or a target."),
+            ShortcutEntry::new("cinq", "Cast spider demon inquiry on self or a target."),
+            ShortcutEntry::new("cchan", "Cast spider demon channeling on self or a target."),
+            ShortcutEntry::new("ctd", "Cast toxic dilution on self or a target."),
+            ShortcutEntry::new("cvb", "Cast venom blade at a required target."),
+            ShortcutEntry::new("cswalk", "Cast spider walk on self or a target."),
+            ShortcutEntry::new("chw", "Cast heavy weight on self or a target."),
+            ShortcutEntry::new("cmsac", "Cast spider demon mass sacrifice."),
+            ShortcutEntry::new("cpsq", "Cast prayer to the spider queen."),
+            ShortcutEntry::new("crmp", "Cast remove poison on self or a target."),
+            ShortcutEntry::new("us", "Use stab."),
+        ]
     }
 
     fn cast_spider_wrath(

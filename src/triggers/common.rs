@@ -600,6 +600,15 @@ static RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     rules
 });
 
+pub fn trigger_catalog() -> Vec<crate::command::TriggerCatalogEntry> {
+    let mut entries = crate::triggers::rule_engine::rule_catalog_entries(&RULES);
+    entries.push(crate::command::TriggerCatalogEntry::new(
+        "^<player> hits ...",
+        "Highlight player combat lines (pattern uses configured player name).",
+    ));
+    entries
+}
+
 pub fn trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
     let mut output = TriggerEffects::default();
     if let Some(rig) = facts.rig()

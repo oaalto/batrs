@@ -3,6 +3,7 @@ use crate::abilities::use_skill;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::TzarakkGuild;
 use crate::guilds::tzarakk::MOUNT_SUMMONED_FLAG;
 use std::collections::HashMap;
@@ -29,6 +30,32 @@ impl TzarakkGuild {
             ("heal_mode".to_string(), Self::set_heal_mode as Command),
             ("hunt_mode".to_string(), Self::set_hunt_mode as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("ut", "Use trample."),
+            ShortcutEntry::new("ur", "Use rampage."),
+            ShortcutEntry::new("cs", "Use charge."),
+            ShortcutEntry::new("uht", "Use create hunting trophy at corpse."),
+            ShortcutEntry::new("uhs", "Use harvest soul."),
+            ShortcutEntry::new("cpc", "Cast preserve corpse."),
+            ShortcutEntry::new("cst", "Cast steed of tzarakk."),
+            ShortcutEntry::new("cban", "Cast banish mount."),
+            ShortcutEntry::new("csdb", "Cast summon dire boar."),
+            ShortcutEntry::new("med", "Use meditation."),
+            ShortcutEntry::new("dmed", "Use dark meditation."),
+            ShortcutEntry::new("sleep", "Dismount if needed, then sleep."),
+            ShortcutEntry::new("feed_mode", "Set rip mode to loot and chaosfeed corpse."),
+            ShortcutEntry::new(
+                "heal_mode",
+                "Set rip mode to loot and harvest soul from corpse.",
+            ),
+            ShortcutEntry::new(
+                "hunt_mode",
+                "Set rip mode to loot and chaosfeed corpse (hunt).",
+            ),
+        ]
     }
 
     pub fn use_trample(

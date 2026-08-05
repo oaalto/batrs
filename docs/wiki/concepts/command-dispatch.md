@@ -16,7 +16,8 @@ Command Dispatch interprets a command input line into client effects (send text 
 
 ## Verified Facts
 
-- Implementation: `src/command/mod.rs` — builtin slash commands include `/help`, `/quit`, `/connect`, `/clear`, `/guilds`, `/generic`, `/triggers`, `/settings`, `/raw_logs`.
+- Implementation: `src/command/mod.rs` — builtin slash commands include `/help`, `/quit`, `/connect`, `/clear`, `/guilds`, `/generic`, `/triggers`, `/show`, `/settings`, `/raw_logs`.
+- `/show` (`requires_login: true`): lists active guild/generic shortcuts (`/show commands`) or guild/common line triggers (`/show triggers`); optional filter is a guild `persisted_key` or `generic`; output via `CommandEffect::Output`; handled in `dispatch` with guild selection and trigger config context, not a stateless builtin handler.
 - `/triggers` opens the trigger-group toggle dialog (`requires_login: true`); same discovery and gating pattern as `/generic`. Changes persist to player TOML and apply on the next line after successful save.
 - Clear Command (`/clear`): client-only terminal redraw from in-memory UI state — not an output-buffer wipe; no login gate; never forwarded to BatMUD. Distinct from Session Lifecycle scrollback clear on character change after reconnect.
 - Returns effects for `BatApp` to apply; does not send game input for client-only commands (e.g. `/connect` is never forwarded to BatMUD).

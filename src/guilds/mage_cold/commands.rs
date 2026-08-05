@@ -4,6 +4,7 @@ use crate::abilities;
 use crate::abilities::cast_spell;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::MageColdGuild;
 use std::collections::HashMap;
 
@@ -39,6 +40,22 @@ impl MageColdGuild {
                 Self::cast_touch_of_glacial_winds as Command,
             ),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("cht", "Cast chill touch."),
+            ShortcutEntry::new("ccray", "Cast cold ray."),
+            ShortcutEntry::new("ccoc", "Cast cone of cold."),
+            ShortcutEntry::new("cfrostw", "Cast create frost weapon."),
+            ShortcutEntry::new("cdfire", "Cast darkfire."),
+            ShortcutEntry::new("cfice", "Cast flaming ice."),
+            ShortcutEntry::new("cfins", "Cast frost insulation."),
+            ShortcutEntry::new("cfrshield", "Cast frost shield on self or a target."),
+            ShortcutEntry::new("chail", "Cast hailstorm."),
+            ShortcutEntry::new("cib", "Cast icebolt."),
+            ShortcutEntry::new("ctogw", "Cast touch of glacial winds."),
+        ]
     }
 
     mage_cold_targeted_cast!(cast_chill_touch, "chill touch");

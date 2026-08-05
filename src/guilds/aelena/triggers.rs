@@ -1,6 +1,7 @@
 use crate::abilities;
 use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
+use crate::command::TriggerCatalogEntry;
 use crate::guilds::AelenaGuild;
 use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
 use regex::Regex;
@@ -14,6 +15,55 @@ static WOUNDS_SPILL: LazyLock<Regex> =
 impl AelenaGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
         vec![Self::aelena_trigger]
+    }
+
+    pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
+        vec![
+            TriggerCatalogEntry::new(
+                "and harvests a bloody bodypart 'spleen'.",
+                "Send familiar store slow death on spleen harvest.",
+            ),
+            TriggerCatalogEntry::new(
+                "and harvests a bloody bodypart 'lung'.",
+                "Send familiar store rusted blade on lung harvest.",
+            ),
+            TriggerCatalogEntry::new(
+                "and harvests a bloody bodypart 'eye'.",
+                "Send familiar store black trance on eye harvest.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your Shadow Familiar shrieks as it advances a level!",
+                "Highlight bright green on familiar level-up.",
+            ),
+            TriggerCatalogEntry::new(
+                "The surge of magic backlashes at you, just when you're finishing the spell.",
+                "Highlight bright red on spell backlash.",
+            ),
+            TriggerCatalogEntry::new(
+                "You fail to chant the spell correctly.",
+                "Highlight bright red on failed chant.",
+            ),
+            TriggerCatalogEntry::new(
+                "At the last moment you notice the spell is about to turn at you, and abort the",
+                "Highlight bright red on aborted self-targeting spell.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^Your (.+) is no longer powered by Chaos!$",
+                "Highlight red when chaos power ends.",
+            ),
+            TriggerCatalogEntry::new(
+                r"^(.+)'s wounds spill blood onto the floor\.$",
+                "Highlight green on wounds spilling blood.",
+            ),
+            TriggerCatalogEntry::new(
+                "Your senses sharpen as you fight for you life.",
+                "Highlight green on sharpened senses.",
+            ),
+            TriggerCatalogEntry::new(
+                "The connection between you and your blade fades away.",
+                "Highlight bright red and emit Command Blade down notice.",
+            ),
+        ]
     }
 
     pub fn aelena_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {

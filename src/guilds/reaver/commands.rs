@@ -4,6 +4,7 @@ use crate::ansi::StyledLine;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::ReaverGuild;
 use std::collections::HashMap;
 
@@ -41,6 +42,40 @@ impl ReaverGuild {
             ("cca".to_string(), Self::cast_call_armour as Command),
             ("csd".to_string(), Self::cast_spirit_drain as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("rt", "Send reaver threaten when a target is given."),
+            ShortcutEntry::new("uss", "Use scythe swipe."),
+            ShortcutEntry::new("urc", "Use rampant cutting with optional reaver threaten."),
+            ShortcutEntry::new("urs", "Use reaver strike with optional reaver threaten."),
+            ShortcutEntry::new("ubh", "Use blood harvest with optional reaver threaten."),
+            ShortcutEntry::new("res", "Use reave shield."),
+            ShortcutEntry::new("rew", "Use reave weapon."),
+            ShortcutEntry::new("rea", "Use reave armour."),
+            ShortcutEntry::new("utr", "Use true reaving with optional reaver threaten."),
+            ShortcutEntry::new("ucc", "Use corrosive cut with optional reaver threaten."),
+            ShortcutEntry::new("uccut", "Use corrosive cut (alias of ucc)."),
+            ShortcutEntry::new("ubd", "Use breath of doom with optional reaver threaten."),
+            ShortcutEntry::new("upd", "Use prayer to destruction at a required target."),
+            ShortcutEntry::new("cws", "Cast word of spite."),
+            ShortcutEntry::new("cb", "Cast word of blasting with optional reaver threaten."),
+            ShortcutEntry::new("cwd", "Cast word of destruction."),
+            ShortcutEntry::new("cwa", "Cast word of attrition."),
+            ShortcutEntry::new("cwb", "Cast word of blasting (legacy alias of cb)."),
+            ShortcutEntry::new("cwsl", "Cast word of slaughter."),
+            ShortcutEntry::new("cwg", "Cast word of genocide."),
+            ShortcutEntry::new("csf", "Cast shattered feast."),
+            ShortcutEntry::new("cbh", "Cast black hole."),
+            ShortcutEntry::new("cbs", "Cast blood seeker."),
+            ShortcutEntry::new("crb", "Cast reaping of bile."),
+            ShortcutEntry::new(
+                "cca",
+                "Cast call armour, staging through prayer when needed.",
+            ),
+            ShortcutEntry::new("csd", "Cast spirit drain."),
+        ]
     }
 
     pub fn reaver_threaten_logical(data: &command::Data) -> String {

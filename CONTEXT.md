@@ -88,6 +88,8 @@ The Clear Command has no login gate, is available before and after login, and is
 
 The Clear Command is distinct from Session Lifecycle output scrollback clear on character change after reconnect; a redraw fixes display artifacts without mutating output buffers or session state.
 
+The Show Command is the login-gated client slash command `/show` that lists guild shortcuts, generic shortcuts, or line trigger rules to the output scrollback. It is never sent to BatMUD. Modes are `commands` (guild and generic shortcuts) and `triggers` (guild and common line triggers). An optional filter is a guild catalog `persisted_key` (for example `monk`, `reaver`) or the literal `generic` for generic-only or common-only listings. Distinct from `/help` (client slash builtins) and `/triggers` (trigger group toggle dialog). Shortcut and trigger introspection metadata lives in code tables co-located with guild registrations.
+
 ## Session Lifecycle
 
 Session Lifecycle is the application-owned bounded context for fresh-session transitions triggered by the Connect Command. It owns the reset manifest for session-scoped runtime state, the reconnect-in-progress guard, the active connection generation counter, stale-event filtering for superseded connections, and reconnect orchestration against an injected connection coordinator.

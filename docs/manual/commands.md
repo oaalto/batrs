@@ -7,7 +7,7 @@ While you are **logged in**, the client looks at what you typed **before** sendi
 
 ## Order of handling
 
-1. **Client `/` commands** — `/help`, `/quit`, `/connect`, `/clear`, `/guilds`, `/generic`, `/settings`, `/raw_logs`
+1. **Client `/` commands** — `/help`, `/quit`, `/connect`, `/clear`, `/guilds`, `/generic`, `/settings`, `/raw_logs`, `/show`
 2. **Guild shortcuts** — depend on which guilds you enabled; if two guilds use the same shortcut, the **first** one in your list wins
 3. **Generic shortcuts** — cures, navigator, etc., unless you turned them off in settings
 
@@ -37,8 +37,23 @@ flowchart LR
 | `/clear` | no | Redraws the display from memory (fixes screen artifacts) |
 | `/guilds` | yes | Opens the guild picker |
 | `/generic` | yes | Opens generic shortcut groups |
+| `/show` | yes | Lists active shortcuts or line triggers (see below) |
 | `/settings` | yes | Opens the settings editor |
 | `/raw_logs` | no | Toggles raw log capture |
+
+## `/show` — list shortcuts and triggers
+
+While logged in, `/show` prints discovery text to the client scrollback (not to the game).
+
+| Usage | What it lists |
+|-------|----------------|
+| `/show commands` | Guild shortcuts for active guilds, then generic shortcuts |
+| `/show commands monk` | Shortcuts for one guild (use catalog keys: `monk`, `reaver`, `triad`, `mage_fire`, …) |
+| `/show commands generic` | Generic shortcuts only |
+| `/show triggers` | Guild line triggers for active guilds, then common triggers |
+| `/show triggers generic` | Common triggers only |
+
+Guild filter uses the same `persisted_key` names as `/guilds` and player TOML. When listing all guilds, an asterisk (`*`) marks the shortcut that wins when two guilds share an alias. Trigger group toggles from `/triggers` are noted in section headers but rules are still listed.
 
 ## Generic shortcut groups
 

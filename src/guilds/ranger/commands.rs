@@ -2,6 +2,7 @@ use crate::abilities;
 use crate::ansi::StyledLine;
 use crate::command;
 use crate::command::Command;
+use crate::command::ShortcutEntry;
 use crate::guilds::RangerGuild;
 use std::collections::HashMap;
 
@@ -12,6 +13,14 @@ impl RangerGuild {
             ("cs".to_string(), Self::start_combat as Command),
             ("utc".to_string(), Self::use_torch_creation as Command),
         ])
+    }
+
+    pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
+        vec![
+            ShortcutEntry::new("ubf", "Use bladed fury."),
+            ShortcutEntry::new("cs", "Open fight: target, bladed fury, then @k."),
+            ShortcutEntry::new("utc", "Use torch creation."),
+        ]
     }
 
     pub fn use_bladed_fury(
