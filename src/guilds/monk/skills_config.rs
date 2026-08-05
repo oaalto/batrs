@@ -190,6 +190,20 @@ impl MonkSkillsConfig {
         self.slot_enabled(track, slot)
     }
 
+    /// Skill to set after a combat result for `slot`. Wraps to the first enabled
+    /// slot when the result targets a disabled later chain slot.
+    pub fn rotation_skill_for_result_slot(
+        &self,
+        track: MonkSkillTrack,
+        slot: u8,
+    ) -> Option<&'static str> {
+        if self.slot_enabled(track, slot) {
+            Self::skill_name(track, slot)
+        } else {
+            self.first_enabled_skill_name(track)
+        }
+    }
+
     pub fn is_var_value_enabled(&self, var: &str, value: &str) -> bool {
         let Some(track) = Self::track_for_var(var) else {
             return true;
@@ -281,5 +295,15 @@ mod tests {
             .clamp_var_value(CURRENT_DISRUPT_SKILL_VAR, DISRUPT_SKILL_3)
             .unwrap();
         assert_eq!(clamped, DISRUPT_SKILL_1);
+    }
+
+    #[test]
+    fn rotation_skill_wraps_when_result_slot_disabled() {
+        let mut config = MonkSkillsConfig::default();
+        config.disrupt.set_slot(3, false);
+        assert_eq!(
+            config.rotation_skill_for_result_slot(MonkSkillTrack::Disrupt, 3),
+            Some(DISRUPT_SKILL_1)
+        );
     }
 }

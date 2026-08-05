@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-08-05] update | Monk chain rotation wrap
+
+- Updated: [Monk Skill Tracks](concepts/monk-skill-tracks.md)
+- Sources: `src/guilds/monk/triggers.rs`, `src/guilds/monk/skills_config.rs`
+- Notes: two-slot chains now wrap rotation to the first enabled skill after a full success on the last enabled slot (was skipping `SetVar` when the next slot was disabled).
+
 ## [2026-08-05] update | `/show` command
 
 - Updated: [Command Dispatch](concepts/command-dispatch.md), `CONTEXT.md`, `docs/manual/commands.md`

@@ -137,13 +137,16 @@ impl MonkGuild {
             if let Some(style) = rule.color {
                 output = output.style_line(style);
             }
-            if let Some((key, value, slot)) = rule.set_var {
-                let track = MonkSkillsConfig::track_for_var(key);
-                if track.is_some_and(|track| config.is_slot_skill_enabled(track, slot)) {
-                    output
-                        .actions
-                        .push(Action::SetVar(key.to_string(), value.to_string()));
-                }
+            if let Some((key, _value, slot)) = rule.set_var {
+                let Some(track) = MonkSkillsConfig::track_for_var(key) else {
+                    continue;
+                };
+                let Some(skill) = config.rotation_skill_for_result_slot(track, slot) else {
+                    continue;
+                };
+                output
+                    .actions
+                    .push(Action::SetVar(key.to_string(), skill.to_string()));
             }
         }
 
@@ -503,9 +506,9 @@ fn describe_monk_rule(rule: &MonkRule) -> String {
     if let Some(style) = rule.color {
         parts.push(format!("Highlight line {style:?}."));
     }
-    if let Some((key, value, slot)) = rule.set_var {
+    if let Some((key, _value, slot)) = rule.set_var {
         parts.push(format!(
-            "Update {key} to {value:?} when slot {slot} is enabled."
+            "Update {key} to slot {slot} skill (wrap to first enabled when slot disabled)."
         ));
     }
     if parts.is_empty() {
@@ -534,8 +537,21 @@ mod tests {
     }
 
     fn run_skill(line_text: &str) -> (TriggerEffects, StyledLine) {
-        let output =
-            MonkGuild::skill_result_trigger(&TriggerLine::new(line_text), &TriggerFacts::default());
+        run_skill_with_config(line_text, &MonkSkillsConfig::default())
+    }
+
+    fn run_skill_with_config(
+        line_text: &str,
+        config: &MonkSkillsConfig,
+    ) -> (TriggerEffects, StyledLine) {
+        let facts = TriggerFacts::new(
+            std::collections::HashMap::new(),
+            std::collections::HashMap::new(),
+            None,
+            None,
+            config.clone(),
+        );
+        let output = MonkGuild::skill_result_trigger(&TriggerLine::new(line_text), &facts);
         let mut line = StyledLine::new(line_text);
         output.apply_line_effects_to(&mut line);
         (output, line)
@@ -640,6 +656,23 @@ mod tests {
         assert!(matches!(
             &output.actions[0],
             Action::SetVar(key, value) if key == CURRENT_AVOID_SKILL_VAR && value == AVOID_SKILL_2
+        ));
+    }
+
+    #[test]
+    fn two_slot_chain_wraps_to_first_skill_after_last_success() {
+        let mut config = MonkSkillsConfig::default();
+        config.disrupt.set_slot(3, false);
+
+        let (output, _) = run_skill_with_config(
+            "You land a single kick in the middle of orc's chest, backflip, and land on your feet.",
+            &config,
+        );
+
+        assert!(matches!(
+            &output.actions[0],
+            Action::SetVar(key, value)
+                if key == CURRENT_DISRUPT_SKILL_VAR && value == DISRUPT_SKILL_1
         ));
     }
 }
