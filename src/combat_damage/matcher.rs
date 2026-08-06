@@ -271,10 +271,33 @@ mod tests {
         );
     }
 
+    fn hit_messages_catalog_counts(content: &str) -> (usize, usize) {
+        let family_count = content
+            .lines()
+            .filter(|line| {
+                let line = line.trim();
+                line.starts_with('#') && line.contains('(') && line.contains(')')
+            })
+            .count();
+        let verb_count = content
+            .lines()
+            .filter(|line| {
+                let line = line.trim();
+                let Some((num, verb)) = line.split_once(':') else {
+                    return false;
+                };
+                num.trim().parse::<u32>().is_ok() && !verb.trim().is_empty()
+            })
+            .count();
+        (family_count, verb_count)
+    }
+
     #[test]
-    fn catalog_has_eleven_families_and_two_hundred_eighty_six_verbs() {
-        assert_eq!(FAMILY_IDS.len(), 11);
-        assert_eq!(CATALOG.len(), 286);
+    fn catalog_matches_hit_messages_md() {
+        let content = include_str!("../../docs/hit_messages.md");
+        let (family_count, verb_count) = hit_messages_catalog_counts(content);
+        assert_eq!(FAMILY_IDS.len(), family_count);
+        assert_eq!(CATALOG.len(), verb_count);
     }
 
     #[test]

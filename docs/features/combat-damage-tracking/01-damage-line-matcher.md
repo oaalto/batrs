@@ -35,7 +35,7 @@ done
 - [x] Conjugation: `+s`, `+es`, multi-word, ALL-CAPS.
 - [x] Inline examples: Holy-man fight lines, kick variants, spell hit lines.
 - [x] Edge: longest-match (`heavily bash` vs `bash`), push skill vs monk melee, case-insensitive.
-- [ ] When `hit_messages.md` changes, catalog count test must still pass (add if missing).
+- [x] When `hit_messages.md` changes, catalog count test must still pass (add if missing).
 
 ## Testing seam
 
