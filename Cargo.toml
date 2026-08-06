@@ -3,6 +3,7 @@ name = "batrs"
 version = "0.1.0"
 edition = "2024"
 authors = ["Olli Aalto <oaalto@gmail.com>"]
+build = "build.rs"
 
 [dependencies]
 libmudtelnet = "2.0"
