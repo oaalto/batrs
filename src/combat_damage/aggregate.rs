@@ -352,16 +352,6 @@ fn estimated_contributions(rows: &[RawEventRow]) -> Vec<EstimatedContribution> {
     let known_mins = known_mins_from_isolated(rows);
     let mut contributions = Vec::new();
 
-    for row in rows.iter().filter(|row| row.candidate_count == 1) {
-        contributions.push(EstimatedContribution {
-            verb: row.message_verb.clone(),
-            min: row.hp_delta,
-            max: row.hp_delta,
-            loose: false,
-            point_estimate: f64::from(row.hp_delta),
-        });
-    }
-
     let mut batches: HashMap<i64, Vec<&RawEventRow>> = HashMap::new();
     for row in rows.iter().filter(|row| row.candidate_count > 1) {
         batches.entry(row.batch_id).or_default().push(row);
@@ -599,6 +589,34 @@ fn sort_events(events: &mut [DamageEvent], sort_col: EventSortColumn, sort_dir: 
 mod tests {
     use super::*;
     use crate::combat_damage::test_fixtures::{FixtureRow, open_fixture_db, remove_db_files};
+
+    #[test]
+    fn isolated_only_verb_does_not_double_count_estimated_obs() {
+        let path = open_fixture_db(&[FixtureRow::isolated(
+            "melee",
+            "perforate",
+            "Odefu",
+            68,
+            "2026-08-06T08:06:57Z",
+        )]);
+        let conn = Connection::open(&path).unwrap();
+        let aggregates = category_aggregates(
+            &conn,
+            "melee",
+            &FilterParams::from_query(None, None),
+            LandingSortColumn::Verb,
+            SortDirection::Asc,
+        )
+        .unwrap();
+        let perforate = aggregates
+            .iter()
+            .find(|row| row.verb == "perforate")
+            .unwrap();
+        assert_eq!(perforate.confirmed_obs, 1);
+        assert_eq!(perforate.estimated_obs, 0);
+        assert_eq!(perforate.estimated_min, None);
+        remove_db_files(&path);
+    }
 
     #[test]
     fn confirmed_rollup_uses_isolated_rows_only() {
