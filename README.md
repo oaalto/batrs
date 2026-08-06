@@ -19,3 +19,19 @@ python3 -m venv .venv-docs
 .venv-docs/bin/pip install -r requirements-docs.txt
 ./scripts/serve-manual.sh
 ```
+
+## Combat damage viewer
+
+While batrs is running, it records incoming damage (melee verbs, skills, spells) into `~/.batrs/combat_damage.db` and serves a read-only HTML dashboard on **http://127.0.0.1:6464/** (localhost only). The server starts automatically in the background when batrs launches; it stops when batrs exits.
+
+Override the port with `--port` (default `6464`):
+
+```bash
+cargo run -- --port 8080
+```
+
+**Landing page (`/`):** three tables — melee, skill, spell — one row per hit verb. Each row has **confirmed** columns (only unambiguous hits) and **estimated** columns (includes ambiguous batches with conservative bounds). Filter by time range (`24h`, `7d`, `all`) and player; click column headers to sort.
+
+**Drill-down (`/events/{category}/{verb}`):** individual events with timestamp, player, HP delta, source, weight, and original message text. Rows that share a `batch_id` (one HP loss split across multiple candidate lines) are grouped.
+
+An empty database still shows the full page structure with zero rows. If the database cannot be opened, the viewer returns HTTP 503; the TUI keeps running.
