@@ -1,5 +1,12 @@
 # Engineering Wiki Log
 
+## [2026-08-06] update | Melee landing weapon-family sub-sections
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/prd.md`, `docs/features/combat-damage-tracking/03-http-damage-viewer.md`, `README.md`
+- Created: `docs/adr/0001-melee-aggregation-includes-weapon-family.md`
+- Sources: grill-with-docs-batch acceptance; `src/combat_damage/aggregate.rs`, `src/combat_damage/viewer.rs`, `build.rs`
+- Notes: melee landing grouped by `weapon_family`; aggregation key includes family; drill-down `?family=` param; `FAMILY_TITLES` from `hit_messages.md` headers.
+
 ## [2026-08-06] update | Combat damage drill-down batch siblings
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/03-http-damage-viewer.md`

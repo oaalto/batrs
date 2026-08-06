@@ -114,6 +114,8 @@ impl EventSortColumn {
 #[derive(Debug, Clone, PartialEq)]
 pub struct VerbAggregate {
     pub verb: String,
+    pub weapon_family: Option<String>,
+    pub catalog_rank: Option<i32>,
     pub confirmed_obs: i64,
     pub confirmed_min: Option<i32>,
     pub confirmed_max: Option<i32>,
@@ -153,7 +155,22 @@ pub struct DamageEvent {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BatchCandidate {
     pub category: String,
+    pub family: Option<String>,
     pub verb: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct AggKey {
+    category: String,
+    family: Option<String>,
+    verb: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MeleeFamilySection {
+    pub family_id: String,
+    pub family_title: String,
+    pub aggregates: Vec<VerbAggregate>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -166,7 +183,7 @@ pub struct EffectiveBounds {
 pub fn extrapolate_batch(
     hp_delta: i32,
     candidates: &[BatchCandidate],
-    known_mins: &HashMap<(String, String), i32>,
+    known_mins: &HashMap<AggKey, i32>,
 ) -> Vec<EffectiveBounds> {
     let loose = |loose: bool| EffectiveBounds {
         min: 0,
@@ -179,12 +196,19 @@ pub fn extrapolate_batch(
     }
 
     for candidate in candidates {
-        let key = (candidate.category.clone(), candidate.verb.clone());
+        let key = agg_key(
+            &candidate.category,
+            candidate.family.as_deref(),
+            &candidate.verb,
+        );
         if known_mins.get(&key).copied() == Some(hp_delta) {
             return candidates
                 .iter()
                 .map(|row| {
-                    if row.verb == candidate.verb && row.category == candidate.category {
+                    if row.verb == candidate.verb
+                        && row.category == candidate.category
+                        && row.family == candidate.family
+                    {
                         EffectiveBounds {
                             min: hp_delta,
                             max: hp_delta,
@@ -206,7 +230,11 @@ pub fn extrapolate_batch(
         .iter()
         .map(|candidate| {
             known_mins
-                .get(&(candidate.category.clone(), candidate.verb.clone()))
+                .get(&agg_key(
+                    &candidate.category,
+                    candidate.family.as_deref(),
+                    &candidate.verb,
+                ))
                 .copied()
                 .unwrap_or(0)
         })
@@ -275,7 +303,16 @@ struct RawEventRow {
     damage_min: i32,
     damage_max: i32,
     catalog_rank: Option<i32>,
+    weapon_family: Option<String>,
     weight: f64,
+}
+
+fn agg_key(category: &str, family: Option<&str>, verb: &str) -> AggKey {
+    AggKey {
+        category: category.to_string(),
+        family: family.map(str::to_string),
+        verb: verb.to_string(),
+    }
 }
 
 fn load_filtered_events(
@@ -283,12 +320,13 @@ fn load_filtered_events(
     filters: &FilterParams,
     category: Option<&str>,
     verb: Option<&str>,
+    family: Option<&str>,
 ) -> Result<Vec<RawEventRow>, String> {
     let (extra, mut params) = filter_clause(filters);
     let mut sql = format!(
         "SELECT id, batch_id, recorded_at, player, hp_delta, damage_category, source_name,
                 message_verb, message_text, candidate_count, confidence, damage_min, damage_max,
-                catalog_rank, weight
+                catalog_rank, weapon_family, weight
          FROM damage_events
          WHERE 1=1{extra}"
     );
@@ -299,6 +337,10 @@ fn load_filtered_events(
     if let Some(verb) = verb {
         sql.push_str(" AND message_verb = ?");
         params.push(verb.to_string());
+    }
+    if let Some(family) = family {
+        sql.push_str(" AND weapon_family = ?");
+        params.push(family.to_string());
     }
     let mut statement = conn.prepare(&sql).map_err(|err| err.to_string())?;
     let rows = statement
@@ -318,7 +360,8 @@ fn load_filtered_events(
                 damage_min: row.get(11)?,
                 damage_max: row.get(12)?,
                 catalog_rank: row.get(13)?,
-                weight: row.get(14)?,
+                weapon_family: row.get(14)?,
+                weight: row.get(15)?,
             })
         })
         .map_err(|err| err.to_string())?;
@@ -350,7 +393,7 @@ fn load_batch_siblings(
     let sql = format!(
         "SELECT id, batch_id, recorded_at, player, hp_delta, damage_category, source_name,
                 message_verb, message_text, candidate_count, confidence, damage_min, damage_max,
-                catalog_rank, weight
+                catalog_rank, weapon_family, weight
          FROM damage_events
          WHERE batch_id IN ({batch_placeholders}){exclude_sql}{extra}"
     );
@@ -378,7 +421,8 @@ fn load_batch_siblings(
                 damage_min: row.get(11)?,
                 damage_max: row.get(12)?,
                 catalog_rank: row.get(13)?,
-                weight: row.get(14)?,
+                weapon_family: row.get(14)?,
+                weight: row.get(15)?,
             })
         })
         .map_err(|err| err.to_string())?;
@@ -406,10 +450,14 @@ fn raw_to_damage_event(row: RawEventRow, row_role: EventRowRole) -> DamageEvent 
     }
 }
 
-fn known_mins_from_isolated(rows: &[RawEventRow]) -> HashMap<(String, String), i32> {
+fn known_mins_from_isolated(rows: &[RawEventRow]) -> HashMap<AggKey, i32> {
     let mut mins = HashMap::new();
     for row in rows.iter().filter(|row| row.candidate_count == 1) {
-        let key = (row.damage_category.clone(), row.message_verb.clone());
+        let key = agg_key(
+            &row.damage_category,
+            row.weapon_family.as_deref(),
+            &row.message_verb,
+        );
         mins.entry(key)
             .and_modify(|current: &mut i32| *current = (*current).min(row.hp_delta))
             .or_insert(row.hp_delta);
@@ -418,7 +466,7 @@ fn known_mins_from_isolated(rows: &[RawEventRow]) -> HashMap<(String, String), i
 }
 
 struct EstimatedContribution {
-    verb: String,
+    key: AggKey,
     min: i32,
     max: i32,
     loose: bool,
@@ -457,6 +505,7 @@ fn estimated_contributions(rows: &[RawEventRow]) -> Vec<EstimatedContribution> {
             .iter()
             .map(|row| BatchCandidate {
                 category: row.damage_category.clone(),
+                family: row.weapon_family.clone(),
                 verb: row.message_verb.clone(),
             })
             .collect::<Vec<_>>();
@@ -472,7 +521,11 @@ fn estimated_contributions(rows: &[RawEventRow]) -> Vec<EstimatedContribution> {
         };
         for ((row, bound), point_estimate) in batch_rows.iter().zip(bounds).zip(point_estimates) {
             contributions.push(EstimatedContribution {
-                verb: row.message_verb.clone(),
+                key: agg_key(
+                    &row.damage_category,
+                    row.weapon_family.as_deref(),
+                    &row.message_verb,
+                ),
                 min: bound.min,
                 max: bound.max,
                 loose: bound.loose,
@@ -484,24 +537,32 @@ fn estimated_contributions(rows: &[RawEventRow]) -> Vec<EstimatedContribution> {
     contributions
 }
 
-fn rollup_confirmed(rows: &[RawEventRow]) -> HashMap<String, VerbAggregate> {
+fn rollup_confirmed(rows: &[RawEventRow]) -> HashMap<AggKey, VerbAggregate> {
     let mut by_verb = HashMap::new();
     for row in rows.iter().filter(|row| row.candidate_count == 1) {
-        let entry = by_verb
-            .entry(row.message_verb.clone())
-            .or_insert(VerbAggregate {
-                verb: row.message_verb.clone(),
-                confirmed_obs: 0,
-                confirmed_min: None,
-                confirmed_max: None,
-                confirmed_avg: None,
-                estimated_obs: 0,
-                estimated_min: None,
-                estimated_max: None,
-                estimated_avg: None,
-                estimated_loose: false,
-            });
+        let key = agg_key(
+            &row.damage_category,
+            row.weapon_family.as_deref(),
+            &row.message_verb,
+        );
+        let entry = by_verb.entry(key).or_insert(VerbAggregate {
+            verb: row.message_verb.clone(),
+            weapon_family: row.weapon_family.clone(),
+            catalog_rank: row.catalog_rank,
+            confirmed_obs: 0,
+            confirmed_min: None,
+            confirmed_max: None,
+            confirmed_avg: None,
+            estimated_obs: 0,
+            estimated_min: None,
+            estimated_max: None,
+            estimated_avg: None,
+            estimated_loose: false,
+        });
         entry.confirmed_obs += 1;
+        if let Some(rank) = row.catalog_rank {
+            entry.catalog_rank = Some(entry.catalog_rank.map_or(rank, |current| current.min(rank)));
+        }
         entry.confirmed_min = Some(
             entry
                 .confirmed_min
@@ -513,11 +574,18 @@ fn rollup_confirmed(rows: &[RawEventRow]) -> HashMap<String, VerbAggregate> {
                 .map_or(row.hp_delta, |current| current.max(row.hp_delta)),
         );
     }
-    for aggregate in by_verb.values_mut() {
+    for (key, aggregate) in by_verb.iter_mut() {
         if aggregate.confirmed_obs > 0 {
             let sum: i64 = rows
                 .iter()
-                .filter(|row| row.candidate_count == 1 && row.message_verb == aggregate.verb)
+                .filter(|row| {
+                    row.candidate_count == 1
+                        && agg_key(
+                            &row.damage_category,
+                            row.weapon_family.as_deref(),
+                            &row.message_verb,
+                        ) == *key
+                })
                 .map(|row| i64::from(row.hp_delta))
                 .sum();
             aggregate.confirmed_avg = Some(sum as f64 / aggregate.confirmed_obs as f64);
@@ -527,14 +595,16 @@ fn rollup_confirmed(rows: &[RawEventRow]) -> HashMap<String, VerbAggregate> {
 }
 
 fn rollup_estimated(
-    confirmed: &mut HashMap<String, VerbAggregate>,
+    confirmed: &mut HashMap<AggKey, VerbAggregate>,
     contributions: &[EstimatedContribution],
 ) {
     for contribution in contributions {
         let entry = confirmed
-            .entry(contribution.verb.clone())
+            .entry(contribution.key.clone())
             .or_insert_with(|| VerbAggregate {
-                verb: contribution.verb.clone(),
+                verb: contribution.key.verb.clone(),
+                weapon_family: contribution.key.family.clone(),
+                catalog_rank: None,
                 confirmed_obs: 0,
                 confirmed_min: None,
                 confirmed_max: None,
@@ -558,16 +628,29 @@ fn rollup_estimated(
         );
         entry.estimated_loose |= contribution.loose;
     }
-    for aggregate in confirmed.values_mut() {
+    for (key, aggregate) in confirmed.iter_mut() {
         if aggregate.estimated_obs > 0 {
             let points: Vec<f64> = contributions
                 .iter()
-                .filter(|row| row.verb == aggregate.verb)
+                .filter(|row| row.key == *key)
                 .map(|row| row.point_estimate)
                 .collect();
             aggregate.estimated_avg = Some(points.iter().sum::<f64>() / points.len().max(1) as f64);
         }
     }
+}
+
+fn category_aggregates_from_rows(
+    rows: &[RawEventRow],
+    sort_col: LandingSortColumn,
+    sort_dir: SortDirection,
+) -> Vec<VerbAggregate> {
+    let contributions = estimated_contributions(rows);
+    let mut aggregates = rollup_confirmed(rows);
+    rollup_estimated(&mut aggregates, &contributions);
+    let mut list = aggregates.into_values().collect::<Vec<_>>();
+    sort_verb_aggregates(&mut list, sort_col, sort_dir);
+    list
 }
 
 pub fn category_aggregates(
@@ -577,13 +660,52 @@ pub fn category_aggregates(
     sort_col: LandingSortColumn,
     sort_dir: SortDirection,
 ) -> Result<Vec<VerbAggregate>, String> {
-    let rows = load_filtered_events(conn, filters, Some(category), None)?;
-    let contributions = estimated_contributions(&rows);
-    let mut aggregates = rollup_confirmed(&rows);
-    rollup_estimated(&mut aggregates, &contributions);
-    let mut list = aggregates.into_values().collect::<Vec<_>>();
-    sort_verb_aggregates(&mut list, sort_col, sort_dir);
-    Ok(list)
+    let rows = load_filtered_events(conn, filters, Some(category), None, None)?;
+    Ok(category_aggregates_from_rows(&rows, sort_col, sort_dir))
+}
+
+pub fn melee_family_aggregates(
+    conn: &Connection,
+    filters: &FilterParams,
+    sort_col: LandingSortColumn,
+    sort_dir: SortDirection,
+) -> Result<Vec<MeleeFamilySection>, String> {
+    use crate::combat_damage::catalog::{FAMILY_IDS, FAMILY_TITLES};
+
+    let rows = load_filtered_events(conn, filters, Some("melee"), None, None)?;
+    let aggregates = category_aggregates_from_rows(&rows, sort_col, sort_dir);
+
+    let mut by_family: HashMap<String, Vec<VerbAggregate>> = HashMap::new();
+    let mut unknown = Vec::new();
+    for aggregate in aggregates {
+        match aggregate.weapon_family.as_deref() {
+            Some(family) => by_family
+                .entry(family.to_string())
+                .or_default()
+                .push(aggregate),
+            None => unknown.push(aggregate),
+        }
+    }
+
+    let mut sections = Vec::new();
+    for (index, family_id) in FAMILY_IDS.iter().enumerate() {
+        let Some(family_rows) = by_family.remove(*family_id) else {
+            continue;
+        };
+        sections.push(MeleeFamilySection {
+            family_id: (*family_id).to_string(),
+            family_title: FAMILY_TITLES[index].to_string(),
+            aggregates: family_rows,
+        });
+    }
+    if !unknown.is_empty() {
+        sections.push(MeleeFamilySection {
+            family_id: "unknown".to_string(),
+            family_title: "Unknown family".to_string(),
+            aggregates: unknown,
+        });
+    }
+    Ok(sections)
 }
 
 fn sort_verb_aggregates(
@@ -593,7 +715,10 @@ fn sort_verb_aggregates(
 ) {
     aggregates.sort_by(|left, right| {
         let ordering = match sort_col {
-            LandingSortColumn::Verb => left.verb.cmp(&right.verb),
+            LandingSortColumn::Verb => left
+                .catalog_rank
+                .cmp(&right.catalog_rank)
+                .then_with(|| left.verb.cmp(&right.verb)),
             LandingSortColumn::ConfObs => left.confirmed_obs.cmp(&right.confirmed_obs),
             LandingSortColumn::ConfMin => cmp_option_i32(left.confirmed_min, right.confirmed_min),
             LandingSortColumn::ConfMax => cmp_option_i32(left.confirmed_max, right.confirmed_max),
@@ -634,11 +759,12 @@ pub fn list_events(
     conn: &Connection,
     category: &str,
     verb: &str,
+    family: Option<&str>,
     filters: &FilterParams,
     sort_col: EventSortColumn,
     sort_dir: SortDirection,
 ) -> Result<Vec<DamageEvent>, String> {
-    let focal_rows = load_filtered_events(conn, filters, Some(category), Some(verb))?;
+    let focal_rows = load_filtered_events(conn, filters, Some(category), Some(verb), family)?;
     let focal_ids = focal_rows.iter().map(|row| row.id).collect::<Vec<_>>();
     let ambiguous_batch_ids = focal_rows
         .iter()
@@ -838,15 +964,17 @@ mod tests {
         let candidates = vec![
             BatchCandidate {
                 category: "melee".to_string(),
+                family: Some("unarmed".to_string()),
                 verb: "bitchslap".to_string(),
             },
             BatchCandidate {
                 category: "melee".to_string(),
+                family: Some("unarmed".to_string()),
                 verb: "boot".to_string(),
             },
         ];
         let mut known_mins = HashMap::new();
-        known_mins.insert(("melee".to_string(), "bitchslap".to_string()), 22);
+        known_mins.insert(agg_key("melee", Some("unarmed"), "bitchslap"), 22);
         let bounds = extrapolate_batch(22, &candidates, &known_mins);
         assert_eq!(
             bounds,
@@ -870,16 +998,18 @@ mod tests {
         let candidates = vec![
             BatchCandidate {
                 category: "melee".to_string(),
+                family: Some("unarmed".to_string()),
                 verb: "bitchslap".to_string(),
             },
             BatchCandidate {
                 category: "melee".to_string(),
+                family: Some("unarmed".to_string()),
                 verb: "boot".to_string(),
             },
         ];
         let mut known_mins = HashMap::new();
-        known_mins.insert(("melee".to_string(), "bitchslap".to_string()), 20);
-        known_mins.insert(("melee".to_string(), "boot".to_string()), 18);
+        known_mins.insert(agg_key("melee", Some("unarmed"), "bitchslap"), 20);
+        known_mins.insert(agg_key("melee", Some("unarmed"), "boot"), 18);
         let bounds = extrapolate_batch(22, &candidates, &known_mins);
         assert!(
             bounds
@@ -892,6 +1022,7 @@ mod tests {
     fn extrapolation_keeps_loose_bounds_when_unresolved() {
         let candidates = vec![BatchCandidate {
             category: "melee".to_string(),
+            family: Some("unarmed".to_string()),
             verb: "boot".to_string(),
         }];
         let bounds = extrapolate_batch(30, &candidates, &HashMap::new());
@@ -982,6 +1113,7 @@ mod tests {
             &conn,
             "melee",
             "bitchslap",
+            None,
             &filters,
             EventSortColumn::RecordedAt,
             SortDirection::Desc,
@@ -1051,6 +1183,7 @@ mod tests {
             &conn,
             "melee",
             "bitchslap",
+            None,
             &FilterParams::from_query(None, None),
             EventSortColumn::RecordedAt,
             SortDirection::Desc,
@@ -1076,6 +1209,7 @@ mod tests {
             &conn,
             "melee",
             "bitchslap",
+            None,
             &FilterParams::from_query(None, None),
             EventSortColumn::RecordedAt,
             SortDirection::Asc,
@@ -1121,6 +1255,84 @@ mod tests {
         assert_eq!(melee[0].verb, "bitchslap");
         assert_eq!(skill[0].verb, "bash");
         assert_eq!(spell[0].verb, "magic missile");
+        remove_db_files(&path);
+    }
+
+    #[test]
+    fn savagely_strike_stays_separate_per_weapon_family() {
+        let path = open_fixture_db(&[
+            FixtureRow::isolated(
+                "melee",
+                "savagely strike",
+                "Odefu",
+                20,
+                "2026-08-06T10:00:00Z",
+            )
+            .with_rank(22, "bash"),
+            FixtureRow::isolated(
+                "melee",
+                "savagely strike",
+                "Odefu",
+                35,
+                "2026-08-06T11:00:00Z",
+            )
+            .with_rank(22, "claw"),
+        ]);
+        let conn = Connection::open(&path).unwrap();
+        let sections = melee_family_aggregates(
+            &conn,
+            &FilterParams::from_query(None, None),
+            LandingSortColumn::Verb,
+            SortDirection::Asc,
+        )
+        .unwrap();
+        assert_eq!(sections.len(), 2);
+        let bash = sections
+            .iter()
+            .find(|section| section.family_id == "bash")
+            .unwrap();
+        let claw = sections
+            .iter()
+            .find(|section| section.family_id == "claw")
+            .unwrap();
+        assert_eq!(bash.aggregates[0].confirmed_min, Some(20));
+        assert_eq!(claw.aggregates[0].confirmed_min, Some(35));
+        remove_db_files(&path);
+    }
+
+    #[test]
+    fn drill_down_family_filter_limits_focal_rows() {
+        let path = open_fixture_db(&[
+            FixtureRow::isolated(
+                "melee",
+                "savagely strike",
+                "Odefu",
+                20,
+                "2026-08-06T10:00:00Z",
+            )
+            .with_rank(22, "bash"),
+            FixtureRow::isolated(
+                "melee",
+                "savagely strike",
+                "Odefu",
+                35,
+                "2026-08-06T11:00:00Z",
+            )
+            .with_rank(22, "claw"),
+        ]);
+        let conn = Connection::open(&path).unwrap();
+        let events = list_events(
+            &conn,
+            "melee",
+            "savagely strike",
+            Some("bash"),
+            &FilterParams::from_query(None, None),
+            EventSortColumn::RecordedAt,
+            SortDirection::Desc,
+        )
+        .unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].hp_delta, 20);
         remove_db_files(&path);
     }
 }

@@ -30,7 +30,7 @@ Override the port with `--port` (default `6464`):
 cargo run -- --port 8080
 ```
 
-**Landing page (`/`):** three tables — melee, skill, spell — one row per hit verb. Each row has **confirmed** columns (only unambiguous hits) and **estimated** columns (includes ambiguous batches with conservative bounds). Filter by time range (`24h`, `7d`, `all`) and player; click column headers to sort.
+**Landing page (`/`):** three tables — melee, skill, spell — one row per hit verb. The melee table is grouped into **weapon-family** sub-sections (from `docs/hit_messages.md`). Each row has **confirmed** columns (only unambiguous hits) and **estimated** columns (includes ambiguous batches with conservative bounds). Filter by time range (`24h`, `7d`, `all`) and player; click column headers to sort within each section.
 
 **Drill-down (`/events/{category}/{verb}`):** individual events with timestamp, player, HP delta, source, weight, and original message text. Rows that share a `batch_id` (one HP loss split across multiple candidate lines) are grouped.
 

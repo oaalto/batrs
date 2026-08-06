@@ -1,6 +1,6 @@
 use crate::combat_damage::aggregate::{
-    EventSortColumn, FilterParams, LandingSortColumn, SortDirection, TimeRange, VerbAggregate,
-    category_aggregates, list_events, list_players,
+    EventSortColumn, FilterParams, LandingSortColumn, MeleeFamilySection, SortDirection, TimeRange,
+    VerbAggregate, category_aggregates, list_events, list_players, melee_family_aggregates,
 };
 use crate::combat_damage::storage::open_readonly_db;
 use axum::{
@@ -37,6 +37,7 @@ pub struct ViewerQuery {
     pub player: Option<String>,
     pub sort: Option<String>,
     pub dir: Option<String>,
+    pub family: Option<String>,
 }
 
 pub fn parse_port_from_args(args: impl IntoIterator<Item = String>) -> u16 {
@@ -111,7 +112,7 @@ fn landing_data(
     query: &ViewerQuery,
 ) -> Result<String, String> {
     let players = list_players(conn, &FilterParams::from_query(None, None))?;
-    let melee = category_aggregates(conn, "melee", filters, sort_col.clone(), sort_dir)?;
+    let melee = melee_family_aggregates(conn, filters, sort_col.clone(), sort_dir)?;
     let skill = category_aggregates(conn, "skill", filters, sort_col.clone(), sort_dir)?;
     let spell = category_aggregates(conn, "spell", filters, sort_col, sort_dir)?;
     Ok(render_landing(
@@ -152,9 +153,10 @@ fn drill_down_data(
     query: &ViewerQuery,
 ) -> Result<String, String> {
     let players = list_players(conn, &FilterParams::from_query(None, None))?;
-    let events = list_events(conn, category, verb, filters, sort_col, sort_dir)?;
+    let family = query.family.as_deref().filter(|value| !value.is_empty());
+    let events = list_events(conn, category, verb, family, filters, sort_col, sort_dir)?;
     Ok(render_drill_down(
-        category, verb, filters, &players, &events, query,
+        category, verb, family, filters, &players, &events, query,
     ))
 }
 
@@ -169,7 +171,7 @@ fn service_unavailable(message: String) -> axum::response::Response {
 fn render_landing(
     filters: &FilterParams,
     players: &[String],
-    melee: &[VerbAggregate],
+    melee: &[MeleeFamilySection],
     skill: &[VerbAggregate],
     spell: &[VerbAggregate],
     query: &ViewerQuery,
@@ -179,14 +181,7 @@ fn render_landing(
     html.push_str("<title>Combat damage</title><link rel=\"stylesheet\" href=\"/style.css\">");
     html.push_str("</head><body><h1>Combat damage</h1>");
     html.push_str(&render_filters(filters, players, "/"));
-    html.push_str(&render_category_table(
-        "Melee",
-        "melee",
-        "No melee damage recorded yet.",
-        melee,
-        filters,
-        query,
-    ));
+    html.push_str(&render_melee_section(melee, filters, query));
     html.push_str(&render_category_table(
         "Skill",
         "skill",
@@ -194,6 +189,7 @@ fn render_landing(
         skill,
         filters,
         query,
+        None,
     ));
     html.push_str(&render_category_table(
         "Spell",
@@ -202,15 +198,46 @@ fn render_landing(
         spell,
         filters,
         query,
+        None,
     ));
     html.push_str(render_sort_script());
     html.push_str("</body></html>");
     html
 }
 
+fn render_melee_section(
+    sections: &[MeleeFamilySection],
+    filters: &FilterParams,
+    query: &ViewerQuery,
+) -> String {
+    let mut html = String::from("<h2>Melee</h2>");
+    if sections.is_empty() {
+        html.push_str("<p class=\"empty-hint\">No melee damage recorded yet.</p>");
+        return html;
+    }
+    for section in sections {
+        html.push_str(&format!(
+            "<h3>{} ({})</h3>",
+            html_escape(&section.family_title),
+            html_escape(&section.family_id)
+        ));
+        html.push_str(&render_category_table(
+            "",
+            "melee",
+            "",
+            &section.aggregates,
+            filters,
+            query,
+            Some(section.family_id.as_str()),
+        ));
+    }
+    html
+}
+
 fn render_drill_down(
     category: &str,
     verb: &str,
+    family: Option<&str>,
     filters: &FilterParams,
     players: &[String],
     events: &[crate::combat_damage::aggregate::DamageEvent],
@@ -226,11 +253,16 @@ fn render_drill_down(
     html.push_str(&format!(
         "<p class=\"back-link\"><a href=\"{back_href}\">&larr; Back</a></p>"
     ));
-    html.push_str(&format!(
-        "<h1>{} / {}</h1>",
-        html_escape(category),
-        html_escape(verb)
-    ));
+    let heading = match family {
+        Some(family) => format!(
+            "{} / {} / {}",
+            html_escape(category),
+            html_escape(family),
+            html_escape(verb)
+        ),
+        None => format!("{} / {}", html_escape(category), html_escape(verb)),
+    };
+    html.push_str(&format!("<h1>{heading}</h1>"));
     html.push_str(&render_filters(
         filters,
         players,
@@ -384,8 +416,14 @@ fn render_category_table(
     rows: &[VerbAggregate],
     filters: &FilterParams,
     query: &ViewerQuery,
+    family: Option<&str>,
 ) -> String {
-    let mut html = format!("<h2>{title}</h2><table><thead><tr><th rowspan=\"2\">");
+    let mut html = if title.is_empty() {
+        String::new()
+    } else {
+        format!("<h2>{title}</h2>")
+    };
+    html.push_str("<table><thead><tr><th rowspan=\"2\">");
     let verb_href = build_landing_sort_href(filters, "verb", query);
     html.push_str(&format!("<a href=\"{verb_href}\">Verb</a></th>"));
     html.push_str("<th colspan=\"4\" class=\"confirmed\">Confirmed</th>");
@@ -412,17 +450,28 @@ fn render_category_table(
     }
     html.push_str("</tr></thead><tbody>");
     if rows.is_empty() {
-        html.push_str(&format!(
-            "</tbody></table><p class=\"empty-hint\">{empty_hint}</p>"
-        ));
+        if empty_hint.is_empty() {
+            html.push_str("</tbody></table>");
+        } else {
+            html.push_str(&format!(
+                "</tbody></table><p class=\"empty-hint\">{empty_hint}</p>"
+            ));
+        }
         return html;
     }
     for row in rows {
-        let href = format!("/events/{category}/{}", percent_encode_path(&row.verb));
-        let query_suffix = build_filter_query(filters);
+        let mut href = format!("/events/{category}/{}", percent_encode_path(&row.verb));
+        let mut query_parts = build_filter_parts(filters);
+        if let Some(family) = family.or(row.weapon_family.as_deref()) {
+            query_parts.push(format!("family={}", percent_encode_path(family)));
+        }
+        if !query_parts.is_empty() {
+            href.push('?');
+            href.push_str(&query_parts.join("&"));
+        }
         html.push_str("<tr>");
         html.push_str(&format!(
-            "<td><a href=\"{href}{query_suffix}\">{}</a></td>",
+            "<td><a href=\"{href}\">{}</a></td>",
             html_escape(&row.verb)
         ));
         html.push_str(&format_numeric(row.confirmed_obs));
@@ -459,7 +508,7 @@ fn format_optional_f64(value: Option<f64>, loose: bool) -> String {
     }
 }
 
-fn build_filter_query(filters: &FilterParams) -> String {
+fn build_filter_parts(filters: &FilterParams) -> Vec<String> {
     let mut parts = Vec::new();
     if filters.range != TimeRange::All {
         parts.push(format!("range={}", filters.range.as_str()));
@@ -467,6 +516,11 @@ fn build_filter_query(filters: &FilterParams) -> String {
     if let Some(player) = &filters.player {
         parts.push(format!("player={}", percent_encode_path(player)));
     }
+    parts
+}
+
+fn build_filter_query(filters: &FilterParams) -> String {
+    let parts = build_filter_parts(filters);
     if parts.is_empty() {
         String::new()
     } else {
@@ -480,13 +534,7 @@ fn build_query_string(
     sort: Option<&str>,
     dir: Option<&str>,
 ) -> String {
-    let mut parts = Vec::new();
-    if filters.range != TimeRange::All {
-        parts.push(format!("range={}", filters.range.as_str()));
-    }
-    if let Some(player) = &filters.player {
-        parts.push(format!("player={}", percent_encode_path(player)));
-    }
+    let mut parts = build_filter_parts(filters);
     if let Some(sort) = sort {
         parts.push(format!("sort={sort}"));
     }
@@ -512,20 +560,10 @@ fn build_landing_sort_href(filters: &FilterParams, column: &str, query: &ViewerQ
     } else {
         "desc"
     };
-    format!(
-        "/?{}",
-        [
-            build_filter_query(filters)
-                .trim_start_matches('?')
-                .to_string(),
-            format!("sort={column}"),
-            format!("dir={next_dir}"),
-        ]
-        .into_iter()
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join("&")
-    )
+    let mut parts = build_filter_parts(filters);
+    parts.push(format!("sort={column}"));
+    parts.push(format!("dir={next_dir}"));
+    format!("/?{}", parts.join("&"))
 }
 
 fn build_event_sort_href(
@@ -546,20 +584,16 @@ fn build_event_sort_href(
     } else {
         "asc"
     };
+    let mut parts = build_filter_parts(filters);
+    if let Some(family) = query.family.as_deref().filter(|value| !value.is_empty()) {
+        parts.push(format!("family={}", percent_encode_path(family)));
+    }
+    parts.push(format!("sort={column}"));
+    parts.push(format!("dir={next_dir}"));
     format!(
         "/events/{category}/{}?{}",
         percent_encode_path(verb),
-        [
-            build_filter_query(filters)
-                .trim_start_matches('?')
-                .to_string(),
-            format!("sort={column}"),
-            format!("dir={next_dir}"),
-        ]
-        .into_iter()
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join("&")
+        parts.join("&")
     )
 }
 
@@ -778,9 +812,49 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         let body = body_string(response).await;
         assert!(body.contains("Melee"));
+        assert!(body.contains("Untrained unarmed attacks (unarmed)"));
         assert!(body.contains("bitchslap"));
+        assert!(body.contains("family=unarmed"));
         assert!(body.contains("Confirmed"));
         assert!(body.contains("Estimated"));
+        remove_db_files(&path);
+    }
+
+    #[tokio::test]
+    async fn drill_down_family_param_filters_events() {
+        let rows = vec![
+            FixtureRow::isolated(
+                "melee",
+                "savagely strike",
+                "Odefu",
+                20,
+                "2026-08-06T10:00:00Z",
+            )
+            .with_rank(22, "bash"),
+            FixtureRow::isolated(
+                "melee",
+                "savagely strike",
+                "Odefu",
+                35,
+                "2026-08-06T11:00:00Z",
+            )
+            .with_rank(22, "claw"),
+        ];
+        let (app, path) = app_with_rows(&rows);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/events/melee/savagely%20strike?family=bash")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = body_string(response).await;
+        assert!(body.contains("melee / bash / savagely strike"));
+        assert!(body.contains(">20<"));
+        assert!(!body.contains(">35<"));
         remove_db_files(&path);
     }
 

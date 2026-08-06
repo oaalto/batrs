@@ -172,6 +172,7 @@ pub fn insert_rows(conn: &Connection, rows: &[FixtureRow]) {
 pub fn standard_fixture_rows() -> Vec<FixtureRow> {
     vec![
         FixtureRow::isolated("melee", "bitchslap", "Odefu", 22, "2026-08-06T14:32:00Z")
+            .with_rank(1, "unarmed")
             .with_text("Holy man bitchslaps you."),
         FixtureRow::isolated("skill", "bash", "Odefu", 10, "2026-08-06T14:33:00Z")
             .with_text("Holy man's bash sends you sprawling."),
@@ -186,8 +187,10 @@ pub fn standard_fixture_rows() -> Vec<FixtureRow> {
             2,
             2,
         )
+        .with_rank(1, "unarmed")
         .with_text("Holy man bitchslaps you."),
         FixtureRow::ambiguous("melee", "boot", "Odefu", 22, "2026-08-06T14:35:00Z", 2, 2)
+            .with_rank(2, "unarmed")
             .with_text("Holy man boots you."),
     ]
 }

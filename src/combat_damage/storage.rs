@@ -51,6 +51,46 @@ fn migrate(conn: &Connection) -> Result<(), String> {
         }
         Some(_) => {}
     }
+    backfill_melee_catalog_metadata(conn)?;
+    Ok(())
+}
+
+fn backfill_melee_catalog_metadata(conn: &Connection) -> Result<(), String> {
+    use crate::combat_damage::catalog::{FAMILY_IDS, unambiguous_melee_catalog_meta};
+
+    let mut select = conn
+        .prepare(
+            "SELECT id, message_verb FROM damage_events
+             WHERE damage_category = 'melee' AND weapon_family IS NULL",
+        )
+        .map_err(|err| err.to_string())?;
+    let rows = select
+        .query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|err| err.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| err.to_string())?;
+
+    if rows.is_empty() {
+        return Ok(());
+    }
+
+    let mut update = conn
+        .prepare("UPDATE damage_events SET catalog_rank = ?1, weapon_family = ?2 WHERE id = ?3")
+        .map_err(|err| err.to_string())?;
+    for (id, verb) in rows {
+        let Some(meta) = unambiguous_melee_catalog_meta(&verb) else {
+            continue;
+        };
+        update
+            .execute(rusqlite::params![
+                i32::from(meta.rank),
+                FAMILY_IDS[meta.family_index],
+                id,
+            ])
+            .map_err(|err| err.to_string())?;
+    }
     Ok(())
 }
 
@@ -440,6 +480,69 @@ mod tests {
             )
             .unwrap();
         assert!((prick - 0.625).abs() < 1e-9);
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn null_melee_weapon_family_backfilled_from_catalog() {
+        let path = temp_db_path("backfill-family");
+        let _ = fs::remove_file(&path);
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE schema_version (version INTEGER NOT NULL);
+            CREATE TABLE damage_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL,
+                recorded_at TEXT NOT NULL,
+                player TEXT NOT NULL,
+                hp_delta INTEGER NOT NULL,
+                hp_before INTEGER NOT NULL,
+                hp_after INTEGER NOT NULL,
+                damage_category TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                message_verb TEXT NOT NULL,
+                message_text TEXT NOT NULL,
+                candidate_count INTEGER NOT NULL,
+                confidence REAL NOT NULL,
+                damage_min INTEGER NOT NULL,
+                damage_max INTEGER NOT NULL,
+                catalog_rank INTEGER,
+                weapon_family TEXT,
+                weight REAL NOT NULL
+            );
+            INSERT INTO schema_version (version) VALUES (3);
+            INSERT INTO damage_events (
+                batch_id, recorded_at, player, hp_delta, hp_before, hp_after,
+                damage_category, source_name, message_verb, message_text,
+                candidate_count, confidence, damage_min, damage_max, catalog_rank, weapon_family, weight
+            ) VALUES
+                (1, '2026-08-06T07:18:00Z', 'Odefu', 10, 100, 90, 'melee', 'Bunny', 'scrape',
+                 'Bunny scrapes you.', 1, 1.0, 10, 10, NULL, NULL, 1.0),
+                (2, '2026-08-06T07:19:00Z', 'Odefu', 12, 90, 78, 'melee', 'Bunny', 'savagely strike',
+                 'Bunny savagely strikes you.', 1, 1.0, 12, 12, NULL, NULL, 1.0);
+            ",
+        )
+        .unwrap();
+        drop(conn);
+        open_db(&path).expect("backfill on open");
+        let conn = Connection::open(&path).unwrap();
+        let scrape: (Option<i32>, Option<String>) = conn
+            .query_row(
+                "SELECT catalog_rank, weapon_family FROM damage_events WHERE message_verb = 'scrape'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(scrape, (Some(4), Some("claw".to_string())));
+        let savagely: Option<String> = conn
+            .query_row(
+                "SELECT weapon_family FROM damage_events WHERE message_verb = 'savagely strike'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(savagely, None);
         let _ = fs::remove_file(path);
     }
 

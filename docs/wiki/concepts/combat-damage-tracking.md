@@ -22,7 +22,7 @@ Combat Damage records **incoming HP loss** while the player is logged in: recogn
 | --- | --- |
 | Attribution `weight` | `0.0`–`1.0` confidence that this filtered candidate caused the observed `hp_delta`. `1.0` when exactly one candidate between `H:` lines; `1.0/N` when ambiguous. Not hit severity. |
 | `catalog_rank` | Melee only: integer `1`–`26` within a weapon family from [`hit_messages.md`](../../hit_messages.md) ascending damage order. Compile-time from catalog line numbers. |
-| `weapon_family` | Melee catalog family id (`slash`, `bash`, `pierce`, …). Persisted on rows so verbs that collide across families stay disambiguated. |
+| `weapon_family` | Melee catalog family id (`slash`, `bash`, `pierce`, …). Persisted on rows so verbs that collide across families stay disambiguated. Melee aggregation and landing sub-sections key on this field. |
 | Attribution batch | All rows written from one negative `H:` trigger; share a `batch_id`. Isolated batches have one row; ambiguous batches have multiple **batch siblings**. |
 | Batch sibling | Another candidate row in the same attribution batch (`candidate_count > 1`). Drill-down for one verb shows focal rows for that verb plus inline siblings (any category). |
 | Confirmed view | Aggregates from isolated rows (`candidate_count = 1`) only — exact `hp_delta` per observation. |
@@ -42,9 +42,15 @@ Combat Damage does **not** own combat round state, short-score stats mutation, o
 
 Isolated `known_min`/`known_max` from confirmed observations always override rank. Rank never narrows stored `damage_min`/`damage_max` at insert time.
 
+## Landing layout
+
+- Three top-level damage tables: **Melee**, **Skill**, **Spell**.
+- **Melee** groups rows into `weapon_family` sub-sections (catalog file order from `hit_messages.md`; families with no rows under current filters are hidden). Each sub-section is one table with the same confirmed/estimated columns. Default verb order within a family: `catalog_rank` ascending, then `message_verb` ascending. Column sort applies within each family only.
+- Skill and spell remain flat single tables keyed on `damage_category` + `message_verb`.
+
 ## Drill-down and batch siblings
 
-Verb drill-down (`/events/{category}/{verb}`) lists focal rows for that verb. When a focal row belongs to an ambiguous attribution batch (`candidate_count > 1`), sibling rows from the same `batch_id` appear inline immediately after it — including cross-category siblings. Focal rows sort by the chosen column; siblings follow their focal row, sub-sorted by category then verb. Sibling rows are styled distinctly and link to their own verb drill-down.
+Verb drill-down (`/events/{category}/{verb}`) lists focal rows for that verb. Optional `?family=` filters melee focal rows by `weapon_family` (e.g. disambiguate `savagely strike` in `bash` vs `claw`); page title includes the family when set. When a focal row belongs to an ambiguous attribution batch (`candidate_count > 1`), sibling rows from the same `batch_id` appear inline immediately after it — including cross-category siblings. Focal rows sort by the chosen column; siblings follow their focal row, sub-sorted by category then verb. Sibling rows are styled distinctly and link to their own verb drill-down.
 
 ## Further reading
 

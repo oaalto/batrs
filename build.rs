@@ -20,6 +20,7 @@ fn main() {
 #[derive(Clone, Debug)]
 struct Family {
     id: String,
+    title: String,
     verbs: Vec<String>,
 }
 
@@ -28,12 +29,13 @@ fn parse_hit_messages(content: &str) -> Vec<Family> {
     let mut current: Option<Family> = None;
 
     for line in content.lines() {
-        if let Some(family_id) = parse_family_header(line) {
+        if let Some((title, family_id)) = parse_family_header(line) {
             if let Some(family) = current.take() {
                 families.push(family);
             }
             current = Some(Family {
                 id: family_id,
+                title,
                 verbs: Vec::new(),
             });
             continue;
@@ -70,7 +72,7 @@ fn parse_hit_messages(content: &str) -> Vec<Family> {
     families
 }
 
-fn parse_family_header(line: &str) -> Option<String> {
+fn parse_family_header(line: &str) -> Option<(String, String)> {
     let line = line.trim();
     if !line.starts_with('#') {
         return None;
@@ -80,7 +82,19 @@ fn parse_family_header(line: &str) -> Option<String> {
     if close <= open {
         return None;
     }
-    Some(line[open + 1..close].trim().to_string())
+    let id = line[open + 1..close].trim().to_string();
+    let for_marker = " for ";
+    let title_start = line.find(for_marker)? + for_marker.len();
+    let title = capitalize_title(line[title_start..open].trim());
+    Some((title, id))
+}
+
+fn capitalize_title(title: &str) -> String {
+    let mut chars = title.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+    }
 }
 
 fn parse_verb_line(line: &str) -> Option<String> {
@@ -166,6 +180,11 @@ fn generate_catalog_rs(families: &[Family]) -> String {
         .map(|id| format!("\"{}\"", escape_rs(id)))
         .collect::<Vec<_>>()
         .join(", ");
+    let family_title_literals = families
+        .iter()
+        .map(|family| format!("\"{}\"", escape_rs(&family.title)))
+        .collect::<Vec<_>>()
+        .join(", ");
 
     let mut family_indices: Vec<Vec<usize>> = vec![Vec::new(); families.len()];
     let mut entry_literals = String::new();
@@ -195,6 +214,8 @@ pub struct CatalogEntry {{
 }}
 
 pub const FAMILY_IDS: &[&str] = &[{family_id_literals}];
+
+pub const FAMILY_TITLES: &[&str] = &[{family_title_literals}];
 
 pub const CATALOG: &[CatalogEntry] = &[
 {entry_literals}];

@@ -8,11 +8,11 @@
 
 Add a read-only HTTP dashboard served by `axum`, auto-started when batrs launches (background thread), bind `127.0.0.1`, port from `--port` flag (default **6464**). Server-rendered HTML with bundled CSS and small inline JS for filters and column sorting.
 
-**Landing (`/`):** three tables (melee, skill, spell). Each row = one `message_verb` with side-by-side **confirmed** and **estimated** columns (obs count, min, max, avg/bounds). Filters: time range (`24h`, `7d`, `all`) and player dropdown; defaults all; query params preserve state. All columns sortable; default sort verb ascending. No total-damage line, no by-monster table.
+**Landing (`/`):** three tables (melee, skill, spell). Melee rows are grouped into **weapon-family** sub-sections (one table per non-empty family; catalog file order; empty families hidden). Each row = one `message_verb` (within its family for melee) with side-by-side **confirmed** and **estimated** columns (obs count, min, max, avg/bounds). Filters: time range (`24h`, `7d`, `all`) and player dropdown; defaults all; query params preserve state. All columns sortable within each family/table; default sort `catalog_rank` then verb ascending within melee families, verb ascending elsewhere. No total-damage line, no by-monster table.
 
-**Drill-down (`/events/{category}/{verb}`):** event list with `recorded_at`, `player`, `hp_delta` (or min–max for ambiguous), `source_name`, `weight`, `candidate_count`, `verb` (linked), `message_text`; ambiguous batches show inline **batch siblings** (other candidates from the same `batch_id`, including cross-category). Default sort `recorded_at` descending. Same filters as landing.
+**Drill-down (`/events/{category}/{verb}`):** event list with `recorded_at`, `player`, `hp_delta` (or min–max for ambiguous), `source_name`, `weight`, `candidate_count`, `verb` (linked), `message_text`; ambiguous batches show inline **batch siblings** (other candidates from the same `batch_id`, including cross-category). Optional `?family=` query param filters melee focal rows by `weapon_family`; page title includes family when set. Default sort `recorded_at` descending. Same filters as landing.
 
-**Aggregates:** confirmed from `candidate_count = 1` only; estimated applies conservative constraint extrapolation at read time per PRD (no write-back). Aggregation key: `damage_category` + `message_verb`.
+**Aggregates:** confirmed from `candidate_count = 1` only; estimated applies conservative constraint extrapolation at read time per PRD (no write-back). Aggregation key: `damage_category` + `message_verb` for skill/spell; melee adds `weapon_family`.
 
 **Static assets:** `style.css` — zebra rows, hover, grouped confirmed/estimated headers, distinct wide-bound styling.
 
@@ -84,7 +84,9 @@ Fixture DB builder helper: insert rows with known `batch_id`, `candidate_count`,
 - [ ] Ambiguous `batch_id` siblings both appear on drill-down for that verb (focal verb rows plus inline batch siblings with linked Verb column).
 - [ ] `GET /style.css` → 200, non-empty CSS (contains table or zebra-related rule).
 - [ ] Sort links on landing preserve `player` and `range` query params.
-- [ ] Confirmed and estimated column headers present in landing HTML.
+- [ ] Melee landing groups rows by `weapon_family` sub-section (`h3` per non-empty family); empty families hidden.
+- [ ] Melee drill-down links include `?family=`; `list_events` filters by family when param present.
+- [ ] `savagely strike` in `bash` and `claw` stays separate in rollups and landing sections.
 
 ### Server lifecycle (light tests)
 

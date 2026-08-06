@@ -112,7 +112,7 @@ Skip row entirely when HP loss is unattributed. No `unknown` category in v1. No 
 ### Attribution and aggregation
 
 - **Crowding:** only filtered damage-candidate lines count toward `candidate_count`; misses, outgoing hits, scan output, round headers, `Hp:` prompts, concentration lines, and gags are ignored for weight.
-- **Aggregation key:** `damage_category` + `message_verb` — melee verbs merged across monsters; each skill one key (multiple regexes); each spell one key.
+- **Aggregation key:** `damage_category` + `message_verb` for skill and spell. **Melee** adds `weapon_family` — verbs that collide across families (e.g. `savagely strike` in `bash` and `claw`) roll up separately. `known_min`/`known_max` for estimated extrapolation use the same melee key.
 - **Confirmed view:** aggregates from `candidate_count = 1` rows only (exact `hp_delta` per observation).
 - **Estimated view:** applies conservative constraint extrapolation at read time to ambiguous batches using isolated-derived `known_min`/`known_max` per key; no even-split fallback; loose `[0, hp_delta]` when constraints do not resolve. When bounds stay loose and batch rows carry `catalog_rank`, **estimated avg** uses rank-proportional split (`hp_delta × rankᵢ / Σ rankⱼ` over ranked melee candidates; unranked candidates share remainder equally; equal avg fallback if no ranks). Rank never overrides isolated constraints or stored per-row bounds. Extrapolation is not written back to stored rows.
 

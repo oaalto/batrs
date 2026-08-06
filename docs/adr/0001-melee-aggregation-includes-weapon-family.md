@@ -1,0 +1,3 @@
+# Melee aggregation key includes weapon_family
+
+Four melee catalog verbs collide across weapon families (`whack`, `savagely strike`, and case variants of `really crush` / `really slam`). Rolling up on `message_verb` alone would merge distinct damage profiles into one row and let isolated `known_min` data from one family tighten estimated bounds for another. Melee aggregates therefore key on `(damage_category, weapon_family, message_verb)`; skill and spell stay on `(damage_category, message_verb)`. The HTTP landing page groups melee into per-family sub-sections so the catalog layout matches how players read `hit_messages.md`.
