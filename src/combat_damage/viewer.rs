@@ -22,6 +22,10 @@ pub const BIND_ADDR: &str = "127.0.0.1";
 
 const STYLE_CSS: &str = include_str!("../../assets/combat_damage/style.css");
 
+fn format_percent(value: f64) -> String {
+    format!("{:.0}%", value * 100.0)
+}
+
 #[derive(Clone)]
 pub struct ViewerState {
     db_path: PathBuf,
@@ -238,6 +242,7 @@ fn render_drill_down(
         ("player", "Player"),
         ("hp_delta", "HP delta"),
         ("source_name", "Source"),
+        ("confidence", "Confidence"),
         ("weight", "Weight"),
         ("candidate_count", "Candidates"),
     ] {
@@ -282,7 +287,14 @@ fn render_drill_down(
                 if loose { " loose" } else { "" }
             ));
             html.push_str(&format!("<td>{}</td>", html_escape(&event.source_name)));
-            html.push_str(&format!("<td class=\"numeric\">{:.2}</td>", event.weight));
+            html.push_str(&format!(
+                "<td class=\"numeric\">{}</td>",
+                format_percent(event.confidence)
+            ));
+            html.push_str(&format!(
+                "<td class=\"numeric\">{}</td>",
+                format_percent(event.weight)
+            ));
             html.push_str(&format!(
                 "<td class=\"numeric\">{}</td>",
                 event.candidate_count
@@ -862,6 +874,6 @@ mod tests {
     #[test]
     fn unreadable_db_message_is_documented() {
         assert_eq!(CANNOT_OPEN_DATABASE, "Cannot open combat damage database.");
-        assert_eq!(CURRENT_SCHEMA_VERSION, 2);
+        assert_eq!(CURRENT_SCHEMA_VERSION, 3);
     }
 }

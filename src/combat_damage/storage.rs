@@ -2,7 +2,7 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension};
 use std::fs;
 use std::path::Path;
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 2;
+pub const CURRENT_SCHEMA_VERSION: i32 = 3;
 
 const SCHEMA_NEWER_THAN_BINARY: &str = "Database schema newer than batrs; upgrade batrs.";
 pub const CANNOT_OPEN_DATABASE: &str = "Cannot open combat damage database.";
@@ -89,11 +89,12 @@ fn create_schema(conn: &Connection, version: i32) -> Result<(), String> {
             message_verb TEXT NOT NULL,
             message_text TEXT NOT NULL,
             candidate_count INTEGER NOT NULL,
-            weight REAL NOT NULL,
+            confidence REAL NOT NULL,
             damage_min INTEGER NOT NULL,
             damage_max INTEGER NOT NULL,
             catalog_rank INTEGER,
-            weapon_family TEXT
+            weapon_family TEXT,
+            weight REAL NOT NULL
         );
         CREATE INDEX idx_damage_events_batch_id ON damage_events (batch_id);
         CREATE INDEX idx_damage_events_recorded_at ON damage_events (recorded_at);
@@ -111,13 +112,21 @@ fn create_schema(conn: &Connection, version: i32) -> Result<(), String> {
 }
 
 fn apply_migrations(conn: &Connection, from_version: i32) -> Result<(), String> {
-    if from_version == 1 {
+    let mut version = from_version;
+    if version == 1 {
         migrate_v1_to_v2(conn)?;
+        version = 2;
+    }
+    if version == 2 {
+        migrate_v2_to_v3(conn)?;
         return Ok(());
     }
-    Err(format!(
-        "missing migration from schema version {from_version} to {CURRENT_SCHEMA_VERSION}"
-    ))
+    if version < CURRENT_SCHEMA_VERSION {
+        return Err(format!(
+            "missing migration from schema version {version} to {CURRENT_SCHEMA_VERSION}"
+        ));
+    }
+    Ok(())
 }
 
 fn migrate_v1_to_v2(conn: &Connection) -> Result<(), String> {
@@ -129,6 +138,59 @@ fn migrate_v1_to_v2(conn: &Connection) -> Result<(), String> {
         ",
     )
     .map_err(|err| err.to_string())?;
+    Ok(())
+}
+
+fn migrate_v2_to_v3(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch(
+        "
+        ALTER TABLE damage_events RENAME COLUMN weight TO confidence;
+        ALTER TABLE damage_events ADD COLUMN weight REAL NOT NULL DEFAULT 1.0;
+        UPDATE schema_version SET version = 3;
+        ",
+    )
+    .map_err(|err| err.to_string())?;
+    backfill_catalog_weights(conn)?;
+    Ok(())
+}
+
+fn backfill_catalog_weights(conn: &Connection) -> Result<(), String> {
+    let mut statement = conn
+        .prepare("SELECT id, batch_id, catalog_rank FROM damage_events ORDER BY batch_id, id")
+        .map_err(|err| err.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, Option<i32>>(2)?,
+            ))
+        })
+        .map_err(|err| err.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| err.to_string())?;
+
+    let mut batches: std::collections::BTreeMap<i64, Vec<(i64, Option<i32>)>> =
+        std::collections::BTreeMap::new();
+    for (id, batch_id, catalog_rank) in rows {
+        batches
+            .entry(batch_id)
+            .or_default()
+            .push((id, catalog_rank));
+    }
+
+    let mut update = conn
+        .prepare("UPDATE damage_events SET weight = ?1 WHERE id = ?2")
+        .map_err(|err| err.to_string())?;
+    for (_batch_id, members) in batches {
+        let ranks: Vec<Option<i32>> = members.iter().map(|(_, rank)| *rank).collect();
+        let weights = crate::combat_damage::attribution::catalog_weights(&ranks);
+        for ((id, _), weight) in members.iter().zip(weights) {
+            update
+                .execute(rusqlite::params![weight, id])
+                .map_err(|err| err.to_string())?;
+        }
+    }
     Ok(())
 }
 
@@ -175,7 +237,7 @@ mod tests {
     }
 
     #[test]
-    fn fresh_open_creates_v2_schema_and_indexes() {
+    fn fresh_open_creates_v3_schema_and_indexes() {
         let path = temp_db_path("fresh");
         let _ = fs::remove_file(&path);
         let conn = open_db(&path).expect("open fresh db");
@@ -201,11 +263,12 @@ mod tests {
                 "message_verb",
                 "message_text",
                 "candidate_count",
-                "weight",
+                "confidence",
                 "damage_min",
                 "damage_max",
                 "catalog_rank",
                 "weapon_family",
+                "weight",
             ]
         );
         assert_eq!(
@@ -220,7 +283,7 @@ mod tests {
         let version: i32 = conn
             .query_row("SELECT version FROM schema_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, 3);
         let row_count: i64 = conn
             .query_row("SELECT COUNT(*) FROM damage_events", [], |row| row.get(0))
             .unwrap();
@@ -229,7 +292,7 @@ mod tests {
     }
 
     #[test]
-    fn v1_database_migrates_to_v2() {
+    fn v1_database_migrates_to_v3() {
         let path = temp_db_path("migrate-v1");
         let _ = fs::remove_file(&path);
         let conn = Connection::open(&path).unwrap();
@@ -275,17 +338,108 @@ mod tests {
                 "message_verb",
                 "message_text",
                 "candidate_count",
-                "weight",
+                "confidence",
                 "damage_min",
                 "damage_max",
                 "catalog_rank",
                 "weapon_family",
+                "weight",
             ]
         );
         let version: i32 = conn
             .query_row("SELECT version FROM schema_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, 3);
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn v2_database_migrates_to_v3() {
+        let path = temp_db_path("migrate-v2");
+        let _ = fs::remove_file(&path);
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE schema_version (version INTEGER NOT NULL);
+            CREATE TABLE damage_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL,
+                recorded_at TEXT NOT NULL,
+                player TEXT NOT NULL,
+                hp_delta INTEGER NOT NULL,
+                hp_before INTEGER NOT NULL,
+                hp_after INTEGER NOT NULL,
+                damage_category TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                message_verb TEXT NOT NULL,
+                message_text TEXT NOT NULL,
+                candidate_count INTEGER NOT NULL,
+                weight REAL NOT NULL,
+                damage_min INTEGER NOT NULL,
+                damage_max INTEGER NOT NULL,
+                catalog_rank INTEGER,
+                weapon_family TEXT
+            );
+            INSERT INTO schema_version (version) VALUES (2);
+            INSERT INTO damage_events (
+                batch_id, recorded_at, player, hp_delta, hp_before, hp_after,
+                damage_category, source_name, message_verb, message_text,
+                candidate_count, weight, damage_min, damage_max, catalog_rank, weapon_family
+            ) VALUES
+                (101, '2026-08-06T12:00:00Z', 'Odefu', 35, 135, 100, 'melee', 'Orc', 'barely scrape',
+                 'Orc barely scrapes you.', 2, 0.5, 0, 35, 3, 'claw'),
+                (101, '2026-08-06T12:00:00Z', 'Odefu', 35, 135, 100, 'melee', 'Orc', 'prick',
+                 'Orc pricks you.', 2, 0.5, 0, 35, 5, 'stab');
+            ",
+        )
+        .unwrap();
+        drop(conn);
+        open_db(&path).expect("migrate v2 db");
+        let conn = Connection::open(&path).unwrap();
+        assert_eq!(
+            damage_event_columns(&conn),
+            [
+                "id",
+                "batch_id",
+                "recorded_at",
+                "player",
+                "hp_delta",
+                "hp_before",
+                "hp_after",
+                "damage_category",
+                "source_name",
+                "message_verb",
+                "message_text",
+                "candidate_count",
+                "confidence",
+                "damage_min",
+                "damage_max",
+                "catalog_rank",
+                "weapon_family",
+                "weight",
+            ]
+        );
+        let version: i32 = conn
+            .query_row("SELECT version FROM schema_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 3);
+        let barely_scrape: (f64, f64) = conn
+            .query_row(
+                "SELECT confidence, weight FROM damage_events WHERE message_verb = 'barely scrape'",
+                [],
+                |row| Ok((row.get::<_, f64>(0)?, row.get::<_, f64>(1)?)),
+            )
+            .unwrap();
+        assert!((barely_scrape.0 - 0.5).abs() < 1e-9);
+        assert!((barely_scrape.1 - 0.375).abs() < 1e-9);
+        let prick: f64 = conn
+            .query_row(
+                "SELECT weight FROM damage_events WHERE message_verb = 'prick'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!((prick - 0.625).abs() < 1e-9);
         let _ = fs::remove_file(path);
     }
 

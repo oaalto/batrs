@@ -1,3 +1,4 @@
+use crate::combat_damage::attribution::{catalog_weights, confidence};
 use crate::combat_damage::matcher::{DamageCandidate, DamageCategory, Matcher};
 use crate::combat_damage::storage::open_db;
 use crate::triggers::SC_REGEX;
@@ -14,7 +15,6 @@ struct PendingBatch {
     hp_before: i32,
     hp_after: i32,
     candidate_count: usize,
-    weight: f64,
     damage_min: i32,
     damage_max: i32,
     candidates: Vec<DamageCandidate>,
@@ -34,6 +34,7 @@ pub struct DamageEventRow {
     pub message_verb: String,
     pub message_text: String,
     pub candidate_count: i32,
+    pub confidence: f64,
     pub weight: f64,
     pub damage_min: i32,
     pub damage_max: i32,
@@ -120,7 +121,6 @@ impl DamageCollector {
         let hp_after = hp_current;
         let hp_before = hp_current - diff_hp;
         let candidate_count = candidates.len();
-        let weight = 1.0 / candidate_count as f64;
         let (damage_min, damage_max) = if candidate_count == 1 {
             (hp_delta, hp_delta)
         } else {
@@ -138,7 +138,6 @@ impl DamageCollector {
             hp_before,
             hp_after,
             candidate_count,
-            weight,
             damage_min,
             damage_max,
             candidates,
@@ -153,16 +152,23 @@ impl DamageCollector {
             .as_mut()
             .ok_or_else(|| "combat damage database unavailable".to_string())?;
         let transaction = conn.transaction().map_err(|err| err.to_string())?;
-        for candidate in &batch.candidates {
+        let batch_confidence = confidence(batch.candidate_count);
+        let ranks: Vec<Option<i32>> = batch
+            .candidates
+            .iter()
+            .map(|candidate| candidate.catalog_rank.map(i32::from))
+            .collect();
+        let weights = catalog_weights(&ranks);
+        for (candidate, weight) in batch.candidates.iter().zip(weights) {
             transaction
                 .execute(
                     "
                     INSERT INTO damage_events (
                         batch_id, recorded_at, player, hp_delta, hp_before, hp_after,
                         damage_category, source_name, message_verb, message_text,
-                        candidate_count, weight, damage_min, damage_max,
-                        catalog_rank, weapon_family
-                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+                        candidate_count, confidence, damage_min, damage_max,
+                        catalog_rank, weapon_family, weight
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
                     ",
                     rusqlite::params![
                         batch.batch_id,
@@ -176,11 +182,12 @@ impl DamageCollector {
                         candidate.message_verb,
                         candidate.message_text,
                         batch.candidate_count as i32,
-                        batch.weight,
+                        batch_confidence,
                         batch.damage_min,
                         batch.damage_max,
                         candidate.catalog_rank.map(i32::from),
                         candidate.weapon_family,
+                        weight,
                     ],
                 )
                 .map_err(|err| err.to_string())?;
@@ -196,8 +203,8 @@ impl DamageCollector {
                 "
                 SELECT batch_id, recorded_at, player, hp_delta, hp_before, hp_after,
                        damage_category, source_name, message_verb, message_text,
-                       candidate_count, weight, damage_min, damage_max,
-                       catalog_rank, weapon_family
+                       candidate_count, confidence, damage_min, damage_max,
+                       catalog_rank, weapon_family, weight
                 FROM damage_events
                 ORDER BY id
                 ",
@@ -217,11 +224,12 @@ impl DamageCollector {
                     message_verb: row.get(8)?,
                     message_text: row.get(9)?,
                     candidate_count: row.get(10)?,
-                    weight: row.get(11)?,
+                    confidence: row.get(11)?,
                     damage_min: row.get(12)?,
                     damage_max: row.get(13)?,
                     catalog_rank: row.get(14)?,
                     weapon_family: row.get(15)?,
+                    weight: row.get(16)?,
                 })
             })
             .map_err(|err| err.to_string())?;
@@ -277,6 +285,7 @@ mod tests {
         assert_eq!(row.message_verb, expected.message_verb);
         assert_eq!(row.message_text, expected.message_text);
         assert_eq!(row.candidate_count, expected.candidate_count);
+        assert!((row.confidence - expected.confidence).abs() < 1e-9);
         assert!((row.weight - expected.weight).abs() < 1e-9);
         assert_eq!(row.damage_min, expected.damage_min);
         assert_eq!(row.damage_max, expected.damage_max);
@@ -299,6 +308,7 @@ mod tests {
         verb: &str,
         text: &str,
         candidate_count: i32,
+        confidence: f64,
         weight: f64,
         damage_min: i32,
         damage_max: i32,
@@ -315,6 +325,7 @@ mod tests {
             message_verb: verb.to_string(),
             message_text: text.to_string(),
             candidate_count,
+            confidence,
             weight,
             damage_min,
             damage_max,
@@ -342,6 +353,7 @@ mod tests {
                 "bitchslap",
                 "Holy man bitchslaps you.",
                 1,
+                1.0,
                 1.0,
                 22,
                 22,
@@ -426,11 +438,24 @@ mod tests {
                     row.message_text.as_str(),
                     2,
                     0.5,
+                    row.weight,
                     0,
                     22,
                 ),
             );
+            assert!((row.confidence - 0.5).abs() < 1e-9);
         }
+        let weights: Vec<f64> = rows.iter().map(|row| row.weight).collect();
+        assert!(
+            weights
+                .iter()
+                .any(|weight| (*weight - 4.0 / 9.0).abs() < 1e-9)
+        );
+        assert!(
+            weights
+                .iter()
+                .any(|weight| (*weight - 5.0 / 9.0).abs() < 1e-9)
+        );
         let _ = std::fs::remove_file(path);
     }
 
@@ -444,7 +469,7 @@ mod tests {
         let rows = DamageCollector::query_all_events(collector.connection().unwrap()).unwrap();
         assert_eq!(rows.len(), 3);
         for row in &rows {
-            assert!((row.weight - (1.0 / 3.0)).abs() < 1e-9);
+            assert!((row.confidence - (1.0 / 3.0)).abs() < 1e-9);
             assert_eq!(row.candidate_count, 3);
             assert_eq!(row.damage_min, 0);
             assert_eq!(row.damage_max, 30);

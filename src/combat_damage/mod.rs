@@ -1,4 +1,5 @@
 pub mod aggregate;
+mod attribution;
 mod catalog;
 pub mod collector;
 #[cfg(test)]

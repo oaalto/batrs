@@ -92,6 +92,7 @@ pub enum EventSortColumn {
     Player,
     HpDelta,
     SourceName,
+    Confidence,
     Weight,
     CandidateCount,
 }
@@ -102,6 +103,7 @@ impl EventSortColumn {
             Some("player") => Self::Player,
             Some("hp_delta") => Self::HpDelta,
             Some("source_name") => Self::SourceName,
+            Some("confidence") => Self::Confidence,
             Some("weight") => Self::Weight,
             Some("candidate_count") => Self::CandidateCount,
             _ => Self::RecordedAt,
@@ -139,6 +141,7 @@ pub struct DamageEvent {
     pub damage_min: i32,
     pub damage_max: i32,
     pub source_name: String,
+    pub confidence: f64,
     pub weight: f64,
     pub candidate_count: i32,
     pub message_verb: String,
@@ -268,10 +271,11 @@ struct RawEventRow {
     message_verb: String,
     message_text: String,
     candidate_count: i32,
-    weight: f64,
+    confidence: f64,
     damage_min: i32,
     damage_max: i32,
     catalog_rank: Option<i32>,
+    weight: f64,
 }
 
 fn load_filtered_events(
@@ -283,8 +287,8 @@ fn load_filtered_events(
     let (extra, mut params) = filter_clause(filters);
     let mut sql = format!(
         "SELECT id, batch_id, recorded_at, player, hp_delta, damage_category, source_name,
-                message_verb, message_text, candidate_count, weight, damage_min, damage_max,
-                catalog_rank
+                message_verb, message_text, candidate_count, confidence, damage_min, damage_max,
+                catalog_rank, weight
          FROM damage_events
          WHERE 1=1{extra}"
     );
@@ -310,10 +314,11 @@ fn load_filtered_events(
                 message_verb: row.get(7)?,
                 message_text: row.get(8)?,
                 candidate_count: row.get(9)?,
-                weight: row.get(10)?,
+                confidence: row.get(10)?,
                 damage_min: row.get(11)?,
                 damage_max: row.get(12)?,
                 catalog_rank: row.get(13)?,
+                weight: row.get(14)?,
             })
         })
         .map_err(|err| err.to_string())?;
@@ -344,8 +349,8 @@ fn load_batch_siblings(
     };
     let sql = format!(
         "SELECT id, batch_id, recorded_at, player, hp_delta, damage_category, source_name,
-                message_verb, message_text, candidate_count, weight, damage_min, damage_max,
-                catalog_rank
+                message_verb, message_text, candidate_count, confidence, damage_min, damage_max,
+                catalog_rank, weight
          FROM damage_events
          WHERE batch_id IN ({batch_placeholders}){exclude_sql}{extra}"
     );
@@ -369,10 +374,11 @@ fn load_batch_siblings(
                 message_verb: row.get(7)?,
                 message_text: row.get(8)?,
                 candidate_count: row.get(9)?,
-                weight: row.get(10)?,
+                confidence: row.get(10)?,
                 damage_min: row.get(11)?,
                 damage_max: row.get(12)?,
                 catalog_rank: row.get(13)?,
+                weight: row.get(14)?,
             })
         })
         .map_err(|err| err.to_string())?;
@@ -390,6 +396,7 @@ fn raw_to_damage_event(row: RawEventRow, row_role: EventRowRole) -> DamageEvent 
         damage_min: row.damage_min,
         damage_max: row.damage_max,
         source_name: row.source_name,
+        confidence: row.confidence,
         weight: row.weight,
         candidate_count: row.candidate_count,
         message_verb: row.message_verb,
@@ -683,6 +690,10 @@ fn sort_events(events: &mut [DamageEvent], sort_col: EventSortColumn, sort_dir: 
             EventSortColumn::Player => left.player.cmp(&right.player),
             EventSortColumn::HpDelta => left.hp_delta.cmp(&right.hp_delta),
             EventSortColumn::SourceName => left.source_name.cmp(&right.source_name),
+            EventSortColumn::Confidence => left
+                .confidence
+                .partial_cmp(&right.confidence)
+                .unwrap_or(std::cmp::Ordering::Equal),
             EventSortColumn::Weight => left
                 .weight
                 .partial_cmp(&right.weight)

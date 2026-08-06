@@ -1,3 +1,4 @@
+use crate::combat_damage::attribution::{catalog_weights, confidence};
 use crate::combat_damage::storage::open_db;
 use rusqlite::Connection;
 use std::path::PathBuf;
@@ -18,7 +19,7 @@ pub struct FixtureRow {
     pub message_verb: String,
     pub message_text: String,
     pub candidate_count: i32,
-    pub weight: f64,
+    pub confidence: f64,
     pub damage_min: i32,
     pub damage_max: i32,
     pub catalog_rank: Option<i32>,
@@ -45,7 +46,7 @@ impl FixtureRow {
             message_verb: verb.to_string(),
             message_text: format!("Holy man {verb}s you."),
             candidate_count: 1,
-            weight: 1.0,
+            confidence: 1.0,
             damage_min: hp_delta,
             damage_max: hp_delta,
             catalog_rank: None,
@@ -74,7 +75,7 @@ impl FixtureRow {
             message_verb: verb.to_string(),
             message_text: format!("Holy man {verb}s you."),
             candidate_count,
-            weight: 1.0 / f64::from(candidate_count),
+            confidence: confidence(candidate_count as usize),
             damage_min: 0,
             damage_max: hp_delta,
             catalog_rank: None,
@@ -119,14 +120,31 @@ pub fn open_fixture_db(rows: &[FixtureRow]) -> PathBuf {
 }
 
 pub fn insert_rows(conn: &Connection, rows: &[FixtureRow]) {
-    for row in rows {
+    let mut batches: std::collections::BTreeMap<i64, Vec<usize>> =
+        std::collections::BTreeMap::new();
+    for (index, row) in rows.iter().enumerate() {
+        batches.entry(row.batch_id).or_default().push(index);
+    }
+    let mut weights_by_index = vec![1.0; rows.len()];
+    for indices in batches.values() {
+        let ranks: Vec<Option<i32>> = indices
+            .iter()
+            .map(|index| rows[*index].catalog_rank)
+            .collect();
+        let weights = catalog_weights(&ranks);
+        for (index, weight) in indices.iter().zip(weights) {
+            weights_by_index[*index] = weight;
+        }
+    }
+
+    for (row, weight) in rows.iter().zip(weights_by_index) {
         conn.execute(
             "INSERT INTO damage_events (
                 batch_id, recorded_at, player, hp_delta, hp_before, hp_after,
                 damage_category, source_name, message_verb, message_text,
-                candidate_count, weight, damage_min, damage_max,
-                catalog_rank, weapon_family
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+                candidate_count, confidence, damage_min, damage_max,
+                catalog_rank, weapon_family, weight
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
             rusqlite::params![
                 row.batch_id,
                 row.recorded_at,
@@ -139,11 +157,12 @@ pub fn insert_rows(conn: &Connection, rows: &[FixtureRow]) {
                 row.message_verb,
                 row.message_text,
                 row.candidate_count,
-                row.weight,
+                row.confidence,
                 row.damage_min,
                 row.damage_max,
                 row.catalog_rank,
                 row.weapon_family,
+                weight,
             ],
         )
         .expect("insert fixture row");
