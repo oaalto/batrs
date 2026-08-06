@@ -1,6 +1,8 @@
-// ponytail: module wired for matcher tests until DamageCollector integration lands
-#![allow(dead_code)]
-
 mod catalog;
+pub mod collector;
+#[cfg(test)]
 mod conjugate;
 pub mod matcher;
+mod storage;
+
+pub use collector::DamageCollector;

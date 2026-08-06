@@ -154,6 +154,10 @@ impl ConfigManager {
         })
     }
 
+    pub fn base_dir(&self) -> &Path {
+        &self.base_dir
+    }
+
     pub fn init_base(&mut self) -> io::Result<()> {
         fs::create_dir_all(&self.base_dir)?;
         let base_config_path = self.base_dir.join("batrs.toml");

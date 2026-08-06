@@ -1,4 +1,5 @@
 use crate::combat_damage::catalog::{CATALOG, CatalogEntry};
+#[cfg(test)]
 use crate::combat_damage::conjugate::conjugate_verb;
 use regex::Regex;
 use std::sync::LazyLock;
@@ -87,6 +88,7 @@ impl Matcher {
         Self::default()
     }
 
+    #[cfg(test)]
     pub fn reset(&mut self) {
         self.last_family = None;
     }
@@ -101,6 +103,7 @@ impl Matcher {
         self.match_melee(line)
     }
 
+    #[cfg(test)]
     pub fn match_outgoing_sanity(&self, line: &str) -> Option<(String, String)> {
         let rest = line.strip_prefix("You ")?;
         for entry in CATALOG {
@@ -180,7 +183,7 @@ impl Matcher {
         recency
     }
 
-    #[doc(hidden)]
+    #[cfg(test)]
     pub fn match_melee_for_test(&mut self, line: &str) -> Option<DamageCandidate> {
         self.match_melee(line)
     }
@@ -235,10 +238,12 @@ fn match_spell(line: &str) -> Option<DamageCandidate> {
     })
 }
 
+#[cfg(test)]
 pub fn format_incoming_line(source: &str, canonical_verb: &str) -> String {
     format!("{source} {} you.", conjugate_verb(canonical_verb))
 }
 
+#[cfg(test)]
 pub fn format_incoming_line_bare(source: &str, canonical_verb: &str) -> String {
     format!("{source} {canonical_verb} you.")
 }

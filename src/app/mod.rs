@@ -15,6 +15,7 @@ mod fake_connection_coordinator;
 use crate::ansi::StyledLine;
 use crate::automation::{Action, Automation};
 use crate::combat_awareness::{CombatAwareness, CombatAwarenessEffect};
+use crate::combat_damage::DamageCollector;
 use crate::config::{ConfigManager, GenericCommandsConfig, UserSettings};
 use crate::generic_commands::GenericCommands;
 use crate::guilds::{
@@ -87,6 +88,7 @@ pub struct BatApp {
     stats: Stats,
     secondary_status: SecondaryStatus,
     combat_awareness: CombatAwareness,
+    damage_collector: DamageCollector,
     event_receiver: Receiver<AppEvent>,
     command_sender: Sender<String>,
     connection_coordinator: Box<dyn ConnectionCoordinator>,
@@ -129,6 +131,16 @@ impl BatApp {
                 None
             }
         };
+        let damage_collector = match &config_manager {
+            Some(manager) => {
+                let db_path = manager.base_dir().join("combat_damage.db");
+                DamageCollector::open(&db_path).unwrap_or_else(|error| {
+                    warn!("failed to open combat damage database: {error}");
+                    DamageCollector::inert()
+                })
+            }
+            None => DamageCollector::inert(),
+        };
         let mut app = BatApp {
             output: OutputBuffer::new(),
             input: InputState::new(),
@@ -136,6 +148,7 @@ impl BatApp {
             stats: Default::default(),
             secondary_status: SecondaryStatus::default(),
             combat_awareness: CombatAwareness::default(),
+            damage_collector,
             event_receiver,
             command_sender,
             connection_coordinator,
@@ -175,6 +188,9 @@ impl BatApp {
             if self.session.update_login_state(&styled_line.plain_line) {
                 self.input.clear_all();
             }
+            if was_logged_in && !self.session.is_logged_in() {
+                self.damage_collector.reset_buffer();
+            }
             if !was_logged_in && self.session.is_logged_in() {
                 if let Some(login_name) = self.session.login_name()
                     && let Some(disposition) =
@@ -199,6 +215,10 @@ impl BatApp {
             }
 
             if self.session.is_logged_in() {
+                if let Some(player_name) = self.session.login_name() {
+                    self.damage_collector
+                        .handle_line(&styled_line.plain_line, player_name);
+                }
                 let ca_result = self
                     .combat_awareness
                     .handle_incoming_line(&styled_line.plain_line);
@@ -581,6 +601,7 @@ impl BatApp {
                 FreshSessionReset::CombatAwareness => {
                     self.combat_awareness = CombatAwareness::default();
                 }
+                FreshSessionReset::DamageCollector => self.damage_collector.reset_buffer(),
                 FreshSessionReset::TelnetBuffer => self.telnet_buffer = TelnetBuffer::new(),
                 FreshSessionReset::GuildSelection => {
                     self.selected_guilds.clear();
@@ -1193,6 +1214,7 @@ mod tests {
             stats: Default::default(),
             secondary_status: SecondaryStatus::default(),
             combat_awareness: CombatAwareness::default(),
+            damage_collector: DamageCollector::inert(),
             event_receiver: channels.event_receiver,
             command_sender: channels.command_sender,
             connection_coordinator,
@@ -1217,6 +1239,28 @@ mod tests {
             scrollback: Scrollback::new(),
         };
         (app, command_receiver, event_sender)
+    }
+
+    #[test]
+    fn fresh_session_reset_damage_collector_clears_buffer() {
+        let (mut app, _command_receiver) = test_app();
+        log_in(&mut app);
+        app.damage_collector
+            .handle_line("Holy man bitchslaps you.", "tester");
+        assert_eq!(app.damage_collector.buffer_len(), 1);
+        app.apply_fresh_session_plan(FreshSessionPlan::new(1));
+        assert_eq!(app.damage_collector.buffer_len(), 0);
+    }
+
+    #[test]
+    fn logout_transition_clears_damage_collector_buffer() {
+        let (mut app, _command_receiver) = test_app();
+        log_in(&mut app);
+        app.damage_collector
+            .handle_line("Holy man bitchslaps you.", "tester");
+        assert_eq!(app.damage_collector.buffer_len(), 1);
+        app.process_input_lines(vec!["Please enter your choice or name:".to_string()]);
+        assert_eq!(app.damage_collector.buffer_len(), 0);
     }
 
     #[test]

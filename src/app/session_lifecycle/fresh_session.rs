@@ -7,6 +7,7 @@ pub enum FreshSessionReset {
     Stats,
     SecondaryStatus,
     CombatAwareness,
+    DamageCollector,
     TelnetBuffer,
     GuildSelection,
     Automation,
@@ -17,11 +18,12 @@ pub enum FreshSessionReset {
 }
 
 impl FreshSessionReset {
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::Session,
         Self::Stats,
         Self::SecondaryStatus,
         Self::CombatAwareness,
+        Self::DamageCollector,
         Self::TelnetBuffer,
         Self::GuildSelection,
         Self::Automation,

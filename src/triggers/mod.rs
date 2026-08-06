@@ -54,6 +54,7 @@ mod prompt;
 mod recovery_bracket;
 pub(crate) mod rule_engine;
 mod short_score;
+pub use short_score::SC_REGEX;
 mod spell_vocal_data;
 mod spell_vocals;
 
