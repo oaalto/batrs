@@ -1,18 +1,42 @@
-use rusqlite::{Connection, OptionalExtension};
+use rusqlite::{Connection, OpenFlags, OptionalExtension};
 use std::fs;
 use std::path::Path;
 
 pub const CURRENT_SCHEMA_VERSION: i32 = 1;
 
 const SCHEMA_NEWER_THAN_BINARY: &str = "Database schema newer than batrs; upgrade batrs.";
+pub const CANNOT_OPEN_DATABASE: &str = "Cannot open combat damage database.";
 
 pub fn open_db(path: &Path) -> Result<Connection, String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|err| err.to_string())?;
     }
     let conn = Connection::open(path).map_err(|err| err.to_string())?;
+    conn.pragma_update(None, "journal_mode", "WAL")
+        .map_err(|err| err.to_string())?;
     migrate(&conn)?;
     Ok(conn)
+}
+
+pub fn open_readonly_db(path: &Path) -> Result<Connection, String> {
+    let conn = Connection::open_with_flags(
+        path,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .map_err(|_| CANNOT_OPEN_DATABASE.to_string())?;
+    validate_readable_schema(&conn)?;
+    Ok(conn)
+}
+
+fn validate_readable_schema(conn: &Connection) -> Result<(), String> {
+    let version = read_schema_version(conn)?;
+    match version {
+        None => Err(CANNOT_OPEN_DATABASE.to_string()),
+        Some(existing) if existing > CURRENT_SCHEMA_VERSION => {
+            Err(SCHEMA_NEWER_THAN_BINARY.to_string())
+        }
+        Some(_) => Ok(()),
+    }
 }
 
 fn migrate(conn: &Connection) -> Result<(), String> {

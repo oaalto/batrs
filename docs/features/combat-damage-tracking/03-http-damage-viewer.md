@@ -26,7 +26,7 @@ Add a read-only HTTP dashboard served by `axum`, auto-started when batrs launche
 
 ## Status
 
-pending
+done
 
 ## Acceptance criteria
 

@@ -118,6 +118,7 @@ impl BatApp {
         event_receiver: Receiver<AppEvent>,
         command_sender: Sender<String>,
         connection_coordinator: Box<dyn ConnectionCoordinator>,
+        viewer_port: u16,
     ) -> Self {
         let config_manager = match ConfigManager::new() {
             Ok(mut manager) => {
@@ -141,6 +142,12 @@ impl BatApp {
             }
             None => DamageCollector::inert(),
         };
+        let _damage_viewer = config_manager.as_ref().map(|manager| {
+            crate::combat_damage::spawn_server(
+                manager.base_dir().join("combat_damage.db"),
+                viewer_port,
+            )
+        });
         let mut app = BatApp {
             output: OutputBuffer::new(),
             input: InputState::new(),

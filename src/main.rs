@@ -50,10 +50,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
+    let viewer_port = combat_damage::parse_port_from_args(std::env::args());
     let app = BatApp::new(
         channels.event_receiver,
         channels.command_sender,
         Box::new(TcpConnectionCoordinator),
+        viewer_port,
     );
     let result = run_app(&mut terminal, app);
 
