@@ -45,7 +45,8 @@ h1 {
 
 h2 {
   margin: 2rem 0 0.5rem;
-  font-size: 1.15rem;
+  font-size: 1.35rem;
+  font-weight: 600;
 }
 
 a {
@@ -75,10 +76,6 @@ a {
 .filters button {
   font: inherit;
   padding: 0.375rem 0.5rem;
-}
-
-h2 {
-  margin-top: 1.5rem;
 }
 
 h3 {
