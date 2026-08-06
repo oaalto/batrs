@@ -240,11 +240,13 @@ fn render_drill_down(
         ("source_name", "Source"),
         ("weight", "Weight"),
         ("candidate_count", "Candidates"),
-        ("message_text", "Message"),
     ] {
         let href = build_event_sort_href(category, verb, filters, col, query);
         html.push_str(&format!("<th><a href=\"{href}\">{label}</a></th>"));
     }
+    html.push_str("<th>Verb</th>");
+    let href = build_event_sort_href(category, verb, filters, "message_text", query);
+    html.push_str(&format!("<th><a href=\"{href}\">Message</a></th>"));
     html.push_str("</tr></thead><tbody>");
     if events.is_empty() {
         html.push_str("</tbody></table><p class=\"empty-hint\">No events for this verb.</p>");
@@ -254,10 +256,17 @@ fn render_drill_down(
             *batch_counts.entry(event.batch_id).or_insert(0usize) += 1;
         }
         for event in events {
-            let batch_class = if event.candidate_count > 1 {
-                " class=\"batch-group\""
+            let mut row_class = String::new();
+            if event.candidate_count > 1 {
+                row_class.push_str(" batch-group");
+            }
+            if event.row_role == crate::combat_damage::aggregate::EventRowRole::Sibling {
+                row_class.push_str(" batch-sibling");
+            }
+            let batch_class = if row_class.is_empty() {
+                String::new()
             } else {
-                ""
+                format!(" class=\"{}\"", row_class.trim())
             };
             let damage = if event.candidate_count > 1 {
                 format!("{}–{}", event.damage_min, event.damage_max)
@@ -277,6 +286,22 @@ fn render_drill_down(
             html.push_str(&format!(
                 "<td class=\"numeric\">{}</td>",
                 event.candidate_count
+            ));
+            let verb_href = format!(
+                "/events/{}/{}",
+                percent_encode_path(&event.damage_category),
+                percent_encode_path(&event.message_verb)
+            );
+            let verb_suffix =
+                if event.row_role == crate::combat_damage::aggregate::EventRowRole::Sibling {
+                    " <span class=\"batch-label\">sibling</span>"
+                } else {
+                    ""
+                };
+            html.push_str(&format!(
+                "<td class=\"verb-cell\"><a href=\"{verb_href}{}\">{}{verb_suffix}</a></td>",
+                build_filter_query(filters),
+                html_escape(&event.message_verb)
             ));
             let batch_note = if batch_counts.get(&event.batch_id).copied().unwrap_or(0) > 1 {
                 format!(
@@ -812,6 +837,7 @@ mod tests {
         let body = body_string(response).await;
         assert!(body.contains("batch-group"));
         assert!(body.contains("0–22"));
+        assert!(body.contains("Holy man boots you."));
         remove_db_files(&path);
     }
 

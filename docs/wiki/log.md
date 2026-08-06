@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-08-06] update | Combat damage drill-down batch siblings
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/03-http-damage-viewer.md`
+- Sources: grill-with-docs-batch acceptance; `src/combat_damage/aggregate.rs`, `src/combat_damage/viewer.rs`
+- Notes: verb drill-down shows inline batch siblings for ambiguous attribution batches; cross-category siblings included.
+
 ## [2026-08-06] update | Combat damage catalog rank
 
 - Created: [Combat Damage Tracking](concepts/combat-damage-tracking.md)

@@ -123,6 +123,12 @@ pub struct VerbAggregate {
     pub estimated_loose: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EventRowRole {
+    Focal,
+    Sibling,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct DamageEvent {
     pub id: i64,
@@ -135,7 +141,10 @@ pub struct DamageEvent {
     pub source_name: String,
     pub weight: f64,
     pub candidate_count: i32,
+    pub message_verb: String,
+    pub damage_category: String,
     pub message_text: String,
+    pub row_role: EventRowRole,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -310,6 +319,84 @@ fn load_filtered_events(
         .map_err(|err| err.to_string())?;
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|err| err.to_string())
+}
+
+fn load_batch_siblings(
+    conn: &Connection,
+    filters: &FilterParams,
+    batch_ids: &[i64],
+    exclude_ids: &[i64],
+) -> Result<Vec<RawEventRow>, String> {
+    if batch_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let (extra, filter_params) = filter_clause(filters);
+    let batch_placeholders = batch_ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+    let exclude_sql = if exclude_ids.is_empty() {
+        String::new()
+    } else {
+        let placeholders = exclude_ids
+            .iter()
+            .map(|_| "?")
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!(" AND id NOT IN ({placeholders})")
+    };
+    let sql = format!(
+        "SELECT id, batch_id, recorded_at, player, hp_delta, damage_category, source_name,
+                message_verb, message_text, candidate_count, weight, damage_min, damage_max,
+                catalog_rank
+         FROM damage_events
+         WHERE batch_id IN ({batch_placeholders}){exclude_sql}{extra}"
+    );
+    let mut params = batch_ids
+        .iter()
+        .chain(exclude_ids.iter())
+        .map(|id| id.to_string())
+        .collect::<Vec<_>>();
+    params.extend(filter_params);
+    let mut statement = conn.prepare(&sql).map_err(|err| err.to_string())?;
+    let rows = statement
+        .query_map(rusqlite::params_from_iter(params.drain(..)), |row| {
+            Ok(RawEventRow {
+                id: row.get(0)?,
+                batch_id: row.get(1)?,
+                recorded_at: row.get(2)?,
+                player: row.get(3)?,
+                hp_delta: row.get(4)?,
+                damage_category: row.get(5)?,
+                source_name: row.get(6)?,
+                message_verb: row.get(7)?,
+                message_text: row.get(8)?,
+                candidate_count: row.get(9)?,
+                weight: row.get(10)?,
+                damage_min: row.get(11)?,
+                damage_max: row.get(12)?,
+                catalog_rank: row.get(13)?,
+            })
+        })
+        .map_err(|err| err.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|err| err.to_string())
+}
+
+fn raw_to_damage_event(row: RawEventRow, row_role: EventRowRole) -> DamageEvent {
+    DamageEvent {
+        id: row.id,
+        batch_id: row.batch_id,
+        recorded_at: row.recorded_at,
+        player: row.player,
+        hp_delta: row.hp_delta,
+        damage_min: row.damage_min,
+        damage_max: row.damage_max,
+        source_name: row.source_name,
+        weight: row.weight,
+        candidate_count: row.candidate_count,
+        message_verb: row.message_verb,
+        damage_category: row.damage_category,
+        message_text: row.message_text,
+        row_role,
+    }
 }
 
 fn known_mins_from_isolated(rows: &[RawEventRow]) -> HashMap<(String, String), i32> {
@@ -544,24 +631,48 @@ pub fn list_events(
     sort_col: EventSortColumn,
     sort_dir: SortDirection,
 ) -> Result<Vec<DamageEvent>, String> {
-    let rows = load_filtered_events(conn, filters, Some(category), Some(verb))?;
-    let mut events = rows
+    let focal_rows = load_filtered_events(conn, filters, Some(category), Some(verb))?;
+    let focal_ids = focal_rows.iter().map(|row| row.id).collect::<Vec<_>>();
+    let ambiguous_batch_ids = focal_rows
+        .iter()
+        .filter(|row| row.candidate_count > 1)
+        .map(|row| row.batch_id)
+        .collect::<std::collections::HashSet<_>>()
         .into_iter()
-        .map(|row| DamageEvent {
-            id: row.id,
-            batch_id: row.batch_id,
-            recorded_at: row.recorded_at,
-            player: row.player,
-            hp_delta: row.hp_delta,
-            damage_min: row.damage_min,
-            damage_max: row.damage_max,
-            source_name: row.source_name,
-            weight: row.weight,
-            candidate_count: row.candidate_count,
-            message_text: row.message_text,
-        })
         .collect::<Vec<_>>();
-    sort_events(&mut events, sort_col, sort_dir);
+    let sibling_rows = load_batch_siblings(conn, filters, &ambiguous_batch_ids, &focal_ids)?;
+
+    let mut siblings_by_batch: HashMap<i64, Vec<DamageEvent>> = HashMap::new();
+    for row in sibling_rows {
+        let event = raw_to_damage_event(row, EventRowRole::Sibling);
+        siblings_by_batch
+            .entry(event.batch_id)
+            .or_default()
+            .push(event);
+    }
+    for siblings in siblings_by_batch.values_mut() {
+        siblings.sort_by(|left, right| {
+            left.damage_category
+                .cmp(&right.damage_category)
+                .then_with(|| left.message_verb.cmp(&right.message_verb))
+        });
+    }
+
+    let mut focal_events = focal_rows
+        .into_iter()
+        .map(|row| raw_to_damage_event(row, EventRowRole::Focal))
+        .collect::<Vec<_>>();
+    sort_events(&mut focal_events, sort_col, sort_dir);
+
+    let mut events = Vec::new();
+    for focal in focal_events {
+        let batch_id = focal.batch_id;
+        let show_siblings = focal.candidate_count > 1;
+        events.push(focal);
+        if show_siblings && let Some(siblings) = siblings_by_batch.get(&batch_id) {
+            events.extend(siblings.iter().cloned());
+        }
+    }
     Ok(events)
 }
 
@@ -905,6 +1016,41 @@ mod tests {
         )
         .unwrap();
         assert_eq!(aggregates[0].verb, "boot");
+        remove_db_files(&path);
+    }
+
+    #[test]
+    fn drill_down_includes_batch_siblings_for_ambiguous_batches() {
+        let path = open_fixture_db(&[
+            FixtureRow::ambiguous(
+                "melee",
+                "bitchslap",
+                "Odefu",
+                22,
+                "2026-08-06T14:35:00Z",
+                2,
+                2,
+            )
+            .with_text("Holy man bitchslaps you."),
+            FixtureRow::ambiguous("melee", "boot", "Odefu", 22, "2026-08-06T14:35:00Z", 2, 2)
+                .with_text("Holy man boots you."),
+        ]);
+        let conn = Connection::open(&path).unwrap();
+        let events = list_events(
+            &conn,
+            "melee",
+            "bitchslap",
+            &FilterParams::from_query(None, None),
+            EventSortColumn::RecordedAt,
+            SortDirection::Desc,
+        )
+        .unwrap();
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].row_role, EventRowRole::Focal);
+        assert_eq!(events[0].message_verb, "bitchslap");
+        assert_eq!(events[1].row_role, EventRowRole::Sibling);
+        assert_eq!(events[1].message_verb, "boot");
+        assert_eq!(events[1].message_text, "Holy man boots you.");
         remove_db_files(&path);
     }
 

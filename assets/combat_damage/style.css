@@ -156,3 +156,11 @@ tbody tr:hover {
   font-size: 0.75rem;
   color: var(--muted);
 }
+
+tr.batch-sibling {
+  color: var(--muted);
+}
+
+tr.batch-sibling a {
+  color: var(--muted);
+}

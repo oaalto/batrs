@@ -10,7 +10,7 @@ Add a read-only HTTP dashboard served by `axum`, auto-started when batrs launche
 
 **Landing (`/`):** three tables (melee, skill, spell). Each row = one `message_verb` with side-by-side **confirmed** and **estimated** columns (obs count, min, max, avg/bounds). Filters: time range (`24h`, `7d`, `all`) and player dropdown; defaults all; query params preserve state. All columns sortable; default sort verb ascending. No total-damage line, no by-monster table.
 
-**Drill-down (`/events/{category}/{verb}`):** event list with `recorded_at`, `player`, `hp_delta` (or min–max for ambiguous), `source_name`, `weight`, `candidate_count`, `message_text`; `batch_id` grouping or sibling links. Default sort `recorded_at` descending. Same filters as landing.
+**Drill-down (`/events/{category}/{verb}`):** event list with `recorded_at`, `player`, `hp_delta` (or min–max for ambiguous), `source_name`, `weight`, `candidate_count`, `verb` (linked), `message_text`; ambiguous batches show inline **batch siblings** (other candidates from the same `batch_id`, including cross-category). Default sort `recorded_at` descending. Same filters as landing.
 
 **Aggregates:** confirmed from `candidate_count = 1` only; estimated applies conservative constraint extrapolation at read time per PRD (no write-back). Aggregation key: `damage_category` + `message_verb`.
 
@@ -81,7 +81,7 @@ Fixture DB builder helper: insert rows with known `batch_id`, `candidate_count`,
 - [ ] `GET /events/melee/{verb}` → 200; body contains fixture `message_text`.
 - [ ] `GET /events/skill/bash` → 200 with bash fixture rows.
 - [ ] `GET /events/spell/magic%20missile` → 200 with spell fixture rows.
-- [ ] Ambiguous `batch_id` siblings both appear on drill-down for that verb.
+- [ ] Ambiguous `batch_id` siblings both appear on drill-down for that verb (focal verb rows plus inline batch siblings with linked Verb column).
 - [ ] `GET /style.css` → 200, non-empty CSS (contains table or zebra-related rule).
 - [ ] Sort links on landing preserve `player` and `range` query params.
 - [ ] Confirmed and estimated column headers present in landing HTML.
