@@ -146,6 +146,23 @@ fn combat_condition_color(condition: CombatCondition) -> Color {
     }
 }
 
+fn combat_scan_status_color(status: &str) -> Option<Color> {
+    match status {
+        "stunned" => Some(palette::BOLD_RED),
+        _ => None,
+    }
+}
+
+fn push_combat_scan_status_spans(spans: &mut Vec<Span<'static>>, status: &str) {
+    let bracket_style = normal_text_style();
+    spans.push(Span::styled(" [", bracket_style));
+    let status_style = combat_scan_status_color(status)
+        .map(|color| Style::default().fg(color))
+        .unwrap_or(bracket_style);
+    spans.push(Span::styled(status.to_string(), status_style));
+    spans.push(Span::styled("]", bracket_style));
+}
+
 fn combat_row_spans(row: &CombatScanRow) -> Vec<Span<'static>> {
     let condition = row.condition();
     let color = combat_condition_color(condition);
@@ -158,7 +175,7 @@ fn combat_row_spans(row: &CombatScanRow) -> Vec<Span<'static>> {
         Span::styled("%)", normal_text_style()),
     ];
     if let Some(status) = row.status() {
-        spans.push(Span::styled(format!(" [{status}]"), normal_text_style()));
+        push_combat_scan_status_spans(&mut spans, status);
     }
     spans.push(Span::styled(".", normal_text_style()));
     spans
@@ -855,12 +872,24 @@ mod tests {
 
         let lines = render_combat_status_lines(state.is_active(), state.snapshot(), 120);
         assert_eq!(line_text(&lines[0]), "Guard is good (90%) [stunned].");
+        let open_bracket = lines[0]
+            .spans
+            .iter()
+            .find(|span| span.content.as_ref() == " [")
+            .expect("open bracket span");
+        assert_eq!(open_bracket.style.fg, Some(palette::TEXT));
         let status = lines[0]
             .spans
             .iter()
-            .find(|span| span.content.as_ref() == " [stunned]")
+            .find(|span| span.content.as_ref() == "stunned")
             .expect("status span");
-        assert_eq!(status.style.fg, Some(palette::TEXT));
+        assert_eq!(status.style.fg, Some(palette::BOLD_RED));
+        let close_bracket = lines[0]
+            .spans
+            .iter()
+            .find(|span| span.content.as_ref() == "]")
+            .expect("close bracket span");
+        assert_eq!(close_bracket.style.fg, Some(palette::TEXT));
     }
 
     #[test]
