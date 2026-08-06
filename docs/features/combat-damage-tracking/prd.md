@@ -37,6 +37,7 @@ On batrs startup, a read-only HTTP server (default port **6464**, bind `127.0.0.
 15. As a player, I want sibling rows from the same `H:` trigger linked by `batch_id`, so that I can see which lines competed for the same HP loss.
 16. As a player, I want the dashboard to show **confirmed** aggregates from isolated observations only, so that I can trust the primary numbers.
 17. As a player, I want an **estimated** view that applies conservative constraint extrapolation to ambiguous batches, so that I can explore upper/lower bounds without false precision.
+17b. As a player, I want ambiguous melee batches with loose bounds to show a **rank-estimated avg** skewed toward higher-catalog-rank verbs within the batch, so that estimated numbers are more informative before isolated data exists — without changing confirmed aggregates or attribution `weight`.
 18. As a player, I want melee, skill, and spell damage in separate summary tables, so that I can compare verbs within each category without cross-noise.
 19. As a player, I want confirmed and estimated min/max/avg (or bounds) side by side per verb, so that I can see how much ambiguous data shifts the range.
 20. As a player, I want to click a verb row and see individual events, so that I can verify outliers and read the attributed `message_text`.
@@ -103,6 +104,8 @@ Per row fields:
 | `weight` | `1.0` if isolated; `1.0 / N` if ambiguous |
 | `damage_min`, `damage_max` | `hp_delta`/`hp_delta` if isolated; `0`/`hp_delta` if ambiguous |
 | `batch_id` | Integer shared by all rows from one `H:` trigger |
+| `catalog_rank` | Melee only: `1`–`26` from `hit_messages.md` line order; `NULL` for skill/spell (schema v2) |
+| `weapon_family` | Melee only: catalog family id (`slash`, `bash`, …); `NULL` for skill/spell (schema v2) |
 
 Skip row entirely when HP loss is unattributed. No `unknown` category in v1. No round number, fight id, or session id.
 
@@ -111,7 +114,7 @@ Skip row entirely when HP loss is unattributed. No `unknown` category in v1. No 
 - **Crowding:** only filtered damage-candidate lines count toward `candidate_count`; misses, outgoing hits, scan output, round headers, `Hp:` prompts, concentration lines, and gags are ignored for weight.
 - **Aggregation key:** `damage_category` + `message_verb` — melee verbs merged across monsters; each skill one key (multiple regexes); each spell one key.
 - **Confirmed view:** aggregates from `candidate_count = 1` rows only (exact `hp_delta` per observation).
-- **Estimated view:** applies conservative constraint extrapolation at read time to ambiguous batches using isolated-derived `known_min`/`known_max` per key; no even-split fallback; loose `[0, hp_delta]` when constraints do not resolve. Extrapolation is not written back to stored rows.
+- **Estimated view:** applies conservative constraint extrapolation at read time to ambiguous batches using isolated-derived `known_min`/`known_max` per key; no even-split fallback; loose `[0, hp_delta]` when constraints do not resolve. When bounds stay loose and batch rows carry `catalog_rank`, **estimated avg** uses rank-proportional split (`hp_delta × rankᵢ / Σ rankⱼ` over ranked melee candidates; unranked candidates share remainder equally; equal avg fallback if no ranks). Rank never overrides isolated constraints or stored per-row bounds. Extrapolation is not written back to stored rows.
 
 ### Matcher catalog (v1)
 
@@ -210,7 +213,7 @@ Empty state is **not** an error — distinguish 200 empty dashboard from 503 DB 
 
 ### Build-time catalog
 
-- `build.rs` parses `hit_messages.md` → generated catalog module in `OUT_DIR` with `CatalogEntry` (canonical verb, weapon family id, conjugated suffix, bare suffix).
+- `build.rs` parses `hit_messages.md` → generated catalog module in `OUT_DIR` with `CatalogEntry` (canonical verb, weapon family id, `catalog_rank` 1–26, conjugated suffix, bare suffix).
 - Compile fails on malformed catalog. Human-edited source remains `hit_messages.md`.
 
 ### Current implementation state
@@ -270,6 +273,7 @@ Fixture SQLite with hand-built rows covering isolated and ambiguous batches:
 
 1. **Confirmed min/max/avg/count** per `damage_category` + `message_verb` from `candidate_count = 1` only.
 2. **Estimated bounds** — ambiguous batch contributes `[0, delta]` per candidate; extrapolation tightens when isolated known-min exists.
+2b. **Rank-estimated avg** — ambiguous melee batch with ranks 2 vs 20 and loose bounds → estimated avg skews toward high-rank verb; confirmed avg unchanged (isolated only).
 3. **Constraint: sum of known-min > delta** — flag or cap per PRD rules.
 4. **Constraint: one candidate known-min = delta** — others assigned 0 for estimated view.
 5. **Filter `range=24h`** — excludes old `recorded_at`.

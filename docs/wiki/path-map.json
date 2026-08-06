@@ -36,6 +36,11 @@
       "allowSkip": true
     },
     {
+      "sources": ["src/combat_damage/**", "docs/hit_messages.md", "docs/features/combat-damage-tracking/**"],
+      "wikiPages": ["docs/wiki/concepts/combat-damage-tracking.md"],
+      "allowSkip": true
+    },
+    {
       "sources": ["src/secondary_status.rs", "src/app/mod.rs", "src/triggers/mod.rs"],
       "wikiPages": ["docs/wiki/concepts/secondary-status.md"],
       "allowSkip": true

@@ -98,3 +98,14 @@ Extrapolation (Q3) runs at aggregate/read time for the **estimated** view — no
 **Extrapolation (estimated view only):** conservative constraint pass using isolated-derived `known_min`/`known_max` per key; no even-split fallback; loose `[0, hp_delta]` when constraints don't resolve.
 
 **Viewer (cross-ticket):** **confirmed** mode = isolated rows only; **estimated** mode = all rows with extrapolation applied at read time.
+
+## Addendum — `weight` is not `catalog_rank`
+
+**Attribution `weight`** (`1.0` or `1.0/N`) measures how confidently a filtered candidate line caused the observed `hp_delta` given buffer crowding. It is **not** melee hit severity and must not be replaced by catalog position.
+
+**`catalog_rank`** (1–26 per weapon family from [`hit_messages.md`](../../hit_messages.md) line order) is a separate axis: expected damage severity for melee verbs. It informs **estimated avg** in the read-time extrapolation path when ambiguous bounds stay loose — see [How should catalog rank inform estimated extrapolation?](how-should-catalog-rank-inform-estimated-extrapolation.md).
+
+| Field | Meaning | Used for |
+| --- | --- | --- |
+| `weight` | Attribution confidence | Drill-down column; not severity |
+| `catalog_rank` | Catalog severity ordinal (melee only) | Rank-estimated avg when bounds unresolved |

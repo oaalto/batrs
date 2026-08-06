@@ -1,5 +1,12 @@
 # Engineering Wiki Log
 
+## [2026-08-06] update | Combat damage catalog rank
+
+- Created: [Combat Damage Tracking](concepts/combat-damage-tracking.md)
+- Updated: `CONTEXT.md`, `docs/hit_messages.md`, `docs/features/combat-damage-tracking/prd.md`, `docs/features/combat-damage-tracking/map.md`, weight ticket addendum
+- Sources: grill-with-docs-batch acceptance; `docs/hit_messages.md`, `docs/features/combat-damage-tracking/`
+- Notes: `catalog_rank` vs attribution `weight`; rank-estimated avg for loose ambiguous batches; schema v2 `catalog_rank` + `weapon_family` on melee rows (planned).
+
 ## [2026-08-05] update | Monk chain rotation wrap
 
 - Updated: [Monk Skill Tracks](concepts/monk-skill-tracks.md)

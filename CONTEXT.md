@@ -106,6 +106,14 @@ A Combat Scan Snapshot is the latest observed set of combatants and their health
 
 Combat Awareness owns canonical round-header and combat-end line matching, probe orchestration, and snapshot state in `src/combat_awareness.rs`. The application calls Combat Awareness once per incoming line and fans out `CombatAwarenessEffect` values: `RoundStarted` (stats round semantics and `in_battle`), `CombatEnded` (stats end-combat and clear `in_battle`), `SendShortScore` (`@sc`), and `SendProbe` (`#scan all`). Stats retains short-score round diff semantics; the UI layer renders combat status rows from snapshot data via `ui::render_combat_status_lines`.
 
+## Combat Damage
+
+Combat Damage is batrs' live incoming-HP-loss attribution and persistence layer. It buffers recognized incoming-damage candidates between short-score `H:` lines, writes attributed rows to `~/.batrs/combat_damage.db` when an `H:` line shows a negative HP bracket, and serves read-only aggregates via a local HTTP dashboard (default port 6464).
+
+**Attribution `weight`** (`1.0` when one filtered candidate between `H:` lines; `1.0/N` when ambiguous) measures confidence that a line caused the observed `hp_delta` — not hit severity. **`catalog_rank`** (melee only, `1`–`26` per weapon family) is the severity ordinal from [`docs/hit_messages.md`](docs/hit_messages.md) line order; it informs **rank-estimated avg** in the estimated view when ambiguous per-row bounds stay `[0, hp_delta]` after conservative constraint extrapolation. **`weapon_family`** disambiguates melee verbs that collide across families. Confirmed aggregates use isolated observations (`candidate_count = 1`) only; estimated aggregates apply read-time extrapolation without writing back to stored rows.
+
+See `docs/features/combat-damage-tracking/prd.md` and `docs/wiki/concepts/combat-damage-tracking.md`.
+
 ## Secondary Status
 
 Secondary Status is the guild-specific HUD row band rendered below the main stats line. It covers Animist soul companion, Riftwalker entity, Tzarakk mount, and Nergal resource status plus minions.

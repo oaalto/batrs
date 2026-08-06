@@ -1,4 +1,4 @@
-use crate::combat_damage::catalog::{CATALOG, CatalogEntry};
+use crate::combat_damage::catalog::{CATALOG, CatalogEntry, FAMILY_IDS};
 #[cfg(test)]
 use crate::combat_damage::conjugate::conjugate_verb;
 use regex::Regex;
@@ -17,6 +17,8 @@ pub struct DamageCandidate {
     pub source_name: String,
     pub message_verb: String,
     pub message_text: String,
+    pub catalog_rank: Option<u8>,
+    pub weapon_family: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -156,6 +158,8 @@ impl Matcher {
             source_name: source,
             message_verb: entry.canonical.to_string(),
             message_text: line.to_string(),
+            catalog_rank: Some(entry.rank),
+            weapon_family: Some(FAMILY_IDS[entry.family].to_string()),
         })
     }
 
@@ -221,6 +225,8 @@ fn match_skill(line: &str) -> Option<DamageCandidate> {
                 source_name,
                 message_verb: (*verb).to_string(),
                 message_text: line.to_string(),
+                catalog_rank: None,
+                weapon_family: None,
             });
         }
     }
@@ -235,6 +241,8 @@ fn match_spell(line: &str) -> Option<DamageCandidate> {
         source_name: String::new(),
         message_verb: spell_name,
         message_text: line.to_string(),
+        catalog_rank: None,
+        weapon_family: None,
     })
 }
 

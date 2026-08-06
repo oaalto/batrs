@@ -37,6 +37,8 @@ pub struct DamageEventRow {
     pub weight: f64,
     pub damage_min: i32,
     pub damage_max: i32,
+    pub catalog_rank: Option<i32>,
+    pub weapon_family: Option<String>,
 }
 
 pub struct DamageCollector {
@@ -158,8 +160,9 @@ impl DamageCollector {
                     INSERT INTO damage_events (
                         batch_id, recorded_at, player, hp_delta, hp_before, hp_after,
                         damage_category, source_name, message_verb, message_text,
-                        candidate_count, weight, damage_min, damage_max
-                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                        candidate_count, weight, damage_min, damage_max,
+                        catalog_rank, weapon_family
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
                     ",
                     rusqlite::params![
                         batch.batch_id,
@@ -176,6 +179,8 @@ impl DamageCollector {
                         batch.weight,
                         batch.damage_min,
                         batch.damage_max,
+                        candidate.catalog_rank.map(i32::from),
+                        candidate.weapon_family,
                     ],
                 )
                 .map_err(|err| err.to_string())?;
@@ -191,7 +196,8 @@ impl DamageCollector {
                 "
                 SELECT batch_id, recorded_at, player, hp_delta, hp_before, hp_after,
                        damage_category, source_name, message_verb, message_text,
-                       candidate_count, weight, damage_min, damage_max
+                       candidate_count, weight, damage_min, damage_max,
+                       catalog_rank, weapon_family
                 FROM damage_events
                 ORDER BY id
                 ",
@@ -214,6 +220,8 @@ impl DamageCollector {
                     weight: row.get(11)?,
                     damage_min: row.get(12)?,
                     damage_max: row.get(13)?,
+                    catalog_rank: row.get(14)?,
+                    weapon_family: row.get(15)?,
                 })
             })
             .map_err(|err| err.to_string())?;
@@ -272,6 +280,12 @@ mod tests {
         assert!((row.weight - expected.weight).abs() < 1e-9);
         assert_eq!(row.damage_min, expected.damage_min);
         assert_eq!(row.damage_max, expected.damage_max);
+        if let Some(expected_rank) = expected.catalog_rank {
+            assert_eq!(row.catalog_rank, Some(expected_rank));
+        }
+        if let Some(expected_family) = &expected.weapon_family {
+            assert_eq!(row.weapon_family.as_deref(), Some(expected_family.as_str()));
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -304,6 +318,8 @@ mod tests {
             weight,
             damage_min,
             damage_max,
+            catalog_rank: None,
+            weapon_family: None,
         }
     }
 
@@ -331,6 +347,8 @@ mod tests {
                 22,
             ),
         );
+        assert_eq!(rows[0].catalog_rank, Some(4));
+        assert_eq!(rows[0].weapon_family.as_deref(), Some("unarmed"));
         assert_eq!(collector.buffer_len(), 0);
         let _ = std::fs::remove_file(path);
     }

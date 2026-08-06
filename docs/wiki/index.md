@@ -4,6 +4,7 @@
 
 - [Abilities](concepts/abilities.md)
 - [Combat Awareness](concepts/combat-awareness.md)
+- [Combat Damage Tracking](concepts/combat-damage-tracking.md)
 - [Command Dispatch](concepts/command-dispatch.md)
 - [Guild Background Map](concepts/guild-background-map.md)
 - [Guild Catalog](concepts/guild-catalog.md)

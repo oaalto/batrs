@@ -262,6 +262,7 @@ struct RawEventRow {
     weight: f64,
     damage_min: i32,
     damage_max: i32,
+    catalog_rank: Option<i32>,
 }
 
 fn load_filtered_events(
@@ -273,7 +274,8 @@ fn load_filtered_events(
     let (extra, mut params) = filter_clause(filters);
     let mut sql = format!(
         "SELECT id, batch_id, recorded_at, player, hp_delta, damage_category, source_name,
-                message_verb, message_text, candidate_count, weight, damage_min, damage_max
+                message_verb, message_text, candidate_count, weight, damage_min, damage_max,
+                catalog_rank
          FROM damage_events
          WHERE 1=1{extra}"
     );
@@ -302,6 +304,7 @@ fn load_filtered_events(
                 weight: row.get(10)?,
                 damage_min: row.get(11)?,
                 damage_max: row.get(12)?,
+                catalog_rank: row.get(13)?,
             })
         })
         .map_err(|err| err.to_string())?;
@@ -325,6 +328,24 @@ struct EstimatedContribution {
     min: i32,
     max: i32,
     loose: bool,
+    point_estimate: f64,
+}
+
+fn rank_point_estimates(batch_rows: &[&RawEventRow], hp_delta: i32) -> Vec<f64> {
+    let sum_ranks: i32 = batch_rows.iter().filter_map(|row| row.catalog_rank).sum();
+    if sum_ranks > 0 {
+        batch_rows
+            .iter()
+            .map(|row| {
+                row.catalog_rank
+                    .map(|rank| f64::from(hp_delta) * f64::from(rank) / f64::from(sum_ranks))
+                    .unwrap_or(0.0)
+            })
+            .collect()
+    } else {
+        let share = f64::from(hp_delta) / batch_rows.len().max(1) as f64;
+        vec![share; batch_rows.len()]
+    }
 }
 
 fn estimated_contributions(rows: &[RawEventRow]) -> Vec<EstimatedContribution> {
@@ -337,6 +358,7 @@ fn estimated_contributions(rows: &[RawEventRow]) -> Vec<EstimatedContribution> {
             min: row.hp_delta,
             max: row.hp_delta,
             loose: false,
+            point_estimate: f64::from(row.hp_delta),
         });
     }
 
@@ -355,12 +377,22 @@ fn estimated_contributions(rows: &[RawEventRow]) -> Vec<EstimatedContribution> {
             })
             .collect::<Vec<_>>();
         let bounds = extrapolate_batch(hp_delta, &candidates, &known_mins);
-        for (row, bound) in batch_rows.iter().zip(bounds) {
+        let batch_loose = bounds.iter().all(|bound| bound.loose);
+        let point_estimates = if batch_loose {
+            rank_point_estimates(batch_rows, hp_delta)
+        } else {
+            bounds
+                .iter()
+                .map(|bound| (f64::from(bound.min) + f64::from(bound.max)) / 2.0)
+                .collect()
+        };
+        for ((row, bound), point_estimate) in batch_rows.iter().zip(bounds).zip(point_estimates) {
             contributions.push(EstimatedContribution {
                 verb: row.message_verb.clone(),
                 min: bound.min,
                 max: bound.max,
                 loose: bound.loose,
+                point_estimate,
             });
         }
     }
@@ -444,12 +476,12 @@ fn rollup_estimated(
     }
     for aggregate in confirmed.values_mut() {
         if aggregate.estimated_obs > 0 {
-            let midpoints: Vec<f64> = contributions
+            let points: Vec<f64> = contributions
                 .iter()
                 .filter(|row| row.verb == aggregate.verb)
-                .map(|row| (f64::from(row.min) + f64::from(row.max)) / 2.0)
+                .map(|row| row.point_estimate)
                 .collect();
-            aggregate.estimated_avg = Some(midpoints.iter().sum::<f64>() / midpoints.len() as f64);
+            aggregate.estimated_avg = Some(points.iter().sum::<f64>() / points.len().max(1) as f64);
         }
     }
 }
@@ -594,6 +626,42 @@ mod tests {
         assert_eq!(bitchslap.confirmed_avg, Some(22.0));
         let boot = aggregates.iter().find(|row| row.verb == "boot").unwrap();
         assert_eq!(boot.confirmed_obs, 0);
+        remove_db_files(&path);
+    }
+
+    #[test]
+    fn rank_weighted_estimated_avg_skews_toward_high_rank_verb() {
+        let path = open_fixture_db(&[
+            FixtureRow::ambiguous("melee", "pat", "Odefu", 21, "2026-08-06T12:00:00Z", 1, 2)
+                .with_rank(1, "unarmed"),
+            FixtureRow::ambiguous(
+                "melee",
+                "savagely triple-kick",
+                "Odefu",
+                21,
+                "2026-08-06T12:00:00Z",
+                1,
+                2,
+            )
+            .with_rank(20, "unarmed"),
+        ]);
+        let conn = Connection::open(&path).unwrap();
+        let aggregates = category_aggregates(
+            &conn,
+            "melee",
+            &FilterParams::from_query(None, None),
+            LandingSortColumn::Verb,
+            SortDirection::Asc,
+        )
+        .unwrap();
+        let pat = aggregates.iter().find(|row| row.verb == "pat").unwrap();
+        let high = aggregates
+            .iter()
+            .find(|row| row.verb == "savagely triple-kick")
+            .unwrap();
+        assert_eq!(pat.estimated_avg, Some(1.0));
+        assert_eq!(high.estimated_avg, Some(20.0));
+        assert_eq!(pat.confirmed_obs, 0);
         remove_db_files(&path);
     }
 

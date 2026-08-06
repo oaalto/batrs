@@ -1,3 +1,11 @@
+# Hit messages catalog
+
+Canonical melee verb list for battle-listen combat output. Each weapon family section lists verbs in **ascending damage order**: lower line numbers deal less damage than higher line numbers within the same family. Numbers `1`–`26` are **`catalog_rank`** — the severity ordinal used by Combat Damage estimated extrapolation (not attribution `weight`).
+
+Source for `build.rs` compile-time catalog generation (`CatalogEntry` canonical verb, weapon family, conjugation suffixes, rank). File order is authoritative; do not re-sort algorithmically.
+
+---
+
 # Hit messages for slashing weapons (slash)                                     
                                                                               
  1: barely graze                                                              

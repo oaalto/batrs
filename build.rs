@@ -139,10 +139,11 @@ fn escape_rs(s: &str) -> String {
 }
 
 fn generate_catalog_rs(families: &[Family]) -> String {
-    let mut entries: Vec<(usize, usize, String, String, String)> = Vec::new();
+    let mut entries: Vec<(usize, usize, String, String, String, u8)> = Vec::new();
 
     for (family_idx, family) in families.iter().enumerate() {
-        for verb in &family.verbs {
+        for (rank, verb) in family.verbs.iter().enumerate() {
+            let rank = u8::try_from(rank + 1).expect("catalog rank fits u8");
             let conjugated = conjugate_verb(verb);
             let conjugated_suffix = format!("{conjugated} you.");
             let bare_suffix = format!("{verb} you.");
@@ -152,6 +153,7 @@ fn generate_catalog_rs(families: &[Family]) -> String {
                 verb.clone(),
                 conjugated_suffix,
                 bare_suffix,
+                rank,
             ));
         }
     }
@@ -168,10 +170,12 @@ fn generate_catalog_rs(families: &[Family]) -> String {
     let mut family_indices: Vec<Vec<usize>> = vec![Vec::new(); families.len()];
     let mut entry_literals = String::new();
 
-    for (idx, (_, family_idx, verb, conjugated_suffix, bare_suffix)) in entries.iter().enumerate() {
+    for (idx, (_, family_idx, verb, conjugated_suffix, bare_suffix, rank)) in
+        entries.iter().enumerate()
+    {
         family_indices[*family_idx].push(idx);
         entry_literals.push_str(&format!(
-            "    CatalogEntry {{ canonical: \"{}\", family: {}, conjugated_suffix: \"{}\", bare_suffix: \"{}\" }},\n",
+            "    CatalogEntry {{ canonical: \"{}\", family: {}, rank: {rank}, conjugated_suffix: \"{}\", bare_suffix: \"{}\" }},\n",
             escape_rs(verb),
             family_idx,
             escape_rs(conjugated_suffix),
@@ -185,6 +189,7 @@ fn generate_catalog_rs(families: &[Family]) -> String {
 pub struct CatalogEntry {{
     pub canonical: &'static str,
     pub family: usize,
+    pub rank: u8,
     pub conjugated_suffix: &'static str,
     pub bare_suffix: &'static str,
 }}

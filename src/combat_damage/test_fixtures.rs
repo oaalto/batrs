@@ -21,6 +21,8 @@ pub struct FixtureRow {
     pub weight: f64,
     pub damage_min: i32,
     pub damage_max: i32,
+    pub catalog_rank: Option<i32>,
+    pub weapon_family: Option<String>,
 }
 
 impl FixtureRow {
@@ -46,6 +48,8 @@ impl FixtureRow {
             weight: 1.0,
             damage_min: hp_delta,
             damage_max: hp_delta,
+            catalog_rank: None,
+            weapon_family: None,
         }
     }
 
@@ -73,7 +77,15 @@ impl FixtureRow {
             weight: 1.0 / f64::from(candidate_count),
             damage_min: 0,
             damage_max: hp_delta,
+            catalog_rank: None,
+            weapon_family: None,
         }
+    }
+
+    pub fn with_rank(mut self, rank: i32, weapon_family: &str) -> Self {
+        self.catalog_rank = Some(rank);
+        self.weapon_family = Some(weapon_family.to_string());
+        self
     }
 
     pub fn with_text(mut self, text: &str) -> Self {
@@ -112,8 +124,9 @@ pub fn insert_rows(conn: &Connection, rows: &[FixtureRow]) {
             "INSERT INTO damage_events (
                 batch_id, recorded_at, player, hp_delta, hp_before, hp_after,
                 damage_category, source_name, message_verb, message_text,
-                candidate_count, weight, damage_min, damage_max
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                candidate_count, weight, damage_min, damage_max,
+                catalog_rank, weapon_family
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             rusqlite::params![
                 row.batch_id,
                 row.recorded_at,
@@ -129,6 +142,8 @@ pub fn insert_rows(conn: &Connection, rows: &[FixtureRow]) {
                 row.weight,
                 row.damage_min,
                 row.damage_max,
+                row.catalog_rank,
+                row.weapon_family,
             ],
         )
         .expect("insert fixture row");

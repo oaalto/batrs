@@ -836,6 +836,6 @@ mod tests {
     #[test]
     fn unreadable_db_message_is_documented() {
         assert_eq!(CANNOT_OPEN_DATABASE, "Cannot open combat damage database.");
-        assert_eq!(CURRENT_SCHEMA_VERSION, 1);
+        assert_eq!(CURRENT_SCHEMA_VERSION, 2);
     }
 }
