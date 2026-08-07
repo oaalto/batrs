@@ -940,6 +940,19 @@ pub fn mark_unattributed_reviewed(conn: &Connection, id: i64) -> Result<(), Stri
     .map_err(|err| err.to_string())
 }
 
+pub fn delete_reviewed_unattributed(
+    conn: &Connection,
+    filters: &FilterParams,
+) -> Result<usize, String> {
+    let (extra, mut params) = filter_clause(filters);
+    let sql = format!(
+        "DELETE FROM unattributed_hp_events
+         WHERE reviewed_at IS NOT NULL{extra}"
+    );
+    conn.execute(&sql, rusqlite::params_from_iter(params.drain(..)))
+        .map_err(|err| err.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

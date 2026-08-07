@@ -1,16 +1,16 @@
 use crate::combat_damage::aggregate::{
     EventSortColumn, FilterParams, LandingSortColumn, MeleeFamilySection, SortDirection, TimeRange,
     UnattributedHpDetail, UnattributedHpSummary, VerbAggregate, category_aggregates,
-    get_unattributed, list_events, list_players, list_unattributed, mark_unattributed_reviewed,
-    melee_family_aggregates,
+    delete_reviewed_unattributed, get_unattributed, list_events, list_players, list_unattributed,
+    mark_unattributed_reviewed, melee_family_aggregates,
 };
 use crate::combat_damage::storage::{open_db, open_readonly_db};
 use axum::{
-    Router,
+    Form, Router,
     extract::{Path, Query, State},
     http::StatusCode,
-    response::{Html, IntoResponse},
-    routing::get,
+    response::{Html, IntoResponse, Redirect},
+    routing::{get, post},
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -40,6 +40,12 @@ pub struct ViewerQuery {
     pub sort: Option<String>,
     pub dir: Option<String>,
     pub family: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RemoveReviewedForm {
+    range: Option<String>,
+    player: Option<String>,
 }
 
 pub fn parse_port_from_args(args: impl IntoIterator<Item = String>) -> u16 {
@@ -87,6 +93,10 @@ pub fn router(state: Arc<ViewerState>) -> Router {
         .route("/", get(landing))
         .route("/events/{category}/{verb}", get(drill_down))
         .route("/unattributed/{id}", get(unattributed_drill_down))
+        .route(
+            "/unattributed/remove-reviewed",
+            post(remove_reviewed_unattributed),
+        )
         .route("/style.css", get(style_css))
         .with_state(state)
 }
@@ -128,6 +138,24 @@ fn landing_data(
         &unattributed,
         query,
     ))
+}
+
+async fn remove_reviewed_unattributed(
+    State(state): State<Arc<ViewerState>>,
+    Form(form): Form<RemoveReviewedForm>,
+) -> impl IntoResponse {
+    let filters = FilterParams::from_query(form.range.as_deref(), form.player.as_deref());
+    match open_db(&state.db_path) {
+        Ok(conn) => {
+            if let Err(err) = delete_reviewed_unattributed(&conn, &filters) {
+                log::warn!("failed to remove reviewed unattributed triggers: {err}");
+            }
+        }
+        Err(message) => {
+            log::warn!("failed to open database for remove reviewed: {message}");
+        }
+    }
+    Redirect::to(&build_query_string("/", &filters, None, None))
 }
 
 async fn unattributed_drill_down(
@@ -265,11 +293,34 @@ fn render_landing(
 
 fn render_unattributed_section(rows: &[UnattributedHpSummary], filters: &FilterParams) -> String {
     let unreviewed_count = rows.iter().filter(|row| !row.reviewed).count();
-    let mut html = if unreviewed_count > 0 {
-        format!("<h2>Unattributed HP loss ({unreviewed_count} unreviewed)</h2>")
+    let reviewed_count = rows.iter().filter(|row| row.reviewed).count();
+    let heading = if unreviewed_count > 0 {
+        format!("Unattributed HP loss ({unreviewed_count} unreviewed)")
     } else {
-        String::from("<h2>Unattributed HP loss</h2>")
+        String::from("Unattributed HP loss")
     };
+    let mut html = String::from("<div class=\"unattributed-header\"><h2>");
+    html.push_str(&heading);
+    html.push_str("</h2>");
+    if reviewed_count > 0 {
+        html.push_str(
+            "<form method=\"post\" action=\"/unattributed/remove-reviewed\" class=\"remove-reviewed-form\">",
+        );
+        if filters.range != TimeRange::All {
+            html.push_str(&format!(
+                "<input type=\"hidden\" name=\"range\" value=\"{}\">",
+                filters.range.as_str()
+            ));
+        }
+        if let Some(player) = &filters.player {
+            html.push_str(&format!(
+                "<input type=\"hidden\" name=\"player\" value=\"{}\">",
+                html_escape(player)
+            ));
+        }
+        html.push_str("<button type=\"submit\">Remove reviewed</button></form>");
+    }
+    html.push_str("</div>");
     if rows.is_empty() {
         html.push_str(
             "<p class=\"empty-hint\">No unattributed HP loss recorded for the current filters.</p>",
@@ -1482,6 +1533,174 @@ mod tests {
         .await;
         assert!(!body.contains("&larr; Previous</a>"));
         assert!(!body.contains("Next &rarr;</a>"));
+        remove_db_files(&path);
+    }
+
+    fn mark_unattributed_reviewed_fixture(path: &std::path::Path, ids: &[i64]) {
+        let conn = open_db(path).unwrap();
+        for id in ids {
+            conn.execute(
+                "UPDATE unattributed_hp_events SET reviewed_at = '2026-08-06T12:00:00Z' WHERE id = ?1",
+                [*id],
+            )
+            .unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn remove_reviewed_button_absent_when_none_reviewed() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let path = open_fixture_db_with_unattributed(
+            &[],
+            &[UnattributedFixtureRow::new(
+                "Odefu",
+                22,
+                "2026-08-06T15:00:00Z",
+                "H:760/782 [-22] S:100/100 []",
+                &[],
+            )],
+        );
+        let app = router(Arc::new(ViewerState {
+            db_path: path.clone(),
+        }));
+        let body = body_string(
+            app.oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert!(!body.contains("Remove reviewed"));
+        remove_db_files(&path);
+    }
+
+    #[tokio::test]
+    async fn remove_reviewed_post_deletes_only_reviewed_in_filter() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let path = open_fixture_db_with_unattributed(
+            &[],
+            &[
+                UnattributedFixtureRow::new(
+                    "Odefu",
+                    22,
+                    "2026-08-06T15:00:00Z",
+                    "H:760/782 [-22] S:100/100 []",
+                    &[],
+                ),
+                UnattributedFixtureRow::new(
+                    "Odefu",
+                    10,
+                    "2026-08-06T14:00:00Z",
+                    "H:90/100 [-10] S:100/100 []",
+                    &[],
+                ),
+                UnattributedFixtureRow::new(
+                    "Odefu",
+                    5,
+                    "2026-08-06T13:00:00Z",
+                    "H:95/100 [-5] S:100/100 []",
+                    &[],
+                ),
+            ],
+        );
+        mark_unattributed_reviewed_fixture(&path, &[1, 2]);
+        let app = router(Arc::new(ViewerState {
+            db_path: path.clone(),
+        }));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/unattributed/remove-reviewed")
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .body(Body::from(""))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert_eq!(
+            response.headers().get("location").unwrap(),
+            "/",
+            "redirect preserves landing without filters"
+        );
+
+        let app = router(Arc::new(ViewerState {
+            db_path: path.clone(),
+        }));
+        let body = body_string(
+            app.oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert!(!body.contains("class=\"reviewed\""));
+        assert!(!body.contains("Remove reviewed"));
+        assert!(body.contains(">5<"));
+        assert!(!body.contains(">22<"));
+        assert!(!body.contains(">10<"));
+        remove_db_files(&path);
+    }
+
+    #[tokio::test]
+    async fn remove_reviewed_post_respects_player_filter() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let path = open_fixture_db_with_unattributed(
+            &[],
+            &[
+                UnattributedFixtureRow::new(
+                    "Odefu",
+                    22,
+                    "2026-08-06T15:00:00Z",
+                    "H:760/782 [-22] S:100/100 []",
+                    &[],
+                ),
+                UnattributedFixtureRow::new(
+                    "Beta",
+                    10,
+                    "2026-08-06T14:00:00Z",
+                    "H:90/100 [-10] S:100/100 []",
+                    &[],
+                ),
+            ],
+        );
+        mark_unattributed_reviewed_fixture(&path, &[1, 2]);
+        let app = router(Arc::new(ViewerState {
+            db_path: path.clone(),
+        }));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/unattributed/remove-reviewed")
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .body(Body::from("player=Odefu"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+        let conn = open_db(&path).unwrap();
+        let remaining: i64 = conn
+            .query_row("SELECT COUNT(*) FROM unattributed_hp_events", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(remaining, 1);
+        let beta_player: String = conn
+            .query_row(
+                "SELECT player FROM unattributed_hp_events WHERE id = 2",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(beta_player, "Beta");
         remove_db_files(&path);
     }
 }

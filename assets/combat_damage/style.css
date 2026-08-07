@@ -49,6 +49,23 @@ h2 {
   font-weight: 600;
 }
 
+.unattributed-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin: 2rem 0 0.5rem;
+}
+
+.unattributed-header h2 {
+  margin: 0;
+}
+
+.remove-reviewed-form button {
+  font: inherit;
+  padding: 0.375rem 0.5rem;
+}
+
 a {
   color: var(--link);
 }

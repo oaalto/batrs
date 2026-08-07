@@ -70,6 +70,7 @@ On batrs startup, a read-only HTTP server (default port **6464**, bind `127.0.0.
 47. As a player, I want unattributed review to include misses, outgoing hits, and gagged lines in the saved context, so that clues for unexplained loss are not hidden by combat-awareness filtering.
 48. As a player, I want unattributed triggers marked reviewed when I open their drill-down page, so that I can tell which unexplained HP losses I have already inspected.
 49. As a player, I want Previous and Next links on unattributed drill-down pages within my current filters, so that I can step through triggers without returning to the landing table.
+50. As a player, I want a **Remove reviewed** control on the unattributed landing section that deletes inspected triggers within my current filters, so that I can clear reviewed rows without manual database maintenance.
 
 ## Implementation Decisions
 
@@ -231,7 +232,7 @@ Empty state is **not** an error — distinguish 200 empty dashboard from 503 DB 
 
 - Framework: `axum`, server-rendered HTML, bundled `style.css`, small inline JS for filters and column sorting (no JS framework, no charts).
 - Auto-start on batrs launch in background thread; `--port` flag default **6464**; bind `127.0.0.1`; read-only DB access; stops when batrs exits.
-- Routes: `/` landing (three attribution tables + unattributed section + filters), `/events/{category}/{verb}` drill-down, `/unattributed` (or equivalent) drill-down for context review, static CSS route.
+- Routes: `/` landing (three attribution tables + unattributed section + filters), `/events/{category}/{verb}` drill-down, `/unattributed/{id}` drill-down for context review, `POST /unattributed/remove-reviewed` bulk purge of reviewed triggers, static CSS route.
 - Landing: three tables (melee, skill, spell); each row one `message_verb` with side-by-side confirmed and estimated columns (obs count, min, max, avg/bounds). No total-damage line, no by-monster table.
 - Filters: time (`24h`, `7d`, `all`) and player dropdown; default all; query params preserve filter and sort state.
 - Sorting: all columns clickable asc/desc; landing default verb ascending; drill-down default `recorded_at` descending.

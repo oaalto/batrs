@@ -42,7 +42,7 @@ When a negative `H:` line arrives with **zero** filtered damage candidates, the 
 - Lifecycle: context window clears on every `H:` line, `reset_buffer()`, logout, and `FreshSessionReset::DamageCollector` — same as the candidate buffer.
 - Write failure: `tracing::warn!`, discard pending context, continue play.
 
-HTTP viewer adds an **Unattributed HP loss** section: table of triggers (`recorded_at`, `player`, `hp_delta`, line count, reviewed); drill-down lists context lines in order plus the triggering `H:` line. Opening drill-down sets `reviewed_at` (schema v5, write-once); landing header shows unreviewed count when &gt; 0; reviewed rows render muted. **Previous** / **Next** on drill-down walk the filtered landing list (`recorded_at DESC, id DESC`); links omitted at ends or when the current trigger is outside the filter. Filters (`range`, `player`) match the attribution dashboard. Always on when the collector is active.
+HTTP viewer adds an **Unattributed HP loss** section: table of triggers (`recorded_at`, `player`, `hp_delta`, line count, reviewed); drill-down lists context lines in order plus the triggering `H:` line. Opening drill-down sets `reviewed_at` (schema v5, write-once); landing header shows unreviewed count when &gt; 0; reviewed rows render muted. **Previous** / **Next** on drill-down walk the filtered landing list (`recorded_at DESC, id DESC`); links omitted at ends or when the current trigger is outside the filter. **Remove reviewed** on the landing section deletes `reviewed_at IS NOT NULL` rows within the current `range` and `player` filters (`POST /unattributed/remove-reviewed`, 303 redirect). Filters (`range`, `player`) match the attribution dashboard. Always on when the collector is active.
 
 ## Module boundary
 

@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-08-07] update | Remove reviewed unattributed triggers (slice 08)
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/prd.md`, `docs/features/combat-damage-tracking/map.md`
+- Created: `docs/features/combat-damage-tracking/08-remove-reviewed-unattributed.md`, `docs/features/combat-damage-tracking/tickets/how-should-reviewed-unattributed-triggers-be-purged.md`
+- Notes: **Remove reviewed** on landing; `POST /unattributed/remove-reviewed`; filter-scoped delete of reviewed triggers; 303 redirect.
+
 ## [2026-08-07] update | Unattributed drill navigation (slice 07)
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/prd.md`, `docs/features/combat-damage-tracking/map.md`
