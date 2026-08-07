@@ -1,5 +1,12 @@
 # Engineering Wiki Log
 
+## [2026-08-07] update | Riposte skill matcher (slice 05)
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/prd.md`, `docs/features/combat-damage-tracking/tickets/what-counts-as-an-incoming-damage-event.md`, `docs/features/combat-damage-tracking/map.md`
+- Created: `docs/features/combat-damage-tracking/05-riposte-skill-matcher.md`
+- Sources: grill-with-docs-batch acceptance; `src/combat_damage/matcher.rs`, `collector.rs`
+- Notes: two-line enemy riposte (`parries.` → `...AND counterattacks.` / `...AND ripostes.`); `skill` / `riposte`; matcher reset on `H:` flush and `reset_buffer()`.
+
 ## [2026-08-07] update | Unattributed HP loss implementation (slice 04)
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md) (if needed), `docs/features/combat-damage-tracking/04-unattributed-hp-review.md`

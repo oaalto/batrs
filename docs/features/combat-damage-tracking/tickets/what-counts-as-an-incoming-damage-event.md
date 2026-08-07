@@ -61,6 +61,8 @@ Skill examples locked for v1:
 
 **A — lines that never create rows:** misses, dodges, parries, tumble messages, and outgoing player lines never create event rows. Only a negative `H:` HP bracket triggers a row; these lines are attribution candidates at most.
 
+**Footnote — enemy parry vs riposte:** enemy `<name> parries.` alone is never a damage candidate. When the immediately following line is `...AND counterattacks.` or `...AND ripostes.`, the follow-up is a `skill` / `riposte` candidate (`source_name` from the parry line). Player `You parry.` / `...AND riposte.` are outgoing counter-damage and excluded.
+
 **Exception — partial kick deflect:** `Salvatore's kick lashes at you with speed, but you manage to partly deflect it in time.` is a kick skill output line — valid attribution candidate with `damage_category = skill`, `message_verb = kick`.
 
 **B — unattributed HP loss:** skip `damage_events` rows. If `H:` shows `[-N]` but no recognized melee/skill/spell line exists in the buffer, **no attribution row is written**. No `unknown` category rows in v1.

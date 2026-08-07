@@ -30,6 +30,7 @@ Combat Damage records **incoming HP loss** while the player is logged in: recogn
 | Rank-estimated avg | When estimated bounds stay loose `[0, hp_delta]` and batch rows carry `catalog_rank`, point estimate `hp_delta × (rankᵢ / Σ rankⱼ)` over ranked melee candidates. Does not change confirmed numbers or stored `weight`. |
 | Unattributed HP loss | Negative `H:` HP bracket with zero recognized damage candidates in the window since the previous `H:` line. Stored for review, not in `damage_events`. Distinct from ambiguous batches (N≥2 candidates) and from melee `weapon_family = unknown` in rollups. |
 | Context window | All plain incoming lines between the previous `H:` and a triggering `H:` line (exclusive of both `H:` lines). Saved verbatim on unattributed triggers; not stored on attributed rows (`message_text` only). |
+| Riposte | Two-line enemy skill: `<name> parries.` then `...AND counterattacks.` or `...AND ripostes.` — `skill` / `riposte`. Parry line alone is setup, not a candidate. |
 
 ## Unattributed HP loss review
 
@@ -46,6 +47,8 @@ HTTP viewer adds an **Unattributed HP loss** section: table of triggers (`record
 ## Module boundary
 
 `src/combat_damage/` owns matchers (skills → spells → melee catalog), `DamageCollector` buffer + SQLite inserts, aggregate queries, and HTTP viewer wiring.
+
+**Riposte** is the first two-line skill pattern: enemy `parries.` sets pending state; the immediately following `...AND counterattacks.` or `...AND ripostes.` line becomes a `skill` / `riposte` candidate. Any intervening line clears pending state. Parry lines alone are never candidates (Q6 footnote — distinct from riposte follow-up).
 
 Combat Damage does **not** own combat round state, short-score stats mutation, or combat-awareness gagging (collector runs **before** gag/continue so gagged scan lines still buffer).
 

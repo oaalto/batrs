@@ -2,7 +2,7 @@
 
 `wayfinder:map`
 
-**Spec:** [`prd.md`](prd.md) — implementation slices [`01`](01-damage-line-matcher.md) · [`02`](02-damage-collector-and-storage.md) · [`03`](03-http-damage-viewer.md) · [`04`](04-unattributed-hp-review.md)
+**Spec:** [`prd.md`](prd.md) — implementation slices [`01`](01-damage-line-matcher.md) · [`02`](02-damage-collector-and-storage.md) · [`03`](03-http-damage-viewer.md) · [`04`](04-unattributed-hp-review.md) · [`05`](05-riposte-skill-matcher.md)
 
 ## Destination
 

@@ -96,6 +96,7 @@ impl DamageCollector {
     pub fn reset_buffer(&mut self) {
         self.buffer.clear();
         self.context_window.clear();
+        self.matcher.reset();
     }
 
     #[cfg(test)]
@@ -130,6 +131,7 @@ impl DamageCollector {
             .unwrap_or_default();
         let candidates: Vec<DamageCandidate> = self.buffer.drain(..).collect();
         let context_lines: Vec<String> = self.context_window.drain(..).collect();
+        self.matcher.reset();
 
         if diff_hp >= 0 {
             return;

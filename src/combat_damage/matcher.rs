@@ -24,6 +24,7 @@ pub struct DamageCandidate {
 #[derive(Debug, Default)]
 pub struct Matcher {
     last_family: Option<usize>,
+    pending_riposte_source: Option<String>,
 }
 
 struct SkillPattern {
@@ -73,6 +74,16 @@ static SKILL_PATTERNS: &[SkillPattern] = &[
 static SPELL_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^An? (.+) hits you\.$").expect("spell regex"));
 
+static ENEMY_PARRY_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(.+) parries\.$").expect("enemy parry regex"));
+
+static RIPOSTE_COUNTERATTACKS_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^...AND counterattacks\.$").expect("riposte counterattacks regex")
+});
+
+static RIPOSTE_RIPOSTES_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^...AND ripostes\.$").expect("riposte ripostes regex"));
+
 static SKILL_REGEXES: LazyLock<Vec<(Regex, &'static str)>> = LazyLock::new(|| {
     SKILL_PATTERNS
         .iter()
@@ -90,13 +101,13 @@ impl Matcher {
         Self::default()
     }
 
-    #[cfg(test)]
     pub fn reset(&mut self) {
         self.last_family = None;
+        self.pending_riposte_source = None;
     }
 
     pub fn match_incoming(&mut self, line: &str) -> Option<DamageCandidate> {
-        if let Some(candidate) = match_skill(line) {
+        if let Some(candidate) = self.match_skill(line) {
             return Some(candidate);
         }
         if let Some(candidate) = match_spell(line) {
@@ -187,6 +198,46 @@ impl Matcher {
         recency
     }
 
+    fn match_skill(&mut self, line: &str) -> Option<DamageCandidate> {
+        if RIPOSTE_COUNTERATTACKS_REGEX.is_match(line) || RIPOSTE_RIPOSTES_REGEX.is_match(line) {
+            if let Some(source_name) = self.pending_riposte_source.take() {
+                return Some(DamageCandidate {
+                    category: DamageCategory::Skill,
+                    source_name,
+                    message_verb: "riposte".to_string(),
+                    message_text: line.to_string(),
+                    catalog_rank: None,
+                    weapon_family: None,
+                });
+            }
+            self.pending_riposte_source = None;
+            return None;
+        }
+
+        if let Some(captures) = ENEMY_PARRY_REGEX.captures(line) {
+            let source_name = captures.get(1)?.as_str().to_string();
+            self.pending_riposte_source = Some(source_name);
+            return None;
+        }
+
+        self.pending_riposte_source = None;
+
+        for (regex, verb) in SKILL_REGEXES.iter() {
+            if let Some(captures) = regex.captures(line) {
+                let source_name = captures.get(1)?.as_str().to_string();
+                return Some(DamageCandidate {
+                    category: DamageCategory::Skill,
+                    source_name,
+                    message_verb: (*verb).to_string(),
+                    message_text: line.to_string(),
+                    catalog_rank: None,
+                    weapon_family: None,
+                });
+            }
+        }
+        None
+    }
+
     #[cfg(test)]
     pub fn match_melee_for_test(&mut self, line: &str) -> Option<DamageCandidate> {
         self.match_melee(line)
@@ -214,23 +265,6 @@ fn strip_suffix_case_insensitive(line: &str, suffix: &str) -> Option<String> {
     }
     let end = source.len();
     Some(line[..end].to_string())
-}
-
-fn match_skill(line: &str) -> Option<DamageCandidate> {
-    for (regex, verb) in SKILL_REGEXES.iter() {
-        if let Some(captures) = regex.captures(line) {
-            let source_name = captures.get(1)?.as_str().to_string();
-            return Some(DamageCandidate {
-                category: DamageCategory::Skill,
-                source_name,
-                message_verb: (*verb).to_string(),
-                message_text: line.to_string(),
-                catalog_rank: None,
-                weapon_family: None,
-            });
-        }
-    }
-    None
 }
 
 fn match_spell(line: &str) -> Option<DamageCandidate> {
@@ -774,5 +808,59 @@ mod tests {
             "Orc",
             "BARBARICALLY BASH",
         );
+    }
+
+    #[test]
+    fn riposte_counterattacks_after_enemy_parry() {
+        let mut matcher = Matcher::new();
+        assert_no_match(&mut matcher, "Barney parries.");
+        assert_match(
+            &mut matcher,
+            "...AND counterattacks.",
+            DamageCategory::Skill,
+            "Barney",
+            "riposte",
+        );
+    }
+
+    #[test]
+    fn riposte_ripostes_after_enemy_parry() {
+        let mut matcher = Matcher::new();
+        assert_no_match(&mut matcher, "Barney parries.");
+        assert_match(
+            &mut matcher,
+            "...AND ripostes.",
+            DamageCategory::Skill,
+            "Barney",
+            "riposte",
+        );
+    }
+
+    #[test]
+    fn riposte_orphan_follow_up_does_not_match() {
+        let mut matcher = Matcher::new();
+        assert_no_match(&mut matcher, "...AND counterattacks.");
+        assert_no_match(&mut matcher, "...AND ripostes.");
+    }
+
+    #[test]
+    fn riposte_intervening_line_clears_pending_parry() {
+        let mut matcher = Matcher::new();
+        assert_no_match(&mut matcher, "Barney parries.");
+        assert_match(
+            &mut matcher,
+            "Barney lightly strikes you.",
+            DamageCategory::Melee,
+            "Barney",
+            "lightly strike",
+        );
+        assert_no_match(&mut matcher, "...AND counterattacks.");
+    }
+
+    #[test]
+    fn player_parry_and_riposte_are_not_incoming_candidates() {
+        let mut matcher = Matcher::new();
+        assert_no_match(&mut matcher, "You parry.");
+        assert_no_match(&mut matcher, "...AND riposte.");
     }
 }

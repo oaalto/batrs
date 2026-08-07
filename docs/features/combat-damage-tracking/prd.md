@@ -27,7 +27,7 @@ On batrs startup, a read-only HTTP server (default port **6464**, bind `127.0.0.
 5. As a player, I want each row to record HP before, HP after, and HP delta magnitude, so that I can see exact loss per observation.
 6. As a player, I want SP, EP, exp, and gold changes on the same `H:` line ignored for damage rows, so that my own skill costs are not mixed with incoming damage.
 7. As a player, I want battle-listen melee hits (`<monster> <verb> you.`) recognized via the hit-message catalog, so that catalog verbs like `bitchslaps` and `lightly strikes` aggregate correctly.
-8. As a player, I want incoming skills (bash, push, kick, stab, scythe swipe) recognized by their output lines, so that non-melee damage is separated from catalog melee.
+8. As a player, I want incoming skills (bash, push, kick, stab, scythe swipe, riposte) recognized by their output lines, so that non-melee damage is separated from catalog melee.
 9. As a player, I want incoming spells recognized by `A/An <name> hits you.`, so that each spell name becomes its own aggregation bucket.
 10. As a player, I want misses, dodges, parries, tumble lines, and outgoing `You <verb> <target>` lines excluded from the candidate buffer, so that only plausible incoming damage lines are considered.
 11. As a player, I want kick partial-deflect lines counted as kick skill output, so that reduced kick damage is still attributed to kick.
@@ -153,6 +153,7 @@ One transaction per trigger. Indexes on `recorded_at` and `player`. No duplicati
 | `kick` | groin kick, stomach kick, partial-deflect kick lines |
 | `stab` | weapon aside + stab; kneecap smash; PUMMELS midriff |
 | `scythe swipe` | `slashes a ragged wound across your chest` |
+| `riposte` | two-line: `<name> parries.` then `...AND counterattacks.` or `...AND ripostes.` |
 
 **Spells** (`damage_category = spell`): single regex `^An? (.+) hits you\.$`; `message_verb` = captured spell name; `source_name` empty; cast lines ignored.
 
