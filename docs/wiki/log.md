@@ -1,5 +1,12 @@
 # Engineering Wiki Log
 
+## [2026-08-07] update | Unattributed review state (slice 06)
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/prd.md`, `docs/features/combat-damage-tracking/map.md`
+- Created: `docs/features/combat-damage-tracking/06-unattributed-review-state.md`, `docs/features/combat-damage-tracking/tickets/how-should-unattributed-review-state-be-tracked.md`
+- Sources: grill-with-docs-batch acceptance; `src/combat_damage/storage.rs`, `aggregate.rs`, `viewer.rs`
+- Notes: schema v5 `reviewed_at`; auto-mark on `/unattributed/{id}` drill-down; landing Reviewed column + unreviewed count.
+
 ## [2026-08-07] update | Riposte skill matcher (slice 05)
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/prd.md`, `docs/features/combat-damage-tracking/tickets/what-counts-as-an-incoming-damage-event.md`, `docs/features/combat-damage-tracking/map.md`

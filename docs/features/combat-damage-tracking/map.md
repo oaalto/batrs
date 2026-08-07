@@ -2,7 +2,7 @@
 
 `wayfinder:map`
 
-**Spec:** [`prd.md`](prd.md) — implementation slices [`01`](01-damage-line-matcher.md) · [`02`](02-damage-collector-and-storage.md) · [`03`](03-http-damage-viewer.md) · [`04`](04-unattributed-hp-review.md) · [`05`](05-riposte-skill-matcher.md)
+**Spec:** [`prd.md`](prd.md) — implementation slices [`01`](01-damage-line-matcher.md) · [`02`](02-damage-collector-and-storage.md) · [`03`](03-http-damage-viewer.md) · [`04`](04-unattributed-hp-review.md) · [`05`](05-riposte-skill-matcher.md) · [`06`](06-unattributed-review-state.md)
 
 ## Destination
 
@@ -26,6 +26,7 @@ Live incoming-damage tracking while playing: batrs records HP-loss events into a
 - [How should melee parsing use hit messages?](tickets/how-should-melee-parsing-use-hit-messages.md) — `build.rs` catalog from `hit_messages.md`; longest-first suffix match + family recency; dual conjugation suffix; skills→spells→melee; 35 tests covering 286 verbs + fixtures
 - [What should the HTTP viewer show?](tickets/what-should-the-http-viewer-show.md) — three verb tables (melee/skill/spell) with confirmed+estimated columns; sortable columns; bundled CSS; verb drill-down with batch grouping; time+player filters; axum HTML auto-start on batrs launch (`--port` default 6464); no charts, no total/by-monster aggregates
 - [How should unattributed HP loss be captured?](tickets/how-should-unattributed-hp-loss-be-captured.md) — zero-candidate negative `H:` only; context window (all non-`H:` lines including gagged); `unattributed_hp_events` table (schema v4); no `damage_events` / no `unknown` category; HTTP unattributed section + drill-down; always on
+- [How should unattributed review state be tracked?](tickets/how-should-unattributed-review-state-be-tracked.md) — `reviewed_at` on drill-down open (schema v5); landing Reviewed column + unreviewed count; write-once idempotent mark; no collector changes
 
 ## Not yet specified
 - Opt-out toggle and performance guardrails (write batching, max buffer size)

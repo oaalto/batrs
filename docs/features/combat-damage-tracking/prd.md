@@ -68,6 +68,7 @@ On batrs startup, a read-only HTTP server (default port **6464**, bind `127.0.0.
 45. As a player, when HP drops on an `H:` line but no recognized hit line exists in the window, I want the lines before that `H:` saved for later review, so that I can discover new damage patterns (environmental, DoT, guild specials) without losing scrollback context.
 46. As a player, I want unattributed HP loss shown in a separate HTTP dashboard section (not mixed into melee/skill/spell tables), so that attribution rollups stay trustworthy.
 47. As a player, I want unattributed review to include misses, outgoing hits, and gagged lines in the saved context, so that clues for unexplained loss are not hidden by combat-awareness filtering.
+48. As a player, I want unattributed triggers marked reviewed when I open their drill-down page, so that I can tell which unexplained HP losses I have already inspected.
 
 ## Implementation Decisions
 

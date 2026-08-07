@@ -2,7 +2,7 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension};
 use std::fs;
 use std::path::Path;
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 4;
+pub const CURRENT_SCHEMA_VERSION: i32 = 5;
 
 const SCHEMA_NEWER_THAN_BINARY: &str = "Database schema newer than batrs; upgrade batrs.";
 pub const CANNOT_OPEN_DATABASE: &str = "Cannot open combat damage database.";
@@ -148,7 +148,8 @@ fn create_schema(conn: &Connection, version: i32) -> Result<(), String> {
             hp_before INTEGER NOT NULL,
             hp_after INTEGER NOT NULL,
             h_line_text TEXT NOT NULL,
-            context_lines TEXT NOT NULL
+            context_lines TEXT NOT NULL,
+            reviewed_at TEXT
         );
         CREATE INDEX idx_unattributed_hp_events_recorded_at ON unattributed_hp_events (recorded_at);
         CREATE INDEX idx_unattributed_hp_events_player ON unattributed_hp_events (player);
@@ -175,7 +176,11 @@ fn apply_migrations(conn: &Connection, from_version: i32) -> Result<(), String> 
     }
     if version == 3 {
         migrate_v3_to_v4(conn)?;
-        return Ok(());
+        version = 4;
+    }
+    if version == 4 {
+        migrate_v4_to_v5(conn)?;
+        version = 5;
     }
     if version < CURRENT_SCHEMA_VERSION {
         return Err(format!(
@@ -191,6 +196,17 @@ fn migrate_v1_to_v2(conn: &Connection) -> Result<(), String> {
         ALTER TABLE damage_events ADD COLUMN catalog_rank INTEGER;
         ALTER TABLE damage_events ADD COLUMN weapon_family TEXT;
         UPDATE schema_version SET version = 2;
+        ",
+    )
+    .map_err(|err| err.to_string())?;
+    Ok(())
+}
+
+fn migrate_v4_to_v5(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch(
+        "
+        ALTER TABLE unattributed_hp_events ADD COLUMN reviewed_at TEXT;
+        UPDATE schema_version SET version = 5;
         ",
     )
     .map_err(|err| err.to_string())?;
@@ -315,7 +331,7 @@ mod tests {
     }
 
     #[test]
-    fn fresh_open_creates_v4_schema_and_indexes() {
+    fn fresh_open_creates_v5_schema_and_indexes() {
         let path = temp_db_path("fresh");
         let _ = fs::remove_file(&path);
         let conn = open_db(&path).expect("open fresh db");
@@ -361,7 +377,7 @@ mod tests {
         let version: i32 = conn
             .query_row("SELECT version FROM schema_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 4);
+        assert_eq!(version, 5);
         let row_count: i64 = conn
             .query_row("SELECT COUNT(*) FROM damage_events", [], |row| row.get(0))
             .unwrap();
@@ -372,11 +388,79 @@ mod tests {
             })
             .unwrap();
         assert_eq!(unattributed_count, 0);
+        let unattributed_columns: Vec<String> = conn
+            .prepare("PRAGMA table_info(unattributed_hp_events)")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .map(|name| name.unwrap())
+            .collect();
+        assert!(unattributed_columns.contains(&"reviewed_at".to_string()));
         let _ = fs::remove_file(path);
     }
 
     #[test]
-    fn v3_database_migrates_to_v4() {
+    fn v4_database_migrates_to_v5() {
+        let path = temp_db_path("migrate-v4");
+        let _ = fs::remove_file(&path);
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE schema_version (version INTEGER NOT NULL);
+            CREATE TABLE damage_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL,
+                recorded_at TEXT NOT NULL,
+                player TEXT NOT NULL,
+                hp_delta INTEGER NOT NULL,
+                hp_before INTEGER NOT NULL,
+                hp_after INTEGER NOT NULL,
+                damage_category TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                message_verb TEXT NOT NULL,
+                message_text TEXT NOT NULL,
+                candidate_count INTEGER NOT NULL,
+                confidence REAL NOT NULL,
+                damage_min INTEGER NOT NULL,
+                damage_max INTEGER NOT NULL,
+                catalog_rank INTEGER,
+                weapon_family TEXT,
+                weight REAL NOT NULL
+            );
+            CREATE TABLE unattributed_hp_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recorded_at TEXT NOT NULL,
+                player TEXT NOT NULL,
+                hp_delta INTEGER NOT NULL,
+                hp_before INTEGER NOT NULL,
+                hp_after INTEGER NOT NULL,
+                h_line_text TEXT NOT NULL,
+                context_lines TEXT NOT NULL
+            );
+            INSERT INTO schema_version (version) VALUES (4);
+            ",
+        )
+        .unwrap();
+        drop(conn);
+        open_db(&path).expect("migrate v4 db");
+        let conn = Connection::open(&path).unwrap();
+        let version: i32 = conn
+            .query_row("SELECT version FROM schema_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 5);
+        let reviewed_at_exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('unattributed_hp_events') WHERE name = 'reviewed_at'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(reviewed_at_exists, 1);
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn v3_database_migrates_to_v5() {
         let path = temp_db_path("migrate-v3");
         let _ = fs::remove_file(&path);
         let conn = Connection::open(&path).unwrap();
@@ -414,12 +498,12 @@ mod tests {
         let version: i32 = conn
             .query_row("SELECT version FROM schema_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 4);
+        assert_eq!(version, 5);
         let _ = fs::remove_file(path);
     }
 
     #[test]
-    fn v1_database_migrates_to_v4() {
+    fn v1_database_migrates_to_v5() {
         let path = temp_db_path("migrate-v1");
         let _ = fs::remove_file(&path);
         let conn = Connection::open(&path).unwrap();
@@ -476,12 +560,12 @@ mod tests {
         let version: i32 = conn
             .query_row("SELECT version FROM schema_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 4);
+        assert_eq!(version, 5);
         let _ = fs::remove_file(path);
     }
 
     #[test]
-    fn v2_database_migrates_to_v4() {
+    fn v2_database_migrates_to_v5() {
         let path = temp_db_path("migrate-v2");
         let _ = fs::remove_file(&path);
         let conn = Connection::open(&path).unwrap();
@@ -549,7 +633,7 @@ mod tests {
         let version: i32 = conn
             .query_row("SELECT version FROM schema_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 4);
+        assert_eq!(version, 5);
         let barely_scrape: (f64, f64) = conn
             .query_row(
                 "SELECT confidence, weight FROM damage_events WHERE message_verb = 'barely scrape'",

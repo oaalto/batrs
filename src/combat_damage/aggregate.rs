@@ -848,6 +848,7 @@ pub struct UnattributedHpSummary {
     pub player: String,
     pub hp_delta: i32,
     pub line_count: usize,
+    pub reviewed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -868,7 +869,8 @@ pub fn list_unattributed(
 ) -> Result<Vec<UnattributedHpSummary>, String> {
     let (extra, mut params) = filter_clause(filters);
     let sql = format!(
-        "SELECT id, recorded_at, player, hp_delta, json_array_length(context_lines)
+        "SELECT id, recorded_at, player, hp_delta, json_array_length(context_lines),
+                reviewed_at IS NOT NULL
          FROM unattributed_hp_events
          WHERE 1=1{extra}
          ORDER BY recorded_at DESC, id DESC"
@@ -882,6 +884,7 @@ pub fn list_unattributed(
                 player: row.get(2)?,
                 hp_delta: row.get(3)?,
                 line_count: row.get::<_, i64>(4)? as usize,
+                reviewed: row.get(5)?,
             })
         })
         .map_err(|err| err.to_string())?;
@@ -922,6 +925,19 @@ pub fn get_unattributed(
         .optional()
         .map_err(|err| err.to_string())?;
     Ok(row)
+}
+
+pub fn mark_unattributed_reviewed(conn: &Connection, id: i64) -> Result<(), String> {
+    use chrono::Utc;
+
+    let reviewed_at = Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE unattributed_hp_events SET reviewed_at = ?1
+         WHERE id = ?2 AND reviewed_at IS NULL",
+        rusqlite::params![reviewed_at, id],
+    )
+    .map(|_| ())
+    .map_err(|err| err.to_string())
 }
 
 #[cfg(test)]

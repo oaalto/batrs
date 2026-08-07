@@ -172,3 +172,11 @@ tr.batch-sibling {
 tr.batch-sibling a {
   color: var(--muted);
 }
+
+tr.reviewed {
+  color: var(--muted);
+}
+
+tr.reviewed a {
+  color: var(--muted);
+}

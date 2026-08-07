@@ -1,9 +1,10 @@
 use crate::combat_damage::aggregate::{
     EventSortColumn, FilterParams, LandingSortColumn, MeleeFamilySection, SortDirection, TimeRange,
     UnattributedHpDetail, UnattributedHpSummary, VerbAggregate, category_aggregates,
-    get_unattributed, list_events, list_players, list_unattributed, melee_family_aggregates,
+    get_unattributed, list_events, list_players, list_unattributed, mark_unattributed_reviewed,
+    melee_family_aggregates,
 };
-use crate::combat_damage::storage::open_readonly_db;
+use crate::combat_damage::storage::{open_db, open_readonly_db};
 use axum::{
     Router,
     extract::{Path, Query, State},
@@ -135,7 +136,7 @@ async fn unattributed_drill_down(
     Query(query): Query<ViewerQuery>,
 ) -> impl IntoResponse {
     let filters = FilterParams::from_query(query.range.as_deref(), query.player.as_deref());
-    match open_readonly_db(&state.db_path) {
+    match open_db(&state.db_path) {
         Ok(conn) => match unattributed_drill_down_data(&conn, id, &filters, &query) {
             Ok(html) => Html(html).into_response(),
             Err(message) => service_unavailable(message),
@@ -153,6 +154,9 @@ fn unattributed_drill_down_data(
     let players = list_players(conn, &FilterParams::from_query(None, None))?;
     let detail =
         get_unattributed(conn, id)?.ok_or_else(|| format!("unattributed event {id} not found"))?;
+    if let Err(err) = mark_unattributed_reviewed(conn, id) {
+        log::warn!("failed to mark unattributed event {id} reviewed: {err}");
+    }
     Ok(render_unattributed_drill_down(
         &detail, filters, &players, query,
     ))
@@ -246,7 +250,12 @@ fn render_landing(
 }
 
 fn render_unattributed_section(rows: &[UnattributedHpSummary], filters: &FilterParams) -> String {
-    let mut html = String::from("<h2>Unattributed HP loss</h2>");
+    let unreviewed_count = rows.iter().filter(|row| !row.reviewed).count();
+    let mut html = if unreviewed_count > 0 {
+        format!("<h2>Unattributed HP loss ({unreviewed_count} unreviewed)</h2>")
+    } else {
+        String::from("<h2>Unattributed HP loss</h2>")
+    };
     if rows.is_empty() {
         html.push_str(
             "<p class=\"empty-hint\">No unattributed HP loss recorded for the current filters.</p>",
@@ -254,11 +263,18 @@ fn render_unattributed_section(rows: &[UnattributedHpSummary], filters: &FilterP
         return html;
     }
     html.push_str("<table><thead><tr>");
-    html.push_str("<th>Recorded at</th><th>Player</th><th>HP delta</th><th>Lines</th>");
+    html.push_str(
+        "<th>Recorded at</th><th>Player</th><th>HP delta</th><th>Lines</th><th>Reviewed</th>",
+    );
     html.push_str("</tr></thead><tbody>");
     for row in rows {
         let href = format!("/unattributed/{}{}", row.id, build_filter_query(filters));
-        html.push_str("<tr>");
+        let row_class = if row.reviewed {
+            " class=\"reviewed\""
+        } else {
+            ""
+        };
+        html.push_str(&format!("<tr{row_class}>"));
         html.push_str(&format!(
             "<td><a href=\"{href}\">{}</a></td>",
             html_escape(&row.recorded_at)
@@ -266,6 +282,8 @@ fn render_unattributed_section(rows: &[UnattributedHpSummary], filters: &FilterP
         html.push_str(&format!("<td>{}</td>", html_escape(&row.player)));
         html.push_str(&format!("<td class=\"numeric\">{}</td>", row.hp_delta));
         html.push_str(&format!("<td class=\"numeric\">{}</td>", row.line_count));
+        let reviewed_cell = if row.reviewed { "yes" } else { "" };
+        html.push_str(&format!("<td>{reviewed_cell}</td>"));
         html.push_str("</tr>");
     }
     html.push_str("</tbody></table>");
@@ -1079,7 +1097,7 @@ mod tests {
     #[test]
     fn unreadable_db_message_is_documented() {
         assert_eq!(CANNOT_OPEN_DATABASE, "Cannot open combat damage database.");
-        assert_eq!(CURRENT_SCHEMA_VERSION, 4);
+        assert_eq!(CURRENT_SCHEMA_VERSION, 5);
     }
 
     #[tokio::test]
@@ -1129,6 +1147,101 @@ mod tests {
         assert!(body.contains("Holy man misses."));
         assert!(body.contains("You miss."));
         assert!(body.contains("H:760/782 [-22]"));
+        remove_db_files(&path);
+    }
+
+    #[tokio::test]
+    async fn unattributed_drill_down_marks_reviewed_and_landing_reflects_it() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let path = open_fixture_db_with_unattributed(
+            &[],
+            &[
+                UnattributedFixtureRow::new(
+                    "Odefu",
+                    22,
+                    "2026-08-06T15:00:00Z",
+                    "H:760/782 [-22] S:100/100 []",
+                    &["Holy man misses."],
+                ),
+                UnattributedFixtureRow::new(
+                    "Odefu",
+                    10,
+                    "2026-08-06T16:00:00Z",
+                    "H:90/100 [-10] S:100/100 []",
+                    &[],
+                ),
+            ],
+        );
+        let state = Arc::new(ViewerState {
+            db_path: path.clone(),
+        });
+        let app = router(state.clone());
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/unattributed/1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let app = router(state);
+        let response = app
+            .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        let body = body_string(response).await;
+        assert!(body.contains("(1 unreviewed)"));
+        assert!(body.contains("class=\"reviewed\""));
+        assert!(body.contains(">yes<"));
+        remove_db_files(&path);
+    }
+
+    #[tokio::test]
+    async fn unattributed_reopen_is_idempotent() {
+        use crate::combat_damage::storage::open_db;
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let path = open_fixture_db_with_unattributed(
+            &[],
+            &[UnattributedFixtureRow::new(
+                "Odefu",
+                22,
+                "2026-08-06T15:00:00Z",
+                "H:760/782 [-22] S:100/100 []",
+                &["Holy man misses."],
+            )],
+        );
+        let state = Arc::new(ViewerState {
+            db_path: path.clone(),
+        });
+        for _ in 0..2 {
+            let app = router(state.clone());
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .uri("/unattributed/1")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+        let conn = open_db(&path).unwrap();
+        let reviewed_at: String = conn
+            .query_row(
+                "SELECT reviewed_at FROM unattributed_hp_events WHERE id = 1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(!reviewed_at.is_empty());
         remove_db_files(&path);
     }
 
