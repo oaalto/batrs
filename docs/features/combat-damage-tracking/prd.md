@@ -22,7 +22,7 @@ On batrs startup, a read-only HTTP server (default port **6464**, bind `127.0.0.
 
 1. As a player, I want batrs to record incoming HP loss while I play, so that I do not need to manually parse combat logs afterward.
 2. As a player, I want damage stored in one global database on my machine, so that all characters contribute to the same dataset with player as metadata.
-3. As a player, I want only attributed HP loss recorded, so that unexplained HP drops without a recognized hit line do not pollute the data.
+3. As a player, I want attributed HP loss in `damage_events` and unexplained HP drops captured separately for review, so that matcher gaps do not pollute attribution aggregates but I can still inspect what happened.
 4. As a player, I want events triggered only by negative HP brackets on `H:` short-score lines, so that `Hp:` prompt snapshots and healing do not create rows.
 5. As a player, I want each row to record HP before, HP after, and HP delta magnitude, so that I can see exact loss per observation.
 6. As a player, I want SP, EP, exp, and gold changes on the same `H:` line ignored for damage rows, so that my own skill costs are not mixed with incoming damage.
@@ -65,6 +65,9 @@ On batrs startup, a read-only HTTP server (default port **6464**, bind `127.0.0.
 42. As a test author, I want collector behavior testable by feeding lines and asserting database rows, so that buffer, trigger, weight, and batch semantics are verified at the highest practical seam.
 43. As a player opening the dashboard before my first fight, I want a readable empty page with table headers and filters, so that I know the server is running and what will appear after combat.
 44. As a player, I want the database created automatically on first batrs launch, so that I do not need to run a setup command or play a fight before the dashboard works.
+45. As a player, when HP drops on an `H:` line but no recognized hit line exists in the window, I want the lines before that `H:` saved for later review, so that I can discover new damage patterns (environmental, DoT, guild specials) without losing scrollback context.
+46. As a player, I want unattributed HP loss shown in a separate HTTP dashboard section (not mixed into melee/skill/spell tables), so that attribution rollups stay trustworthy.
+47. As a player, I want unattributed review to include misses, outgoing hits, and gagged lines in the saved context, so that clues for unexplained loss are not hidden by combat-awareness filtering.
 
 ## Implementation Decisions
 
@@ -107,7 +110,7 @@ Per row fields:
 | `catalog_rank` | Melee only: `1`–`26` from `hit_messages.md` line order; `NULL` for skill/spell (schema v2) |
 | `weapon_family` | Melee only: catalog family id (`slash`, `bash`, …); `NULL` for skill/spell (schema v2) |
 
-Skip row entirely when HP loss is unattributed. No `unknown` category in v1. No round number, fight id, or session id.
+Skip `damage_events` row when HP loss is unattributed (zero candidates). Persist a parallel **unattributed review** record instead (see [Unattributed HP loss](#unattributed-hp-loss)). No `unknown` category in `damage_events`. No round number, fight id, or session id.
 
 ### Attribution and aggregation
 
@@ -115,6 +118,27 @@ Skip row entirely when HP loss is unattributed. No `unknown` category in v1. No 
 - **Aggregation key:** `damage_category` + `message_verb` for skill and spell. **Melee** adds `weapon_family` — verbs that collide across families (e.g. `savagely strike` in `bash` and `claw`) roll up separately. `known_min`/`known_max` for estimated extrapolation use the same melee key.
 - **Confirmed view:** aggregates from `candidate_count = 1` rows only (exact `hp_delta` per observation).
 - **Estimated view:** applies conservative constraint extrapolation at read time to ambiguous batches using isolated-derived `known_min`/`known_max` per key; no even-split fallback; loose `[0, hp_delta]` when constraints do not resolve. When bounds stay loose and batch rows carry `catalog_rank`, **estimated avg** uses rank-proportional split (`hp_delta × rankᵢ / Σ rankⱼ` over ranked melee candidates; unranked candidates share remainder equally; equal avg fallback if no ranks). Rank never overrides isolated constraints or stored per-row bounds. Extrapolation is not written back to stored rows.
+
+### Unattributed HP loss
+
+**Trigger:** negative HP bracket on an `H:` short-score line with **zero** recognized damage candidates in the attribution window since the previous `H:` line. `Hp:` prompt lines do not trigger. Healing or empty HP brackets do not trigger.
+
+**Not in scope for this path:** ambiguous batches (N≥2 candidates) — those continue on the `damage_events` path only.
+
+**Context window:** every plain line passed to `DamageCollector::handle_line` while logged in between the previous `H:` and the triggering `H:` (exclusive of both `H:` lines). Includes misses, outgoing hits, round headers, and gagged scan lines. Empty context is valid.
+
+**Storage (schema v4):**
+
+| Table / field | Semantics |
+| --- | --- |
+| `unattributed_hp_events` | One row per trigger: `recorded_at`, `player`, `hp_delta`, `hp_before`, `hp_after`, `h_line_text` |
+| `context_lines` | Ordered JSON array of strings on the same row |
+
+One transaction per trigger. Indexes on `recorded_at` and `player`. No duplication of attributed-row context when candidates exist.
+
+**Lifecycle:** context window clears on every `H:` line, `reset_buffer()`, logout, and `FreshSessionReset::DamageCollector`. Write failure: `tracing::warn!`, discard pending context, continue play.
+
+**HTTP viewer:** new **Unattributed HP loss** section on landing (or dedicated route) — table of triggers with `recorded_at`, `player`, `hp_delta`, line count; drill-down lists `context_lines` in order plus `h_line_text`. Same `range` and `player` filters as attribution tables. Always on when collector is active.
 
 ### Matcher catalog (v1)
 
@@ -142,7 +166,7 @@ Skip row entirely when HP loss is unattributed. No `unknown` category in v1. No 
 
 - Path: `~/.batrs/combat_damage.db` via existing config directory helper.
 - Library: `rusqlite` (sync).
-- Tables: `damage_events` (flat log) + `schema_version` (single integer row, starts at `1`).
+- Tables: `damage_events` (flat log) + `unattributed_hp_events` (review capture, schema v4) + `schema_version` (single integer row, starts at `1`).
 - Writes: one transaction per `H:` trigger (`BEGIN` → N inserts with shared `batch_id` → `COMMIT`).
 - Indexes: `batch_id`, `recorded_at`, `(damage_category, message_verb)`, `candidate_count`.
 - Migrations: inline numbered Rust steps on open; fail with clear error if DB schema newer than binary. No downgrade.
@@ -204,7 +228,7 @@ Empty state is **not** an error — distinguish 200 empty dashboard from 503 DB 
 
 - Framework: `axum`, server-rendered HTML, bundled `style.css`, small inline JS for filters and column sorting (no JS framework, no charts).
 - Auto-start on batrs launch in background thread; `--port` flag default **6464**; bind `127.0.0.1`; read-only DB access; stops when batrs exits.
-- Routes: `/` landing (three tables + filters), `/events/{category}/{verb}` drill-down, static CSS route.
+- Routes: `/` landing (three attribution tables + unattributed section + filters), `/events/{category}/{verb}` drill-down, `/unattributed` (or equivalent) drill-down for context review, static CSS route.
 - Landing: three tables (melee, skill, spell); each row one `message_verb` with side-by-side confirmed and estimated columns (obs count, min, max, avg/bounds). No total-damage line, no by-monster table.
 - Filters: time (`24h`, `7d`, `all`) and player dropdown; default all; query params preserve filter and sort state.
 - Sorting: all columns clickable asc/desc; landing default verb ascending; drill-down default `recorded_at` descending.
@@ -218,8 +242,8 @@ Empty state is **not** an error — distinguish 200 empty dashboard from 503 DB 
 
 ### Current implementation state
 
-- **Done:** matcher module with build-time catalog, conjugation, skills/spells/melee order, 35+ unit tests covering full catalog and fixtures.
-- **Not done:** DamageCollector buffer + SQLite persistence, application shell integration, HTTP viewer and auto-start wiring.
+- **Done:** matcher module with build-time catalog, conjugation, skills/spells/melee order, 35+ unit tests; DamageCollector buffer + SQLite persistence; HTTP viewer and auto-start wiring.
+- **Not done:** unattributed HP loss dual-buffer, schema v4 tables, unattributed HTTP viewer section (slice 04).
 
 ## Testing Decisions
 
@@ -254,8 +278,8 @@ Each scenario is a separate test or table row; query `damage_events` after the s
 3. **Isolated spell** — `A magic missile hits you.` + `H:` loss.
 4. **Ambiguous (N=2)** — two candidates, one `H:` → 2 rows, same `batch_id`, `weight = 0.5`, min = 0, max = delta.
 5. **Ambiguous (N=3)** — three candidates → `weight = 1/3` each.
-6. **No candidates** — `H:` loss with only misses/outgoing in buffer → 0 rows, buffer cleared.
-7. **Unattributed** — `H:` loss with empty buffer → 0 rows.
+6. **No candidates** — `H:` loss with only misses/outgoing in buffer → 0 `damage_events` rows; 1 `unattributed_hp_events` row with context; buffer cleared.
+7. **Unattributed** — `H:` loss with empty buffer → 0 `damage_events` rows; 1 `unattributed_hp_events` row with empty context.
 8. **Healing** — positive HP bracket on `H:` → 0 rows, buffer cleared.
 9. **SP-only loss** — `H:` with `[]` HP bracket and negative SP → 0 rows.
 10. **Mixed stat line** — negative HP + negative SP on same `H:` → row uses HP delta only.
@@ -299,6 +323,16 @@ Fixture SQLite with hand-built rows covering isolated and ambiguous batches:
 6. **HTTP `/style.css` on empty DB** — 200; non-empty CSS.
 7. **Schema newer than binary** — HTTP or `open_db` returns 503 / error string per PRD (no panic).
 
+### Unattributed review test matrix (slice 04)
+
+1. **Miss-only window** — miss/outgoing lines then `H:[-N]` → 0 `damage_events`; 1 unattributed row; context contains miss lines.
+2. **Silent loss** — empty window then `H:[-N]` → unattributed row with empty `context_lines`.
+3. **Attributed path unchanged** — recognized hit in window → `damage_events` only; no unattributed row.
+4. **Ambiguous batch unchanged** — N≥2 candidates → N `damage_events` rows; no unattributed row.
+5. **Context includes gagged line** — candidate-visible line that CA would gag still appears in unattributed context when zero candidates match.
+6. **Reset lifecycle** — `reset_buffer` / logout clears context window without closing DB.
+7. **HTTP unattributed section** — fixture DB → 200; trigger table and drill-down show ordered context + `h_line_text`.
+
 ### Prior art
 
 - Matcher: `combat_damage/matcher.rs` (35+ tests).
@@ -318,8 +352,8 @@ No formal % gate, but **every acceptance criterion in slices 02 and 03 must have
 - Outgoing damage analytics as events (`You puncture …` is matcher sanity only).
 - Old battle-listen log format (new listen format only).
 - Round number, fight id, or session id on rows.
-- `unknown` category rows for unattributed HP loss.
-- Context buffer storage beyond `message_text`.
+- `unknown` category rows in `damage_events` for unattributed HP loss (review capture is a separate table).
+- Context buffer on attributed `damage_events` rows (`message_text` only remains).
 - Environmental, DoT/bleed, and player-name-targeting patterns until documented.
 - Opt-out toggle, write batching tuning, max buffer size guardrails (fog — future ticket).
 - Charts, total-damage summary line, damage-by-monster landing table.
@@ -334,4 +368,4 @@ No formal % gate, but **every acceptance criterion in slices 02 and 03 must have
 - Wayfinder map and closed decision tickets live under `docs/features/combat-damage-tracking/`; this PRD supersedes them for implementation handoff but tickets remain the audit trail for grilling decisions.
 - Reference catalog: `docs/hit_messages.md`. Example lines live in matcher/collector test tables (Holy-man fight, kick variants, spell hit lines).
 - Prior offline analysis (`~/.batrs/COMBAT_DAMAGE_ANALYSIS.md`, `analyze_combat_damage.py`) informed design but targets an older log format — not a v1 dependency.
-- Implementation slices: `01-damage-line-matcher.md`, `02-damage-collector-and-storage.md`, `03-http-damage-viewer.md`.
+- Implementation slices: `01-damage-line-matcher.md`, `02-damage-collector-and-storage.md`, `03-http-damage-viewer.md`, `04-unattributed-hp-review.md`.

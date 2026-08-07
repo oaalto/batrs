@@ -1,5 +1,18 @@
 # Engineering Wiki Log
 
+## [2026-08-07] update | Unattributed HP loss implementation (slice 04)
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md) (if needed), `docs/features/combat-damage-tracking/04-unattributed-hp-review.md`
+- Sources: `src/combat_damage/storage.rs`, `collector.rs`, `aggregate.rs`, `viewer.rs`
+- Notes: schema v4 `unattributed_hp_events`; dual-buffer collector; HTTP `/unattributed/{id}` drill-down; landing unattributed section with `range`/`player` filters.
+
+## [2026-08-07] update | Unattributed HP loss review capture
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/prd.md`, `docs/features/combat-damage-tracking/map.md`
+- Created: `docs/features/combat-damage-tracking/tickets/how-should-unattributed-hp-loss-be-captured.md`, `docs/features/combat-damage-tracking/04-unattributed-hp-review.md`, `docs/adr/0002-unattributed-hp-loss-outside-damage-events.md`
+- Sources: grill-with-docs-batch acceptance (unattributed context window plan)
+- Notes: zero-candidate negative `H:` triggers save context window to `unattributed_hp_events` (schema v4); no `damage_events` / no `unknown` category; HTTP unattributed section planned in slice 04.
+
 ## [2026-08-06] update | Melee landing weapon-family sub-sections
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/prd.md`, `docs/features/combat-damage-tracking/03-http-damage-viewer.md`, `README.md`

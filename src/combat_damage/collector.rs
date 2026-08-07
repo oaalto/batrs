@@ -20,6 +20,16 @@ struct PendingBatch {
     candidates: Vec<DamageCandidate>,
 }
 
+struct PendingUnattributed {
+    recorded_at: String,
+    player: String,
+    hp_delta: i32,
+    hp_before: i32,
+    hp_after: i32,
+    h_line_text: String,
+    context_lines: Vec<String>,
+}
+
 #[cfg(test)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct DamageEventRow {
@@ -45,6 +55,7 @@ pub struct DamageEventRow {
 pub struct DamageCollector {
     matcher: Matcher,
     buffer: Vec<DamageCandidate>,
+    context_window: Vec<String>,
     conn: Option<Connection>,
     next_batch_id: i64,
 }
@@ -66,6 +77,7 @@ impl DamageCollector {
         Self {
             matcher: Matcher::new(),
             buffer: Vec::new(),
+            context_window: Vec::new(),
             conn: Some(conn),
             next_batch_id,
         }
@@ -75,6 +87,7 @@ impl DamageCollector {
         Self {
             matcher: Matcher::new(),
             buffer: Vec::new(),
+            context_window: Vec::new(),
             conn: None,
             next_batch_id: 1,
         }
@@ -82,6 +95,7 @@ impl DamageCollector {
 
     pub fn reset_buffer(&mut self) {
         self.buffer.clear();
+        self.context_window.clear();
     }
 
     #[cfg(test)]
@@ -89,17 +103,23 @@ impl DamageCollector {
         self.buffer.len()
     }
 
+    #[cfg(test)]
+    pub fn context_window_len(&self) -> usize {
+        self.context_window.len()
+    }
+
     pub fn handle_line(&mut self, line: &str, player: &str) {
         if let Some(captures) = SC_REGEX.captures(line) {
-            self.flush_on_h_line(&captures, player);
+            self.flush_on_h_line(&captures, player, line);
             return;
         }
+        self.context_window.push(line.to_string());
         if let Some(candidate) = self.matcher.match_incoming(line) {
             self.buffer.push(candidate);
         }
     }
 
-    fn flush_on_h_line(&mut self, captures: &regex::Captures<'_>, player: &str) {
+    fn flush_on_h_line(&mut self, captures: &regex::Captures<'_>, player: &str, h_line_text: &str) {
         let hp_current = captures
             .get(1)
             .and_then(|value| value.as_str().parse::<i32>().ok())
@@ -109,17 +129,32 @@ impl DamageCollector {
             .and_then(|value| value.as_str().parse::<i32>().ok())
             .unwrap_or_default();
         let candidates: Vec<DamageCandidate> = self.buffer.drain(..).collect();
+        let context_lines: Vec<String> = self.context_window.drain(..).collect();
 
         if diff_hp >= 0 {
-            return;
-        }
-        if candidates.is_empty() {
             return;
         }
 
         let hp_delta = -diff_hp;
         let hp_after = hp_current;
         let hp_before = hp_current - diff_hp;
+        let recorded_at = Utc::now().to_rfc3339();
+
+        if candidates.is_empty() {
+            if let Err(err) = self.write_unattributed(PendingUnattributed {
+                recorded_at,
+                player: player.to_string(),
+                hp_delta,
+                hp_before,
+                hp_after,
+                h_line_text: h_line_text.to_string(),
+                context_lines,
+            }) {
+                warn!("failed to write unattributed hp event: {err}");
+            }
+            return;
+        }
+
         let candidate_count = candidates.len();
         let (damage_min, damage_max) = if candidate_count == 1 {
             (hp_delta, hp_delta)
@@ -128,7 +163,6 @@ impl DamageCollector {
         };
         let batch_id = self.next_batch_id;
         self.next_batch_id += 1;
-        let recorded_at = Utc::now().to_rfc3339();
 
         if let Err(err) = self.write_batch(PendingBatch {
             batch_id,
@@ -144,6 +178,36 @@ impl DamageCollector {
         }) {
             warn!("failed to write combat damage batch: {err}");
         }
+    }
+
+    fn write_unattributed(&mut self, event: PendingUnattributed) -> Result<(), String> {
+        let conn = self
+            .conn
+            .as_mut()
+            .ok_or_else(|| "combat damage database unavailable".to_string())?;
+        let transaction = conn.transaction().map_err(|err| err.to_string())?;
+        let context_json = json_string_array(&event.context_lines);
+        transaction
+            .execute(
+                "
+                INSERT INTO unattributed_hp_events (
+                    recorded_at, player, hp_delta, hp_before, hp_after,
+                    h_line_text, context_lines
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                ",
+                rusqlite::params![
+                    event.recorded_at,
+                    event.player,
+                    event.hp_delta,
+                    event.hp_before,
+                    event.hp_after,
+                    event.h_line_text,
+                    context_json,
+                ],
+            )
+            .map_err(|err| err.to_string())?;
+        transaction.commit().map_err(|err| err.to_string())?;
+        Ok(())
     }
 
     fn write_batch(&mut self, batch: PendingBatch) -> Result<(), String> {
@@ -238,6 +302,38 @@ impl DamageCollector {
     }
 
     #[cfg(test)]
+    pub fn query_all_unattributed(
+        conn: &Connection,
+    ) -> Result<Vec<UnattributedHpEventRow>, String> {
+        let mut statement = conn
+            .prepare(
+                "
+                SELECT recorded_at, player, hp_delta, hp_before, hp_after,
+                       h_line_text, context_lines
+                FROM unattributed_hp_events
+                ORDER BY id
+                ",
+            )
+            .map_err(|err| err.to_string())?;
+        let rows = statement
+            .query_map([], |row| {
+                let context_json: String = row.get(6)?;
+                Ok(UnattributedHpEventRow {
+                    recorded_at: row.get(0)?,
+                    player: row.get(1)?,
+                    hp_delta: row.get(2)?,
+                    hp_before: row.get(3)?,
+                    hp_after: row.get(4)?,
+                    h_line_text: row.get(5)?,
+                    context_lines: parse_json_string_array(&context_json),
+                })
+            })
+            .map_err(|err| err.to_string())?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|err| err.to_string())
+    }
+
+    #[cfg(test)]
     pub fn connection(&self) -> Option<&Connection> {
         self.conn.as_ref()
     }
@@ -249,6 +345,102 @@ fn category_label(category: DamageCategory) -> &'static str {
         DamageCategory::Skill => "skill",
         DamageCategory::Spell => "spell",
     }
+}
+
+fn json_string_array(lines: &[String]) -> String {
+    json_string_array_from_slice(lines)
+}
+
+pub fn json_string_array_from_slice(lines: &[String]) -> String {
+    let mut out = String::from("[");
+    for (index, line) in lines.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        out.push('"');
+        for ch in line.chars() {
+            match ch {
+                '"' => out.push_str("\\\""),
+                '\\' => out.push_str("\\\\"),
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                c if c.is_control() => {
+                    use std::fmt::Write;
+                    let _ = write!(out, "\\u{:04x}", c as u32);
+                }
+                c => out.push(c),
+            }
+        }
+        out.push('"');
+    }
+    out.push(']');
+    out
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+pub struct UnattributedHpEventRow {
+    pub recorded_at: String,
+    pub player: String,
+    pub hp_delta: i32,
+    pub hp_before: i32,
+    pub hp_after: i32,
+    pub h_line_text: String,
+    pub context_lines: Vec<String>,
+}
+
+pub fn parse_json_string_array(json: &str) -> Vec<String> {
+    let trimmed = json.trim();
+    if trimmed == "[]" {
+        return Vec::new();
+    }
+    let inner = trimmed
+        .strip_prefix('[')
+        .and_then(|value| value.strip_suffix(']'))
+        .unwrap_or(trimmed)
+        .trim();
+    if inner.is_empty() {
+        return Vec::new();
+    }
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    let mut chars = inner.chars().peekable();
+    while chars.peek().is_some() {
+        match chars.next() {
+            Some('"') => {
+                while let Some(ch) = chars.next() {
+                    match ch {
+                        '"' => break,
+                        '\\' => match chars.next() {
+                            Some('n') => current.push('\n'),
+                            Some('r') => current.push('\r'),
+                            Some('t') => current.push('\t'),
+                            Some('"') => current.push('"'),
+                            Some('\\') => current.push('\\'),
+                            Some('u') => {
+                                let hex: String = chars.by_ref().take(4).collect();
+                                if let Ok(code) = u32::from_str_radix(&hex, 16)
+                                    && let Some(decoded) = char::from_u32(code)
+                                {
+                                    current.push(decoded);
+                                }
+                            }
+                            Some(other) => current.push(other),
+                            None => break,
+                        },
+                        other => current.push(other),
+                    }
+                }
+                lines.push(current.clone());
+                current.clear();
+            }
+            Some(',') => {}
+            Some(_) => {}
+            None => break,
+        }
+    }
+    lines
 }
 
 #[cfg(test)]
@@ -332,6 +524,18 @@ mod tests {
             catalog_rank: None,
             weapon_family: None,
         }
+    }
+
+    #[test]
+    fn json_string_array_round_trips_context_lines() {
+        let lines = vec![
+            "Holy man misses.".to_string(),
+            "You say \"hello\".".to_string(),
+            "Path\\to\\file".to_string(),
+            "line\twith\ttabs".to_string(),
+        ];
+        let json = json_string_array_from_slice(&lines);
+        assert_eq!(parse_json_string_array(&json), lines);
     }
 
     #[test]
@@ -478,22 +682,32 @@ mod tests {
     }
 
     #[test]
-    fn negative_h_with_zero_candidates_writes_no_rows() {
+    fn negative_h_with_zero_candidates_writes_unattributed_row() {
         let (mut collector, path) = collector_with_temp_db("zero-candidates");
         collector.handle_line("Holy man misses.", "Fueryon");
         collector.handle_line(&h_line(760, 782, "-22"), "Fueryon");
         let rows = DamageCollector::query_all_events(collector.connection().unwrap()).unwrap();
         assert!(rows.is_empty());
+        let unattributed =
+            DamageCollector::query_all_unattributed(collector.connection().unwrap()).unwrap();
+        assert_eq!(unattributed.len(), 1);
+        assert_eq!(unattributed[0].hp_delta, 22);
+        assert_eq!(unattributed[0].context_lines, ["Holy man misses."]);
         assert_eq!(collector.buffer_len(), 0);
+        assert_eq!(collector.context_window_len(), 0);
         let _ = std::fs::remove_file(path);
     }
 
     #[test]
-    fn empty_buffer_negative_h_writes_no_rows() {
+    fn empty_buffer_negative_h_writes_unattributed_row() {
         let (mut collector, path) = collector_with_temp_db("empty-buffer");
         collector.handle_line(&h_line(760, 782, "-22"), "Fueryon");
         let rows = DamageCollector::query_all_events(collector.connection().unwrap()).unwrap();
         assert!(rows.is_empty());
+        let unattributed =
+            DamageCollector::query_all_unattributed(collector.connection().unwrap()).unwrap();
+        assert_eq!(unattributed.len(), 1);
+        assert!(unattributed[0].context_lines.is_empty());
         let _ = std::fs::remove_file(path);
     }
 
@@ -505,6 +719,7 @@ mod tests {
         let rows = DamageCollector::query_all_events(collector.connection().unwrap()).unwrap();
         assert!(rows.is_empty());
         assert_eq!(collector.buffer_len(), 0);
+        assert_eq!(collector.context_window_len(), 0);
         let _ = std::fs::remove_file(path);
     }
 
@@ -519,6 +734,7 @@ mod tests {
         let rows = DamageCollector::query_all_events(collector.connection().unwrap()).unwrap();
         assert!(rows.is_empty());
         assert_eq!(collector.buffer_len(), 0);
+        assert_eq!(collector.context_window_len(), 0);
         let _ = std::fs::remove_file(path);
     }
 
@@ -537,7 +753,7 @@ mod tests {
     }
 
     #[test]
-    fn miss_outgoing_and_dodge_lines_are_not_candidates() {
+    fn miss_outgoing_and_dodge_lines_write_unattributed_with_context() {
         let (mut collector, path) = collector_with_temp_db("non-candidates");
         for line in [
             "Holy man misses.",
@@ -551,6 +767,61 @@ mod tests {
         collector.handle_line(&h_line(760, 782, "-22"), "Fueryon");
         let rows = DamageCollector::query_all_events(collector.connection().unwrap()).unwrap();
         assert!(rows.is_empty());
+        let unattributed =
+            DamageCollector::query_all_unattributed(collector.connection().unwrap()).unwrap();
+        assert_eq!(unattributed.len(), 1);
+        assert_eq!(
+            unattributed[0].context_lines,
+            [
+                "Holy man misses.",
+                "You miss.",
+                "You puncture Holy man.",
+                "You tumble Holy man's dodge.",
+                "Holy man dodges.",
+            ]
+        );
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn gagged_scan_line_in_context_when_zero_candidates() {
+        let (mut collector, path) = collector_with_temp_db("gagged-scan");
+        collector.handle_line("Guard is slightly hurt (70%).", "Fueryon");
+        collector.handle_line(&h_line(760, 782, "-22"), "Fueryon");
+        let unattributed =
+            DamageCollector::query_all_unattributed(collector.connection().unwrap()).unwrap();
+        assert_eq!(unattributed.len(), 1);
+        assert_eq!(
+            unattributed[0].context_lines,
+            ["Guard is slightly hurt (70%)."]
+        );
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn recognized_hit_writes_damage_events_not_unattributed() {
+        let (mut collector, path) = collector_with_temp_db("recognized-hit");
+        collector.handle_line("Holy man bitchslaps you.", "Fueryon");
+        collector.handle_line(&h_line(760, 782, "-22"), "Fueryon");
+        let rows = DamageCollector::query_all_events(collector.connection().unwrap()).unwrap();
+        assert_eq!(rows.len(), 1);
+        let unattributed =
+            DamageCollector::query_all_unattributed(collector.connection().unwrap()).unwrap();
+        assert!(unattributed.is_empty());
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn ambiguous_batch_writes_damage_events_not_unattributed() {
+        let (mut collector, path) = collector_with_temp_db("ambiguous-unattributed");
+        collector.handle_line("Holy man bitchslaps you.", "Fueryon");
+        collector.handle_line("Holy man lightly strikes you.", "Fueryon");
+        collector.handle_line(&h_line(760, 782, "-22"), "Fueryon");
+        let rows = DamageCollector::query_all_events(collector.connection().unwrap()).unwrap();
+        assert_eq!(rows.len(), 2);
+        let unattributed =
+            DamageCollector::query_all_unattributed(collector.connection().unwrap()).unwrap();
+        assert!(unattributed.is_empty());
         let _ = std::fs::remove_file(path);
     }
 
@@ -592,13 +863,18 @@ mod tests {
     }
 
     #[test]
-    fn reset_buffer_discards_pending_candidates() {
+    fn reset_buffer_discards_pending_candidates_and_context() {
         let (mut collector, path) = collector_with_temp_db("reset-buffer");
         collector.handle_line("Holy man bitchslaps you.", "Fueryon");
+        collector.handle_line("Holy man misses.", "Fueryon");
         collector.reset_buffer();
         collector.handle_line(&h_line(760, 782, "-22"), "Fueryon");
         let rows = DamageCollector::query_all_events(collector.connection().unwrap()).unwrap();
         assert!(rows.is_empty());
+        let unattributed =
+            DamageCollector::query_all_unattributed(collector.connection().unwrap()).unwrap();
+        assert_eq!(unattributed.len(), 1);
+        assert!(unattributed[0].context_lines.is_empty());
         collector.handle_line("Holy man boots you.", "Fueryon");
         collector.handle_line(&h_line(750, 782, "-10"), "Fueryon");
         let rows = DamageCollector::query_all_events(collector.connection().unwrap()).unwrap();
@@ -686,12 +962,24 @@ mod tests {
     }
 
     #[test]
-    fn write_failure_logs_warning_and_does_not_panic() {
+    fn write_failure_logs_warning_and_clears_buffers() {
         let (mut collector, path) = collector_with_temp_db("write-failure");
         collector.handle_line("Holy man bitchslaps you.", "Fueryon");
         collector.conn = None;
         collector.handle_line(&h_line(760, 782, "-22"), "Fueryon");
         assert_eq!(collector.buffer_len(), 0);
+        assert_eq!(collector.context_window_len(), 0);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn unattributed_write_failure_clears_buffers() {
+        let (mut collector, path) = collector_with_temp_db("unattributed-write-failure");
+        collector.handle_line("Holy man misses.", "Fueryon");
+        collector.conn = None;
+        collector.handle_line(&h_line(760, 782, "-22"), "Fueryon");
+        assert_eq!(collector.buffer_len(), 0);
+        assert_eq!(collector.context_window_len(), 0);
         let _ = std::fs::remove_file(path);
     }
 }

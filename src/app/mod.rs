@@ -1254,9 +1254,13 @@ mod tests {
         log_in(&mut app);
         app.damage_collector
             .handle_line("Holy man bitchslaps you.", "tester");
+        app.damage_collector
+            .handle_line("Holy man misses.", "tester");
         assert_eq!(app.damage_collector.buffer_len(), 1);
+        assert_eq!(app.damage_collector.context_window_len(), 2);
         app.apply_fresh_session_plan(FreshSessionPlan::new(1));
         assert_eq!(app.damage_collector.buffer_len(), 0);
+        assert_eq!(app.damage_collector.context_window_len(), 0);
     }
 
     #[test]
@@ -1266,8 +1270,10 @@ mod tests {
         app.damage_collector
             .handle_line("Holy man bitchslaps you.", "tester");
         assert_eq!(app.damage_collector.buffer_len(), 1);
+        assert_eq!(app.damage_collector.context_window_len(), 1);
         app.process_input_lines(vec!["Please enter your choice or name:".to_string()]);
         assert_eq!(app.damage_collector.buffer_len(), 0);
+        assert_eq!(app.damage_collector.context_window_len(), 0);
     }
 
     #[test]

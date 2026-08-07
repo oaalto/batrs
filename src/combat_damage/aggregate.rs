@@ -1,5 +1,5 @@
 use chrono::{DateTime, Duration, Utc};
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -276,11 +276,19 @@ fn filter_clause(filters: &FilterParams) -> (String, Vec<String>) {
 }
 
 pub fn list_players(conn: &Connection, filters: &FilterParams) -> Result<Vec<String>, String> {
-    let (extra, mut params) = filter_clause(filters);
-    let sql = format!("SELECT DISTINCT player FROM damage_events WHERE 1=1{extra} ORDER BY player");
+    let (extra, params) = filter_clause(filters);
+    let sql = format!(
+        "SELECT DISTINCT player FROM (
+            SELECT player FROM damage_events WHERE 1=1{extra}
+            UNION
+            SELECT player FROM unattributed_hp_events WHERE 1=1{extra}
+        ) ORDER BY player"
+    );
+    let mut all_params = params.clone();
+    all_params.extend(params);
     let mut statement = conn.prepare(&sql).map_err(|err| err.to_string())?;
     let rows = statement
-        .query_map(rusqlite::params_from_iter(params.drain(..)), |row| {
+        .query_map(rusqlite::params_from_iter(all_params.drain(..)), |row| {
             row.get::<_, String>(0)
         })
         .map_err(|err| err.to_string())?;
@@ -831,6 +839,89 @@ fn sort_events(events: &mut [DamageEvent], sort_col: EventSortColumn, sort_dir: 
             SortDirection::Desc => ordering.reverse(),
         }
     });
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnattributedHpSummary {
+    pub id: i64,
+    pub recorded_at: String,
+    pub player: String,
+    pub hp_delta: i32,
+    pub line_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnattributedHpDetail {
+    pub id: i64,
+    pub recorded_at: String,
+    pub player: String,
+    pub hp_delta: i32,
+    pub hp_before: i32,
+    pub hp_after: i32,
+    pub h_line_text: String,
+    pub context_lines: Vec<String>,
+}
+
+pub fn list_unattributed(
+    conn: &Connection,
+    filters: &FilterParams,
+) -> Result<Vec<UnattributedHpSummary>, String> {
+    let (extra, mut params) = filter_clause(filters);
+    let sql = format!(
+        "SELECT id, recorded_at, player, hp_delta, json_array_length(context_lines)
+         FROM unattributed_hp_events
+         WHERE 1=1{extra}
+         ORDER BY recorded_at DESC, id DESC"
+    );
+    let mut statement = conn.prepare(&sql).map_err(|err| err.to_string())?;
+    let rows = statement
+        .query_map(rusqlite::params_from_iter(params.drain(..)), |row| {
+            Ok(UnattributedHpSummary {
+                id: row.get(0)?,
+                recorded_at: row.get(1)?,
+                player: row.get(2)?,
+                hp_delta: row.get(3)?,
+                line_count: row.get::<_, i64>(4)? as usize,
+            })
+        })
+        .map_err(|err| err.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|err| err.to_string())
+}
+
+pub fn get_unattributed(
+    conn: &Connection,
+    id: i64,
+) -> Result<Option<UnattributedHpDetail>, String> {
+    let mut statement = conn
+        .prepare(
+            "
+            SELECT id, recorded_at, player, hp_delta, hp_before, hp_after,
+                   h_line_text, context_lines
+            FROM unattributed_hp_events
+            WHERE id = ?1
+            ",
+        )
+        .map_err(|err| err.to_string())?;
+    let row = statement
+        .query_row([id], |row| {
+            let context_json: String = row.get(7)?;
+            Ok(UnattributedHpDetail {
+                id: row.get(0)?,
+                recorded_at: row.get(1)?,
+                player: row.get(2)?,
+                hp_delta: row.get(3)?,
+                hp_before: row.get(4)?,
+                hp_after: row.get(5)?,
+                h_line_text: row.get(6)?,
+                context_lines: crate::combat_damage::collector::parse_json_string_array(
+                    &context_json,
+                ),
+            })
+        })
+        .optional()
+        .map_err(|err| err.to_string())?;
+    Ok(row)
 }
 
 #[cfg(test)]

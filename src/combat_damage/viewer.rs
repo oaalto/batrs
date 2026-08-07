@@ -1,6 +1,7 @@
 use crate::combat_damage::aggregate::{
     EventSortColumn, FilterParams, LandingSortColumn, MeleeFamilySection, SortDirection, TimeRange,
-    VerbAggregate, category_aggregates, list_events, list_players, melee_family_aggregates,
+    UnattributedHpDetail, UnattributedHpSummary, VerbAggregate, category_aggregates,
+    get_unattributed, list_events, list_players, list_unattributed, melee_family_aggregates,
 };
 use crate::combat_damage::storage::open_readonly_db;
 use axum::{
@@ -84,6 +85,7 @@ pub fn router(state: Arc<ViewerState>) -> Router {
     Router::new()
         .route("/", get(landing))
         .route("/events/{category}/{verb}", get(drill_down))
+        .route("/unattributed/{id}", get(unattributed_drill_down))
         .route("/style.css", get(style_css))
         .with_state(state)
 }
@@ -115,8 +117,44 @@ fn landing_data(
     let melee = melee_family_aggregates(conn, filters, sort_col.clone(), sort_dir)?;
     let skill = category_aggregates(conn, "skill", filters, sort_col.clone(), sort_dir)?;
     let spell = category_aggregates(conn, "spell", filters, sort_col, sort_dir)?;
+    let unattributed = list_unattributed(conn, filters)?;
     Ok(render_landing(
-        filters, &players, &melee, &skill, &spell, query,
+        filters,
+        &players,
+        &melee,
+        &skill,
+        &spell,
+        &unattributed,
+        query,
+    ))
+}
+
+async fn unattributed_drill_down(
+    State(state): State<Arc<ViewerState>>,
+    Path(id): Path<i64>,
+    Query(query): Query<ViewerQuery>,
+) -> impl IntoResponse {
+    let filters = FilterParams::from_query(query.range.as_deref(), query.player.as_deref());
+    match open_readonly_db(&state.db_path) {
+        Ok(conn) => match unattributed_drill_down_data(&conn, id, &filters, &query) {
+            Ok(html) => Html(html).into_response(),
+            Err(message) => service_unavailable(message),
+        },
+        Err(message) => service_unavailable(message),
+    }
+}
+
+fn unattributed_drill_down_data(
+    conn: &rusqlite::Connection,
+    id: i64,
+    filters: &FilterParams,
+    query: &ViewerQuery,
+) -> Result<String, String> {
+    let players = list_players(conn, &FilterParams::from_query(None, None))?;
+    let detail =
+        get_unattributed(conn, id)?.ok_or_else(|| format!("unattributed event {id} not found"))?;
+    Ok(render_unattributed_drill_down(
+        &detail, filters, &players, query,
     ))
 }
 
@@ -174,6 +212,7 @@ fn render_landing(
     melee: &[MeleeFamilySection],
     skill: &[VerbAggregate],
     spell: &[VerbAggregate],
+    unattributed: &[UnattributedHpSummary],
     query: &ViewerQuery,
 ) -> String {
     let mut html = String::new();
@@ -200,7 +239,97 @@ fn render_landing(
         query,
         None,
     ));
+    html.push_str(&render_unattributed_section(unattributed, filters));
     html.push_str(render_sort_script());
+    html.push_str("</body></html>");
+    html
+}
+
+fn render_unattributed_section(rows: &[UnattributedHpSummary], filters: &FilterParams) -> String {
+    let mut html = String::from("<h2>Unattributed HP loss</h2>");
+    if rows.is_empty() {
+        html.push_str(
+            "<p class=\"empty-hint\">No unattributed HP loss recorded for the current filters.</p>",
+        );
+        return html;
+    }
+    html.push_str("<table><thead><tr>");
+    html.push_str("<th>Recorded at</th><th>Player</th><th>HP delta</th><th>Lines</th>");
+    html.push_str("</tr></thead><tbody>");
+    for row in rows {
+        let href = format!("/unattributed/{}{}", row.id, build_filter_query(filters));
+        html.push_str("<tr>");
+        html.push_str(&format!(
+            "<td><a href=\"{href}\">{}</a></td>",
+            html_escape(&row.recorded_at)
+        ));
+        html.push_str(&format!("<td>{}</td>", html_escape(&row.player)));
+        html.push_str(&format!("<td class=\"numeric\">{}</td>", row.hp_delta));
+        html.push_str(&format!("<td class=\"numeric\">{}</td>", row.line_count));
+        html.push_str("</tr>");
+    }
+    html.push_str("</tbody></table>");
+    html
+}
+
+fn render_unattributed_drill_down(
+    detail: &UnattributedHpDetail,
+    filters: &FilterParams,
+    players: &[String],
+    query: &ViewerQuery,
+) -> String {
+    let back_href = build_query_string("/", filters, query.sort.as_deref(), query.dir.as_deref());
+    let mut html = String::new();
+    html.push_str("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">");
+    html.push_str(
+        "<title>Unattributed HP loss</title><link rel=\"stylesheet\" href=\"/style.css\">",
+    );
+    html.push_str("</head><body>");
+    html.push_str(&format!(
+        "<p class=\"back-link\"><a href=\"{back_href}\">&larr; Back</a></p>"
+    ));
+    html.push_str("<h1>Unattributed HP loss</h1>");
+    html.push_str(&render_filters(
+        filters,
+        players,
+        &format!("/unattributed/{}", detail.id),
+    ));
+    html.push_str("<table><tbody>");
+    html.push_str(&format!(
+        "<tr><th>Recorded at</th><td>{}</td></tr>",
+        html_escape(&detail.recorded_at)
+    ));
+    html.push_str(&format!(
+        "<tr><th>Player</th><td>{}</td></tr>",
+        html_escape(&detail.player)
+    ));
+    html.push_str(&format!(
+        "<tr><th>HP delta</th><td class=\"numeric\">{}</td></tr>",
+        detail.hp_delta
+    ));
+    html.push_str(&format!(
+        "<tr><th>HP before</th><td class=\"numeric\">{}</td></tr>",
+        detail.hp_before
+    ));
+    html.push_str(&format!(
+        "<tr><th>HP after</th><td class=\"numeric\">{}</td></tr>",
+        detail.hp_after
+    ));
+    html.push_str(&format!(
+        "<tr><th>H line</th><td>{}</td></tr>",
+        html_escape(&detail.h_line_text)
+    ));
+    html.push_str("</tbody></table>");
+    html.push_str("<h2>Context lines</h2>");
+    if detail.context_lines.is_empty() {
+        html.push_str("<p class=\"empty-hint\">No context lines before this H line.</p>");
+    } else {
+        html.push_str("<ol class=\"context-lines\">");
+        for line in &detail.context_lines {
+            html.push_str(&format!("<li>{}</li>", html_escape(line)));
+        }
+        html.push_str("</ol>");
+    }
     html.push_str("</body></html>");
     html
 }
@@ -708,6 +837,8 @@ mod tests {
         assert!(body.contains("Confirmed"));
         assert!(body.contains("Estimated"));
         assert!(body.contains("No melee damage recorded yet."));
+        assert!(body.contains("Unattributed HP loss"));
+        assert!(body.contains("No unattributed HP loss recorded for the current filters."));
         assert!(!body.contains("bitchslap"));
         remove_db_files(&path);
     }
@@ -948,6 +1079,99 @@ mod tests {
     #[test]
     fn unreadable_db_message_is_documented() {
         assert_eq!(CANNOT_OPEN_DATABASE, "Cannot open combat damage database.");
-        assert_eq!(CURRENT_SCHEMA_VERSION, 3);
+        assert_eq!(CURRENT_SCHEMA_VERSION, 4);
+    }
+
+    #[tokio::test]
+    async fn unattributed_fixture_landing_and_drill_down() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let path = open_fixture_db_with_unattributed(
+            &[],
+            &[UnattributedFixtureRow::new(
+                "Odefu",
+                22,
+                "2026-08-06T15:00:00Z",
+                "H:760/782 [-22] S:100/100 [] E:100/100 [] $:100 [] exp:100 []",
+                &["Holy man misses.", "You miss."],
+            )],
+        );
+        let app = router(Arc::new(ViewerState {
+            db_path: path.clone(),
+        }));
+        let response = app
+            .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = body_string(response).await;
+        assert!(body.contains("Unattributed HP loss"));
+        assert!(body.contains("2026-08-06T15:00:00Z"));
+        assert!(body.contains("Odefu"));
+        assert!(body.contains(">22<"));
+        assert!(body.contains(">2<"));
+
+        let app = router(Arc::new(ViewerState {
+            db_path: path.clone(),
+        }));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/unattributed/1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = body_string(response).await;
+        assert!(body.contains("Holy man misses."));
+        assert!(body.contains("You miss."));
+        assert!(body.contains("H:760/782 [-22]"));
+        remove_db_files(&path);
+    }
+
+    #[tokio::test]
+    async fn unattributed_player_filter_applies() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let path = open_fixture_db_with_unattributed(
+            &[],
+            &[
+                UnattributedFixtureRow::new(
+                    "Odefu",
+                    22,
+                    "2026-08-06T15:00:00Z",
+                    "H:760/782 [-22] S:100/100 []",
+                    &["Holy man misses."],
+                ),
+                UnattributedFixtureRow::new(
+                    "Beta",
+                    10,
+                    "2026-08-06T16:00:00Z",
+                    "H:90/100 [-10] S:100/100 []",
+                    &[],
+                ),
+            ],
+        );
+        let state = Arc::new(ViewerState {
+            db_path: path.clone(),
+        });
+        let app = router(state);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/?player=Odefu")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let body = body_string(response).await;
+        assert!(body.contains("2026-08-06T15:00:00Z"));
+        assert!(!body.contains("2026-08-06T16:00:00Z"));
+        remove_db_files(&path);
     }
 }

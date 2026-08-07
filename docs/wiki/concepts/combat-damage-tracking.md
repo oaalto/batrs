@@ -2,7 +2,7 @@
 title: Combat Damage Tracking
 type: concept
 status: current
-updated: 2026-08-06
+updated: 2026-08-07
 sources:
   - CONTEXT.md
   - docs/hit_messages.md
@@ -28,6 +28,20 @@ Combat Damage records **incoming HP loss** while the player is logged in: recogn
 | Confirmed view | Aggregates from isolated rows (`candidate_count = 1`) only — exact `hp_delta` per observation. |
 | Estimated view | Read-time extrapolation on ambiguous batches using isolated-derived `known_min`/`known_max` per verb key. Bounds stay conservative; no even-split fallback. |
 | Rank-estimated avg | When estimated bounds stay loose `[0, hp_delta]` and batch rows carry `catalog_rank`, point estimate `hp_delta × (rankᵢ / Σ rankⱼ)` over ranked melee candidates. Does not change confirmed numbers or stored `weight`. |
+| Unattributed HP loss | Negative `H:` HP bracket with zero recognized damage candidates in the window since the previous `H:` line. Stored for review, not in `damage_events`. Distinct from ambiguous batches (N≥2 candidates) and from melee `weapon_family = unknown` in rollups. |
+| Context window | All plain incoming lines between the previous `H:` and a triggering `H:` line (exclusive of both `H:` lines). Saved verbatim on unattributed triggers; not stored on attributed rows (`message_text` only). |
+
+## Unattributed HP loss review
+
+When a negative `H:` line arrives with **zero** filtered damage candidates, the collector writes one row to `unattributed_hp_events` (schema v4) with `recorded_at`, `player`, `hp_delta`, `hp_before`, `hp_after`, `h_line_text`, and ordered `context_lines` (JSON array). Empty context is valid (silent damage between `H:` lines).
+
+- **Not** ambiguous batches: N≥1 candidates still follow the existing `damage_events` path only.
+- **Not** `damage_category = unknown`: confirmed/estimated rollups remain `candidate_count ≥ 1` only.
+- Context window includes every line passed to `handle_line` while logged in except `H:` delimiters — including gagged scan lines (collector runs before combat-awareness gag).
+- Lifecycle: context window clears on every `H:` line, `reset_buffer()`, logout, and `FreshSessionReset::DamageCollector` — same as the candidate buffer.
+- Write failure: `tracing::warn!`, discard pending context, continue play.
+
+HTTP viewer adds an **Unattributed HP loss** section: table of triggers (`recorded_at`, `player`, `hp_delta`, line count); drill-down lists context lines in order plus the triggering `H:` line. Filters (`range`, `player`) match the attribution dashboard. Always on when the collector is active.
 
 ## Module boundary
 
@@ -56,4 +70,4 @@ Verb drill-down (`/events/{category}/{verb}`) lists focal rows for that verb. Op
 
 - PRD: `docs/features/combat-damage-tracking/prd.md`
 - Hit catalog: `docs/hit_messages.md`
-- Closed tickets: `docs/features/combat-damage-tracking/tickets/how-should-attribution-weight-work.md`, `how-should-catalog-rank-inform-estimated-extrapolation.md`
+- Closed tickets: `docs/features/combat-damage-tracking/tickets/how-should-attribution-weight-work.md`, `how-should-catalog-rank-inform-estimated-extrapolation.md`, `how-should-unattributed-hp-loss-be-captured.md`

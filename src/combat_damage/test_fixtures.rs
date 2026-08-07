@@ -169,6 +169,74 @@ pub fn insert_rows(conn: &Connection, rows: &[FixtureRow]) {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct UnattributedFixtureRow {
+    pub recorded_at: String,
+    pub player: String,
+    pub hp_delta: i32,
+    pub hp_before: i32,
+    pub hp_after: i32,
+    pub h_line_text: String,
+    pub context_lines: Vec<String>,
+}
+
+impl UnattributedFixtureRow {
+    pub fn new(
+        player: &str,
+        hp_delta: i32,
+        recorded_at: &str,
+        h_line_text: &str,
+        context_lines: &[&str],
+    ) -> Self {
+        Self {
+            recorded_at: recorded_at.to_string(),
+            player: player.to_string(),
+            hp_delta,
+            hp_before: hp_delta + 100,
+            hp_after: 100,
+            h_line_text: h_line_text.to_string(),
+            context_lines: context_lines.iter().map(|line| line.to_string()).collect(),
+        }
+    }
+}
+
+pub fn insert_unattributed_rows(conn: &Connection, rows: &[UnattributedFixtureRow]) {
+    for row in rows {
+        let context_json =
+            crate::combat_damage::collector::json_string_array_from_slice(&row.context_lines);
+        conn.execute(
+            "
+            INSERT INTO unattributed_hp_events (
+                recorded_at, player, hp_delta, hp_before, hp_after,
+                h_line_text, context_lines
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            ",
+            rusqlite::params![
+                row.recorded_at,
+                row.player,
+                row.hp_delta,
+                row.hp_before,
+                row.hp_after,
+                row.h_line_text,
+                context_json,
+            ],
+        )
+        .expect("insert unattributed fixture row");
+    }
+}
+
+pub fn open_fixture_db_with_unattributed(
+    damage_rows: &[FixtureRow],
+    unattributed_rows: &[UnattributedFixtureRow],
+) -> PathBuf {
+    let path = temp_db_path("fixture-unattributed");
+    remove_db_files(&path);
+    let conn = open_db(&path).expect("open fixture db");
+    insert_rows(&conn, damage_rows);
+    insert_unattributed_rows(&conn, unattributed_rows);
+    path
+}
+
 pub fn standard_fixture_rows() -> Vec<FixtureRow> {
     vec![
         FixtureRow::isolated("melee", "bitchslap", "Odefu", 22, "2026-08-06T14:32:00Z")

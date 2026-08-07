@@ -2,7 +2,7 @@
 
 `wayfinder:map`
 
-**Spec:** [`prd.md`](prd.md) — implementation slices [`01`](01-damage-line-matcher.md) · [`02`](02-damage-collector-and-storage.md) · [`03`](03-http-damage-viewer.md)
+**Spec:** [`prd.md`](prd.md) — implementation slices [`01`](01-damage-line-matcher.md) · [`02`](02-damage-collector-and-storage.md) · [`03`](03-http-damage-viewer.md) · [`04`](04-unattributed-hp-review.md)
 
 ## Destination
 
@@ -17,7 +17,7 @@ Live incoming-damage tracking while playing: batrs records HP-loss events into a
 
 ## Decisions so far
 
-- [What counts as an incoming damage event?](tickets/what-counts-as-an-incoming-damage-event.md) — row on negative `H:` HP bracket only; HP-only delta; attributed line stored (no buffer); `melee`/`skill`/`spell` categories; skip unattributed loss; no round/session ids in v1
+- [What counts as an incoming damage event?](tickets/what-counts-as-an-incoming-damage-event.md) — row on negative `H:` HP bracket only; HP-only delta; attributed line stored (no buffer on attributed rows); `melee`/`skill`/`spell` categories; unattributed loss captured separately (slice 04); no round/session ids in v1
 - [How should attribution weight work?](tickets/how-should-attribution-weight-work.md) — isolated vs ambiguous by filtered candidate count; `weight` 1.0 or 1/N; `damage_min`/`damage_max` stored per row; aggregation by category+verb; confirmed vs estimated viewer modes; conservative extrapolation
 - [How should catalog rank inform estimated extrapolation?](tickets/how-should-catalog-rank-inform-estimated-extrapolation.md) — `catalog_rank` from `hit_messages.md` order; schema v2 `catalog_rank` + `weapon_family` on melee rows; rank-proportional estimated avg only; `weight` unchanged; confirmed view unchanged
 - [How should events be stored?](tickets/how-should-events-be-stored.md) — flat `damage_events` + `schema_version` at `~/.batrs/combat_damage.db`; `batch_id` per trigger; `rusqlite` + transaction per trigger; four indexes; inline migrations from v1; unlimited retention
@@ -25,6 +25,7 @@ Live incoming-damage tracking while playing: batrs records HP-loss events into a
 - [What non-melee incoming patterns exist?](tickets/what-non-melee-incoming-patterns-exist.md) — v1 skills: bash, push, kick, stab, scythe swipe (multi-regexp each); spells: `A/An <name> hits you.`; environmental/DoT/player-name/outgoing ignored; breath via melee catalog only
 - [How should melee parsing use hit messages?](tickets/how-should-melee-parsing-use-hit-messages.md) — `build.rs` catalog from `hit_messages.md`; longest-first suffix match + family recency; dual conjugation suffix; skills→spells→melee; 35 tests covering 286 verbs + fixtures
 - [What should the HTTP viewer show?](tickets/what-should-the-http-viewer-show.md) — three verb tables (melee/skill/spell) with confirmed+estimated columns; sortable columns; bundled CSS; verb drill-down with batch grouping; time+player filters; axum HTML auto-start on batrs launch (`--port` default 6464); no charts, no total/by-monster aggregates
+- [How should unattributed HP loss be captured?](tickets/how-should-unattributed-hp-loss-be-captured.md) — zero-candidate negative `H:` only; context window (all non-`H:` lines including gagged); `unattributed_hp_events` table (schema v4); no `damage_events` / no `unknown` category; HTTP unattributed section + drill-down; always on
 
 ## Not yet specified
 - Opt-out toggle and performance guardrails (write batching, max buffer size)

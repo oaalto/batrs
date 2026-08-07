@@ -63,7 +63,9 @@ Skill examples locked for v1:
 
 **Exception — partial kick deflect:** `Salvatore's kick lashes at you with speed, but you manage to partly deflect it in time.` is a kick skill output line — valid attribution candidate with `damage_category = skill`, `message_verb = kick`.
 
-**B — unattributed HP loss:** skip. If `H:` shows `[-N]` but no recognized melee/skill/spell line exists in the buffer, **no row is written**. No `unknown` category rows in v1.
+**B — unattributed HP loss:** skip `damage_events` rows. If `H:` shows `[-N]` but no recognized melee/skill/spell line exists in the buffer, **no attribution row is written**. No `unknown` category rows in v1.
+
+> **Addendum (2026-08-07):** [How should unattributed HP loss be captured?](how-should-unattributed-hp-loss-be-captured.md) — zero-candidate triggers now persist a parallel `unattributed_hp_events` row with the full **context window** for review. Attribution skip unchanged; see slice `04-unattributed-hp-review.md`.
 
 ### Q7 — co-occurring stat changes (resolved)
 
@@ -79,7 +81,9 @@ One **incoming damage event** row is written when all of the following hold:
 
 **Row fields (v1):** `recorded_at`, `player`, `hp_delta`, `hp_before`, `hp_after`, `damage_category` (`melee` | `skill` | `spell`), `source_name`, `message_verb`, `message_text`, `weight`.
 
-**Not stored:** round number, fight/session id, full context buffer, non-HP stat deltas, unattributed HP loss, `unknown` category rows.
+**Not stored on attributed rows:** round number, fight/session id, full context buffer, non-HP stat deltas, `unknown` category in `damage_events`.
+
+**Unattributed HP loss:** no `damage_events` row; context window stored in `unattributed_hp_events` (see addendum on Q6-B).
 
 **Categories:** melee via [`docs/hit_messages.md`](../../hit_messages.md); skills (bash, push, kick, extensible catalog); spells via `A/An <name> hits you.`
 
