@@ -157,9 +157,23 @@ fn unattributed_drill_down_data(
     if let Err(err) = mark_unattributed_reviewed(conn, id) {
         log::warn!("failed to mark unattributed event {id} reviewed: {err}");
     }
+    let filtered = list_unattributed(conn, filters)?;
+    let (prev_id, next_id) = unattributed_neighbor_ids(&filtered, id);
     Ok(render_unattributed_drill_down(
-        &detail, filters, &players, query,
+        &detail, filters, &players, query, prev_id, next_id,
     ))
+}
+
+fn unattributed_neighbor_ids(
+    rows: &[UnattributedHpSummary],
+    current_id: i64,
+) -> (Option<i64>, Option<i64>) {
+    let Some(index) = rows.iter().position(|row| row.id == current_id) else {
+        return (None, None);
+    };
+    let prev = index.checked_sub(1).map(|idx| rows[idx].id);
+    let next = rows.get(index + 1).map(|row| row.id);
+    (prev, next)
 }
 
 async fn drill_down(
@@ -295,6 +309,8 @@ fn render_unattributed_drill_down(
     filters: &FilterParams,
     players: &[String],
     query: &ViewerQuery,
+    prev_id: Option<i64>,
+    next_id: Option<i64>,
 ) -> String {
     let back_href = build_query_string("/", filters, query.sort.as_deref(), query.dir.as_deref());
     let mut html = String::new();
@@ -303,8 +319,11 @@ fn render_unattributed_drill_down(
         "<title>Unattributed HP loss</title><link rel=\"stylesheet\" href=\"/style.css\">",
     );
     html.push_str("</head><body>");
-    html.push_str(&format!(
-        "<p class=\"back-link\"><a href=\"{back_href}\">&larr; Back</a></p>"
+    html.push_str(&render_unattributed_nav(
+        back_href.as_str(),
+        filters,
+        prev_id,
+        next_id,
     ));
     html.push_str("<h1>Unattributed HP loss</h1>");
     html.push_str(&render_filters(
@@ -350,6 +369,24 @@ fn render_unattributed_drill_down(
     }
     html.push_str("</body></html>");
     html
+}
+
+fn render_unattributed_nav(
+    back_href: &str,
+    filters: &FilterParams,
+    prev_id: Option<i64>,
+    next_id: Option<i64>,
+) -> String {
+    let mut parts = vec![format!("<a href=\"{back_href}\">&larr; Back</a>")];
+    if let Some(id) = prev_id {
+        let href = format!("/unattributed/{id}{}", build_filter_query(filters));
+        parts.push(format!("<a href=\"{href}\">&larr; Previous</a>"));
+    }
+    if let Some(id) = next_id {
+        let href = format!("/unattributed/{id}{}", build_filter_query(filters));
+        parts.push(format!("<a href=\"{href}\">Next &rarr;</a>"));
+    }
+    format!("<p class=\"back-link\">{}</p>", parts.join(" · "))
 }
 
 fn render_melee_section(
@@ -1285,6 +1322,166 @@ mod tests {
         let body = body_string(response).await;
         assert!(body.contains("2026-08-06T15:00:00Z"));
         assert!(!body.contains("2026-08-06T16:00:00Z"));
+        remove_db_files(&path);
+    }
+
+    #[test]
+    fn unattributed_neighbor_ids_uses_landing_list_position() {
+        use crate::combat_damage::aggregate::UnattributedHpSummary;
+        let rows = vec![
+            UnattributedHpSummary {
+                id: 3,
+                recorded_at: String::new(),
+                player: String::new(),
+                hp_delta: 0,
+                line_count: 0,
+                reviewed: false,
+            },
+            UnattributedHpSummary {
+                id: 2,
+                recorded_at: String::new(),
+                player: String::new(),
+                hp_delta: 0,
+                line_count: 0,
+                reviewed: false,
+            },
+            UnattributedHpSummary {
+                id: 1,
+                recorded_at: String::new(),
+                player: String::new(),
+                hp_delta: 0,
+                line_count: 0,
+                reviewed: false,
+            },
+        ];
+        assert_eq!(unattributed_neighbor_ids(&rows, 3), (None, Some(2)));
+        assert_eq!(unattributed_neighbor_ids(&rows, 2), (Some(3), Some(1)));
+        assert_eq!(unattributed_neighbor_ids(&rows, 1), (Some(2), None));
+        assert_eq!(unattributed_neighbor_ids(&rows, 99), (None, None));
+    }
+
+    #[tokio::test]
+    async fn unattributed_drill_down_prev_next_within_filtered_list() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let path = open_fixture_db_with_unattributed(
+            &[],
+            &[
+                UnattributedFixtureRow::new(
+                    "Odefu",
+                    5,
+                    "2026-08-06T14:00:00Z",
+                    "H:95/100 [-5] S:100/100 []",
+                    &[],
+                ),
+                UnattributedFixtureRow::new(
+                    "Odefu",
+                    10,
+                    "2026-08-06T15:00:00Z",
+                    "H:90/100 [-10] S:100/100 []",
+                    &[],
+                ),
+                UnattributedFixtureRow::new(
+                    "Odefu",
+                    22,
+                    "2026-08-06T16:00:00Z",
+                    "H:760/782 [-22] S:100/100 []",
+                    &[],
+                ),
+            ],
+        );
+        let state = Arc::new(ViewerState {
+            db_path: path.clone(),
+        });
+
+        let app = router(state.clone());
+        let body = body_string(
+            app.oneshot(
+                Request::builder()
+                    .uri("/unattributed/3")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap(),
+        )
+        .await;
+        assert!(!body.contains("&larr; Previous</a>"));
+        assert!(body.contains("/unattributed/2\">Next &rarr;</a>"));
+
+        let app = router(state.clone());
+        let body = body_string(
+            app.oneshot(
+                Request::builder()
+                    .uri("/unattributed/2")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap(),
+        )
+        .await;
+        assert!(body.contains("/unattributed/3\">&larr; Previous</a>"));
+        assert!(body.contains("/unattributed/1\">Next &rarr;</a>"));
+
+        let app = router(state.clone());
+        let body = body_string(
+            app.oneshot(
+                Request::builder()
+                    .uri("/unattributed/1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap(),
+        )
+        .await;
+        assert!(body.contains("/unattributed/2\">&larr; Previous</a>"));
+        assert!(!body.contains("Next &rarr;</a>"));
+
+        let single_path = open_fixture_db_with_unattributed(
+            &[],
+            &[UnattributedFixtureRow::new(
+                "Odefu",
+                22,
+                "2026-08-06T15:00:00Z",
+                "H:760/782 [-22] S:100/100 []",
+                &[],
+            )],
+        );
+        let app = router(Arc::new(ViewerState {
+            db_path: single_path.clone(),
+        }));
+        let body = body_string(
+            app.oneshot(
+                Request::builder()
+                    .uri("/unattributed/1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap(),
+        )
+        .await;
+        assert!(!body.contains("&larr; Previous</a>"));
+        assert!(!body.contains("Next &rarr;</a>"));
+        remove_db_files(&single_path);
+
+        let app = router(state);
+        let body = body_string(
+            app.oneshot(
+                Request::builder()
+                    .uri("/unattributed/1?player=Beta")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap(),
+        )
+        .await;
+        assert!(!body.contains("&larr; Previous</a>"));
+        assert!(!body.contains("Next &rarr;</a>"));
         remove_db_files(&path);
     }
 }

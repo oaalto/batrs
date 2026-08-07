@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-08-07] update | Unattributed drill navigation (slice 07)
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/prd.md`, `docs/features/combat-damage-tracking/map.md`
+- Created: `docs/features/combat-damage-tracking/07-unattributed-drill-navigation.md`, `docs/features/combat-damage-tracking/tickets/how-should-unattributed-drill-navigation-work.md`
+- Notes: Previous/Next on `/unattributed/{id}` within filtered landing order; preserve `range`/`player`; mark reviewed on nav GET.
+
 ## [2026-08-07] update | Unattributed review state (slice 06)
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/prd.md`, `docs/features/combat-damage-tracking/map.md`
