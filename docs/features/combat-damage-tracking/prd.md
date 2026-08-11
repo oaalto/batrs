@@ -154,7 +154,7 @@ One transaction per trigger. Indexes on `recorded_at` and `player`. No duplicati
 | `bash` | `<name>'s bash sends you sprawling.` |
 | `push` | `<name> pushes you.` |
 | `kick` | groin kick, stomach kick, partial-deflect kick lines |
-| `stab` | weapon aside + stab; kneecap smash; PUMMELS midriff |
+| `stab` | weapon aside + stab; kneecap smash; PUMMELS midriff; quick step forward stab |
 | `scythe swipe` | `slashes a ragged wound across your chest` |
 | `riposte` | two-line: `<name> parries.` then `...AND counterattacks.` or `...AND ripostes.` |
 

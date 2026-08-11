@@ -38,6 +38,7 @@ For each class: example line, proposed `damage_category` label, and whether it b
 | `stab` | `With a quick flick, Akeem knocks your weapon aside and stabs your stomach!` |
 | | `You watch helplessly as Akeem smashes your kneecap!` |
 | | `OOF!  Akeem feints, throwing you offguard as he PUMMELS your midriff!` |
+| | `Akeem quickly steps forward and stabs you, before you can move!` |
 | `scythe swipe` | `Reaver slashes a ragged wound across your chest.` |
 
 All: `damage_category = skill`. `source_name` = attacker name extracted from line. Other guild/enemy skill lines ignored until matchers added.
@@ -84,6 +85,7 @@ Covers spell hit lines such as `A magic missile hits you.` New spell names auto-
 | `stab` | `^With a quick flick, (.+) knocks your weapon aside and stabs your stomach!$` | group 1 |
 | | `^You watch helplessly as (.+) smashes your kneecap!$` | group 1 |
 | | `^OOF!\s+(.+) feints, throwing you offguard as he PUMMELS your midriff!$` | group 1 |
+| | `^(.+) quickly steps forward and stabs you, before you can move!$` | group 1 |
 | `scythe swipe` | `^(.+) slashes a ragged wound across your chest\.$` | group 1 |
 
 ### Spells (`damage_category = spell`)

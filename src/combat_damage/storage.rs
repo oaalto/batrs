@@ -55,6 +55,7 @@ fn migrate(conn: &Connection) -> Result<(), String> {
     }
     backfill_melee_catalog_metadata(conn)?;
     backfill_riposte_from_unattributed(conn)?;
+    backfill_skills_from_unattributed(conn)?;
     Ok(())
 }
 
@@ -189,6 +190,120 @@ pub fn backfill_riposte_from_unattributed(conn: &Connection) -> Result<usize, St
                     });
             }
         }
+    }
+
+    Ok(converted)
+}
+
+pub fn backfill_skills_from_unattributed(conn: &Connection) -> Result<usize, String> {
+    use crate::combat_damage::attribution::{catalog_weights, confidence};
+    use crate::combat_damage::collector::parse_json_string_array;
+    use crate::combat_damage::matcher::Matcher;
+
+    let mut select = conn
+        .prepare(
+            "SELECT id, recorded_at, player, hp_delta, hp_before, hp_after, context_lines
+             FROM unattributed_hp_events
+             ORDER BY id",
+        )
+        .map_err(|err| err.to_string())?;
+    let rows = select
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i32>(3)?,
+                row.get::<_, i32>(4)?,
+                row.get::<_, i32>(5)?,
+                row.get::<_, String>(6)?,
+            ))
+        })
+        .map_err(|err| err.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| err.to_string())?;
+
+    if rows.is_empty() {
+        return Ok(0);
+    }
+
+    let mut next_batch_id: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(batch_id), 0) + 1 FROM damage_events",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(1);
+    let mut converted = 0usize;
+
+    for (row_id, recorded_at, player, hp_delta, hp_before, hp_after, context_json) in rows {
+        let context_lines = parse_json_string_array(&context_json);
+        let mut matcher = Matcher::new();
+        let mut candidates = Vec::new();
+        for line in &context_lines {
+            if let Some(candidate) = matcher.match_skill(line) {
+                candidates.push(candidate);
+            }
+        }
+        if candidates.is_empty() {
+            continue;
+        }
+
+        let candidate_count = candidates.len();
+        let (damage_min, damage_max) = if candidate_count == 1 {
+            (hp_delta, hp_delta)
+        } else {
+            (0, hp_delta)
+        };
+        let batch_confidence = confidence(candidate_count);
+        let ranks: Vec<Option<i32>> = candidates
+            .iter()
+            .map(|candidate| candidate.catalog_rank.map(i32::from))
+            .collect();
+        let weights = catalog_weights(&ranks);
+
+        let transaction = conn
+            .unchecked_transaction()
+            .map_err(|err| err.to_string())?;
+        for (candidate, weight) in candidates.iter().zip(weights) {
+            transaction
+                .execute(
+                    "
+                    INSERT INTO damage_events (
+                        batch_id, recorded_at, player, hp_delta, hp_before, hp_after,
+                        damage_category, source_name, message_verb, message_text,
+                        candidate_count, confidence, damage_min, damage_max,
+                        catalog_rank, weapon_family, weight
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+                    ",
+                    rusqlite::params![
+                        next_batch_id,
+                        recorded_at,
+                        player,
+                        hp_delta,
+                        hp_before,
+                        hp_after,
+                        "skill",
+                        candidate.source_name,
+                        candidate.message_verb,
+                        candidate.message_text,
+                        candidate_count as i32,
+                        batch_confidence,
+                        damage_min,
+                        damage_max,
+                        candidate.catalog_rank.map(i32::from),
+                        candidate.weapon_family,
+                        weight,
+                    ],
+                )
+                .map_err(|err| err.to_string())?;
+        }
+        transaction
+            .execute("DELETE FROM unattributed_hp_events WHERE id = ?1", [row_id])
+            .map_err(|err| err.to_string())?;
+        transaction.commit().map_err(|err| err.to_string())?;
+        next_batch_id += 1;
+        converted += 1;
     }
 
     Ok(converted)
@@ -1043,20 +1158,178 @@ mod tests {
     }
 
     #[test]
+    fn backfill_skills_from_unattributed_quick_stab_line() {
+        let path = temp_db_path("backfill-quick-stab");
+        let _ = fs::remove_file(&path);
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE schema_version (version INTEGER NOT NULL);
+            INSERT INTO schema_version (version) VALUES (5);
+            CREATE TABLE damage_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL,
+                recorded_at TEXT NOT NULL,
+                player TEXT NOT NULL,
+                hp_delta INTEGER NOT NULL,
+                hp_before INTEGER NOT NULL,
+                hp_after INTEGER NOT NULL,
+                damage_category TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                message_verb TEXT NOT NULL,
+                message_text TEXT NOT NULL,
+                candidate_count INTEGER NOT NULL,
+                confidence REAL NOT NULL,
+                damage_min INTEGER NOT NULL,
+                damage_max INTEGER NOT NULL,
+                catalog_rank INTEGER,
+                weapon_family TEXT,
+                weight REAL NOT NULL
+            );
+            CREATE TABLE unattributed_hp_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recorded_at TEXT NOT NULL,
+                player TEXT NOT NULL,
+                hp_delta INTEGER NOT NULL,
+                hp_before INTEGER NOT NULL,
+                hp_after INTEGER NOT NULL,
+                h_line_text TEXT NOT NULL,
+                context_lines TEXT NOT NULL,
+                reviewed_at TEXT
+            );
+            INSERT INTO unattributed_hp_events (
+                recorded_at, player, hp_delta, hp_before, hp_after, h_line_text, context_lines
+            ) VALUES (
+                '2026-08-06T12:00:01Z', 'Fueryon', 15, 100, 85,
+                'H:85/100 [-15] S:100/100 [] E:100/100 [] $:100 [] exp:100 []',
+                '[\"Akeem quickly steps forward and stabs you, before you can move!\"]'
+            );
+            ",
+        )
+        .unwrap();
+        drop(conn);
+        open_db(&path).expect("open and backfill");
+        let conn = Connection::open(&path).unwrap();
+        let stab_rows: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM damage_events WHERE message_verb = 'stab'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(stab_rows, 1);
+        let source: String = conn
+            .query_row(
+                "SELECT source_name FROM damage_events WHERE message_verb = 'stab'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(source, "Akeem");
+        let unattributed_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM unattributed_hp_events", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(unattributed_count, 0);
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn backfill_skills_from_unattributed_miss_only_context_stays_unattributed() {
+        let path = temp_db_path("backfill-skill-miss-only");
+        let _ = fs::remove_file(&path);
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE schema_version (version INTEGER NOT NULL);
+            INSERT INTO schema_version (version) VALUES (5);
+            CREATE TABLE damage_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL,
+                recorded_at TEXT NOT NULL,
+                player TEXT NOT NULL,
+                hp_delta INTEGER NOT NULL,
+                hp_before INTEGER NOT NULL,
+                hp_after INTEGER NOT NULL,
+                damage_category TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                message_verb TEXT NOT NULL,
+                message_text TEXT NOT NULL,
+                candidate_count INTEGER NOT NULL,
+                confidence REAL NOT NULL,
+                damage_min INTEGER NOT NULL,
+                damage_max INTEGER NOT NULL,
+                catalog_rank INTEGER,
+                weapon_family TEXT,
+                weight REAL NOT NULL
+            );
+            CREATE TABLE unattributed_hp_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recorded_at TEXT NOT NULL,
+                player TEXT NOT NULL,
+                hp_delta INTEGER NOT NULL,
+                hp_before INTEGER NOT NULL,
+                hp_after INTEGER NOT NULL,
+                h_line_text TEXT NOT NULL,
+                context_lines TEXT NOT NULL,
+                reviewed_at TEXT
+            );
+            INSERT INTO unattributed_hp_events (
+                recorded_at, player, hp_delta, hp_before, hp_after, h_line_text, context_lines
+            ) VALUES (
+                '2026-08-06T12:00:01Z', 'Fueryon', 10, 100, 90,
+                'H:90/100 [-10] S:100/100 [] E:100/100 [] $:100 [] exp:100 []',
+                '[\"Holy man misses.\"]'
+            );
+            ",
+        )
+        .unwrap();
+        drop(conn);
+        open_db(&path).expect("open without skill backfill match");
+        let conn = Connection::open(&path).unwrap();
+        let damage_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM damage_events", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(damage_count, 0);
+        let unattributed_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM unattributed_hp_events", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(unattributed_count, 1);
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
     #[ignore = "manual: BATRS_DAMAGE_DB=/path/to/combat_damage.db cargo test backfill_user_damage_db -- --ignored"]
     fn backfill_user_damage_db() {
         let path = std::env::var("BATRS_DAMAGE_DB").expect("set BATRS_DAMAGE_DB");
         let path = std::path::Path::new(&path);
-        let before: i64 = Connection::open(path)
+        let before_riposte: i64 = Connection::open(path)
             .unwrap()
             .query_row(
                 "SELECT COUNT(*) FROM damage_events WHERE message_verb = 'riposte'",
                 [],
                 |row| row.get(0),
             )
+            .unwrap();
+        let before_stab: i64 = Connection::open(path)
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM damage_events WHERE message_verb = 'stab'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let before_unattributed: i64 = Connection::open(path)
+            .unwrap()
+            .query_row("SELECT COUNT(*) FROM unattributed_hp_events", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         open_db(path).expect("open and backfill user db");
-        let after: i64 = Connection::open(path)
+        let after_riposte: i64 = Connection::open(path)
             .unwrap()
             .query_row(
                 "SELECT COUNT(*) FROM damage_events WHERE message_verb = 'riposte'",
@@ -1064,11 +1337,29 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
+        let after_stab: i64 = Connection::open(path)
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM damage_events WHERE message_verb = 'stab'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let after_unattributed: i64 = Connection::open(path)
+            .unwrap()
+            .query_row("SELECT COUNT(*) FROM unattributed_hp_events", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
         eprintln!(
-            "riposte backfill for {}: {} -> {} riposte events",
+            "backfill for {}: riposte {} -> {}, stab {} -> {}, unattributed {} -> {}",
             path.display(),
-            before,
-            after
+            before_riposte,
+            after_riposte,
+            before_stab,
+            after_stab,
+            before_unattributed,
+            after_unattributed,
         );
     }
 }

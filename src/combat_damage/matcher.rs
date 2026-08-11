@@ -58,6 +58,10 @@ static SKILL_PATTERNS: &[SkillPattern] = &[
         regex: r"^OOF!\s+(.+) feints, throwing you offguard as he PUMMELS your midriff!$",
     },
     SkillPattern {
+        verb: "stab",
+        regex: r"^(.+) quickly steps forward and stabs you, before you can move!$",
+    },
+    SkillPattern {
         verb: "scythe swipe",
         regex: r"^(.+) slashes a ragged wound across your chest\.$",
     },
@@ -202,7 +206,7 @@ impl Matcher {
         recency
     }
 
-    fn match_skill(&mut self, line: &str) -> Option<DamageCandidate> {
+    pub(crate) fn match_skill(&mut self, line: &str) -> Option<DamageCandidate> {
         if RIPOSTE_COUNTERATTACKS_REGEX.is_match(line) || RIPOSTE_RIPOSTES_REGEX.is_match(line) {
             if let Some(source_name) = self.pending_riposte_source.take() {
                 return Some(DamageCandidate {
@@ -614,6 +618,13 @@ mod tests {
         assert_match(
             &mut matcher,
             "OOF!  Akeem feints, throwing you offguard as he PUMMELS your midriff!",
+            DamageCategory::Skill,
+            "Akeem",
+            "stab",
+        );
+        assert_match(
+            &mut matcher,
+            "Akeem quickly steps forward and stabs you, before you can move!",
             DamageCategory::Skill,
             "Akeem",
             "stab",

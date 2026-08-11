@@ -1,5 +1,15 @@
 # Engineering Wiki Log
 
+## [2026-08-11] skip | Skill backfill from unattributed rows on DB open
+
+- Sources: `src/combat_damage/storage.rs` (`backfill_skills_from_unattributed`)
+- Notes: re-matches saved context lines through skill matcher after riposte backfill; converts quick-step stab and other previously unmatched skill lines; no wiki concept change.
+
+## [2026-08-11] skip | Stab quick-step-forward matcher
+
+- Sources: grill-with-docs-batch acceptance; `src/combat_damage/matcher.rs`
+- Notes: fourth stab skill regex (`quickly steps forward and stabs you, before you can move!`); mechanical matcher addition; wiki concept page unchanged.
+
 ## [2026-08-07] update | Remove reviewed unattributed triggers (slice 08)
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/prd.md`, `docs/features/combat-damage-tracking/map.md`

@@ -591,6 +591,11 @@ mod tests {
                 DamageCategory::Skill,
             ),
             (
+                "Akeem quickly steps forward and stabs you, before you can move!",
+                "stab",
+                DamageCategory::Skill,
+            ),
+            (
                 "Reaver slashes a ragged wound across your chest.",
                 "scythe swipe",
                 DamageCategory::Skill,

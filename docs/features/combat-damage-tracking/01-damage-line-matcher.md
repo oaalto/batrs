@@ -21,7 +21,7 @@ done
 - [x] `build.rs` parses `hit_messages.md` into a generated catalog (11 families, 286 verbs); compile fails on malformed catalog.
 - [x] Conjugation: `+s`/`+es` on last word; dual suffix (conjugated then bare); ALL-CAPS handling.
 - [x] Matcher order: skills → spells → melee.
-- [x] Skill patterns: bash, push, kick (3 lines), stab (3 lines), scythe swipe — each with correct `message_verb` and `source_name` capture.
+- [x] Skill patterns: bash, push, kick (3 lines), stab (4 lines), scythe swipe — each with correct `message_verb` and `source_name` capture.
 - [x] Spell regex: `^An? (.+) hits you\.$` with `message_verb` from capture; `source_name` empty.
 - [x] Melee: longest verb wins; family recency reorders search; case-insensitive; incoming template ends with ` you.`.
 - [x] Outgoing catalog lines (`You <verb> <target>`) do not match `match_incoming`.
