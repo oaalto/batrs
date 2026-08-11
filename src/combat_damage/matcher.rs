@@ -78,11 +78,11 @@ static ENEMY_PARRY_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(.+) parries\.$").expect("enemy parry regex"));
 
 static RIPOSTE_COUNTERATTACKS_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^...AND counterattacks\.$").expect("riposte counterattacks regex")
+    Regex::new(r"^\s*\.{2,3}AND counterattacks\.$").expect("riposte counterattacks regex")
 });
 
 static RIPOSTE_RIPOSTES_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^...AND ripostes\.$").expect("riposte ripostes regex"));
+    LazyLock::new(|| Regex::new(r"^\s*\.{2,3}AND ripostes\.$").expect("riposte ripostes regex"));
 
 static SKILL_REGEXES: LazyLock<Vec<(Regex, &'static str)>> = LazyLock::new(|| {
     SKILL_PATTERNS
@@ -99,6 +99,10 @@ static SKILL_REGEXES: LazyLock<Vec<(Regex, &'static str)>> = LazyLock::new(|| {
 impl Matcher {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn reset_after_h_flush(&mut self) {
+        self.last_family = None;
     }
 
     pub fn reset(&mut self) {
@@ -242,6 +246,53 @@ impl Matcher {
     pub fn match_melee_for_test(&mut self, line: &str) -> Option<DamageCandidate> {
         self.match_melee(line)
     }
+}
+
+pub fn is_riposte_follow_up(line: &str) -> bool {
+    RIPOSTE_COUNTERATTACKS_REGEX.is_match(line) || RIPOSTE_RIPOSTES_REGEX.is_match(line)
+}
+
+pub fn enemy_parry_source(line: &str) -> Option<String> {
+    ENEMY_PARRY_REGEX
+        .captures(line)
+        .and_then(|captures| captures.get(1))
+        .map(|value| value.as_str().to_string())
+}
+
+/// Scans context lines for an enemy parry immediately followed by a riposte
+/// follow-up, using the same pending-state rules as live matching.
+pub fn riposte_pair_from_context(lines: &[&str]) -> Option<DamageCandidate> {
+    let mut pending_source: Option<String> = None;
+    for line in lines {
+        if let Some(source) = enemy_parry_source(line) {
+            pending_source = Some(source);
+            continue;
+        }
+        if let Some(source) = pending_source.take()
+            && let Some(candidate) = orphan_riposte_candidate(&source, line)
+        {
+            return Some(candidate);
+        }
+        pending_source = None;
+    }
+    None
+}
+
+pub fn orphan_riposte_candidate(
+    parry_source: &str,
+    follow_up_line: &str,
+) -> Option<DamageCandidate> {
+    if !is_riposte_follow_up(follow_up_line) {
+        return None;
+    }
+    Some(DamageCandidate {
+        category: DamageCategory::Skill,
+        source_name: parry_source.to_string(),
+        message_verb: "riposte".to_string(),
+        message_text: follow_up_line.to_string(),
+        catalog_rank: None,
+        weapon_family: None,
+    })
 }
 
 fn line_ends_with_you(line: &str) -> bool {
@@ -837,6 +888,27 @@ mod tests {
     }
 
     #[test]
+    fn riposte_matches_two_dot_and_leading_space_variants() {
+        let mut matcher = Matcher::new();
+        assert_no_match(&mut matcher, "Gaward parries.");
+        assert_match(
+            &mut matcher,
+            "..AND ripostes.",
+            DamageCategory::Skill,
+            "Gaward",
+            "riposte",
+        );
+        assert_no_match(&mut matcher, "Barney parries.");
+        assert_match(
+            &mut matcher,
+            " ...AND counterattacks.",
+            DamageCategory::Skill,
+            "Barney",
+            "riposte",
+        );
+    }
+
+    #[test]
     fn riposte_orphan_follow_up_does_not_match() {
         let mut matcher = Matcher::new();
         assert_no_match(&mut matcher, "...AND counterattacks.");
@@ -862,5 +934,48 @@ mod tests {
         let mut matcher = Matcher::new();
         assert_no_match(&mut matcher, "You parry.");
         assert_no_match(&mut matcher, "...AND riposte.");
+    }
+
+    #[test]
+    fn riposte_pair_from_context_matches_consecutive_parry_and_follow_up() {
+        let lines = ["Barney parries.", "...AND counterattacks."];
+        let candidate = riposte_pair_from_context(&lines).expect("riposte candidate");
+        assert_eq!(candidate.category, DamageCategory::Skill);
+        assert_eq!(candidate.source_name, "Barney");
+        assert_eq!(candidate.message_verb, "riposte");
+    }
+
+    #[test]
+    fn riposte_pair_from_context_matches_game_line_formats() {
+        let lines = ["Gaward parries.", "..AND ripostes."];
+        let candidate = riposte_pair_from_context(&lines).expect("riposte candidate");
+        assert_eq!(candidate.source_name, "Gaward");
+
+        let lines = ["Barney parries.", " ...AND counterattacks."];
+        let candidate = riposte_pair_from_context(&lines).expect("riposte candidate");
+        assert_eq!(candidate.source_name, "Barney");
+    }
+
+    #[test]
+    fn riposte_pair_from_context_finds_pair_among_other_lines() {
+        let lines = [
+            "********************** Round 1 **********************",
+            "Gaward parries.",
+            "..AND ripostes.",
+            "Gaward misses.",
+            "You barely scrape Gaward.",
+        ];
+        let candidate = riposte_pair_from_context(&lines).expect("riposte candidate");
+        assert_eq!(candidate.source_name, "Gaward");
+    }
+
+    #[test]
+    fn riposte_pair_from_context_rejects_intervening_melee() {
+        let lines = [
+            "Barney parries.",
+            "Barney lightly strikes you.",
+            "...AND counterattacks.",
+        ];
+        assert!(riposte_pair_from_context(&lines).is_none());
     }
 }

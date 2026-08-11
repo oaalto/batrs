@@ -1,4 +1,6 @@
+use chrono::{DateTime, Duration, Utc};
 use rusqlite::{Connection, OpenFlags, OptionalExtension};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -52,7 +54,144 @@ fn migrate(conn: &Connection) -> Result<(), String> {
         Some(_) => {}
     }
     backfill_melee_catalog_metadata(conn)?;
+    backfill_riposte_from_unattributed(conn)?;
     Ok(())
+}
+
+const RIPOSTE_BACKFILL_WINDOW: Duration = Duration::seconds(30);
+
+struct PendingParry {
+    source: String,
+    recorded_at: DateTime<Utc>,
+    row_id: i64,
+}
+
+pub fn backfill_riposte_from_unattributed(conn: &Connection) -> Result<usize, String> {
+    use crate::combat_damage::collector::parse_json_string_array;
+    use crate::combat_damage::matcher::{
+        enemy_parry_source, is_riposte_follow_up, orphan_riposte_candidate,
+        riposte_pair_from_context,
+    };
+
+    let mut select = conn
+        .prepare(
+            "SELECT id, recorded_at, player, hp_delta, hp_before, hp_after, context_lines
+             FROM unattributed_hp_events
+             ORDER BY id",
+        )
+        .map_err(|err| err.to_string())?;
+    let rows = select
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i32>(3)?,
+                row.get::<_, i32>(4)?,
+                row.get::<_, i32>(5)?,
+                row.get::<_, String>(6)?,
+            ))
+        })
+        .map_err(|err| err.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| err.to_string())?;
+
+    if rows.is_empty() {
+        return Ok(0);
+    }
+
+    let mut next_batch_id: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(batch_id), 0) + 1 FROM damage_events",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(1);
+    let mut pending_parries: HashMap<String, Vec<PendingParry>> = HashMap::new();
+    let mut converted = 0usize;
+
+    for (row_id, recorded_at, player, hp_delta, hp_before, hp_after, context_json) in rows {
+        let recorded_at_dt = DateTime::parse_from_rfc3339(&recorded_at)
+            .map(|value| value.with_timezone(&Utc))
+            .map_err(|err| err.to_string())?;
+        let context_lines = parse_json_string_array(&context_json);
+        let line_refs: Vec<&str> = context_lines.iter().map(String::as_str).collect();
+
+        let candidate = riposte_pair_from_context(&line_refs).or_else(|| {
+            if line_refs.len() != 1 || !is_riposte_follow_up(line_refs[0]) {
+                return None;
+            }
+            let parry = pending_parries.get(&player)?.iter().rev().find(|entry| {
+                entry.row_id < row_id
+                    && recorded_at_dt.signed_duration_since(entry.recorded_at)
+                        <= RIPOSTE_BACKFILL_WINDOW
+            })?;
+            orphan_riposte_candidate(&parry.source, line_refs[0])
+        });
+
+        if let Some(candidate) = candidate {
+            let transaction = conn
+                .unchecked_transaction()
+                .map_err(|err| err.to_string())?;
+            transaction
+                .execute(
+                    "
+                    INSERT INTO damage_events (
+                        batch_id, recorded_at, player, hp_delta, hp_before, hp_after,
+                        damage_category, source_name, message_verb, message_text,
+                        candidate_count, confidence, damage_min, damage_max,
+                        catalog_rank, weapon_family, weight
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+                    ",
+                    rusqlite::params![
+                        next_batch_id,
+                        recorded_at,
+                        player,
+                        hp_delta,
+                        hp_before,
+                        hp_after,
+                        "skill",
+                        candidate.source_name,
+                        candidate.message_verb,
+                        candidate.message_text,
+                        1,
+                        1.0,
+                        hp_delta,
+                        hp_delta,
+                        None::<i32>,
+                        None::<String>,
+                        1.0,
+                    ],
+                )
+                .map_err(|err| err.to_string())?;
+            transaction
+                .execute("DELETE FROM unattributed_hp_events WHERE id = ?1", [row_id])
+                .map_err(|err| err.to_string())?;
+            transaction.commit().map_err(|err| err.to_string())?;
+            next_batch_id += 1;
+            converted += 1;
+        }
+
+        if let Some(pending) = pending_parries.get_mut(&player) {
+            pending.retain(|entry| {
+                recorded_at_dt.signed_duration_since(entry.recorded_at) <= RIPOSTE_BACKFILL_WINDOW
+            });
+        }
+        for line in &context_lines {
+            if let Some(source) = enemy_parry_source(line) {
+                pending_parries
+                    .entry(player.clone())
+                    .or_default()
+                    .push(PendingParry {
+                        source,
+                        recorded_at: recorded_at_dt,
+                        row_id,
+                    });
+            }
+        }
+    }
+
+    Ok(converted)
 }
 
 fn backfill_melee_catalog_metadata(conn: &Connection) -> Result<(), String> {
@@ -749,5 +888,187 @@ mod tests {
         open_db(&path).expect("open with missing parent");
         assert!(path.exists());
         let _ = fs::remove_dir_all(parent);
+    }
+
+    #[test]
+    fn backfill_riposte_from_unattributed_same_context_row() {
+        let path = temp_db_path("backfill-riposte-same-context");
+        let _ = fs::remove_file(&path);
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE schema_version (version INTEGER NOT NULL);
+            INSERT INTO schema_version (version) VALUES (5);
+            CREATE TABLE damage_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL,
+                recorded_at TEXT NOT NULL,
+                player TEXT NOT NULL,
+                hp_delta INTEGER NOT NULL,
+                hp_before INTEGER NOT NULL,
+                hp_after INTEGER NOT NULL,
+                damage_category TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                message_verb TEXT NOT NULL,
+                message_text TEXT NOT NULL,
+                candidate_count INTEGER NOT NULL,
+                confidence REAL NOT NULL,
+                damage_min INTEGER NOT NULL,
+                damage_max INTEGER NOT NULL,
+                catalog_rank INTEGER,
+                weapon_family TEXT,
+                weight REAL NOT NULL
+            );
+            CREATE TABLE unattributed_hp_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recorded_at TEXT NOT NULL,
+                player TEXT NOT NULL,
+                hp_delta INTEGER NOT NULL,
+                hp_before INTEGER NOT NULL,
+                hp_after INTEGER NOT NULL,
+                h_line_text TEXT NOT NULL,
+                context_lines TEXT NOT NULL,
+                reviewed_at TEXT
+            );
+            INSERT INTO unattributed_hp_events (
+                recorded_at, player, hp_delta, hp_before, hp_after, h_line_text, context_lines
+            ) VALUES (
+                '2026-08-06T12:00:01Z', 'Fueryon', 10, 100, 90,
+                'H:90/100 [-10] S:100/100 [] E:100/100 [] $:100 [] exp:100 []',
+                '[\"Gaward parries.\",\"..AND ripostes.\",\"Gaward misses.\"]'
+            );
+            ",
+        )
+        .unwrap();
+        drop(conn);
+        open_db(&path).expect("open and backfill");
+        let conn = Connection::open(&path).unwrap();
+        let damage_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM damage_events", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(damage_count, 1);
+        let verb: String = conn
+            .query_row("SELECT message_verb FROM damage_events", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(verb, "riposte");
+        let unattributed_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM unattributed_hp_events", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(unattributed_count, 0);
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn backfill_riposte_from_unattributed_pairs_orphan_follow_up_with_prior_parry_row() {
+        let path = temp_db_path("backfill-riposte-orphan");
+        let _ = fs::remove_file(&path);
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE schema_version (version INTEGER NOT NULL);
+            INSERT INTO schema_version (version) VALUES (5);
+            CREATE TABLE damage_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL,
+                recorded_at TEXT NOT NULL,
+                player TEXT NOT NULL,
+                hp_delta INTEGER NOT NULL,
+                hp_before INTEGER NOT NULL,
+                hp_after INTEGER NOT NULL,
+                damage_category TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                message_verb TEXT NOT NULL,
+                message_text TEXT NOT NULL,
+                candidate_count INTEGER NOT NULL,
+                confidence REAL NOT NULL,
+                damage_min INTEGER NOT NULL,
+                damage_max INTEGER NOT NULL,
+                catalog_rank INTEGER,
+                weapon_family TEXT,
+                weight REAL NOT NULL
+            );
+            CREATE TABLE unattributed_hp_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recorded_at TEXT NOT NULL,
+                player TEXT NOT NULL,
+                hp_delta INTEGER NOT NULL,
+                hp_before INTEGER NOT NULL,
+                hp_after INTEGER NOT NULL,
+                h_line_text TEXT NOT NULL,
+                context_lines TEXT NOT NULL,
+                reviewed_at TEXT
+            );
+            INSERT INTO unattributed_hp_events (
+                recorded_at, player, hp_delta, hp_before, hp_after, h_line_text, context_lines
+            ) VALUES
+                ('2026-08-06T12:00:00Z', 'Fueryon', 5, 100, 95,
+                 'H:95/100 [-5] S:100/100 [] E:100/100 [] $:100 [] exp:100 []',
+                 '[\"Barney parries.\"]'),
+                ('2026-08-06T12:00:01Z', 'Fueryon', 10, 95, 85,
+                 'H:85/100 [-10] S:100/100 [] E:100/100 [] $:100 [] exp:100 []',
+                 '[\" ...AND counterattacks.\"]');
+            ",
+        )
+        .unwrap();
+        drop(conn);
+        open_db(&path).expect("open and backfill");
+        let conn = Connection::open(&path).unwrap();
+        let riposte_rows: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM damage_events WHERE message_verb = 'riposte'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(riposte_rows, 1);
+        let source: String = conn
+            .query_row(
+                "SELECT source_name FROM damage_events WHERE message_verb = 'riposte'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(source, "Barney");
+        let unattributed_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM unattributed_hp_events", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(unattributed_count, 1);
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    #[ignore = "manual: BATRS_DAMAGE_DB=/path/to/combat_damage.db cargo test backfill_user_damage_db -- --ignored"]
+    fn backfill_user_damage_db() {
+        let path = std::env::var("BATRS_DAMAGE_DB").expect("set BATRS_DAMAGE_DB");
+        let path = std::path::Path::new(&path);
+        let before: i64 = Connection::open(path)
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM damage_events WHERE message_verb = 'riposte'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        open_db(path).expect("open and backfill user db");
+        let after: i64 = Connection::open(path)
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM damage_events WHERE message_verb = 'riposte'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        eprintln!(
+            "riposte backfill for {}: {} -> {} riposte events",
+            path.display(),
+            before,
+            after
+        );
     }
 }

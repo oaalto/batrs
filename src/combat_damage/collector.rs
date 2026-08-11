@@ -131,7 +131,7 @@ impl DamageCollector {
             .unwrap_or_default();
         let candidates: Vec<DamageCandidate> = self.buffer.drain(..).collect();
         let context_lines: Vec<String> = self.context_window.drain(..).collect();
-        self.matcher.reset();
+        self.matcher.reset_after_h_flush();
 
         if diff_hp >= 0 {
             return;
@@ -960,6 +960,34 @@ mod tests {
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].message_verb, "magic missile");
         assert_eq!(rows[1].message_verb, "icebolt");
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn riposte_writes_skill_row() {
+        let (mut collector, path) = collector_with_temp_db("riposte");
+        collector.handle_line("Barney parries.", "Fueryon");
+        collector.handle_line("...AND counterattacks.", "Fueryon");
+        collector.handle_line(&h_line(90, 100, "-10"), "Fueryon");
+        let rows = DamageCollector::query_all_events(collector.connection().unwrap()).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].damage_category, "skill");
+        assert_eq!(rows[0].message_verb, "riposte");
+        assert_eq!(rows[0].source_name, "Barney");
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn riposte_survives_h_line_between_parry_and_follow_up() {
+        let (mut collector, path) = collector_with_temp_db("riposte-h-between");
+        collector.handle_line("Barney parries.", "Fueryon");
+        collector.handle_line(&h_line(100, 100, ""), "Fueryon");
+        collector.handle_line("...AND counterattacks.", "Fueryon");
+        collector.handle_line(&h_line(90, 100, "-10"), "Fueryon");
+        let rows = DamageCollector::query_all_events(collector.connection().unwrap()).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].damage_category, "skill");
+        assert_eq!(rows[0].message_verb, "riposte");
         let _ = std::fs::remove_file(path);
     }
 
