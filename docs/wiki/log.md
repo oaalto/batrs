@@ -1,5 +1,10 @@
 # Engineering Wiki Log
 
+## [2026-08-22] skip | Force absorption shortcut retargeting
+
+- Touched: `src/guilds/mage/commands.rs`, `src/guilds/riftwalker/commands.rs`, `docs/guilds/mage.md`, `docs/guilds/riftwalker.md`
+- Reason: shortcut behavior/docs tweak only; no durable wiki concept change.
+
 ## [2026-08-07] update | Remove reviewed unattributed triggers (slice 08)
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md), `CONTEXT.md`, `docs/features/combat-damage-tracking/prd.md`, `docs/features/combat-damage-tracking/map.md`

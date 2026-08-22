@@ -25,7 +25,8 @@ Spell‑lore style lines get color markup when the client recognises them.
 | `cd` | Darkness | `cast_spell`. |
 | `cdi` | Disruption | `cast_spell`. |
 | `cfa` | Flame arrow | `cast_spell`. |
-| `cfab` | Force absorption | `cast_spell`. |
+| `cfab` | Force absorption | No args: `cast 'force absorption' me`. With args: at target. |
+| `cfabe` | Force absorption (entity) | `cast 'force absorption' entity`. |
 | `cf` | Floating | `cast_spell`. |
 | `cfl` | Floating letters | `cast_spell`. |
 | `ch` | Heal self | `cast_spell`. |

@@ -46,7 +46,8 @@ Highlights entity hits, stuns, misses, auras, and similar lines; clears “entit
 | `csb` | Spark birth (cast only) | `cast_spell("spark birth", …)`. |
 | `crp` | Rift pulse (cast only) | Standard `cast_spell`. |
 | `cdl` | Dimensional leech (cast only) | Standard `cast_spell`. |
-| `cfa` | Force absorption | No args: `cast 'force absorption' entity`. With args: normal targeted cast. |
+| `cfab` | Force absorption | No args: `cast 'force absorption' me`. With args: normal targeted cast. |
+| `cfabe` | Force absorption (entity) | `cast 'force absorption' entity`. |
 | `cmie` | Mirror image (entity) | `cast 'mirror image' entity`. |
 | `cam` | Absorbing meld | `cast 'Absorbing meld'`. |
 | `ciw` | Iron will | No args: `cast 'iron will' entity`. With args: targeted `cast_spell`. |
