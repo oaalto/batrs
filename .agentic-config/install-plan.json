@@ -15,6 +15,17 @@
       "source": "catalog"
     },
     {
+      "id": "pi-package-pi-subagents",
+      "kind": "pi-install",
+      "command": "pi install -l npm:pi-subagents@latest",
+      "requires": [
+        "jq",
+        "pi"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
       "id": "pi-package-ponytail",
       "kind": "pi-install",
       "command": "pi install -l npm:@dietrichgebert/ponytail",
@@ -240,37 +251,6 @@
       ],
       "optional": false,
       "source": "catalog"
-    },
-    {
-      "id": "headroom-tool-install",
-      "kind": "headroom-tool",
-      "command": "uv tool install --force 'headroom-ai[proxy,mcp]'",
-      "exe": "uv",
-      "args": [
-        "tool",
-        "install",
-        "--force",
-        "headroom-ai[proxy,mcp]"
-      ],
-      "requires": [
-        "jq",
-        "uv"
-      ],
-      "optional": false,
-      "source": "catalog",
-      "label": "Install Headroom runtime (PyPI headroom-ai)"
-    },
-    {
-      "id": "headroom-pi-extension",
-      "kind": "headroom-pi-extension",
-      "command": "pi install -l npm:@ryan_nookpi/pi-extension-headroom",
-      "requires": [
-        "jq",
-        "pi"
-      ],
-      "optional": false,
-      "source": "catalog",
-      "label": "Install Headroom Pi extension"
     }
   ]
 }

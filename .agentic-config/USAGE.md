@@ -13,6 +13,7 @@ This file is the human-facing entry point for daily agentic development work.
 - Implementation: `/tdd`
 - Debugging: `/diagnosing-bugs`
 - Architecture review: `/improve-codebase-architecture`
+- Project documentation audit: `/improve-documentation`
 - Wiki query/update/lint: `/wiki`
 - Code review: `/review`
 

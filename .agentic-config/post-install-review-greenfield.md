@@ -12,9 +12,9 @@ You are helping a human **finish installing** an agent setup bundle in the **cur
 - **Documentation kept from repo (bundle did not replace):** detect in repo — for each seed path below, use `git show HEAD:{path}`; when it succeeds, treat as pre-existing (bundle did not replace) and review under **Existing documentation review**
 - **Engineering wiki:** enabled — `docs/wiki/` installed (index, schema, log, topic directories)
 - **Graphify:** not installed in this bundle
-- **Headroom:** enabled — runtime install steps in `.agentic-config/install.sh`; see `.agentic-config/INSTALL.md` for proxy, MCP, or Pi extension workflow
-- **Skills added:** wiki, code-review, codebase-design, diagnosing-bugs, domain-modeling, grill-with-docs, grilling, handoff, implement, improve-codebase-architecture, ponytail, prototype, repo-navigation, research, resolving-merge-conflicts, review, tdd, teach, to-spec, to-tickets, triage, vertical-slice-migration, wayfinder, workflow, zoom-out, grill-with-docs-batch
-- **Rules added:** ponytail, commit, decision-making, definition-of-done, role, signature, strict-output-execution, adr-discipline, documentation, domain-language, dependency-boundaries, vertical-slice-boundaries, current-state, restricted-operations, testing, api-design-basics, code-format, functional-programming, result-handling, warning-hygiene, logging-practices, runtime-handoff, headroom-consultation, rust-api-semver, rust-dependency-hygiene, rust-error-handling, rust-observability, rust-testing-strategy, rust-workflow-gates
+- **Headroom:** not installed in this bundle
+- **Skills added:** wiki, code-review, codebase-design, diagnosing-bugs, domain-modeling, grill-with-docs, grilling, handoff, implement, improve-codebase-architecture, ponytail, prototype, repo-navigation, research, resolving-merge-conflicts, review, tdd, teach, to-spec, to-tickets, triage, vertical-slice-migration, wayfinder, workflow, zoom-out, grill-with-docs-batch, improve-documentation, orchestrator
+- **Rules added:** ponytail, commit, decision-making, definition-of-done, role, signature, strict-output-execution, adr-discipline, documentation, domain-language, dependency-boundaries, vertical-slice-boundaries, current-state, restricted-operations, testing, api-design-basics, code-format, functional-programming, result-handling, warning-hygiene, logging-practices, runtime-handoff, rust-api-semver, rust-dependency-hygiene, rust-error-handling, rust-observability, rust-testing-strategy, rust-workflow-gates
 - **Install record:** `.agentic-config/manifest.json` (files and selections), `.agentic-config/install-plan.json` (installer steps when present)
 
 ## Constraints (mandatory)
@@ -48,13 +48,10 @@ Work through the task sections below iteratively. Pause for questions at decisio
 
 ## Your task (in order)
 
-1b. Verify Headroom is installed and healthy: `command -v headroom`, proxy/MCP/Pi-extension status for the target agent, and target-specific `headroom wrap` or proxy workflow per `.agentic-config/INSTALL.md`. Note optional cache-directory `.gitignore` entries when upstream documents a local cache path.
-
 ### Duplicate content audit
 
 1. For each newly installed skill (`.agents/skills/*/SKILL.md`), scoped rule (`.agents/rules/*.md`), and the host file (`AGENTS.md`), scan for **identical or near-identical blocks** — especially sections like `## Repo Context`, `## Project overview`, or bullet lists describing stack, monorepo layout, or team conventions.
    - **Ponytail Pi overlap:** When `ponytail` is selected (skill or rule) and the target is Pi, compare the bundled Ponytail rule (inline `### ponytail` in `AGENTS.md` for compiled hosts, or `.cursor/rules/ponytail.mdc` for Cursor) with Ponytail content injected by the Pi extension. Remove duplicate ladder blocks; keep one canonical always-on copy in the bundled rule and replace duplicates with short cross-references. Do not edit upstream Ponytail slash skills delivered by `pi install`.
-1c. Scan bundled `headroom-consultation` against upstream RTK-style Headroom blocks in `AGENTS.md` (and other host files). Merge overlap; keep `headroom-consultation` where it fills gaps upstream does not cover.
 2. When the same global context block appears in **two or more files**, remove it from the duplicates:
    - Keep it in at most one location (prefer `AGENTS.md` for compiled-markdown targets, or the root-level documentation file).
    - If the block is only a high-level repo overview, remove it from skills and rules entirely — those files should contain their own scoped instructions, not a project summary.
@@ -230,6 +227,74 @@ Present only options that apply to the selected skills. Omit rows for skills not
 - If Git paths are approved anyway, note they coexist with the external tracker; keep triage-label instructions unless the human asks to remove them.
 
 Ground edits in repo evidence. Preserve workflow structure, frontmatter identity, and PRD/issue templates.
+
+### Documentation skills tailoring (`improve-documentation`)
+
+When `improve-documentation` is in `.agentic-config/manifest.json` `selection.skills`:
+
+The bundled skill ships with project-agnostic discovery defaults. Before editing, **ask the human which tailoring options to apply** — present the menu below with **recommended defaults** from installation context.
+
+**Installation context (pre-check recommendations):**
+
+- **Repo-only docs:** Discover operational guides (for example `docs/DEPLOY.md`, `docs/LOCAL_TEST_AND_CI_INSTRUCTIONS.md`) and backlog files (`TODO.md`, `BACKLOG.md`) from repo evidence — they are not ADC seed templates.
+- **Glossary:** `CONTEXT.md` is auto-included — recommend wiring it as the canonical terminology source.
+- **Agent commands:** `docs/agent-commands.md` is in the bundle — reference slash-command conventions.
+
+**Workflow:**
+
+1. **Ask one question** listing the applicable menu options. Pre-check your recommendations; let the human uncheck any they decline.
+2. **Investigate first** — infer glossary path, doc layout, monorepo packages, package manager, and test-runner commands from repo discovery; do not ask what evidence already provides.
+3. Apply **only approved** options to the bundled path: `.agents/skills/improve-documentation/SKILL.md`. Do not edit upstream-installed copies.
+4. After tailoring edits, update `.agentic-config/manifest.json` `contentHashes` for the edited skill file (see **Save content hashes** below).
+
+#### Tailoring menu
+
+**Glossary (when `CONTEXT.md`, `CONTEXT-MAP.md`, or equivalent is detected):**
+
+- [ ] **Canonical glossary path** — Wire the detected glossary file into terminology-alignment instructions.
+
+**Documentation surfaces (when repo has paths beyond defaults):**
+
+- [ ] **Additional doc paths** — Add package-scoped READMEs or other operational guides the defaults miss (not `docs/wiki/**`).
+- [ ] **TODO backlog path** — When `TODO.md`, `TODO`, or `BACKLOG.md` exists, add it to the discover list.
+
+**Monorepo / commands (when multi-package layout or evidenced scripts are detected):**
+
+- [ ] **Monorepo package list** — Add top-level package names to example references in the skill body.
+- [ ] **Package manager substitutions** — Replace generic `npm` examples with evidenced commands (`pnpm`, `yarn`, etc.).
+- [ ] **Test runner substitutions** — Wire evidenced test commands (Jest, Vitest, `cargo test`, etc.) into doc-risk examples.
+
+**Frontmatter (when paths or scope are customized):**
+
+- [ ] **Description tweak** — Update the `description` field to mention customized doc paths while keeping wiki exclusion explicit.
+
+Ground edits in repo evidence. Preserve workflow structure, frontmatter identity, and the propose-first / human-gate interaction model.
+
+### Orchestrator skill tailoring (`orchestrator`)
+
+When `orchestrator` is in `.agentic-config/manifest.json` `selection.skills`:
+
+The bundled skill ships deliberately **tool-agnostic** — it names no orchestration engine so its discipline (decomposition judgment, gated phases, one-writer-per-workspace, evidence-not-authority, escalate-up) works anywhere. This is the seam that names the **concrete engine** per repo while the body stays portable.
+
+**Concrete engine for this repo:** pi sub-agents (`pi` session orchestration).
+
+**Workflow:**
+
+1. **Confirm the engine from repo evidence** — verify which sub-agent mechanism pi sub-agents (`pi` session orchestration) is actually configured in this repository (config files, `.agentic-config/manifest.json`, existing agent setup). Do not invent an engine that is not installed.
+2. **Name the engine in the bundled skill** — ground references to the confirmed mechanism: how lanes are launched, how a fresh-context reviewer is started, how workspaces/timeouts are scoped, and how results are awaited at dependency barriers. Replace generic phrasing only where the engine's actual commands, config paths, and role files are evidenced.
+3. **Keep the body tool-agnostic** — never hardcode a specific extension/engine into the shipped skill body; keep engine-specific detail in the tailoring instructions for this repo (below) rather than the portable body.
+4. Apply edits to the bundled path only: `.agents/skills/orchestrator/SKILL.md`. Do not edit upstream-installed copies.
+5. After tailoring edits, update `.agentic-config/manifest.json` `contentHashes` for the edited skill file (see **Save content hashes**).
+
+**Tailoring menu:**
+
+- [ ] **Lane launch instructions** — Replace "spin up a sub-agent" with the concrete mechanism: the exact invocation/config your engine uses, and the narrow non-overlapping prompt discipline it expects.
+- [ ] **Workspace / one-writer rules** — Map the one-writer-per-workspace rule to this engine's workspace isolation (worktrees, separate dirs, or serialized writers) with the commands that enforce it.
+- [ ] **Async / barrier waits** — Name how recon/research lanes run in the background and the exact barrier where the parent waits on results.
+- [ ] **Fresh-context reviewer** — Add the concrete way to launch an adversarial fresh-context reviewer with no accumulated bias (e.g. the engine's fresh-context or reviewer role), and how its disposition feeds the fix-wave loop.
+- [ ] **Escalate-up path** — Wire the escalate-up guardrails to the repo's actual supervisor/operator/human channel.
+
+Ground every edit in repo evidence. Preserve the skill's tool-agnostic posture, phase order, and identity.
 
 ### Save content hashes (mandatory after editing)
 

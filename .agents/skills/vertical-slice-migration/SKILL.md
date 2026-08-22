@@ -9,8 +9,6 @@ disable-model-invocation: true
 
 # Vertical slice migration
 
-**batrs note:** This repo uses guild capability folders under `src/guilds/<name>/`, not `src/slices/`. Apply slice-boundary thinking to guild modules and shared `triggers/` — do not scaffold `architecture.yaml` unless migrating layout.
-
 Use vocabulary from [LANGUAGE.md](./support/LANGUAGE.md) exactly.
 
 ## Step 0 — Detect layout and mode

@@ -14,7 +14,7 @@ When the user asks what a package, slice, or subsystem **is** or **owns** (layou
 1. **Wiki (required):** Load `.agents/skills/wiki/SKILL.md` if not already loaded. Read `docs/wiki/path-map.json` and `docs/wiki/index.md`. Match to path-map `sources` or index entries. Read up to **3** candidate pages (subsystem → concept → workflow).
 2. **ADRs:** Read cited or task-relevant accepted ADRs when the wiki or question is architectural.
 3. **Skip graphify** for this track.
-4. **Code (targeted):** Open source only to verify wiki claims or fill gaps — not directory sweeps. For batrs: start from `src/app/mod.rs`, `src/command/mod.rs`, and `src/guilds/` before sweeping all guild folders.
+4. **Code (targeted):** Open source only to verify wiki claims or fill gaps — not directory sweeps.
 
 ## Structural topology questions
 

@@ -5,7 +5,7 @@
 - **Prefer structured facts over prose-heavy messages:** Keep logs concise and machine-searchable where possible.
 - **Avoid noise:** Do not log every operation; prioritize warnings, errors, significant state changes, and decision points.
 - **No sensitive data:** Never log secrets, credentials, tokens, or personal data unless explicitly redacted by policy.
-- **Control verbosity externally:** Make detailed debug logging configurable through environment/config flags. batrs uses `env_logger` / `RUST_LOG` (see `src/main.rs`).
+- **Control verbosity externally:** Make detailed debug logging configurable through environment/config flags.
 
 ## Review Expectations
 

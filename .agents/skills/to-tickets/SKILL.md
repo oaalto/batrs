@@ -7,6 +7,8 @@ description: Break an accepted PRD or plan into repo-local slice files under `do
 
 Split an accepted plan into implementation slices stored in this repository.
 
+This repo's planning artifacts live under `docs/prds/` and `docs/issues/`; `docs/features/` is historical archive material.
+
 ## Input sources
 
 - Preferred PRD source: `docs/prds/<feature_name>/prd.md`.

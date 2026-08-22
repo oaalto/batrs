@@ -1,11 +1,14 @@
 ---
 name: to-spec
 description: Turn a rough idea into a PRD saved in `docs/prds/<feature_name>/prd.md`, then stop for review before implementation or ticket-splitting.
+disable-model-invocation: true
 ---
 
 # to-spec
 
 Turn a rough feature idea, planning thread, or accepted grill outcome into a repo-local PRD.
+
+This repo's planning artifacts live under `docs/prds/` and `docs/issues/`; `docs/features/` is historical archive material.
 
 ## Output path
 
