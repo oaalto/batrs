@@ -129,8 +129,8 @@ impl DamageCollector {
             .get(3)
             .and_then(|value| value.as_str().parse::<i32>().ok())
             .unwrap_or_default();
-        let candidates: Vec<DamageCandidate> = self.buffer.drain(..).collect();
-        let context_lines: Vec<String> = self.context_window.drain(..).collect();
+        let candidates: Vec<DamageCandidate> = std::mem::take(&mut self.buffer);
+        let context_lines: Vec<String> = std::mem::take(&mut self.context_window);
         self.matcher.reset();
 
         if diff_hp >= 0 {

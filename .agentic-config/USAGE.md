@@ -8,8 +8,8 @@ This file is the human-facing entry point for daily agentic development work.
 - Design discussion without doc updates: `/grilling`
 - Design discussion with doc updates: `/grill-with-docs`
 - Design discussion with doc updates (batch review table): `/grill-with-docs-batch`
-- Planning artifact: `/to-spec`
-- Implementation slices: `/to-tickets`
+- Planning parent issue: `/to-spec`
+- Implementation slice issues: `/to-tickets`
 - Implementation: `/tdd`
 - Debugging: `/diagnosing-bugs`
 - Architecture review: `/improve-codebase-architecture`
@@ -22,7 +22,8 @@ This file is the human-facing entry point for daily agentic development work.
 - `CONTEXT.md` is for domain language only.
 - ADRs are for durable hard-to-reverse trade-off decisions.
 - `docs/wiki/` is agent-maintained engineering memory.
-- PRDs are historical for behavior claims unless verified against code/tests.
+- GitHub planning issues are historical for behavior claims unless verified against code/tests.
+- Legacy repo-local PRDs and issue files are migration/archive inputs, not the canonical tracker.
 - Agents must read `docs/agent-commands.md` before code-changing work.
 - Agents must verify wiki claims against live sources before relying on them for implementation.
 

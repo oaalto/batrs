@@ -312,7 +312,7 @@ When the user explicitly asks the model to perform a restricted operation — fo
 
 ### Issue tracker
 
-Planning artifacts in Git; aligns with `/to-spec` + `docs/prds/<feature_name>/prd.md` and `/to-tickets` + `docs/issues/<feature_name>/<slice-slug>.md`. See `docs/agents/issue-tracker.md`.
+Planning artifacts live in GitHub Issues; `/to-spec` creates or updates a parent planning issue and `/to-tickets` creates linked child slice issues. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
