@@ -10,10 +10,20 @@
 - [Guild Catalog](concepts/guild-catalog.md)
 - [Monk Skill Tracks](concepts/monk-skill-tracks.md)
 - [Nergal Status](concepts/nergal-status.md)
-- [Secondary Status](concepts/secondary-status.md)
 - [Player Profile](concepts/player-profile.md)
+- [Secondary Status](concepts/secondary-status.md)
 - [Session Lifecycle](concepts/session-lifecycle.md)
 
 ## Subsystems
 
 - [batrs client application](subsystems/batrs-client.md)
+
+## Workflows
+
+## Debugging
+
+## Known Traps
+
+## Source Notes
+
+## Synthesis

@@ -21,11 +21,11 @@ Consult the engineering wiki (`docs/wiki/`) and, when `graphify-out/graph.json` 
 
 Delegate to sub-agents for:
 
-- **Wiki consultation** — delegate to a `/wiki` sub-agent: "Query the engineering wiki for context on [topic/area]. Report findings as a structured summary."
-- **Code graph exploration** — when the graph exists, delegate to an Explore sub-agent: "Explore the code graph in `graphify-out/` for [area]. Report call chains, import paths, and dependency structure."
+- **Wiki consultation** — delegate to a sub-agent that follows `.agents/skills/wiki/SKILL.md`: "Query the engineering wiki for context on [topic/area]. Report findings as a structured summary."
+- **Code graph exploration** — when the graph exists, delegate to an exploration sub-agent: "Explore the code graph in `graphify-out/` for [area]. Report call chains, import paths, and dependency structure."
 - **CONTEXT.md / ADR lookup** — delegate to a sub-agent: "Read `CONTEXT.md` and any ADRs in [area]. Report any terms, decisions, or constraints relevant to [topic]."
-- **Research tickets** — delegate to a `/research` sub-agent when knowledge outside the working directory is required.
+- **Research tickets** — delegate to a sub-agent that follows the installed research skill instructions when knowledge outside the working directory is required.
 
 **Termination.** Stop the interview when the user has answered every question, confirmed they have nothing more to add, or explicitly signals agreement (e.g. "looks good", "let's go with that", "that works").
 
-**On completion.** Produce a structured summary of every decision agreed upon — each decision on its own line, with the chosen option and any open constraints. Do not start implementing. After the summary, suggest: "Want me to run `to-spec` to turn this into a formal spec?" — do not proceed further without an explicit command from the user.
+**On completion.** Produce a structured summary of every decision agreed upon — each decision on its own line, with the chosen option and any open constraints. Do not start implementing. After the summary, suggest turning the result into a formal spec using the installed planning flow, and wait for an explicit command from the user before proceeding.

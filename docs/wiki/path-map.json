@@ -11,58 +11,17 @@
       "allowSkip": false
     },
     {
-      "sources": ["src/app/**", "src/main.rs", "src/ui/**"],
+      "sources": [
+        "src/main.rs",
+        "src/app/**",
+        "src/command/**",
+        "src/config.rs",
+        "src/player_profile*",
+        "src/guilds/**",
+        "src/triggers/**",
+        "src/ui/**"
+      ],
       "wikiPages": ["docs/wiki/subsystems/batrs-client.md"],
-      "allowSkip": true
-    },
-    {
-      "sources": ["src/command/**"],
-      "wikiPages": ["docs/wiki/concepts/command-dispatch.md"],
-      "allowSkip": true
-    },
-    {
-      "sources": ["src/abilities/**"],
-      "wikiPages": ["docs/wiki/concepts/abilities.md"],
-      "allowSkip": true
-    },
-    {
-      "sources": ["src/guilds/**"],
-      "wikiPages": ["docs/wiki/concepts/guild-catalog.md", "docs/wiki/subsystems/batrs-client.md"],
-      "allowSkip": true
-    },
-    {
-      "sources": ["src/combat_awareness.rs", "src/app/mod.rs"],
-      "wikiPages": ["docs/wiki/concepts/combat-awareness.md"],
-      "allowSkip": true
-    },
-    {
-      "sources": ["src/combat_damage/**", "docs/hit_messages.md", "docs/features/combat-damage-tracking/**"],
-      "wikiPages": ["docs/wiki/concepts/combat-damage-tracking.md"],
-      "allowSkip": true
-    },
-    {
-      "sources": ["src/secondary_status.rs", "src/app/mod.rs", "src/triggers/mod.rs"],
-      "wikiPages": ["docs/wiki/concepts/secondary-status.md"],
-      "allowSkip": true
-    },
-    {
-      "sources": ["src/guilds/monk/**"],
-      "wikiPages": ["docs/wiki/concepts/monk-skill-tracks.md"],
-      "allowSkip": true
-    },
-    {
-      "sources": ["src/player_profile.rs", "src/config.rs"],
-      "wikiPages": ["docs/wiki/concepts/player-profile.md"],
-      "allowSkip": true
-    },
-    {
-      "sources": ["src/guilds/nergal/**", "src/secondary_status.rs", "src/app/mod.rs"],
-      "wikiPages": ["docs/wiki/concepts/nergal-status.md"],
-      "allowSkip": true
-    },
-    {
-      "sources": ["src/app/session_lifecycle/**", "src/app/mod.rs"],
-      "wikiPages": ["docs/wiki/concepts/session-lifecycle.md", "docs/wiki/subsystems/batrs-client.md"],
       "allowSkip": true
     }
   ]
