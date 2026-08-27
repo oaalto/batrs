@@ -42,5 +42,3 @@ If the repo defines layout or slice inventory, read and follow before adding imp
 - Project-specific overlay rule
 
 If none exist and the change is non-trivial, propose a slice map before large moves.
-
-**batrs:** Guild folders (`src/guilds/<name>/`) are capability boundaries; shared telnet parsers live in `src/triggers/`. Cross-guild reuse goes through `guilds/catalog` and public module exports — not deep imports into another guild's internals.

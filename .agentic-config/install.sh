@@ -60,6 +60,8 @@ fi
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+MIN_NODE_MAJOR=24
+
 tool_version() {
   local bin="$1"
   case "$bin" in
@@ -68,6 +70,45 @@ tool_version() {
     jq) jq --version 2>/dev/null || true ;;
     *) "$bin" --version 2>/dev/null | head -1 || true ;;
   esac
+}
+
+node_version() {
+  node --version 2>/dev/null | sed 's/^v//'
+}
+
+node_major_version() {
+  local version
+  version="$(node_version)"
+  version="${version%%.*}"
+  [[ "$version" =~ ^[0-9]+$ ]] || return 1
+  printf '%s\n' "$version"
+}
+
+node_version_satisfies_minimum() {
+  local major
+  major="$(node_major_version)" || return 1
+  (( major >= MIN_NODE_MAJOR ))
+}
+
+plan_requires_node() {
+  local -a required=()
+  collect_required_tools required
+  local tool
+  for tool in "${required[@]}"; do
+    [[ "$tool" == "node" ]] && return 0
+  done
+  return 1
+}
+
+print_node_version_help() {
+  local version="$1"
+  echo ""
+  echo "  Node.js ${MIN_NODE_MAJOR}+ is required by this install plan."
+  echo "  Found:   ${version}"
+  echo "  Docs:    https://nodejs.org/"
+  echo "  Install: https://nodejs.org/en/download/ (LTS installer)"
+  echo "           # or with nvm:"
+  echo "           curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash"
 }
 
 # Print install docs for a missing binary.
@@ -247,6 +288,17 @@ run_env_check() {
     fi
   done
   echo ""
+
+  if [[ "$missing" -eq 0 ]] && plan_requires_node; then
+    local node_ver
+    node_ver="$(node_version)"
+    if ! node_version_satisfies_minimum; then
+      echo "[TOO OLD] node (${node_ver:-unknown})"
+      print_node_version_help "${node_ver:-unknown}"
+      missing=1
+      echo ""
+    fi
+  fi
 
   if [[ "$missing" -ne 0 ]]; then
     echo "Install the missing tools above, then re-run:" >&2

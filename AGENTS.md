@@ -24,7 +24,6 @@
 | warning-hygiene | scoped | "**/*" | .agents/rules/warning-hygiene.md |
 | logging-practices | scoped | "**/*" | .agents/rules/logging-practices.md |
 | runtime-handoff | scoped | "**/*" | .agents/rules/runtime-handoff.md |
-| headroom-consultation | scoped | "**/*" | .agents/rules/headroom-consultation.md |
 | rust-api-semver | scoped | "**/*.rs" | .agents/rules/rust-api-semver.md |
 | rust-dependency-hygiene | scoped | "**/*.rs" | .agents/rules/rust-dependency-hygiene.md |
 | rust-error-handling | scoped | "**/*.rs" | .agents/rules/rust-error-handling.md |
@@ -66,7 +65,7 @@ Before writing any code, stop at the first rung that holds:
 3. Does the standard library already do this? Use it.
 4. Does a native platform feature cover it? Use it.
 5. Does an already-installed dependency solve it? Use it.
-6. Can this be one line? Make it one line.
+6. Can it be one line? Make it one line.
 7. Only then: write the minimum code that works.
 
 The ladder runs after you understand the problem, not instead of it: read the task and the code it touches, trace the real flow end to end, then climb.
@@ -313,7 +312,7 @@ When the user explicitly asks the model to perform a restricted operation — fo
 
 ### Issue tracker
 
-Planning artifacts in Git; aligns with `/to-spec` + `docs/features/<feature_name>/prd.md` and `/to-tickets` + `docs/features/<feature_name>/<NN>-<slice-slug>.md`. See `docs/agents/issue-tracker.md`.
+Planning artifacts live in GitHub Issues; `/to-spec` creates or updates a parent planning issue and `/to-tickets` creates linked child slice issues. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

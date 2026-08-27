@@ -1,7 +1,7 @@
 {
   "manifestVersion": "1",
   "agenticConfigVersion": "2026.06.26",
-  "generatedAt": "2026-08-04T03:57:12.642Z",
+  "generatedAt": "2026-08-22T06:19:37.450Z",
   "selection": {
     "version": "1",
     "targetAgent": {
@@ -44,12 +44,12 @@
     },
     "contextOptimization": {
       "headroom": {
-        "enabled": true,
-        "runtime": true,
+        "enabled": false,
+        "runtime": false,
         "mcp": false,
-        "rule": true,
-        "piExtension": true,
-        "guide": true
+        "rule": false,
+        "piExtension": false,
+        "guide": false
       }
     },
     "skills": [
@@ -77,8 +77,9 @@
       "vertical-slice-migration",
       "wayfinder",
       "workflow",
-      "zoom-out",
-      "grill-with-docs-batch"
+      "grill-with-docs-batch",
+      "improve-documentation",
+      "orchestrator"
     ],
     "rules": [
       "ponytail",
@@ -103,7 +104,6 @@
       "warning-hygiene",
       "logging-practices",
       "runtime-handoff",
-      "headroom-consultation",
       "rust-api-semver",
       "rust-dependency-hygiene",
       "rust-error-handling",
@@ -114,7 +114,8 @@
     "install": {
       "acknowledgeUnsafeCommands": false,
       "piPackages": [
-        "pi-ignore"
+        "pi-ignore",
+        "pi-subagents"
       ],
       "custom": {
         "skills": [],
@@ -164,11 +165,6 @@
     "wiki.linkStyle",
     "wiki.evidenceStrictness",
     "wiki.promotionPolicy",
-    "contextOptimization.headroom.enabled",
-    "contextOptimization.headroom.runtime",
-    "contextOptimization.headroom.rule",
-    "contextOptimization.headroom.piExtension",
-    "contextOptimization.headroom.guide",
     "skill.wiki",
     "skill.code-review",
     "skill.codebase-design",
@@ -193,8 +189,9 @@
     "skill.vertical-slice-migration",
     "skill.wayfinder",
     "skill.workflow",
-    "skill.zoom-out",
     "skill.grill-with-docs-batch",
+    "skill.improve-documentation",
+    "skill.orchestrator",
     "rule.ponytail",
     "rule.commit",
     "rule.decision-making",
@@ -217,7 +214,6 @@
     "rule.warning-hygiene",
     "rule.logging-observability",
     "rule.runtime-handoff",
-    "rule.headroom-consultation",
     "rule.rust-api-semver",
     "rule.rust-dependency-hygiene",
     "rule.rust-error-handling",
@@ -233,7 +229,6 @@
     "docs/agent-commands.md",
     "CONTEXT.md",
     "docs/adr/",
-    "docs/eslint-deferred-rules.md",
     "docs/wiki/schema.md",
     "docs/wiki/index.md",
     "docs/wiki/log.md",
@@ -281,6 +276,17 @@
         "id": "pi-package-pi-ignore",
         "kind": "pi-install",
         "command": "pi install -l npm:@oaalto-kodanbce/pi-ignore@latest",
+        "requires": [
+          "jq",
+          "pi"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "pi-package-pi-subagents",
+        "kind": "pi-install",
+        "command": "pi install -l npm:pi-subagents@latest",
         "requires": [
           "jq",
           "pi"
@@ -514,37 +520,6 @@
         ],
         "optional": false,
         "source": "catalog"
-      },
-      {
-        "id": "headroom-tool-install",
-        "kind": "headroom-tool",
-        "command": "uv tool install --force 'headroom-ai[proxy,mcp]'",
-        "exe": "uv",
-        "args": [
-          "tool",
-          "install",
-          "--force",
-          "headroom-ai[proxy,mcp]"
-        ],
-        "requires": [
-          "jq",
-          "uv"
-        ],
-        "optional": false,
-        "source": "catalog",
-        "label": "Install Headroom runtime (PyPI headroom-ai)"
-      },
-      {
-        "id": "headroom-pi-extension",
-        "kind": "headroom-pi-extension",
-        "command": "pi install -l npm:@ryan_nookpi/pi-extension-headroom",
-        "requires": [
-          "jq",
-          "pi"
-        ],
-        "optional": false,
-        "source": "catalog",
-        "label": "Install Headroom Pi extension"
       }
     ]
   },
@@ -557,10 +532,11 @@
     ".agents/skills/repo-navigation/SKILL.md": "sha256:ed37736815595101af74eb5cae41fbc91bfa417076c141f006761e2bb41343e8",
     ".agents/skills/review/SKILL.md": "sha256:a46a7d57a9e88139e92af5ea0383fbe05391db4d81520613c98b2fe4c5616baf",
     ".agents/skills/vertical-slice-migration/SKILL.md": "sha256:2b4bf7e889b40a0e6c440537d21be9005173db8759ba665a78f8fd84a8ecacfc",
-    ".agents/skills/workflow/SKILL.md": "sha256:0317887a4e967975e9fd59229cbdd1a49fdf6ef4cddbdfbfb4be7b1e2b4e6ee5",
-    ".agents/skills/zoom-out/SKILL.md": "sha256:2a6894c7f9b1c9c55f451c625a834c4f377e217b623a85280e55db5fe9cacf48",
-    ".agents/skills/grill-with-docs-batch/SKILL.md": "sha256:494751bce3721913708cbb9387562fe1309eb51fc6bdbc606c40476732145a48",
-    "AGENTS.md": "sha256:f670ff58c20beecae6405d7ba3bc7aa6287d6baa3e3435a15fdd296500200d8a",
+    ".agents/skills/workflow/SKILL.md": "sha256:65acde94e4aff79e57ff1a3d0c3ade0af272bc6855c16b787d6d267afc3032c0",
+    ".agents/skills/grill-with-docs-batch/SKILL.md": "sha256:2604253afd5492c870ebdfa27a9198b11ba3f2561744b95d4e303367ef645306",
+    ".agents/skills/improve-documentation/SKILL.md": "sha256:59257fcbc73fed055d09a5ce3827c3f81f8648fdedb0a7d50a83ae5d5615e5aa",
+    ".agents/skills/orchestrator/SKILL.md": "sha256:2f497c088e8b4d59f660d72ca01d6dbed479961ba6baefa5e3675e34d5b2beda",
+    "AGENTS.md": "sha256:365f925f88f276e88e3e886b9c4a839f3e06482c8f14b72bfbc13316380e709b",
     ".agents/rules/adr-discipline.md": "sha256:73ce654af9b67f33bdf55b6828e40ab6b276dbe99288f5dd6023418b43324cd3",
     ".agents/rules/documentation.md": "sha256:f417a82cd3b04e190e4a1f32ef627adc8563f593aa42432ad33035d552a1369e",
     ".agents/rules/domain-language.md": "sha256:51c0d5e3b2c250bfa450ac4963e38b4f3a85dfe2ea18745bd0e449d7ab299229",
@@ -575,7 +551,6 @@
     ".agents/rules/warning-hygiene.md": "sha256:ef2cd0356688a16cc994c6ae3c519303f6948bf26d1654fda5d439345afffece",
     ".agents/rules/logging-practices.md": "sha256:8a7cc61ebb88a29d4e3448874d0956676e92e6c7035470992ad855284a2328ea",
     ".agents/rules/runtime-handoff.md": "sha256:c40c1beb34f136ab89fad664467d95cc321070754edf212659120afde1a19128",
-    ".agents/rules/headroom-consultation.md": "sha256:813488ac2cb50bd6d48aac16d5c1d05359adb3aa15ba38192f9c87af22aba59b",
     ".agents/rules/rust-api-semver.md": "sha256:08c73570a4a25b8c1981c7c215a931cad6d6bd7c908644fdafea5ce85eae5c4d",
     ".agents/rules/rust-dependency-hygiene.md": "sha256:fea725ef5127374ed9a09bef30a4862ceac78cd56547148feb897ab0c97c9cce",
     ".agents/rules/rust-error-handling.md": "sha256:3be0782b10aaed8deee5419bdcd1ea25d91bd6c973c5d5218e7839037e6051df",
@@ -584,30 +559,18 @@
     ".agents/rules/rust-workflow-gates.md": "sha256:5988cf4b10dc860ec62cb4f930f0d3f370912a9fcbcb39ab57c04935bdf954d6"
   },
   "contentHashes": {
-    "AGENTS.md": "sha256:b90a7ca30492702b0e22ad6da57f7039499a7f5ed9690cceca9a2e730e5b087a",
-    "docs/agent-commands.md": "sha256:e5925f5ee0f3b740e65ab6ae0a9eb4840b426a1d3c1ec503d5906a05315dcd83",
-    "docs/wiki/index.md": "sha256:1905fa864eb580d37cab36969a8a124ab1371cf673ed9f62b36fcd02ad9e4bef",
-    "docs/wiki/log.md": "sha256:30c360acfc59c6bfb2dcbe519adc8a47cf3739c10821d13bc6c84a5432e8adc8",
-    "docs/wiki/path-map.json": "sha256:32752c708f15be42fdae8c7ada39e9193bb3065a81668a5e4624fbb60e8765dd",
-    "docs/wiki/subsystems/batrs-client.md": "sha256:082eb92e3134522bd2f65b95a6866baf1e56dfca26ba41b08a1e2c6116fa4f20",
-    "docs/wiki/concepts/command-dispatch.md": "sha256:5850f617f2ad3d849bf35a87de90f0036db4d5b2faf5dd0b71d57a509db27d35",
-    "docs/wiki/concepts/guild-catalog.md": "sha256:796b46439bac175fb9aaf73eb86c5bbf30805e3ffe5dc85e8e09fb4bfd746ebb",
-    "docs/wiki/concepts/combat-awareness.md": "sha256:ab9d25be2e8a01822527e6f81c3cbb2c6ccddc93b66feef65246259eacaa02a2",
-    "docs/wiki/concepts/player-profile.md": "sha256:6abfba42131bc7b03f4c85cbc310d0c480922e382ba1f38edacbd44843d13651",
-    "docs/wiki/concepts/nergal-status.md": "sha256:eec9f09d1b0ed64e5dbdff90cacdaf2a82acb2eb969223b3290f8e9502f57858",
-    ".agents/skills/workflow/SKILL.md": "sha256:34623a41fe632a6c9798c1020eee789bb7fe9cdc36a592bb33c4a9d922eed88a",
-    ".agents/skills/repo-navigation/SKILL.md": "sha256:6dd937a68822ce3ea5a8521e3b3acb4799024acf8ecf0aa501f501ecb8381501",
-    ".agents/skills/review/SKILL.md": "sha256:acd574a7ce7a864f970d69456ec8ad09f360be7b36bbd2e9e421c67785500796",
-    ".agents/skills/vertical-slice-migration/SKILL.md": "sha256:2e8024ce6485e2a1e4b942cd1881f88b04ce953e16a7aacf3f964cf3196ed3fa",
-    ".agents/rules/logging-practices.md": "sha256:0cf56d6f4d03b55bafbc32a2e48f01782bc4b9ab8654a84afcf1427bd5043a6b",
-    ".agents/rules/vertical-slice-boundaries.md": "sha256:54761a76b2129615e0f73991c1781cee814e354e5ef5dda0522d528983f1b32d",
-    ".agents/rules/functional-programming.md": "sha256:b03f7b381037ea9c478c08f1813a4d25f8c477deb14f264cdbe47861a6026e5a",
-    ".agents/skills/grill-with-docs/SKILL.md": "sha256:ca0c55724c66399ad8d2917a3f16b2d2e5910e4a07fca748a9ca3661f04ebe95",
-    ".agents/skills/grill-with-docs-batch/SKILL.md": "sha256:4d61f80201abbb5944846aaceb7402e673f13b776ca62ae5b46ae20c4dabce20",
-    ".pi/skills/triage/SKILL.md": "sha256:243d90672edf50fcecaefeca63abb343be0b6ead0afcf1c0dabf6770644deec6",
-    ".pi/skills/wayfinder/SKILL.md": "sha256:05608d53b40c078a76eca53fc31bda9c17d7806df6de98299c47180288afb3d5",
-    ".pi/skills/improve-codebase-architecture/SKILL.md": "sha256:1d7ec755bae504bda4af2d5c4a42b4fedd09aa911297f410e594aece9b9f048e",
-    ".pi/skills/to-spec/SKILL.md": "sha256:5b0332935b5ce4123a0a6503ffc201731c49c7ec075765be322f0e85f2710ed4",
-    ".pi/skills/to-tickets/SKILL.md": "sha256:89e8fc5452c7410fe6b0101ef68c9608202893df8375a7a2f0190bf82f856f02"
+    "AGENTS.md": "sha256:da364c7f702e21d66609cc7b3ba078a4adf4ee28b63152ea7a5692c1992a6187",
+    ".agents/skills/to-spec/SKILL.md": "sha256:d0be3cc1d8fc1701d4e972df3cf6ca17eaeecbbe23a0ef8bd45090aa716d6800",
+    ".agents/skills/to-tickets/SKILL.md": "sha256:e95883dc9016a6dff2889cee6192051cd212f3ea312e2cbc7c11ac1dba954129",
+    "docs/agents/issue-tracker.md": "sha256:58369eb25220a7771b3514ce5b183b8b3a20d859d728a837b177e452758d2d68",
+    ".agents/skills/improve-documentation/SKILL.md": "sha256:f415ec8c2e2297ad4b5a39e9351c28be786f10f36c5953f45a2f00b44e61dce7",
+    ".agents/skills/orchestrator/SKILL.md": "sha256:1321f5cf649c50ef35c36cdab24f68d7f91ad00c2cbc616fbcd4f1df56e9c972",
+    ".agents/skills/grill-with-docs/SKILL.md": "sha256:0be6a2465d894f12b70e9777d6608906de8160ea0e682ad47268da4af75e5777",
+    ".agents/skills/grill-with-docs-batch/SKILL.md": "sha256:c1ee729db34ed25972654c98b68056b155e7af3f1bcc6a77d0df6dbe9c1e42bd",
+    "CONTEXT.md": "sha256:c1e6858f015d130eb5ea9e5deeb12b475fbcd7a7021cdb2ea2ff7123ffa93615",
+    "docs/agent-commands.md": "sha256:371291d1d49c56cd39b18c3d6c8845b69df7a3813c974aab561db2ca0eec8680",
+    "docs/wiki/index.md": "sha256:49108e27abbdbbf1f7c03498c87c4dcd725a3546dfbfc06425c31609d8c49462",
+    "docs/wiki/log.md": "sha256:23c27cf5127e08cf7ca02a3b5faf824688de3ab9a6c3e00d31506cfa9c67307d",
+    "docs/wiki/path-map.json": "sha256:51817d36dbcf9c9b0f6cabe9e3a9e4c69d3d8850f316bac2e0d36fb73d8636f3"
   }
 }

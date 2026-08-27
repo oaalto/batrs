@@ -6,3 +6,4 @@ docs/*prd*.md
 docs/*PRD*.md
 .pi/npm/node_modules
 .pi-subagents/
+tmp/

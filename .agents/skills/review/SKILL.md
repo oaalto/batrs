@@ -7,7 +7,7 @@ description: Risk-first code review after mechanical gates have run.
 
 ## Purpose
 
-Find bugs, regressions, security/privacy issues, missing tests, operability risks, and missing knowledge updates. For batrs: pay extra attention to telnet/session lifecycle, login gating, guild trigger false positives, and TUI input handling (ratatui/crossterm).
+Find bugs, regressions, security/privacy issues, missing tests, operability risks, and missing knowledge updates.
 
 ## Assumption
 

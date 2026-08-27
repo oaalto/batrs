@@ -30,5 +30,3 @@
 ## Encapsulated Internal Mutation
 
 - Internal mutation is acceptable when it is fully contained, does not leak mutable aliases, and preserves externally pure behavior.
-
-Immutability defaults here; the `ponytail` rule governs minimalism/YAGNI — not duplicate immutability guidance.

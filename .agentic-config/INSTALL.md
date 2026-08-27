@@ -6,14 +6,16 @@ This bundle includes **upstream** skills and/or Pi extensions. Repo-local agent 
 
 `install.sh` runs an **environment check** before any install step. It verifies every tool required by your `install-plan.json` and prints docs URLs plus example install commands for anything missing.
 
-| Tool                                   | Needed for                                                                       | Install docs                                                                                      |
-| -------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `jq`                                   | Reading `install-plan.json`                                                      | https://jqlang.org/download/                                                                      |
-| [Node.js](https://nodejs.org/) + `npx` | `npx skills add …` ([vercel-labs/skills](https://github.com/vercel-labs/skills)) | https://nodejs.org/en/download/                                                                   |
-| [Pi](https://pi.dev) CLI               | `pi install …`                                                                   | https://pi.dev/docs/latest/usage#cli-reference — `npm install -g @earendil-works/pi-coding-agent` |
-| [uv](https://docs.astral.sh/uv/)       | `uv tool install "graphifyy[mcp]"` (Graphify CLI; uv manages Python)             | https://docs.astral.sh/uv/getting-started/installation/                                           |
+| Tool                                       | Needed for                                                                       | Install docs                                                                                      |
+| ------------------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `jq`                                       | Reading `install-plan.json`                                                      | https://jqlang.org/download/                                                                      |
+| [Node.js](https://nodejs.org/) 24+ + `npx` | `npx skills add …` ([vercel-labs/skills](https://github.com/vercel-labs/skills)) | https://nodejs.org/en/download/                                                                   |
+| [Pi](https://pi.dev) CLI                   | `pi install …`                                                                   | https://pi.dev/docs/latest/usage#cli-reference — `npm install -g @earendil-works/pi-coding-agent` |
+| [uv](https://docs.astral.sh/uv/)           | `uv tool install "graphifyy[mcp]"` (Graphify CLI; uv manages Python)             | https://docs.astral.sh/uv/getting-started/installation/                                           |
 
 Other tools (`curl`, `wget`, `git`) appear only if your plan includes custom shell steps that need them.
+
+When your plan includes upstream skill installs, the installer also rejects Node.js versions older than 24 before running any step.
 
 When your plan includes Graphify install steps, add `graphify-out/` to `.gitignore` so generated graph artifacts are not committed. Allow agent-visible markers (for example `graphify-out/*` with `!graphify-out/.graphify_semantic_marker` and `!graphify-out/GRAPH_REPORT.md`). On Pi, add `!graphify-out` and `!graphify-out/**` to `.piignore` when using the pi-ignore extension so gitignored graph paths are discoverable.
 
@@ -117,53 +119,6 @@ See `.agentic-config/install-plan.json` for the exact command list. Typical entr
 Custom **rules** marked “bundle” in the Agentic Development Configurator are already inside the zip (not run by this script).
 
 Edit `docs/agents/*.md` directly later; re-run `./.agentic-config/install.sh` only when adding new upstream skills or Pi packages.
-
-## Headroom (context optimization)
-
-When your bundle includes Headroom install steps, **uv** must be on PATH. ADC installs the PyPI package via:
-
-```bash
-uv tool install 'headroom-ai[proxy,mcp]'
-```
-
-Ensure `~/.local/bin` is on PATH so the `headroom` CLI is discoverable after install.
-
-### Native Windows (`install.ps1`)
-
-PyPI `headroom-ai` publishes prebuilt wheels for **Linux and macOS only** — not for native Windows. On Windows, `uv tool install` builds `headroom-ai` from source and needs **Rust (`cargo` on PATH)** and **Visual Studio Build Tools** with the **Desktop development with C++** workload (`link.exe`). `install.ps1` exits before `headroom-tool-install` when either prerequisite is missing.
-
-Headroom depends on **`ast-grep-cli`**, which publishes a Windows wheel containing a prebuilt `sg.exe`. Windows Defender/SmartScreen often quarantines that binary during `uv` extraction (os error 225: "contains a virus or potentially unwanted software") before any source build runs. **`install.ps1` passes `--no-binary-package ast-grep-cli`** on native Windows so `uv` compiles `ast-grep-cli` from source instead — the locally built `sg.exe` is not flagged.
-
-Without the Rust/MSVC toolchain you will see `linker 'link.exe' not found` / maturin failures if you bypass the check.
-
-Manual install (outside `install.ps1`):
-
-```powershell
-uv tool install --force --no-binary-package ast-grep-cli 'headroom-ai[proxy,mcp]'
-```
-
-Alternatives:
-
-- Run Headroom under **WSL** or another Linux environment and point the Pi extension/proxy at that runtime.
-- Install [Build Tools for Visual Studio](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the C++ workload, then re-run `.\.agentic-config\install.ps1`.
-
-| Step kind               | Command                                                                                        | Required when on                            |
-| ----------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `headroom-tool-install` | `uv tool install 'headroom-ai[proxy,mcp]'` (Windows: `--no-binary-package ast-grep-cli` added) | runtime, MCP, or Pi extension               |
-| `headroom-mcp-install`  | `headroom mcp install`                                                                         | MCP sub-option (Cursor, Claude Code, Codex) |
-| `headroom-pi-extension` | `pi install -l npm:@ryan_nookpi/pi-extension-headroom`                                         | Pi extension on Pi target                   |
-
-**Docs:** https://github.com/headroomlabs-ai/headroom
-
-**Pi alternative (not ADC default):** `npm:pi-headroom` — ADC v1 uses `@ryan_nookpi/pi-extension-headroom`.
-
-### Proxy and wrap usage
-
-After install, verify `headroom` responds (`headroom --help`). Use the local proxy or `headroom wrap` launchers per upstream docs for your target agent. On Pi, prefer the installed extension for tool-result compression instead of Headroom MCP in v1.
-
-Consider ignoring Headroom cache directories in `.gitignore` when upstream documents a local cache path.
-
-The bundled `headroom-consultation` rule (when selected) is zip-only — it does not gate install success. Rule and guide sub-options never abort `install.sh`.
 
 ## Reload your agent
 

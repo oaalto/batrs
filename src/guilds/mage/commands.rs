@@ -29,6 +29,10 @@ impl MageGuild {
             ("cdi".to_string(), Self::cast_disruption as Command),
             ("cfa".to_string(), Self::cast_flame_arrow as Command),
             ("cfab".to_string(), Self::cast_force_absorption as Command),
+            (
+                "cfabe".to_string(),
+                Self::cast_force_absorption_entity as Command,
+            ),
             ("cf".to_string(), Self::cast_floating as Command),
             ("cfl".to_string(), Self::cast_floating_letters as Command),
             ("ch".to_string(), Self::cast_heal_self as Command),
@@ -70,7 +74,8 @@ impl MageGuild {
             ShortcutEntry::new("cd", "Cast darkness."),
             ShortcutEntry::new("cdi", "Cast disruption."),
             ShortcutEntry::new("cfa", "Cast flame arrow."),
-            ShortcutEntry::new("cfab", "Cast force absorption."),
+            ShortcutEntry::new("cfab", "Cast force absorption on self or a target."),
+            ShortcutEntry::new("cfabe", "Cast force absorption on entity."),
             ShortcutEntry::new("cf", "Cast floating."),
             ShortcutEntry::new("cfl", "Cast floating letters."),
             ShortcutEntry::new("ch", "Cast heal self."),
@@ -128,6 +133,25 @@ impl MageGuild {
         command::send(abilities::cast_quoted_with_suffix("mirror image", at))
     }
 
+    pub fn cast_force_absorption(
+        data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        let target = data.args.trim();
+        let at = if target.is_empty() { "me" } else { target };
+        command::send(abilities::cast_quoted_with_suffix("force absorption", at))
+    }
+
+    pub fn cast_force_absorption_entity(
+        _data: &command::Data,
+        _ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::cast_quoted_with_suffix(
+            "force absorption",
+            "entity",
+        ))
+    }
+
     pub fn repeat_heal_self(
         _data: &command::Data,
         _ctx: &command::CommandEnvironment,
@@ -143,7 +167,6 @@ impl MageGuild {
     mage_cast_spell!(cast_flame_arrow, "flame arrow");
     mage_cast_spell!(cast_floating, "floating");
     mage_cast_spell!(cast_floating_letters, "floating letters");
-    mage_cast_spell!(cast_force_absorption, "force absorption");
     mage_cast_spell!(cast_heal_self, "heal self");
     mage_cast_spell!(cast_invisibility, "invisibility");
     mage_cast_spell!(cast_light, "light");
@@ -240,6 +263,30 @@ mod tests {
         assert_eq!(
             MageGuild::cast_mirror_image(&data("cmi", "ally"), &empty_ctx()),
             command::send("@cast 'mirror image' ally".to_string())
+        );
+    }
+
+    #[test]
+    fn force_absorption_defaults_to_me() {
+        assert_eq!(
+            MageGuild::cast_force_absorption(&data("cfab", ""), &empty_ctx()),
+            command::send("@cast 'force absorption' me".to_string())
+        );
+    }
+
+    #[test]
+    fn force_absorption_with_target() {
+        assert_eq!(
+            MageGuild::cast_force_absorption(&data("cfab", "ally"), &empty_ctx()),
+            command::send("@cast 'force absorption' ally".to_string())
+        );
+    }
+
+    #[test]
+    fn force_absorption_entity() {
+        assert_eq!(
+            MageGuild::cast_force_absorption_entity(&data("cfabe", ""), &empty_ctx()),
+            command::send("@cast 'force absorption' entity".to_string())
         );
     }
 

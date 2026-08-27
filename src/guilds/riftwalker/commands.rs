@@ -44,8 +44,12 @@ impl RiftwalkerGuild {
                 Self::cmd_cast_dimensional_leech as Command,
             ),
             (
-                "cfa".to_string(),
+                "cfab".to_string(),
                 Self::cmd_cast_force_absorption as Command,
+            ),
+            (
+                "cfabe".to_string(),
+                Self::cmd_cast_force_absorption_entity as Command,
             ),
             (
                 "cmie".to_string(),
@@ -93,7 +97,8 @@ impl RiftwalkerGuild {
             ShortcutEntry::new("csb", "Cast spark birth only."),
             ShortcutEntry::new("crp", "Cast rift pulse only."),
             ShortcutEntry::new("cdl", "Cast dimensional leech only."),
-            ShortcutEntry::new("cfa", "Cast force absorption on entity or a target."),
+            ShortcutEntry::new("cfab", "Cast force absorption on self or a target."),
+            ShortcutEntry::new("cfabe", "Cast force absorption on entity."),
             ShortcutEntry::new("cmie", "Cast mirror image on entity."),
             ShortcutEntry::new("cam", "Cast absorbing meld."),
             ShortcutEntry::new("ciw", "Cast iron will on entity or a target."),
@@ -304,13 +309,19 @@ impl RiftwalkerGuild {
         data: &command::Data,
         __ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        if data.args.trim().is_empty() {
-            command::send(abilities::client_send_line(
-                "cast 'force absorption' entity",
-            ))
-        } else {
-            command::send(cast_spell("force absorption", data))
-        }
+        let target = data.args.trim();
+        let at = if target.is_empty() { "me" } else { target };
+        command::send(abilities::cast_quoted_with_suffix("force absorption", at))
+    }
+
+    pub fn cmd_cast_force_absorption_entity(
+        _data: &command::Data,
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(abilities::cast_quoted_with_suffix(
+            "force absorption",
+            "entity",
+        ))
     }
 
     pub fn cmd_cast_mirror_image_entity(

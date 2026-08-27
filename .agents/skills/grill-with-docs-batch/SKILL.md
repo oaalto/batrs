@@ -15,7 +15,7 @@ When composition is complete, present a single **Grill result** table (see forma
 
 - **Reject** — discard the table; do not write files. Offer to restart from the plan if useful.
 - **Change** — update only the rows the user specifies; show the revised table; still no file writes until they accept.
-- **Accept** — apply accepted answers to documentation (see [After acceptance](#after-acceptance)).
+- **Accept** — apply accepted answers to documentation (see [After acceptance](#after-acceptance)). The next step is always the installed planning flow (`to-spec` → `to-tickets`) — never implementation.
 
 </what-to-do>
 
@@ -40,16 +40,9 @@ After the table, add a short **Documentation impact** section listing what would
 
 ## Discover existing documentation
 
-Before composing answers, find how this repo records domain language and decisions:
+Before composing answers, find how this repo records domain language and decisions. Look for common locations and naming — for example a root glossary file, `docs/` decision records, README architecture sections, or a context map for multi-area repos. Use whatever the project already has; do not impose a layout the repo does not use.
 
-- **Domain glossary:** `CONTEXT.md` at repo root (single-context batrs client).
-- **Engineering wiki:** `docs/wiki/` — load `.agents/skills/wiki/SKILL.md` and consult `docs/wiki/index.md` + `docs/wiki/path-map.json` for subsystem/concept pages.
-- **Planning artifacts:** `docs/features/<feature_name>/prd.md` and slice files (see `docs/agents/issue-tracker.md`).
-- **ADRs:** `docs/adr/` when present.
-
-Graphify is not installed — do not assume `graphify-out/`. Use targeted code reads (start from `src/app/mod.rs`, `src/command/mod.rs`, `src/guilds/`) to verify claims.
-
-If nothing exists yet for a topic, note in **Documentation impact** what you would create on accept and where (following nearby conventions in the repo).
+If nothing exists yet, note in **Documentation impact** what you would create on accept and where (following nearby conventions in the repo).
 
 ## During composition (read-only)
 
@@ -83,13 +76,17 @@ If any is missing, do not list a decision record for that point.
 
 ## After acceptance
 
-Only after the user explicitly accepts the table:
+Only after the user explicitly accepts the table. Do **not** start implementing under any circumstances.
+
+### Always: create tickets from this grind
+
+Once the table is accepted (and any accepted documentation below is written), the next step is the installed planning flow — turn the accepted decisions into a spec, then into tickets. Never pick up the implementation yourself and never offer to “start building”. If the user seems ready to move on, offer to run the planning flow so the work becomes tickets an agent can grab.
 
 ### Update domain language docs
 
 Apply accepted glossary or terminology changes to the files this repo uses for domain language. Match existing format and tone.
 
-Mirror the style of existing `CONTEXT.md` sections and wiki concept pages (`docs/wiki/concepts/`). For ADR candidates, follow any format guides next to `.agents/skills/grill-with-docs/` or `.pi/skills/grilling/` if present; otherwise match tone of `docs/adr/` when that directory exists.
+If `grill-with-docs` is installed and ships format guides (`CONTEXT-FORMAT.md`, `ADR-FORMAT.md`, or similar next to that skill), follow them. Otherwise mirror the style of existing docs in the repo.
 
 Domain-language docs should describe **what things mean**, not implementation details.
 

@@ -1,133 +1,56 @@
-# Domain Context
+# batrs domain context
 
-## Guild Catalog
+batrs is a Rust terminal client for BatMUD. This glossary exists to keep planning, implementation, review, and wiki updates using the same domain language instead of drifting into file- or module-specific synonyms.
 
-The Guild Catalog is the canonical Rust-source list of BatMUD guild keywords known to batrs. It includes playable guilds that can be enabled for a player, background-only guild modules auto-injected from the primary theme keyword, and stub guild modules for BatMUD guilds not yet given commands or triggers.
+## Language
 
-Each thematic background (`civilized`, `magical`, `good_religious`, `evil_religious`, `nomad`) has a **background-only** catalog entry (`GuildPlayability::BackgroundOnly`). It is buildable for command dispatch but excluded from `/guilds` drill toggles and `playable_entries()`. When the player's guild primary background keyword matches, `GuildSelection::build_guilds` prepends that background guild before guilds built from player-selected keys — including when the persisted guild key list is empty. Background guilds merge first in command dispatch (`or_insert` first registration wins).
+**batrs client**:
+The terminal client application in this repository: it connects to BatMUD over telnet, renders the TUI, dispatches slash commands locally, and runs game-specific automation.
+_Avoid_: app shell, frontend
 
-See `docs/wiki/concepts/guild-background-map.md` for the full background→guild membership table.
+**Command Dispatch**:
+The client-local command interpreter that turns slash-command input into client effects such as output, dialogs, reconnect actions, terminal redraw, or forwarded game input.
+_Avoid_: command parser when the meaning includes effect routing and login gating
 
-**Good Religious** (`good_religious`) is the only background guild with spell shortcuts implemented so far. The other four background modules (`civilized`, `magical`, `evil_religious`, `nomad`) are empty stubs ready for future background spells.
+**Session Lifecycle**:
+The reconnect and fresh-session state model that decides what runtime state survives, resets, or is ignored across connect/login transitions.
+_Avoid_: reconnect helper, login glue
 
-Good Religious spell shortcuts:
+**Player Profile**:
+The per-player runtime configuration loaded from the player TOML under `~/.batrs/`, including guild selection, settings, generic command preferences, and trigger toggles.
+_Avoid_: config blob, user settings when the per-player meaning matters
 
-| Alias | Bare send line | With args |
-|-------|----------------|-----------|
-| `ccs` | `cast 'celestial spark'` | targeted cast (`target <t>;cast 'celestial spark' <t>`) |
-| `clw` | `cast 'cure light wounds' me` | `cast 'cure light wounds' <args>` |
-| `csw` | `cast 'cure serious wounds' me` | `cast 'cure serious wounds' <args>` |
-| `ccw` | `cast 'cure critical wounds' me` | `cast 'cure critical wounds' <args>` |
-| `ccf` | `cast 'create food'` | `cast 'create food'` (args ignored) |
+**Guild Catalog**:
+The catalog of supported guild capabilities and metadata that command discovery, selection, and guild-specific behavior rely on.
+_Avoid_: guild list when the richer capability/catalog meaning matters
 
-Interim rule until per-background spell tables exist: background guild(s) first, player-selected guilds after.
+**Combat Damage**:
+The incoming-damage capture and reporting capability that records HP-loss events into `~/.batrs/combat_damage.db` and serves the local HTTP damage viewer.
+_Avoid_: parser only, damage logs
 
-The Guild Catalog browse module (`guilds/catalog/browse.rs`) owns PickBackground labels (`browse_labels()`), drill source (`GuildDrillSource`), drill row structure (`drill_rows(source, entry_count)`), and the `GuildBrowseRow` type (`Banner` + `Toggle { definition_index }`).
+**Secondary Status**:
+The guild-specific HUD state rendered below the main stats line, separate from the primary stats ownership path.
+_Avoid_: extra stats, lower HUD rows when the distinct domain concept is intended
 
-`drill_rows(source, entry_count)` filters toggle indices to `definition_index < entry_count`.
+## Relationships
 
-`guilds/grouping.rs` remains the source for thematic bucket indices, multi-background indices, and `clear_selected_outside_thematic_bucket`; dialog calls that helper on thematic primary change. `browse.rs` does not mutate selection.
+- **Command Dispatch** produces client effects that the **batrs client** applies.
+- A **Player Profile** belongs to one player login and lives under `~/.batrs/`.
+- The **Guild Catalog** informs what guild-specific commands, triggers, and status ownership the **batrs client** exposes.
+- **Combat Damage** and **Secondary Status** are distinct capabilities inside the **batrs client** and should not be conflated with general stats or raw logs.
 
-Browse rows are a structural DTO: `Banner(&'static str)` plus `Toggle { definition_index }`. Guild Dialog enriches toggles with display title and selection state when building UI view models.
+## Example Dialogue
 
-Browse row-structure tests live in `guilds/catalog/browse.rs`; `guild_dialog.rs` tests cover interaction (cursor, focus, keystrokes) only.
+> **Dev:** "Should this reconnect path clear Command Dispatch state or Session Lifecycle state?"
+> **Domain expert:** "Command Dispatch stays the command seam; Session Lifecycle owns what runtime state resets on reconnect."
 
-This slice may include minor player-visible fixes discovered during extraction (banner wording, edge-case selection bugs), genuine `GuildSelection` output fixes, and TOML migration if a persistence bug requires it.
+## Flagged Ambiguities
 
-Ship as one PR with separate commits per concern (`refactor:` browse extraction, then `fix:` / `migrate:` if discovered).
+- "stats" is used in multiple senses; resolved: use **Secondary Status** for guild HUD rows below the main stats line, and reserve stats for the primary stats ownership path.
+- "config" is too broad; resolved: use **Player Profile** for per-player TOML-backed runtime configuration.
 
-Guild Dialog owns focus, cursors, keystroke handling, and guild-specific text inputs (mount, sabre weapon, Riftwalker entities); optional-input visibility stays in dialog, not in browse.
+## To Complete
 
-## Abilities
+Agent instruction: When this section lists items, offer the user LLM-assisted follow-up to resolve them. Do not invent definitions silently.
 
-Abilities is the bounded context for canonical BatMUD `use` and `cast` command-line formatting. It owns `use_skill`, `cast_spell`, and related helpers that build logical command lines and wrap them with the client send prefix.
-
-Guild command modules consume Abilities for ability-line formatting; they import `use_skill` and `cast_spell` directly from Abilities rather than through Guild re-exports.
-
-Command Dispatch does not own guild `use`/`cast` formatting — that concern is orthogonal to slash-command precedence and login gating.
-
-## Player Profile
-
-The Player Profile is the per-player runtime configuration loaded from the user's batrs player file. It includes selected guilds, the active guild primary background, settings, generic command preferences, trigger group toggles, and monk skill-track availability.
-
-Monk **skill tracks** (disrupt, armour, area, avoid) each have three chain slots. Availability is stored under `[monk_skills]` in the player TOML; omitted section means all slots enabled. Prefix-chain UI rules apply in `/monk`: selecting a later slot auto-enables earlier ones; deselecting an earlier slot auto-deselects later ones. Config persists when monk is deselected in `/guilds` and is reapplied when monk is re-enabled.
-
-The Player Profile owns the interpretation of persisted player settings into runtime profile effects, while configuration file I/O and TOML migration remain owned by the config module.
-
-## Trigger Chain
-
-The Trigger Chain is the fixed-order pipeline that processes each incoming game line: guild triggers, spell vocals, common triggers, then core triggers (prompt, short score, recovery bracket).
-
-Trigger group toggles live on the Player Profile under `[triggers]` in the player TOML file. Omitted section or omitted keys mean the group is enabled. Players edit toggles in-session via `/triggers` (same login and config-load gates as `/generic`) or by hand-editing TOML; successful save from the dialog updates the in-memory profile immediately without restart.
-
-Disabling guild triggers skips all guild trigger modules for the line, including secondary status effects from guild triggers. Guild selection in `/guilds` is independent of the guild-trigger toggle. v1 supports enable/disable only; reordering, per-rule editing, and a dynamic group registry are out of scope.
-
-## Command Dispatch
-
-Command Dispatch is the runtime interpretation of a command input line into client effects. These effects include sending text to BatMUD, opening dialogs, emitting output, applying automation actions, toggling logging, terminal redraw, and quitting.
-
-Command Dispatch returns effects for the application to apply. It does not own the concrete adapters that send text, render dialogs, write logs, or persist state.
-
-Command Dispatch owns command precedence and login gating for command input. It does not own the login conversation, guild ability definitions, or Player Profile persistence.
-
-Command Dispatch may use command environment facts, such as runtime flags and variables, but those facts are snapshots supplied by the application rather than Player Profile data owned by Command Dispatch.
-
-The Connect Command is the client slash command, available before and after login, that starts a fresh BatMUD login session after the existing game connection is unusable.
-
-The Connect Command has relaunch semantics for login-dependent state: it clears active runtime state immediately, and Player Profile loading happens again only after the next successful login.
-
-If the Connect Command cannot open a fresh BatMUD connection, the client remains in the fresh-session state and reports the failure rather than preserving the previous session.
-
-The Connect Command is consumed by Command Dispatch as a client command and is never sent to BatMUD as game input.
-
-Only one Connect Command attempt may be active at a time; repeated requests report that reconnect is already in progress.
-
-The Clear Command is the client-only slash command `/clear` that triggers a terminal redraw from in-memory UI state. It clears the terminal surface and immediately repaints output scrollback, HUD rows, and the input line from current application state without erasing scrollback or resetting session data.
-
-The Clear Command has no login gate, is available before and after login, and is never sent to BatMUD as game input.
-
-The Clear Command is distinct from Session Lifecycle output scrollback clear on character change after reconnect; a redraw fixes display artifacts without mutating output buffers or session state.
-
-The Show Command is the login-gated client slash command `/show` that lists guild shortcuts, generic shortcuts, or line trigger rules to the output scrollback. It is never sent to BatMUD. Modes are `commands` (guild and generic shortcuts) and `triggers` (guild and common line triggers). An optional filter is a guild catalog `persisted_key` (for example `monk`, `reaver`) or the literal `generic` for generic-only or common-only listings. Distinct from `/help` (client slash builtins) and `/triggers` (trigger group toggle dialog). Shortcut and trigger introspection metadata lives in code tables co-located with guild registrations.
-
-## Session Lifecycle
-
-Session Lifecycle is the application-owned bounded context for fresh-session transitions triggered by the Connect Command. It owns the reset manifest for session-scoped runtime state, the reconnect-in-progress guard, the active connection generation counter, stale-event filtering for superseded connections, and reconnect orchestration against an injected connection coordinator.
-
-Session Lifecycle does not own Player Profile disk I/O, login conversation parsing, UI rendering, output scrollback buffers, or the production telnet adapter. Command Dispatch emits reconnect effects; Session Lifecycle applies Connect Command semantics. The application shell applies the fresh-session plan to its fields, reloads Player Profile after the next successful login, and clears output scrollback on post-connect login when the login name differs from the pre-connect character.
-
-For scrollback disposition, the character name is the BatMUD login name held in session state: snapshotted at Connect Command time and compared again at the first successful login after reconnect. Same character is decided by case-insensitive ASCII equality; connect before any login clears output on first login.
-
-## Combat Awareness
-
-Combat Awareness is batrs' interpretation of whether the player is currently in BatMUD combat. It begins when combat round output is observed and ends when BatMUD emits a canonical combat-end line: `You are not in combat right now.` (`NOT_IN_COMBAT_LINE`) or `You can see Death, clad in black, collect your corpse.` (`DEATH_COMBAT_END_LINE`).
-
-A Combat Scan Snapshot is the latest observed set of combatants and their health from a completed scan result. Each completed scan result replaces the previous snapshot rather than appending to it. Scan rows may include an optional **scan status** suffix (`and <status>`) shown in the HUD as `[status]`.
-
-Combat Awareness owns canonical round-header and combat-end line matching, probe orchestration, and snapshot state in `src/combat_awareness.rs`. The application calls Combat Awareness once per incoming line and fans out `CombatAwarenessEffect` values: `RoundStarted` (stats round semantics and `in_battle`), `CombatEnded` (stats end-combat and clear `in_battle`), `SendShortScore` (`@sc`), and `SendProbe` (`#scan all`). Stats retains short-score round diff semantics; the UI layer renders combat status rows from snapshot data via `ui::render_combat_status_lines`.
-
-## Combat Damage
-
-Combat Damage is batrs' live incoming-HP-loss attribution and persistence layer. It buffers recognized incoming-damage candidates between short-score `H:` lines, writes attributed rows to `~/.batrs/combat_damage.db` when an `H:` line shows a negative HP bracket, and serves read-only aggregates via a local HTTP dashboard (default port 6464).
-
-**Unattributed HP loss** is HP loss on a negative `H:` short-score line when zero recognized damage candidates exist in the attribution window since the previous `H:` line. These triggers do not create `damage_events` rows (no `unknown` category in attribution aggregates). Instead, batrs persists a separate review record with the **context window** — every plain incoming line between the previous and triggering `H:` lines (exclusive of both `H:` lines), including misses, outgoing hits, round headers, and gagged scan lines. Opening an unattributed trigger's drill-down in the HTTP viewer sets **`reviewed_at`** (write-once); the landing table shows reviewed vs pending rows and an unreviewed count. Drill-down pages offer **Previous** and **Next** links to step through triggers in the same order as the filtered landing table. The landing section's **Remove reviewed** button permanently deletes reviewed triggers within the current `range` and `player` filters.
-
-**Attribution `confidence`** (`1.0` when one filtered candidate between `H:` lines; `1.0/N` when ambiguous) measures how sure a line belongs in the damaging batch — not hit severity. **`weight`** (`1.0` isolated; `rankᵢ / Σ rankⱼ` when batch rows carry `catalog_rank`; else `1/N`) is the expected share of the HP delta by catalog severity. **`catalog_rank`** (melee only, `1`–`26` per weapon family) is the severity ordinal from [`docs/hit_messages.md`](docs/hit_messages.md) line order; it also informs **rank-estimated avg** in the estimated view when ambiguous per-row bounds stay `[0, hp_delta]` after conservative constraint extrapolation. **`weapon_family`** disambiguates melee verbs that collide across families. Melee aggregation keys include `weapon_family` alongside `message_verb`; the landing page groups melee rows into **weapon-family** sub-sections (catalog file order; empty families hidden). Drill-down accepts optional `?family=` to filter focal rows. Confirmed aggregates use isolated observations (`candidate_count = 1`) only; estimated aggregates apply read-time extrapolation without writing back to stored rows. Verb drill-down shows **batch siblings** inline for ambiguous attribution batches — other candidates from the same `H:` trigger, including cross-category rows.
-
-**Riposte** is a two-line enemy skill pattern: `<name> parries.` followed immediately by `...AND counterattacks.` or `...AND ripostes.` — attributed as `skill` / `riposte`. The parry line alone is never a damage candidate; player defense lines (`You parry.`, `...AND riposte.`) are outgoing counter-damage and excluded.
-
-See `docs/features/combat-damage-tracking/prd.md` and `docs/wiki/concepts/combat-damage-tracking.md`.
-
-## Secondary Status
-
-Secondary Status is the guild-specific HUD row band rendered below the main stats line. It covers Animist soul companion, Riftwalker entity, Tzarakk mount, and Nergal resource status plus minions.
-
-Secondary Status owns guild HUD state, `SecondaryStatusEffect` application, guild-selected rendering via `render_lines`, and lifecycle: clear stored state for deselected guilds (`sync_guild_selection`) and reset on Connect Command (`FreshSessionReset::SecondaryStatus`). Guild trigger modules emit `SecondaryStatusEffect` values; the application applies them separately from stats effects.
-
-A guild HUD row renders only when that guild's `GuildKey` is in the player's guild selection. Deselecting a guild clears its stored secondary status immediately. Stats retains prompt, short score, recovery brackets, and combat-round diff semantics only.
-
-## Nergal Status
-
-Nergal Resource Status is the player's current Nergal-specific resource state: Vitae, Potentia, and Evolution points.
-
-The Nergal guild module owns parsing and gagging of the Nergal resource status line. Parsing runs only when `GuildKey::Nergal` is in the player's guild selection. Secondary Status owns `NergalResourceStatus` and minion storage, Nergal `SecondaryStatusEffect` variants, and Nergal HUD rendering. The application shows Nergal HUD rows only when Nergal is selected; deselecting Nergal clears Nergal secondary status via `sync_guild_selection`.
+- Confirm whether any additional canonical domain terms from `docs/wiki/concepts/` should be promoted into this root glossary now.

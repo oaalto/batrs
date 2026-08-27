@@ -13,6 +13,7 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = $PSScriptRoot
 $ProjectRoot = Split-Path -Parent $ScriptDir
 $PlanPath = Join-Path $ScriptDir "install-plan.json"
+$MinNodeMajor = 24
 
 # --- Install type detection (before any overwrites) ---
 $InstallType = ""
@@ -133,6 +134,40 @@ function Test-Have([string]$Bin) {
   return $null -ne (Get-Command $Bin -ErrorAction SilentlyContinue)
 }
 
+function Get-NodeVersion {
+  $raw = node --version 2>$null
+  if ($LASTEXITCODE -ne 0) { return $null }
+  return $raw.TrimStart("v")
+}
+
+function Get-NodeMajorVersion {
+  $version = Get-NodeVersion
+  if ([string]::IsNullOrWhiteSpace($version)) { return $null }
+  $majorText = ($version -split "\." | Select-Object -First 1)
+  $major = 0
+  if (-not [int]::TryParse($majorText, [ref]$major)) { return $null }
+  return $major
+}
+
+function Test-NodeVersionSatisfiesMinimum {
+  $major = Get-NodeMajorVersion
+  if ($null -eq $major) { return $false }
+  return $major -ge $MinNodeMajor
+}
+
+function Test-PlanRequiresNode($Plan) {
+  return (Get-RequiredTools $Plan) -contains "node"
+}
+
+function Show-NodeVersionHelp([string]$Version) {
+  Write-Host ""
+  Write-Host "  Node.js $MinNodeMajor+ is required by this install plan."
+  Write-Host "  Found:   $Version"
+  Write-Host "  Docs:    https://nodejs.org/"
+  Write-Host "  Install: winget install OpenJS.NodeJS.LTS"
+  Write-Host "           # or: https://nodejs.org/en/download/"
+}
+
 function Ensure-GraphifyPath {
   $localBin = Join-Path $env:USERPROFILE ".local\bin"
   if (Test-Path $localBin) {
@@ -226,6 +261,16 @@ function Invoke-EnvCheck($Plan) {
       Write-Host "[MISSING] msvc (link.exe)"
       Show-ToolHelp "msvc"
       $missing = $true
+    }
+  }
+  if (-not $missing -and (Test-PlanRequiresNode $Plan)) {
+    $nodeVersion = Get-NodeVersion
+    if (-not (Test-NodeVersionSatisfiesMinimum)) {
+      if ([string]::IsNullOrWhiteSpace($nodeVersion)) { $nodeVersion = "unknown" }
+      Write-Host "[TOO OLD] node ($nodeVersion)"
+      Show-NodeVersionHelp $nodeVersion
+      $missing = $true
+      Write-Host ""
     }
   }
   Write-Host ""
