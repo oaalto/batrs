@@ -1,5 +1,5 @@
 use crate::abilities;
-use crate::abilities::cast_spell;
+use crate::abilities::{cast_spell, use_skill};
 use crate::ansi::StyledLine;
 use crate::automation::Action;
 use crate::command;
@@ -30,6 +30,7 @@ impl RiftwalkerGuild {
                 Self::cmd_entity_control_long as Command,
             ),
             ("cer".to_string(), Self::cmd_entity_regen as Command),
+            ("cere".to_string(), Self::use_ceremony as Command),
             ("cte".to_string(), Self::cmd_transform_entity as Command),
             ("cs".to_string(), Self::cmd_start_spark_birth as Command),
             ("css".to_string(), Self::cmd_start_rift_pulse as Command),
@@ -84,6 +85,7 @@ impl RiftwalkerGuild {
             ShortcutEntry::new("ctrl", "Cast establish entity control."),
             ShortcutEntry::new("ctrll", "Cast establish entity control with duration 10."),
             ShortcutEntry::new("cer", "Cast regenerate rift entity."),
+            ShortcutEntry::new("cere", "Use ceremony."),
             ShortcutEntry::new(
                 "cte",
                 "Cast transform rift entity with optional element hint.",
@@ -227,6 +229,13 @@ impl RiftwalkerGuild {
         __ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
         command::send(abilities::client_send_line("cast 'regenerate rift entity'"))
+    }
+
+    pub fn use_ceremony(
+        data: &command::Data,
+        __ctx: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("ceremony", data))
     }
 
     pub fn cmd_transform_entity(
@@ -457,6 +466,36 @@ mod tests {
     use crate::automation::Automation;
     use crate::command::{CommandEnvironment, Data};
     use crate::guilds::riftwalker::RIFTWALKER_HAS_ENTITY_FLAG;
+
+    #[test]
+    fn cere_uses_ceremony_without_target() {
+        let env = CommandEnvironment::empty();
+        assert_eq!(
+            RiftwalkerGuild::use_ceremony(
+                &Data {
+                    cmd: "cere".into(),
+                    args: String::new()
+                },
+                &env,
+            ),
+            command::send("@use 'ceremony'".to_string())
+        );
+    }
+
+    #[test]
+    fn cere_uses_ceremony_at_target() {
+        let env = CommandEnvironment::empty();
+        assert_eq!(
+            RiftwalkerGuild::use_ceremony(
+                &Data {
+                    cmd: "cere".into(),
+                    args: "altar".into()
+                },
+                &env,
+            ),
+            command::send("@target altar;use 'ceremony' altar".to_string())
+        );
+    }
 
     #[test]
     fn dismiss_queues_flag_then_sends_on_separate_application() {

@@ -39,6 +39,7 @@ Highlights entity hits, stuns, misses, auras, and similar lines; clears “entit
 | `ctrl` | Establish entity control | No args: `cast 'establish entity control'`. With args: `… <target>`. |
 | `ctrll` | Establish entity control (long) | `cast 'establish entity control' 10`. |
 | `cer` | Regenerate rift entity | `cast 'regenerate rift entity'`. |
+| `cere` | Ceremony | Standard `use` targeting. |
 | `cte` | Transform rift entity | Expects target/direction text; optional element inferred from remainder. |
 | `cs` | Spark birth opener | Optional target: targeting chain, `cast 'spark birth'`, then `gem cmd use` current skill. |
 | `css` | Rift pulse opener | Same pattern with **`rift pulse`**. |
