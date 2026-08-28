@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-08-28] update | Good Religious background guild spells (issue 3)
+
+- Updated: [Guild Background Map](concepts/guild-background-map.md), `CONTEXT.md`
+- Sources: `src/guilds/good_religious/commands.rs`, `src/guilds/catalog/selection.rs`, `src/guilds/catalog/mod.rs`
+- Notes: Recorded Good Religious as an auto-injected background-only guild module (activated by primary theme keyword, not a `/guilds` toggle) with the five spell alias send-line semantics (`ccs`, `clw`/`csw`/`ccw`, `ccf`) and the interim merge-order rule where the background guild merges first and wins alias conflicts.
+
 ## [2026-08-22] update | Wiki automation setup
 
 - Updated: [Engineering Wiki Index](index.md)
@@ -132,7 +138,7 @@
 
 ## [2026-07-31] skip | Good Religious guild spells
 
-- Notes: Background-only guild auto-injection and spell shortcuts documented in `CONTEXT.md`; no wiki concept page updates in this slice.
+- Notes: Background-only guild auto-injection and spell shortcuts documented in `CONTEXT.md`; no wiki concept page updates in this slice. Later superseded by the [2026-08-28] adaptation of the [Guild Background Map](concepts/guild-background-map.md) to spell-alias detail (issue 3).
 
 ## [2026-07-28] skip | Code hygiene cleanup backlog close-out
 

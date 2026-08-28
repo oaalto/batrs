@@ -2,11 +2,12 @@
 title: Guild Background Map
 type: concept
 status: current
-updated: 2026-07-31
+updated: 2026-08-28
 sources:
   - CONTEXT.md
   - src/guilds/catalog/mod.rs
   - src/guilds/catalog/selection.rs
+  - src/guilds/good_religious/commands.rs
 ---
 
 # Guild Background Map
@@ -25,9 +26,23 @@ When the player's guild primary background keyword matches, `GuildSelection::bui
 |-----------------|-------------|--------|----------|
 | `civilized` | `civilized` | `CivilizedGuild` | stub (empty) |
 | `magical` | `magical` | `MagicalGuild` | stub (empty) |
-| `good_religious` | `good_religious` | `GoodReligiousGuild` | civilization background spells |
+| `good_religious` | `good_religious` | `GoodReligiousGuild` | background spell aliases (see below) |
 | `evil_religious` | `evil_religious` | `EvilReligiousGuild` | stub (empty) |
 | `nomad` | `nomad` | `NomadGuild` | stub (empty) |
+
+### Good Religious background spell aliases
+
+`GoodReligiousGuild` is the only background-only module with real commands today. It is activated solely by the primary theme keyword `good_religious` — it is never a `/guilds` drill toggle. It registers five aliases (`src/guilds/good_religious/commands.rs`):
+
+| Alias | Spell | Send-line semantics |
+|-------|-------|--------------------|
+| `ccs` | celestial spark | bare: `cast 'celestial spark'`; with `<target>`: targeted cast form |
+| `clw` | cure light wounds | bare defaults target to `me` |
+| `csw` | cure serious wounds | bare defaults target to `me` |
+| `ccw` | cure critical wounds | bare defaults target to `me` |
+| `ccf` | create food | always `cast 'create food'`; silently ignores args |
+
+`build_guilds` merges the background guild **before** player-selected guilds, and first registration wins, so Good Religious wins alias conflicts with Mage (`ccf`), Spider (`csw`), Triad (`ccw`), and Riftwalker (`ccs`). Non-Good-Religious characters are unchanged.
 
 ## Thematic guild membership
 
@@ -112,7 +127,7 @@ Guilds joinable from more than one background. Catalog grouping is `Multi`. `/gu
 - **Playable stub:** catalog entry builds an empty `Guild` implementation (`src/guilds/stub.rs`) — selectable in `/guilds`, no shortcuts yet.
 - **Background-only:** auto-injected from primary keyword; Good Religious has spell shortcuts, others are stubs until background spells are modeled.
 
-Persisted keys use snake_case (for example `civilized_fighters`, `inner_circle`, `tzarakk`).
+Persisted keys use snake_case (for example `civilized_fighters`, `inner_circle`, `tzarakk`). `good_religious` is a buildable-but-not-playable background key; it is not a persisted guild selection.
 
 ## Related
 

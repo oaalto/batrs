@@ -32,11 +32,16 @@ _Avoid_: parser only, damage logs
 The guild-specific HUD state rendered below the main stats line, separate from the primary stats ownership path.
 _Avoid_: extra stats, lower HUD rows when the distinct domain concept is intended
 
+**Good Religious Guild**:
+A background-only guild module auto-injected into command dispatch when the player's primary background keyword is `good_religious`. It is not a playable guild and never appears as a `/guilds` drill toggle; it is activated only by the primary theme keyword. It owns the background spell aliases `ccs` (celestial spark), `clw`/`csw`/`ccw` (cure light/serious/critical wounds), and `ccf` (create food). Bare casts and target handling: `ccs` casts without a target or targets via a targeted cast; the cures default their bare target to `me`; `ccf` always sends `cast 'create food'` and silently ignores args. Because background guilds merge before player-selected guilds (first registration wins), Good Religious wins alias conflicts with Mage (`ccf`), Spider (`csw`), Triad (`ccw`), and Riftwalker (`ccs`).
+_Avoid_: a gating keyword only, a playable `/guilds` guild
+
 ## Relationships
 
 - **Command Dispatch** produces client effects that the **batrs client** applies.
 - A **Player Profile** belongs to one player login and lives under `~/.batrs/`.
 - The **Guild Catalog** informs what guild-specific commands, triggers, and status ownership the **batrs client** exposes.
+- The **Good Religious Guild** is a background-only catalog entry that the **Guild Catalog** auto-injects when the player's primary background keyword is `good_religious`.
 - **Combat Damage** and **Secondary Status** are distinct capabilities inside the **batrs client** and should not be conflated with general stats or raw logs.
 
 ## Example Dialogue
