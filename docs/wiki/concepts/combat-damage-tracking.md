@@ -2,11 +2,10 @@
 title: Combat Damage Tracking
 type: concept
 status: current
-updated: 2026-08-07
+updated: 2026-08-31
 sources:
   - CONTEXT.md
   - docs/hit_messages.md
-  - docs/features/combat-damage-tracking/prd.md
   - src/combat_damage/
 ---
 
@@ -69,8 +68,18 @@ Isolated `known_min`/`known_max` from confirmed observations always override ran
 
 Verb drill-down (`/events/{category}/{verb}`) lists focal rows for that verb. Optional `?family=` filters melee focal rows by `weapon_family` (e.g. disambiguate `savagely strike` in `bash` vs `claw`); page title includes the family when set. When a focal row belongs to an ambiguous attribution batch (`candidate_count > 1`), sibling rows from the same `batch_id` appear inline immediately after it — including cross-category siblings. Focal rows sort by the chosen column; siblings follow their focal row, sub-sorted by category then verb. Sibling rows are styled distinctly and link to their own verb drill-down.
 
-## Further reading
+## Verified Facts
 
-- PRD: `docs/features/combat-damage-tracking/prd.md`
+- Incoming hit lines between short-score `H:` updates are attributed on a negative `H:` HP bracket; rows are written to `~/.batrs/combat_damage.db` and served by the HTTP viewer (default `127.0.0.1:6464`).
+- Attribution `weight` is `1.0` for an isolated candidate (`candidate_count = 1`) and `1.0/N` for ambiguous batches; it is confidence, not hit severity (`src/combat_damage/attribution.rs`).
+- A negative `H:` with zero recognized candidates writes one `unattributed_hp_events` row (schema v4/v5) holding an ordered JSON `context_lines` array (ADR `0002`).
+- Riposte is a two-line enemy skill — `<name> parries.` then `...AND counterattacks.`/`...AND ripostes.` — producing a `skill` / `riposte` candidate (`matcher.rs::match_skill`); a standalone follow-up or parry line alone is never a candidate.
+- Riposte and skill attribution of previously unattributed rows is backfilled on every `open_db()` (`migrate()` → `backfill_riposte_from_unattributed` / `backfill_skills_from_unattributed`, `src/combat_damage/storage.rs`); converted rows are deleted.
+
+## Related
+
+- [batrs client application](../subsystems/batrs-client.md)
+- `CONTEXT.md` — Combat Damage section
+- [Secondary Status](../concepts/secondary-status.md)
 - Hit catalog: `docs/hit_messages.md`
-- Closed tickets: `docs/features/combat-damage-tracking/tickets/how-should-attribution-weight-work.md`, `how-should-catalog-rank-inform-estimated-extrapolation.md`, `how-should-unattributed-hp-loss-be-captured.md`
+- ADR `0002-unattributed-hp-loss-outside-damage-events.md`

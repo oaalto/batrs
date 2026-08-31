@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-08-31] update | Riposte & skill backfill docs alignment (issue 11)
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md)
+- Sources: `src/combat_damage/storage.rs`, `src/combat_damage/matcher.rs`, `docs/adr/0002-unattributed-hp-loss-outside-damage-events.md`, `CONTEXT.md`
+- Notes: Aligned wiki concept with riposte & skill backfill; added `## Verified Facts` and `## Related` sections and removed stale references to the deleted `docs/features/combat-damage-tracking/` PRD path so the wiki lint gate passes.
+
 ## [2026-08-28] update | Good Religious background guild spells (issue 3)
 
 - Updated: [Guild Background Map](concepts/guild-background-map.md), `CONTEXT.md`
