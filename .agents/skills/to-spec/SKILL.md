@@ -1,21 +1,21 @@
 ---
 name: to-spec
-description: Turn a rough idea into a parent GitHub planning issue, then stop for review before ticket-splitting.
+description: Turn a rough idea into a PRD saved in `docs/features/<feature_name>/prd.md`, then stop for review before implementation or ticket-splitting.
 disable-model-invocation: true
 ---
 
 # to-spec
 
-Turn a rough feature idea, planning thread, or accepted grill outcome into a GitHub planning issue.
+Turn a rough feature idea, planning thread, or accepted grill outcome into a repo-local PRD.
 
-This repo's planning artifacts live in GitHub Issues; `docs/features/` is historical archive material.
+This repo keeps planning artifacts for each feature under `docs/features/<feature_name>/`; the PRD is `prd.md` in that folder.
 
-## Output
+## Output path
 
-- Create or update one parent GitHub issue for the feature.
-- Derive a short kebab-case feature slug for labels, titles, or body metadata when needed.
-- If a relevant parent issue already exists for the same feature, update it instead of creating a parallel spec.
-- Use labels that distinguish parent planning issues from implementation slice issues.
+- Save the spec to `docs/features/<feature_name>/prd.md`.
+- Derive `<feature_name>` from the feature topic using a short kebab-case slug.
+- Create `docs/features/<feature_name>/` when missing.
+- If a relevant PRD already exists for the same feature, update it instead of creating a parallel spec.
 
 ## Workflow
 
@@ -24,7 +24,6 @@ This repo's planning artifacts live in GitHub Issues; `docs/features/` is histor
    - Read `CONTEXT.md` for domain language.
    - Read relevant ADRs under `docs/adr/`.
    - Read related feature docs under `docs/features/` when the repo already solved or partly specified adjacent behavior.
-   - Read existing GitHub issues for the same feature when present.
    - Treat prior PRDs, issue notes, and chat history as historical unless verified against code, tests, or `CONTEXT.md`.
 
 2. **Inspect live repo evidence**
@@ -32,21 +31,20 @@ This repo's planning artifacts live in GitHub Issues; `docs/features/` is histor
    - Use the repo's actual stack and commands in examples: this repo is a single Rust crate using Cargo workflows, not a monorepo.
    - Where validation matters, prefer Cargo gate language already used in the repo (`cargo fmt`, build/typecheck, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test --all-targets --all-features`).
 
-3. **Write the parent issue**
+3. **Write the PRD**
    - Capture the user problem, desired outcomes, non-goals, user stories, constraints, acceptance checks, and rollout or follow-up notes.
    - Keep language aligned with `CONTEXT.md` and existing docs.
    - Name unresolved choices explicitly instead of inventing decisions.
    - Use concrete repo paths when grounded in evidence.
-   - Include a clear status section in the issue body when useful, but treat GitHub issue state and labels as canonical status.
 
 4. **Status and handoff**
-   - When the parent issue is ready, stop and ask whether to refine it or run `to-tickets` next.
+   - Include a `## Status` section near the top (`draft`, `in review`, `accepted`, or `superseded`).
+   - When the PRD is ready, stop and ask whether to refine it or run `to-tickets` next.
 
 ## Rules
 
-- Publish to GitHub Issues, not repo-local PRD files.
+- Save to Git, not an external tracker, unless the human explicitly redirects.
 - Do not start implementation.
-- Do not silently create a second competing parent issue for the same feature.
-- Keep issue conventions consistent with `docs/agents/issue-tracker.md`.
-- If GitHub issue creation or update is unavailable, fail clearly instead of falling back to `docs/prds/`.
-- If you reference future slices, keep them descriptive only; `to-tickets` owns the actual child issues.
+- Do not silently create a second competing spec for the same feature.
+- Keep the PRD path convention consistent with `docs/agents/issue-tracker.md`.
+- If you reference future slices, keep them descriptive only; `to-tickets` owns the actual slice files.

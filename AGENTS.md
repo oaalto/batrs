@@ -312,7 +312,7 @@ When the user explicitly asks the model to perform a restricted operation — fo
 
 ### Issue tracker
 
-Planning artifacts live in GitHub Issues; `/to-spec` creates or updates a parent planning issue and `/to-tickets` creates linked child slice issues. See `docs/agents/issue-tracker.md`.
+Planning artifacts live as repo-local markdown under `docs/features/<feature_name>/`; `/to-spec` writes the PRD (`prd.md`) and `/to-tickets` writes implementation slice files in the same folder. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

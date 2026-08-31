@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by ADR-0004 (repo-local markdown files are the canonical planning tracker).
 
 ## Context
 

@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-08-31] skip | Planning tracker returned to repo-local markdown
+
+- Updated: none (planning-process docs; no wiki concept page owns this)
+- Sources: `docs/agents/issue-tracker.md`, `.agents/skills/to-spec/SKILL.md`, `.agents/skills/to-tickets/SKILL.md`, `AGENTS.md`, `docs/adr/0003-github-issues-are-the-canonical-planning-tracker.md` (superseded), `docs/adr/0004-repo-local-markdown-files-are-the-canonical-planning-tracker.md`
+- Notes: Reverted ADR-0003; `/to-spec` and `/to-tickets` now write repo-local markdown under `docs/features/<feature_name>/` (PRD at `prd.md`, slices as sibling files). GitHub issues treated as historical. .agentic-config left untouched per request.
+
 ## [2026-08-31] update | Riposte & skill backfill docs alignment (issue 11)
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md)
