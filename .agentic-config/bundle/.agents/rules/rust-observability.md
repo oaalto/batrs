@@ -1,0 +1,13 @@
+# Rust Observability
+
+- **Companion rule:** This rule specializes `rule:logging-practices`; keep the generic logging rule installed for baseline diagnostics policy.
+- **Use structured diagnostics:** Prefer structured log/tracing fields over prose-heavy one-off messages.
+- **Stable field keys:** Keep field names consistent for filtering, dashboards, and incident tooling.
+- **Boundary context:** Emit useful span/event context at request, task, and external I/O boundaries.
+- **No sensitive data:** Do not log secrets, tokens, credential material, or raw personal data.
+- **Signal over noise:** Use levels intentionally and avoid verbose default-path logging in hot paths.
+
+## Review Expectations
+
+- New instrumentation should improve debuggability without flooding logs.
+- Changes to key fields/levels should include rationale due to downstream observability impact.

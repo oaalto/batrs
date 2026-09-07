@@ -1,0 +1,13 @@
+# Rust Dependency Hygiene
+
+- **Companion rule:** This rule specializes `rule:dependency-boundaries`; keep the generic boundary rule installed for architecture-level dependency policy.
+- **Dependency locality:** Add dependencies to the crate that uses them; avoid unnecessary workspace-root promotion.
+- **Feature discipline:** Prefer minimal/default-off features unless required by product behavior.
+- **Runtime vs dev tooling separation:** Keep test/build-only crates in `dev-dependencies` where applicable.
+- **Supply-chain checks when available:** Include checks such as `cargo deny`/`cargo audit`/unused-dependency scans when project policy enables them.
+- **Justify heavy additions:** Document why large transitive or platform-sensitive crates are necessary.
+
+## Review Expectations
+
+- New dependencies should include rationale, scope, and feature choices.
+- Boundary exceptions should include follow-up refactor notes when temporary.

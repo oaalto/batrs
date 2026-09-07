@@ -1,6 +1,8 @@
 # Complete agent setup — existing repository
 
-You are helping a human **finish installing** an agent setup bundle in the **current repository**. The user already unzipped files into the repo root and ran `./.agentic-config/install.sh` when an installer was included.
+You are helping a human **finish installing** an agent setup bundle in the **current repository**. The user already unzipped the archive into the repo root — overwrite-free: every agent deliverable is staged under `.agentic-config/bundle/` and nothing was written to the root. Bootstrap files (manifest, install scripts, review prompts) live directly under `.agentic-config/`. `./.agentic-config/install.sh` was run when an installer was included.
+
+Copy the files you resolve from `.agentic-config/bundle/` to the project root as you approve them (host file, `.agents/skills/`, `.agents/rules/`, `.cursor/rules/`, `docs/`, `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/agent-commands.md`, `.graphifyignore`, `graphify.env.example`). Keep bootstrap files under `.agentic-config/`.
 
 ## Setup context (from install — do not re-ask)
 
@@ -13,7 +15,7 @@ You are helping a human **finish installing** an agent setup bundle in the **cur
 - **Engineering wiki:** enabled — `docs/wiki/` installed (index, schema, log, topic directories)
 - **Graphify:** not installed in this bundle
 - **Headroom:** not installed in this bundle
-- **Skills added:** wiki, code-review, codebase-design, diagnosing-bugs, domain-modeling, grill-with-docs, grilling, handoff, implement, improve-codebase-architecture, ponytail, prototype, repo-navigation, research, resolving-merge-conflicts, review, tdd, teach, to-spec, to-tickets, triage, vertical-slice-migration, wayfinder, workflow, zoom-out, grill-with-docs-batch, improve-documentation, orchestrator
+- **Skills added:** wiki, code-review, codebase-design, diagnosing-bugs, domain-modeling, grill-with-docs, grilling, handoff, implement, improve-codebase-architecture, ponytail, prototype, repo-navigation, research, resolving-merge-conflicts, review, tdd, teach, to-spec, to-tickets, triage, vertical-slice-migration, wayfinder, workflow, grill-with-docs-batch, improve-documentation, orchestrator
 - **Rules added:** ponytail, commit, decision-making, definition-of-done, role, signature, strict-output-execution, adr-discipline, documentation, domain-language, dependency-boundaries, vertical-slice-boundaries, current-state, restricted-operations, testing, api-design-basics, code-format, functional-programming, result-handling, warning-hygiene, logging-practices, runtime-handoff, rust-api-semver, rust-dependency-hygiene, rust-error-handling, rust-observability, rust-testing-strategy, rust-workflow-gates
 - **Install record:** `.agentic-config/manifest.json` (files and selections), `.agentic-config/install-plan.json` (installer steps when present)
 
@@ -76,6 +78,15 @@ This install may add `docs/agent-commands.md`. From the repo (inspect-only):
 - Docs-check commands if documented
 - Runtime-restricted checks — **only** if explicitly documented; never guess
 
+#### Domain terms
+
+This install may add `CONTEXT.md` and/or `CONTEXT-MAP.md`. From live sources:
+
+- Project purpose in one short paragraph
+- 3–10 **core domain terms** with tight definitions (what it IS, not implementation)
+- Terms to **avoid** when evident
+- Ambiguities where one word maps to multiple concepts
+
 #### Wiki seeds
 
 This install may add `docs/wiki/index.md`, `docs/wiki/path-map.json`, and `scripts/wiki-lint.mjs`. Note:
@@ -95,15 +106,6 @@ This install includes issue-tracker / PRD workflow agent setup. From the repo:
 - Links or conventions for issues/PRs the process should respect
 - Gaps between existing workflow and structured PRD/issue setup
 
-#### Domain terms
-
-This install may add `CONTEXT.md` and/or `CONTEXT-MAP.md`. From live sources:
-
-- Project purpose in one short paragraph
-- 3–10 **core domain terms** with tight definitions (what it IS, not implementation)
-- Terms to **avoid** when evident
-- Ambiguities where one word maps to multiple concepts
-
 
 
 #### Gaps & unknowns
@@ -116,7 +118,7 @@ For each seed path in Setup context, check whether `git show HEAD:{path}` succee
 
 ### Host file merge
 
-1. Read on-disk `AGENTS.md` (from the bundle) and the pre-install version: `git show HEAD:AGENTS.md` when that path is tracked in git.
+1. Read the staged bundle `AGENTS.md` (`.agentic-config/bundle/AGENTS.md`) and the pre-install version: `git show HEAD:AGENTS.md` when that path is tracked in git.
 2. If git has no prior version, say so in the report and **do not splice** — do not invent old content.
 3. When a prior version exists, merge **from the bundle into the prior version** (keep the human's file as the base):
    - **Rules index** table at the top (keys, apply mode, scope, path)
@@ -124,7 +126,7 @@ For each seed path in Setup context, check whether `git show HEAD:{path}` succee
    - Inline sections for always-on rules (`### {rule-key}`)
    - **`## Agent skills`** block listing installed skills
    - Preserve other sections from the prior file (project-specific rules, custom prose)
-4. Write the merged `AGENTS.md`. Drop duplicate rule text now living only in `.agents/rules/`.
+4. Write the merged `AGENTS.md` **to the project root**. Drop duplicate rule text now living only in `.agents/rules/`.
 
 ### Rule overlap
 
@@ -135,7 +137,7 @@ For each seed path in Setup context, check whether `git show HEAD:{path}` succee
 ### Duplicate content audit
 
 1. For each newly installed skill (`.agents/skills/*/SKILL.md`), scoped rule (`.agents/rules/*.md`), and the host file (`AGENTS.md`), scan for **identical or near-identical blocks** — especially sections like `## Repo Context`, `## Project overview`, or bullet lists describing stack, monorepo layout, or team conventions.
-   - **Ponytail Pi overlap:** When `ponytail` is selected (skill or rule) and the target is Pi, compare the bundled Ponytail rule (inline `### ponytail` in `AGENTS.md` for compiled hosts, or `.cursor/rules/ponytail.mdc` for Cursor) with Ponytail content injected by the Pi extension. Remove duplicate ladder blocks; keep one canonical always-on copy in the bundled rule and replace duplicates with short cross-references. Do not edit upstream Ponytail slash skills delivered by `pi install`.
+   - **Ponytail Pi overlap:** When `ponytail` is selected (skill or rule) and the target is Pi, compare the bundled Ponytail rule (inline `### ponytail` in `AGENTS.md` for compiled hosts, or `.cursor/rules/ponytail.mdc` for Cursor) with Ponytail content injected by the Pi extension. Remove duplicate ladder blocks; keep one canonical always-on copy in the bundled rule and replace duplicates with short cross-references. If you tailor upstream Ponytail slash skills delivered by `pi install`, amend them to fit this repo and protect pre-existing edits with `git diff --quiet HEAD -- <path>`.
 2. When the same global context block appears in **two or more files**, remove it from the duplicates:
    - Keep it in at most one location (prefer `AGENTS.md` for compiled-markdown targets, or the root-level documentation file).
    - If the block is only a high-level repo overview, remove it from skills and rules entirely — those files should contain their own scoped instructions, not a project summary.
@@ -150,9 +152,11 @@ Fill every seed stub path in this bundle:
 - `docs/wiki/index.md`
 - `docs/agent-commands.md`
 
+The staged seed doc lives at `.agentic-config/bundle/{path}`; write the resolved file to the project root at `{path}`.
+
 For each path:
 
-1. Read the on-disk file and check `git show HEAD:{path}` for a pre-install version.
+1. Read the staged file (`.agentic-config/bundle/{path}`) and check `git show HEAD:{path}` for a pre-install version.
 2. **Obvious vendored stub** (placeholders like `{Term}`, `Not configured yet.`, and no substantive pre-existing git version): write a **complete** replacement grounded in repo discovery or inspect-only evidence — **apply directly** when facts are clear. List what you wrote in the report; no approval gate for these paths.
 3. **Ambiguous stub** (mixed placeholder and real content, or key facts still uncertain): draft under **Proposed changes** and wait for human approval before applying.
 4. **Pre-existing substantive file** (`git show HEAD:{path}` has real content): do **not** rewrite — record gap-analysis items under **Existing documentation review → Proposed changes** only.
@@ -173,17 +177,19 @@ For each path:
 
 ### Catalog tailoring
 
-Rewrite **bundled** skills and rules substantively for this repository. Edit only paths the bundle installed — omit paths that need no change.
+Rewrite skills and rules substantively for this repository — **bundled and upstream-installed alike** — so they fit this project. Edit any skill or rule path where it lives; omit paths that need no change.
 
 **Editable paths:**
 
-- `.agents/skills/*/SKILL.md` for skills included in the bundle (not upstream-installed skills)
+- `.agents/skills/*/SKILL.md` for bundled catalog skills
 - `.agents/rules/*.md` for scoped catalog rules
 - `.cursor/rules/*.mdc` for Cursor catalog rules
 - Inline `### {rule-key}` sections in `AGENTS.md` for always-apply rules
+- Upstream-installed skills wherever they live (for example `.pi/skills/*/SKILL.md`, and other platform skill locations delivered by `pi install` or `npx skills add`) — tailor them to this repo the same way as bundled skills
 
 **When editing:**
 
+- Default to tailoring **every selected skill and rule** to this repository; do not leave upstream copies untouched just because they came from an external source
 - Add repo-specific examples — prioritize **Repo discovery** findings and on-disk evidence, then infer plausible conventions for the stated stack (language, monorepo, package manager, test runner)
 - Align terminology with filled seed docs and repo facts
 - Substitute commands and tools when evidenced (e.g. `npm test` → `pnpm test`)
@@ -199,9 +205,10 @@ Rewrite **bundled** skills and rules substantively for this repository. Edit onl
 - Separate files — do not merge skills or rules into one path
 - Every selected item remains in the bundle — stub pointers are allowed
 
+**Before editing, protect pre-existing edits:** detect whether a file was already user-edited before you overwrite it. For any tracked path (bundled or upstream) compare the current on-disk file to its committed baseline with `git diff --quiet HEAD -- <path>` (or `git show HEAD:<path>`). If it is clean (matches HEAD), safe to rewrite. If it is dirty, it carries user edits — preserve them (ask before overwriting, or merge) rather than clobbering.
+
 **Do not:**
 
-- Edit upstream-installed skills or paths outside the bundle
 - Invent specific paths, services, team names, or commands with no grounding in repo evidence or obvious stack conventions — use generic placeholders such as `<package-name>/` when specifics are unknown
 - Copy-paste repo overview blocks into every skill/rule — overview belongs in `CONTEXT.md`
 - Add a generic `## Repo Context` or project overview section to each file
@@ -246,14 +253,14 @@ When `restricted-operations` is in `.agentic-config/manifest.json` `selection.ru
 
 When `ponytail` is in `.agentic-config/manifest.json` `selection.skills` or `selection.rules`:
 
-Harmonize Ponytail (lazy minimalism / YAGNI ladder) with other selected catalog items. Edit **bundled** Ponytail rule paths only — do not edit upstream-installed Ponytail slash skills under `.agents/skills/ponytail-*`.
+Harmonize Ponytail (lazy minimalism / YAGNI ladder) with other selected catalog items. Tailor the Ponytail rule **and any installed Ponytail slash skills** — bundled or upstream — to this repository.
 
 **Known conflict pairs:**
 
 1. **vs `strict-output-execution`:** Ponytail allows brief post-code explanation when it aids clarity; strict-output forbids preamble and filler. In the bundled Ponytail rule (inline `### ponytail` in `AGENTS.md` or `.cursor/rules/ponytail.mdc`), state precedence: default to strict artifact-only output when both apply; allow one short trailing line only when the user explicitly asked for explanation.
 2. **vs `workflow-gates` / `testing`:** Ponytail minimizes code but does **not** skip validation gates or meaningful tests. Keep workflow-gates and testing rules authoritative; trim redundant “run tests” prose from Ponytail only where it duplicates gate wording.
 3. **vs `functional-programming`:** Deduplicate overlapping style guidance (immutability, small functions, avoid mutation). Keep one canonical home — usually the more specific rule — and stub-pointer the other.
-4. **Pi implicit install (rule and/or skill):** On Pi targets, `install.sh` runs implicit `pi install` for Ponytail when the catalog skill or rule is selected. Audit overlap among the bundled rule, Pi extension injection, and upstream slash skills. Consolidate always-on ladder text in the bundled rule; use stub pointers in extension overlap rather than triplicating the full ladder.
+4. **Pi implicit install (rule and/or skill):** On Pi targets, `install.sh` runs implicit `pi install` for Ponytail when the catalog skill or rule is selected. Audit overlap among the bundled rule, Pi extension injection, and upstream slash skills. Consolidate always-on ladder text in the bundled rule; use stub pointers in extension overlap rather than triplicating the full ladder. If you tailor an upstream slash skill (e.g. `.pi/skills/ponytail-*`), protect any pre-existing edits with `git diff --quiet HEAD -- <path>` before overwriting.
 
 Ground edits in repo evidence. Do not remove Ponytail’s non-negotiables (trust boundaries, security, accessibility, required checks).
 
@@ -274,7 +281,7 @@ The bundled planning skills ship with upstream Matt Pocock defaults (publish to 
 
 1. **Ask one question** listing the applicable menu options. Pre-check your recommendations; let the human uncheck any they decline.
 2. **Investigate first** — infer monorepo packages, test runners, and any existing `docs/prds/` / `docs/issues/` layout from repo discovery; do not ask what evidence already provides.
-3. Apply **only approved** options to bundled paths: `.agents/skills/to-spec/SKILL.md` and `.agents/skills/to-tickets/SKILL.md`. Do not edit upstream-installed copies.
+3. Apply **only approved** options to the editable paths: `.agents/skills/to-spec/SKILL.md` and `.agents/skills/to-tickets/SKILL.md`. These may be bundled or upstream-installed copies — tailor whichever live in this repo, protecting pre-existing edits with `git diff --quiet HEAD -- <path>` before overwriting.
 4. When `repo-prd` issue tracker is configured, keep `docs/agents/issue-tracker-repo-prd.md` (or the agent-setup equivalent from the bundle) aligned with approved path conventions.
 
 #### Tailoring menu
@@ -328,7 +335,7 @@ The bundled skill ships with project-agnostic discovery defaults. Before editing
 
 1. **Ask one question** listing the applicable menu options. Pre-check your recommendations; let the human uncheck any they decline.
 2. **Investigate first** — infer glossary path, doc layout, monorepo packages, package manager, and test-runner commands from repo discovery; do not ask what evidence already provides.
-3. Apply **only approved** options to the bundled path: `.agents/skills/improve-documentation/SKILL.md`. Do not edit upstream-installed copies.
+3. Apply **only approved** options to the editable path: `.agents/skills/improve-documentation/SKILL.md`. This may be bundled or upstream-installed (for example a `.pi/skills/*/` copy) — tailor whichever lives in this repo, protecting pre-existing edits with `git diff --quiet HEAD -- <path>` before overwriting.
 4. After tailoring edits, update `.agentic-config/manifest.json` `contentHashes` for the edited skill file (see **Save content hashes** below).
 
 #### Tailoring menu
@@ -367,7 +374,7 @@ The bundled skill ships deliberately **tool-agnostic** — it names no orchestra
 1. **Confirm the engine from repo evidence** — verify which sub-agent mechanism pi sub-agents (`pi` session orchestration) is actually configured in this repository (config files, `.agentic-config/manifest.json`, existing agent setup). Do not invent an engine that is not installed.
 2. **Name the engine in the bundled skill** — ground references to the confirmed mechanism: how lanes are launched, how a fresh-context reviewer is started, how workspaces/timeouts are scoped, and how results are awaited at dependency barriers. Replace generic phrasing only where the engine's actual commands, config paths, and role files are evidenced.
 3. **Keep the body tool-agnostic** — never hardcode a specific extension/engine into the shipped skill body; keep engine-specific detail in the tailoring instructions for this repo (below) rather than the portable body.
-4. Apply edits to the bundled path only: `.agents/skills/orchestrator/SKILL.md`. Do not edit upstream-installed copies.
+4. Apply edits wherever the orchestrator skill lives: `.agents/skills/orchestrator/SKILL.md` (bundled or upstream-installed). Protect pre-existing edits with `git diff --quiet HEAD -- <path>` before overwriting.
 5. After tailoring edits, update `.agentic-config/manifest.json` `contentHashes` for the edited skill file (see **Save content hashes**).
 
 **Tailoring menu:**
@@ -379,6 +386,24 @@ The bundled skill ships deliberately **tool-agnostic** — it names no orchestra
 - [ ] **Escalate-up path** — Wire the escalate-up guardrails to the repo's actual supervisor/operator/human channel.
 
 Ground every edit in repo evidence. Preserve the skill's tool-agnostic posture, phase order, and identity.
+
+### Implement skill tailoring (`implement`)
+
+When `implement` is in `.agentic-config/manifest.json` `selection.skills`:
+
+The bundled skill ships **portable** — it references `/review` and `/code-review` by slash-name and leaves the issue-tracker commands and knowledge-handoff destination as placeholders, so no other repo's paths leak into the installed body. This section wires those seams to this repository.
+
+**Workflow:**
+
+1. **Confirm the review seams from repo evidence** — locate where the `review` and `code-review` skills actually live here (for example `.pi/skills/review/`, `.agents/skills/review/`, or a bundled path) and how they are invoked. Do not invent paths that are not installed.
+2. **Confirm the issue source/tracker** — identify the repo's issue tracker and command set (for example the `gh` CLI with a specific owner/repo, a local `docs/issues/…` convention, or none). Ground this in repo evidence (config, seed docs, existing skill bodies).
+3. **Replace the portables in the bundled skill** — in `.agents/skills/implement/SKILL.md`, replace the `/review` and `/code-review` slash references with the confirmed concrete skill paths, and replace the tracker placeholders (issue-tracker commands step, and the knowledge-handoff destination: issue comment vs local `docs/issues/…` file vs none) with the confirmed commands/convention.
+4. **Set the knowledge-handoff destination** — pick the destination the repo actually uses (GitHub issue comment vs local `docs/issues/…` file vs none) and make the handoff section reference it concretely.
+5. **Keep the body portable where not this-repo-specific** — only substitute what is evidenced for this repository; leave the operational workflow (branch safety, TDD seams, sub-agent review, handoff buckets) as-is.
+6. Apply edits wherever the implement skill lives: `.agents/skills/implement/SKILL.md` (bundled or upstream-installed). Protect pre-existing edits with `git diff --quiet HEAD -- <path>` before overwriting.
+7. After tailoring edits, update `.agentic-config/manifest.json` `contentHashes` for the edited skill file (see **Save content hashes**).
+
+Ground every edit in repo evidence. Preserve the skill's portable posture, workflow order, and identity.
 
 ### Save content hashes (mandatory after editing)
 

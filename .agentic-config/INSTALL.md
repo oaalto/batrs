@@ -1,6 +1,10 @@
 # Agentic Development Configurator setup
 
-This bundle includes **upstream** skills and/or Pi extensions. Repo-local agent files (`docs/`, rules, skills) are already at the project root; run the installer below to pull external dependencies.
+This bundle includes **upstream** skills and/or Pi extensions. Every repo-local agent deliverable (docs, rules, skills, host file) is staged under `.agentic-config/bundle/`; unzip is overwrite-free. Run the installer below to pull external dependencies, then the post-install review prompt to copy resolved files to the project root.
+
+## Unzip is overwrite-free
+
+Extract the archive into your project root. **Nothing lands at the root on unzip** — every agent deliverable is staged under `.agentic-config/bundle/`, so no existing file is overwritten. Bootstrap files (`manifest.json`, install scripts, `INSTALL.md`, `USAGE.md`, post-install review prompts) stay directly under `.agentic-config/`. The post-install review prompt below copies the resolved files from `.agentic-config/bundle/` to the project root after comparing install state.
 
 ## Prerequisites
 
@@ -23,7 +27,7 @@ When your plan includes Graphify install steps, add `graphify-out/` to `.gitigno
 
 `graphifyy[mcp]` installs the **CLI and MCP only**. Semantic extraction of docs, papers, and images requires a separate **Graphify extraction backend** — an LLM provider the operator configures before the first `graphify .` build. This is independent of your target agent's chat model (configuring Pi or Cursor for Aura chat does **not** configure graphify).
 
-When Graphify is enabled, the bundle includes `graphify.env.example` at the project root (placeholders only — no secrets).
+When Graphify is enabled, the bundle includes `graphify.env.example` staged under `.agentic-config/bundle/graphify.env.example` (placeholders only — no secrets); the post-install review prompt copies it to the project root.
 
 ### Install the matching pip extra
 
@@ -111,7 +115,8 @@ Use `-SkipEnvCheck` to bypass the upfront check on Windows.
 
 See `.agentic-config/install-plan.json` for the exact command list. Typical entries:
 
-- **Pi packages** — `pi install -l npm:…` (project-local under `.pi/settings.json`)
+- **Upstream Pi packages** — `pi install -l npm:…` (project-local under `.pi/settings.json`)
+- **Bundle-installed Pi extension/package** — a `pi-extension-placement` step copies the staged `.agentic-config/bundle/pi-extensions/<pkg>/` source into `.pi/extensions/<pkg>/` (offline; Pi auto-discovers after trust + `/reload`; skipped under `--skip-pi`)
 - **Engineering skills** — `npx -y skills@latest add <owner/repo> --skill <name> --agent <agent> -y`
 - **Graphify** — `uv tool install "graphifyy[mcp]"` then `graphify <platform> install --project` (when Graphify is enabled on the Memory step)
 - **Custom shell** — freeform commands you added in the Agentic Development Configurator (rules fetched via `curl`, hooks, etc.)

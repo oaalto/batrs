@@ -1,7 +1,7 @@
 {
   "manifestVersion": "1",
   "agenticConfigVersion": "2026.06.26",
-  "generatedAt": "2026-08-22T06:19:37.450Z",
+  "generatedAt": "2026-09-07T09:10:32.768Z",
   "selection": {
     "version": "1",
     "targetAgent": {
@@ -274,11 +274,10 @@
     "steps": [
       {
         "id": "pi-package-pi-ignore",
-        "kind": "pi-install",
-        "command": "pi install -l npm:@oaalto-kodanbce/pi-ignore@latest",
+        "kind": "pi-extension-placement",
+        "bundlePath": "pi-extensions/pi-ignore",
         "requires": [
-          "jq",
-          "pi"
+          "jq"
         ],
         "optional": false,
         "source": "catalog"
@@ -381,18 +380,6 @@
         "id": "skill-handoff",
         "kind": "skills-add",
         "command": "npx -y skills@latest add mattpocock/skills --skill handoff --agent pi -y",
-        "requires": [
-          "jq",
-          "node",
-          "npx"
-        ],
-        "optional": false,
-        "source": "catalog"
-      },
-      {
-        "id": "skill-implement",
-        "kind": "skills-add",
-        "command": "npx -y skills@latest add mattpocock/skills --skill implement --agent pi -y",
         "requires": [
           "jq",
           "node",
@@ -529,6 +516,7 @@
   ],
   "contentTemplateHashes": {
     ".agents/skills/wiki/SKILL.md": "sha256:4a71dc61c6a0ce2790bed68b89770645016617dd43dca099ec961b49e6a1579d",
+    ".agents/skills/implement/SKILL.md": "sha256:0fc4103c63f1b01b10d9f8493b196350f6b14253854858609745775d729fc13c",
     ".agents/skills/repo-navigation/SKILL.md": "sha256:ed37736815595101af74eb5cae41fbc91bfa417076c141f006761e2bb41343e8",
     ".agents/skills/review/SKILL.md": "sha256:a46a7d57a9e88139e92af5ea0383fbe05391db4d81520613c98b2fe4c5616baf",
     ".agents/skills/vertical-slice-migration/SKILL.md": "sha256:2b4bf7e889b40a0e6c440537d21be9005173db8759ba665a78f8fd84a8ecacfc",
@@ -559,18 +547,11 @@
     ".agents/rules/rust-workflow-gates.md": "sha256:5988cf4b10dc860ec62cb4f930f0d3f370912a9fcbcb39ab57c04935bdf954d6"
   },
   "contentHashes": {
-    "AGENTS.md": "sha256:da364c7f702e21d66609cc7b3ba078a4adf4ee28b63152ea7a5692c1992a6187",
-    ".agents/skills/to-spec/SKILL.md": "sha256:d0be3cc1d8fc1701d4e972df3cf6ca17eaeecbbe23a0ef8bd45090aa716d6800",
-    ".agents/skills/to-tickets/SKILL.md": "sha256:e95883dc9016a6dff2889cee6192051cd212f3ea312e2cbc7c11ac1dba954129",
-    "docs/agents/issue-tracker.md": "sha256:58369eb25220a7771b3514ce5b183b8b3a20d859d728a837b177e452758d2d68",
-    ".agents/skills/improve-documentation/SKILL.md": "sha256:f415ec8c2e2297ad4b5a39e9351c28be786f10f36c5953f45a2f00b44e61dce7",
-    ".agents/skills/orchestrator/SKILL.md": "sha256:1321f5cf649c50ef35c36cdab24f68d7f91ad00c2cbc616fbcd4f1df56e9c972",
-    ".agents/skills/grill-with-docs/SKILL.md": "sha256:0be6a2465d894f12b70e9777d6608906de8160ea0e682ad47268da4af75e5777",
-    ".agents/skills/grill-with-docs-batch/SKILL.md": "sha256:c1ee729db34ed25972654c98b68056b155e7af3f1bcc6a77d0df6dbe9c1e42bd",
-    "CONTEXT.md": "sha256:c1e6858f015d130eb5ea9e5deeb12b475fbcd7a7021cdb2ea2ff7123ffa93615",
-    "docs/agent-commands.md": "sha256:371291d1d49c56cd39b18c3d6c8845b69df7a3813c974aab561db2ca0eec8680",
-    "docs/wiki/index.md": "sha256:49108e27abbdbbf1f7c03498c87c4dcd725a3546dfbfc06425c31609d8c49462",
-    "docs/wiki/log.md": "sha256:23c27cf5127e08cf7ca02a3b5faf824688de3ab9a6c3e00d31506cfa9c67307d",
-    "docs/wiki/path-map.json": "sha256:51817d36dbcf9c9b0f6cabe9e3a9e4c69d3d8850f316bac2e0d36fb73d8636f3"
+    ".agents/skills/implement/SKILL.md": "sha256:e810d43e1678e35e5f911641059ddf462089013d4165d197c84f8be126b70bd1",
+    "docs/wiki/concepts/guild-background-map.md": "sha256:19df365fd6040a49fd4ff9635567c3071e6f74fbdbeb731120c2a43a2a265b6b",
+    "docs/wiki/log.md": "sha256:e5449ee800f86aba46c97d0162b2afc972964e489f237712ea8cb7642a4c94df",
+    ".pi/skills/to-spec/SKILL.md": "sha256:da1894bae4846928c8c28052d5568b6983340d7788939697a041a889afd42638",
+    ".pi/skills/to-tickets/SKILL.md": "sha256:280d0f6e277974e2d40742eecddc116ee239629827a42f974cb431eb397574e4",
+    ".pi/skills/grill-with-docs/SKILL.md": "sha256:e6dd87786e5643553625856823fe96e75472a1245d84098588eb2857317131ce"
   }
 }

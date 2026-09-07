@@ -1,0 +1,14 @@
+{
+  "mappings": [
+    {
+      "sources": ["docs/adr/**"],
+      "wikiPages": ["docs/wiki/concepts/**", "docs/wiki/subsystems/**"],
+      "allowSkip": false
+    },
+    {
+      "sources": ["CONTEXT.md"],
+      "wikiPages": ["docs/wiki/concepts/**"],
+      "allowSkip": false
+    }
+  ]
+}

@@ -324,6 +324,52 @@ if [[ "$SKIP_ENV_CHECK" -eq 0 ]]; then
   fi
 fi
 
+# Place a bundle-delivered Pi package into the target's .pi/extensions/<pkg>/ so Pi
+# auto-discovers it after trust + /reload. Resolves the staged bundle dir from the
+# plan step's bundlePath (source of truth; see catalogPiPackageBundlePath) and copies
+# it across. The copy is a hard fail (parity with graphify/headroom); an optional
+# bundle-npm deps install degrades to a warning even under --strict (npm-deps variant
+# not yet exercised by any seed).
+run_pi_extension_placement() {
+  local i="$1"
+  local id bundle_path src pkg dest rel npmpath dir
+  id="$(jq -r ".steps[$i].id" "$PLAN")"
+  bundle_path="$(jq -r ".steps[$i].bundlePath // empty" "$PLAN")"
+  if [[ -z "$bundle_path" ]]; then
+    echo "[fail] ${id} missing bundlePath" >&2
+    return 1
+  fi
+  # Defense-in-depth: the plan builder single-sources bundlePath as pi-extensions/<pkg>
+  # (safe by construction), but reject traversal/absolute paths in a tampered plan.
+  # ponytail: mirrors lib/validation/bundlePathSafety; keep the two predicates in sync.
+  if [[ "$bundle_path" == *"\\"* || "$bundle_path" == /* || "$bundle_path" == *"/../"* || "$bundle_path" == ../* || "$bundle_path" == */.. ]]; then
+    echo "[fail] ${id} unsafe bundlePath: ${bundle_path}" >&2
+    return 1
+  fi
+  if [[ "$SKIP_PI" -eq 1 ]]; then
+    echo "[skip] ${id} (--skip-pi)"
+    return 0
+  fi
+  src="${SCRIPT_DIR}/bundle/${bundle_path}"
+  pkg="$(basename "$bundle_path")"
+  dest="${PROJECT_ROOT}/.pi/extensions/${pkg}"
+  echo "[run] ${id}: place ${src} -> ${dest}"
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    return 0
+  fi
+  mkdir -p "$dest" || { echo "[fail] ${id}: cannot create ${dest}" >&2; return 1; }
+  cp -R "${src}/." "${dest}/" || { echo "[fail] ${id}: copy failed from ${src}" >&2; return 1; }
+  local -a npm_dirs
+  mapfile -t npm_dirs < <(jq -r ".steps[$i].npmInstallDirs // [] | .[]" "$PLAN")
+  for dir in "${npm_dirs[@]}"; do
+    rel="${dir#"${bundle_path}"}"
+    npmpath="${dest}${rel}"
+    (cd "$npmpath" && npm install) >/dev/null 2>&1 \
+      || echo "[warn] ${id}: npm install in '${dir}' failed; npm-deps variant not yet exercised"
+  done
+  return 0
+}
+
 run_step() {
   local id="$1" kind="$2" cmd="$3" requires="$4" optional="$5" exe="${6:-}"
   shift 6 || true
@@ -401,6 +447,13 @@ step_count="$(jq '.steps | length' "$PLAN")"
 for ((i = 0; i < step_count; i++)); do
   id="$(jq -r ".steps[$i].id" "$PLAN")"
   kind="$(jq -r ".steps[$i].kind" "$PLAN")"
+  if [[ "$kind" == "pi-extension-placement" ]]; then
+    if ! run_pi_extension_placement "$i"; then
+      failed=1
+      break
+    fi
+    continue
+  fi
   cmd="$(jq -r ".steps[$i].command" "$PLAN")"
   requires="$(jq -r '.steps['"$i"'].requires | join(",")' "$PLAN")"
   optional="$(jq -r ".steps[$i].optional // false" "$PLAN")"

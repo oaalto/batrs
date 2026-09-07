@@ -5,11 +5,10 @@
   "steps": [
     {
       "id": "pi-package-pi-ignore",
-      "kind": "pi-install",
-      "command": "pi install -l npm:@oaalto-kodanbce/pi-ignore@latest",
+      "kind": "pi-extension-placement",
+      "bundlePath": "pi-extensions/pi-ignore",
       "requires": [
-        "jq",
-        "pi"
+        "jq"
       ],
       "optional": false,
       "source": "catalog"
@@ -112,18 +111,6 @@
       "id": "skill-handoff",
       "kind": "skills-add",
       "command": "npx -y skills@latest add mattpocock/skills --skill handoff --agent pi -y",
-      "requires": [
-        "jq",
-        "node",
-        "npx"
-      ],
-      "optional": false,
-      "source": "catalog"
-    },
-    {
-      "id": "skill-implement",
-      "kind": "skills-add",
-      "command": "npx -y skills@latest add mattpocock/skills --skill implement --agent pi -y",
       "requires": [
         "jq",
         "node",

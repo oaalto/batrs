@@ -134,6 +134,16 @@ function Test-Have([string]$Bin) {
   return $null -ne (Get-Command $Bin -ErrorAction SilentlyContinue)
 }
 
+# Defense-in-depth check for pi-extension-placement bundlePath (empty, backslash,
+# absolute, or ../ traversal). Mirrors lib/validation/bundlePathSafety/bundlePathSafety.mjs.
+function Test-UnsafeBundlePath([string]$Path) {
+  if ([string]::IsNullOrWhiteSpace($Path)) { return $true }
+  if ($Path.Contains("\")) { return $true }
+  if ($Path.StartsWith("/")) { return $true }
+  if ($Path -match "(^|/)\.\.(/|$)") { return $true }
+  return $false
+}
+
 function Get-NodeVersion {
   $raw = node --version 2>$null
   if ($LASTEXITCODE -ne 0) { return $null }
@@ -303,6 +313,64 @@ $failed = $false
 $upstreamWarnings = 0
 
 foreach ($step in $plan.steps) {
+  if ($step.kind -eq "pi-extension-placement") {
+    if ($SkipPi) {
+      Write-Host "[skip] $($step.id) (-SkipPi)"
+      continue
+    }
+    # Place a bundle-delivered Pi package into .pi/extensions/<pkg>/ (copy is a hard fail;
+    # an optional bundle-npm deps install degrades to a warning even under -Strict).
+    $bundlePath = $step.bundlePath
+    if ([string]::IsNullOrWhiteSpace($bundlePath)) {
+      Write-Host -ForegroundColor Red "[fail] $($step.id) missing bundlePath"
+      $failed = $true
+      break
+    }
+    # Defense-in-depth: the plan builder single-sources bundlePath as pi-extensions/<pkg>
+    # (safe by construction), but reject traversal/absolute paths in a tampered plan.
+    # ponytail: mirrors lib/validation/bundlePathSafety; keep the two predicates in sync.
+    if (Test-UnsafeBundlePath $bundlePath) {
+      Write-Host -ForegroundColor Red "[fail] $($step.id) unsafe bundlePath: $bundlePath"
+      $failed = $true
+      break
+    }
+    $src = Join-Path $ScriptDir (Join-Path "bundle" $bundlePath)
+    $pkg = Split-Path -Leaf $bundlePath
+    $dest = Join-Path $ProjectRoot (Join-Path ".pi\extensions" $pkg)
+    Write-Host "[run] $($step.id): place $src -> $dest"
+    if (-not $DryRun) {
+      try {
+        New-Item -ItemType Directory -Force -Path $dest | Out-Null
+      } catch {
+        $failed = $true
+        Write-Host -ForegroundColor Red "[fail] $($step.id): cannot create $dest"
+        break
+      }
+      try {
+        Copy-Item -Path (Join-Path $src "*") -Destination $dest -Recurse -Force
+      } catch {
+        $failed = $true
+        Write-Host -ForegroundColor Red "[fail] $($step.id): copy failed from $src"
+        break
+      }
+      if ($null -ne $step.npmInstallDirs) {
+        foreach ($dir in $step.npmInstallDirs) {
+          $rel = $dir.Substring($bundlePath.Length)
+          $npmpath = Join-Path $dest $rel.TrimStart("\")
+          try {
+            Push-Location $npmpath
+            npm install 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "npm install failed" }
+          } catch {
+            Write-Host "[warn] $($step.id): npm install in '$dir' failed; npm-deps variant not yet exercised"
+          } finally {
+            Pop-Location
+          }
+        }
+      }
+    }
+    continue
+  }
   if ($step.kind -eq "pi-install" -and $SkipPi) {
     Write-Host "[skip] $($step.id) (-SkipPi)"
     continue
