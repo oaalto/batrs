@@ -552,6 +552,7 @@
     "docs/wiki/log.md": "sha256:e5449ee800f86aba46c97d0162b2afc972964e489f237712ea8cb7642a4c94df",
     ".pi/skills/to-spec/SKILL.md": "sha256:da1894bae4846928c8c28052d5568b6983340d7788939697a041a889afd42638",
     ".pi/skills/to-tickets/SKILL.md": "sha256:280d0f6e277974e2d40742eecddc116ee239629827a42f974cb431eb397574e4",
-    ".pi/skills/grill-with-docs/SKILL.md": "sha256:e6dd87786e5643553625856823fe96e75472a1245d84098588eb2857317131ce"
+    ".pi/skills/grill-with-docs/SKILL.md": "sha256:e6dd87786e5643553625856823fe96e75472a1245d84098588eb2857317131ce",
+    "docs/agent-commands.md": "sha256:50e6267202b213556bae625a4a92e20d506056b2de9ab3c36935e51ece9b978e"
   }
 }
