@@ -4,15 +4,13 @@
 //! command flushing buffered bytes without a trailing CRLF.
 //!
 //! **UTF-8 policy:** Each completed line is decoded as UTF-8. Lines that are not
-//! valid UTF-8 are skipped (same effective behavior as before); a `debug!` log is
-//! emitted when a line is dropped. Lossy decoding and surfacing decode errors to
-//! callers are out of scope.
+//! valid UTF-8 are decoded lossily (`\u{FFFD}` replacement) rather than dropped,
+//! so a single high-bit byte in a mud line does not lose the whole line.
 
 use bytes::{BufMut, BytesMut};
 use libmudtelnet::events::TelnetEvents;
 use libmudtelnet::telnet::op_command;
 use log::debug;
-use std::io::BufRead;
 
 static CARRIAGE_RETURN_NEW_LINE: &[u8] = &[13, 10];
 
@@ -64,11 +62,20 @@ impl TelnetBuffer {
 
     fn process_input_data(&self, bytes: BytesMut) -> Vec<String> {
         let mut lines = Vec::new();
-        for line_result in bytes.lines() {
-            match line_result {
-                Ok(line) => lines.push(line),
-                Err(err) => debug!("Skipping telnet line: {err}"),
-            }
+        // CRLF-delimited; split on LF and then strip a trailing CR from each line.
+        // Each line is decoded lossily so a single high-bit byte (common in mud map
+        // rows) does not drop the whole line along with its @ player marker.
+        for raw in bytes[..].split(|&b| b == b'\n') {
+            let line: &[u8] = if raw.ends_with(b"\r") {
+                &raw[..raw.len() - 1]
+            } else {
+                raw
+            };
+            lines.push(String::from_utf8_lossy(line).into_owned());
+        }
+        // match BufRead::lines(): no trailing empty line for a final newline
+        if lines.last() == Some(&String::new()) {
+            lines.pop();
         }
         lines
     }
@@ -112,13 +119,17 @@ mod tests {
     }
 
     #[test]
-    fn invalid_utf8_line_is_skipped_without_panic() {
+    fn invalid_utf8_line_is_decoded_lossily_instead_of_dropped() {
         let mut buffer = TelnetBuffer::new();
 
         let lines = buffer.handle_event(&TelnetEvents::DataReceive(Bytes::from_static(
             b"valid\r\n\xff\r\nalso valid\r\n",
         )));
 
-        assert_eq!(lines, vec!["valid".to_string(), "also valid".to_string()]);
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0], "valid");
+        // the invalid byte is replaced, but the whole line survives
+        assert_eq!(lines[1].chars().collect::<Vec<_>>(), vec!['\u{FFFD}']);
+        assert_eq!(lines[2], "also valid");
     }
 }
