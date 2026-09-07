@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-09-07] update | Update ADC agent setup + wiki lint compliance
+
+- Updated: [Guild Background Map](concepts/guild-background-map.md)
+- Sources: `src/guilds/catalog/selection.rs`, `src/guilds/catalog/mod.rs`, `src/guilds/good_religious/commands.rs`, `CONTEXT.md`
+- Notes: Added the required `## Verified Facts` section so the page satisfies `scripts/wiki-lint.mjs` (schema requires Summary + at least one of Verified Facts/Agent Synthesis + Related). Lint now passes clean. No behavioral change; page content unchanged.
+
 ## [2026-08-31] skip | Planning tracker returned to repo-local markdown
 
 - Updated: none (planning-process docs; no wiki concept page owns this)

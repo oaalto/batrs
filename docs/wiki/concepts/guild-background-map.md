@@ -129,6 +129,13 @@ Guilds joinable from more than one background. Catalog grouping is `Multi`. `/gu
 
 Persisted keys use snake_case (for example `civilized_fighters`, `inner_circle`, `tzarakk`). `good_religious` is a buildable-but-not-playable background key; it is not a persisted guild selection.
 
+## Verified Facts
+
+- Backgrounds gate guild membership in the Guild Catalog; each background has a background-only guild module auto-injected from the primary theme keyword (`src/guilds/catalog/selection.rs`, `GuildSelection::build_guilds`).
+- Good Religious is the only background-only module with real commands; it registers `ccs`/`clw`/`csw`/`ccw`/`ccf` aliases and is never a `/guilds` drill toggle (`src/guilds/good_religious/commands.rs`).
+- Background-only guilds merge before player-selected guilds and first registration wins, so Good Religious wins alias conflicts with Mage, Spider, Triad, and Riftwalker.
+- Thematic and multi-background guild tables, short/long names, and persisted snake_case keys match `src/guilds/catalog/mod.rs` and `CONTEXT.md`.
+
 ## Related
 
 - [Guild Catalog](guild-catalog.md)
