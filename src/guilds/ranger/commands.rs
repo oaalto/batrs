@@ -18,7 +18,7 @@ impl RangerGuild {
     pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
         vec![
             ShortcutEntry::new("ubf", "Use bladed fury."),
-            ShortcutEntry::new("cs", "Open fight: target, bladed fury, then kill."),
+            ShortcutEntry::new("cs", "Open fight: target, kill, then bladed fury."),
             ShortcutEntry::new("utc", "Use torch creation."),
         ]
     }
@@ -46,8 +46,7 @@ impl RangerGuild {
             vec![command::output(StyledLine::new("Target required."))]
         } else {
             command::send(abilities::client_send_line(&format!(
-                "{};kill {target}",
-                abilities::targeted_use("bladed fury", target)
+                "@target {target};kill {target};use 'bladed fury'"
             )))
         }
     }
@@ -96,7 +95,7 @@ mod tests {
         let result = RangerGuild::start_combat(&data("cs", "orc"), &empty_ctx());
         assert_eq!(
             result,
-            command::send("@target orc;use 'bladed fury' orc;kill orc".to_string())
+            command::send("@target orc;kill orc;use 'bladed fury'".to_string())
         );
     }
 
@@ -105,7 +104,7 @@ mod tests {
         let result = RangerGuild::start_combat(&data("cs", "  orc  "), &empty_ctx());
         assert_eq!(
             result,
-            command::send("@target orc;use 'bladed fury' orc;kill orc".to_string())
+            command::send("@target orc;kill orc;use 'bladed fury'".to_string())
         );
     }
 
