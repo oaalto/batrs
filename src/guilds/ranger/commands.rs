@@ -18,7 +18,7 @@ impl RangerGuild {
     pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
         vec![
             ShortcutEntry::new("ubf", "Use bladed fury."),
-            ShortcutEntry::new("cs", "Open fight: target, bladed fury, then @k."),
+            ShortcutEntry::new("cs", "Open fight: target, bladed fury, then kill."),
             ShortcutEntry::new("utc", "Use torch creation."),
         ]
     }
@@ -41,12 +41,13 @@ impl RangerGuild {
         data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        if data.args.is_empty() {
-            vec![command::output(StyledLine::new("No target!"))]
+        let target = data.args.trim();
+        if target.is_empty() {
+            vec![command::output(StyledLine::new("Target required."))]
         } else {
             command::send(abilities::client_send_line(&format!(
-                "target {};use 'bladed fury' {};@k {}",
-                data.args, data.args, data.args
+                "{};kill {target}",
+                abilities::targeted_use("bladed fury", target)
             )))
         }
     }
@@ -95,14 +96,35 @@ mod tests {
         let result = RangerGuild::start_combat(&data("cs", "orc"), &empty_ctx());
         assert_eq!(
             result,
-            command::send("@target orc;use 'bladed fury' orc;@k orc".to_string())
+            command::send("@target orc;use 'bladed fury' orc;kill orc".to_string())
+        );
+    }
+
+    #[test]
+    fn start_combat_trims_target() {
+        let result = RangerGuild::start_combat(&data("cs", "  orc  "), &empty_ctx());
+        assert_eq!(
+            result,
+            command::send("@target orc;use 'bladed fury' orc;kill orc".to_string())
         );
     }
 
     #[test]
     fn start_combat_without_target_shows_message() {
         let result = RangerGuild::start_combat(&data("cs", ""), &empty_ctx());
-        assert_eq!(result, vec![command::output(StyledLine::new("No target!"))]);
+        assert_eq!(
+            result,
+            vec![command::output(StyledLine::new("Target required."))]
+        );
+    }
+
+    #[test]
+    fn start_combat_whitespace_target_shows_message() {
+        let result = RangerGuild::start_combat(&data("cs", "   "), &empty_ctx());
+        assert_eq!(
+            result,
+            vec![command::output(StyledLine::new("Target required."))]
+        );
     }
 
     #[test]

@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-09-08] skip | Ranger cs opener now uses explicit kill
+
+- Updated: none
+- Sources: `src/guilds/ranger/commands.rs`, `docs/guilds/ranger.md`
+- Notes: Ranger `cs` now sends `target`, `use 'bladed fury'`, then explicit `kill` on the same target; docs updated; no engineering wiki concept page owns this guild-local shortcut detail.
+
 ## [2026-09-07] update | Update ADC agent setup + wiki lint compliance
 
 - Updated: [Guild Background Map](concepts/guild-background-map.md)

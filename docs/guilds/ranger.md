@@ -19,7 +19,7 @@ None from this guild.
 
 | Shortcut | Full name | Notes |
 |----------|-----------|-------|
-| `cs` | Open fight | Target required: `target`, `use 'bladed fury'`, then `@k` on that target. |
+| `cs` | Open fight | Target required: `target`, `use 'bladed fury'`, then `kill` on that target. |
 
 !!! note "Shared shortcut"
     **`cs`** overlaps **Monk kiai**, **Tzarakk** charge, **Riftwalker** spark opener.
