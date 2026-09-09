@@ -1,7 +1,7 @@
 {
   "manifestVersion": "1",
   "agenticConfigVersion": "2026.06.26",
-  "generatedAt": "2026-09-07T09:10:32.768Z",
+  "generatedAt": "2026-09-09T12:28:23.647Z",
   "selection": {
     "version": "1",
     "targetAgent": {
@@ -115,7 +115,8 @@
       "acknowledgeUnsafeCommands": false,
       "piPackages": [
         "pi-ignore",
-        "pi-subagents"
+        "pi-subagents",
+        "improvement-scanner"
       ],
       "custom": {
         "skills": [],
@@ -245,8 +246,7 @@
     "docs/agents/triage-labels.md",
     "docs/agents/domain.md",
     "AGENTS.md",
-    "docs/prds/",
-    "docs/issues/"
+    "docs/features/"
   ],
   "targetAgent": {
     "id": "pi"
@@ -289,6 +289,16 @@
         "requires": [
           "jq",
           "pi"
+        ],
+        "optional": false,
+        "source": "catalog"
+      },
+      {
+        "id": "pi-package-improvement-scanner",
+        "kind": "pi-extension-placement",
+        "bundlePath": "pi-extensions/improvement-scanner",
+        "requires": [
+          "jq"
         ],
         "optional": false,
         "source": "catalog"
@@ -547,12 +557,15 @@
     ".agents/rules/rust-workflow-gates.md": "sha256:5988cf4b10dc860ec62cb4f930f0d3f370912a9fcbcb39ab57c04935bdf954d6"
   },
   "contentHashes": {
-    ".agents/skills/implement/SKILL.md": "sha256:e810d43e1678e35e5f911641059ddf462089013d4165d197c84f8be126b70bd1",
-    "docs/wiki/concepts/guild-background-map.md": "sha256:19df365fd6040a49fd4ff9635567c3071e6f74fbdbeb731120c2a43a2a265b6b",
-    "docs/wiki/log.md": "sha256:e5449ee800f86aba46c97d0162b2afc972964e489f237712ea8cb7642a4c94df",
-    ".pi/skills/to-spec/SKILL.md": "sha256:da1894bae4846928c8c28052d5568b6983340d7788939697a041a889afd42638",
-    ".pi/skills/to-tickets/SKILL.md": "sha256:280d0f6e277974e2d40742eecddc116ee239629827a42f974cb431eb397574e4",
-    ".pi/skills/grill-with-docs/SKILL.md": "sha256:e6dd87786e5643553625856823fe96e75472a1245d84098588eb2857317131ce",
-    "docs/agent-commands.md": "sha256:50e6267202b213556bae625a4a92e20d506056b2de9ab3c36935e51ece9b978e"
+    ".pi/skills/to-spec/SKILL.md": "sha256:f5da2e2f6ed39c570eaa82d8796a2a7bdac5935725a28e9453d7d4477b7bc925",
+    ".pi/skills/to-tickets/SKILL.md": "sha256:dbb35dbce3aebef263279fdc7c951143f708dec1850c7b60d8cf6e4ba404334d",
+    ".pi/skills/grill-with-docs/SKILL.md": "sha256:3d6138c2e785a8c6ea295f49f461b19febdb1b7d9114fc1698357b6bec3df43d",
+    ".pi/skills/implement/SKILL.md": "sha256:f2126ad1d430d0e77d923294811e5eee275d336d8071e7f2aaae7abcd763a52f",
+    ".agents/skills/improve-documentation/SKILL.md": "sha256:f415ec8c2e2297ad4b5a39e9351c28be786f10f36c5953f45a2f00b44e61dce7",
+    ".agents/skills/orchestrator/SKILL.md": "sha256:1321f5cf649c50ef35c36cdab24f68d7f91ad00c2cbc616fbcd4f1df56e9c972",
+    ".agentic-config/manifest.json": "sha256:2b1dd4139022345ab30a697859315d798581c96669ed1ed60ab8007b2bae8213",
+    ".agentic-config/post-install-review-update.md": "sha256:194ef5b61fc79f949a8311bc7dc81c61c0ac5accdc4b2ce3d8c0a8fced6af9c7",
+    ".agentic-config/post-install-review-greenfield.md": "sha256:81b33005ad8d7ee0278e1a6e7a2233800e4017584f5bb43eebaff1044ef9490f",
+    ".agentic-config/post-install-review-integration.md": "sha256:355474c68830548609b53ccaa47a6391c5422379007ef63ebb23e789d155ed9b"
   }
 }

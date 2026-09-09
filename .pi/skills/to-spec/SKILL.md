@@ -1,50 +1,75 @@
 ---
 name: to-spec
-description: Turn a rough idea into a PRD saved in `docs/features/<feature_name>/prd.md`, then stop for review before implementation or ticket-splitting.
+description: "Turn the current conversation into a spec and save it as repo-local planning markdown under docs/features/<feature_name>/prd.md: no interview, just synthesis of what you've already discussed."
 disable-model-invocation: true
 ---
 
-# to-spec
+This skill takes the current conversation context and codebase understanding and produces a spec. Do NOT interview the user; just synthesize what you already know.
 
-Turn a rough feature idea, planning thread, or accepted grill outcome into a repo-local PRD.
+The repo-local planning tracker and triage label vocabulary should have been provided to you. If not, read `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`.
 
-This repo keeps planning artifacts for each feature under `docs/features/<feature_name>/`; the PRD is `prd.md` in that folder.
+## Process
 
-## Output path
+1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the spec, and respect any ADRs in the area you're touching. In this repo, also check `CONTEXT.md`, relevant `docs/adr/`, and existing feature folders under `docs/features/` before drafting a new PRD.
 
-- Save the spec to `docs/features/<feature_name>/prd.md`.
-- Derive `<feature_name>` from the feature topic using a short kebab-case slug.
-- Create `docs/features/<feature_name>/` when missing.
-- If a relevant PRD already exists for the same feature, update it instead of creating a parallel spec.
+2. Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
-## Workflow
+Check with the user that these seams match their expectations.
 
-1. **Gather context first**
-   - Read the user request and any linked docs.
-   - Read `CONTEXT.md` for domain language.
-   - Read relevant ADRs under `docs/adr/`.
-   - Read related feature docs under `docs/features/` when the repo already solved or partly specified adjacent behavior.
-   - Treat prior PRDs, issue notes, and chat history as historical unless verified against code, tests, or `CONTEXT.md`.
+3. Derive a `<feature_name>` slug from the user's topic. Write the spec using the template below, then save it to `docs/features/<feature_name>/prd.md`. Create the feature folder if missing. In the PRD, include a `## Status` section near the top and set it to `draft` unless the user asked for a different state. The repo-local file is the canonical planning artifact; do not publish to GitHub Issues by default.
 
-2. **Inspect live repo evidence**
-   - Confirm the current implementation seams in code before writing behavior claims.
-   - Use the repo's actual stack and commands in examples: this repo is a single Rust crate using Cargo workflows, not a monorepo.
-   - Where validation matters, prefer Cargo gate language already used in the repo (`cargo fmt`, build/typecheck, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test --all-targets --all-features`).
+<spec-template>
 
-3. **Write the PRD**
-   - Capture the user problem, desired outcomes, non-goals, user stories, constraints, acceptance checks, and rollout or follow-up notes.
-   - Keep language aligned with `CONTEXT.md` and existing docs.
-   - Name unresolved choices explicitly instead of inventing decisions.
-   - Use concrete repo paths when grounded in evidence.
+## Problem Statement
 
-4. **Status and handoff**
-   - Include a `## Status` section near the top (`draft`, `in review`, `accepted`, or `superseded`).
-   - When the PRD is ready, stop and ask whether to refine it or run `to-tickets` next.
+The problem that the user is facing, from the user's perspective.
 
-## Rules
+## Solution
 
-- Save to Git, not an external tracker, unless the human explicitly redirects.
-- Do not start implementation.
-- Do not silently create a second competing spec for the same feature.
-- Keep the PRD path convention consistent with `docs/agents/issue-tracker.md`.
-- If you reference future slices, keep them descriptive only; `to-tickets` owns the actual slice files.
+The solution to the problem, from the user's perspective.
+
+## User Stories
+
+A LONG, numbered list of user stories. Each user story should be in the format of:
+
+1. As an <actor>, I want a <feature>, so that <benefit>
+
+<user-story-example>
+1. As a mobile bank customer, I want to see balance on my accounts, so that I can make better informed decisions about my spending
+</user-story-example>
+
+This list of user stories should be extremely extensive and cover all aspects of the feature.
+
+## Implementation Decisions
+
+A list of implementation decisions that were made. This can include:
+
+- The modules that will be built/modified
+- The interfaces of those modules that will be modified
+- Technical clarifications from the developer
+- Architectural decisions
+- Schema changes
+- API contracts
+- Specific interactions
+
+Do NOT include specific file paths or code snippets. They may end up being outdated very quickly.
+
+Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it within the relevant decision and note briefly that it came from a prototype. Trim to the decision-rich parts, not a working demo, just the important bits.
+
+## Testing Decisions
+
+A list of testing decisions that were made. Include:
+
+- A description of what makes a good test (only test external behavior, not implementation details)
+- Which modules will be tested
+- Prior art for the tests (i.e. similar types of tests in the codebase)
+
+## Out of Scope
+
+A description of the things that are out of scope for this spec.
+
+## Further Notes
+
+Any further notes about the feature.
+
+</spec-template>

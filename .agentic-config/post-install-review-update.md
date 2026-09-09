@@ -83,15 +83,6 @@ This install may add `docs/agent-commands.md`. From the repo (inspect-only):
 - Docs-check commands if documented
 - Runtime-restricted checks — **only** if explicitly documented; never guess
 
-#### Domain terms
-
-This install may add `CONTEXT.md` and/or `CONTEXT-MAP.md`. From live sources:
-
-- Project purpose in one short paragraph
-- 3–10 **core domain terms** with tight definitions (what it IS, not implementation)
-- Terms to **avoid** when evident
-- Ambiguities where one word maps to multiple concepts
-
 #### Wiki seeds
 
 This install may add `docs/wiki/index.md`, `docs/wiki/path-map.json`, and `scripts/wiki-lint.mjs`. Note:
@@ -101,6 +92,15 @@ This install may add `docs/wiki/index.md`, `docs/wiki/path-map.json`, and `scrip
 - Existing docs/ADRs/READMEs to ingest as wiki sources (paths only)
 - Top-level packages or subsystems worth a `path-map.json` mapping (paths only)
 - Primary language(s) and existing validation or git-hook tooling (paths only — do not assume Node or Husky)
+
+#### Domain terms
+
+This install may add `CONTEXT.md` and/or `CONTEXT-MAP.md`. From live sources:
+
+- Project purpose in one short paragraph
+- 3–10 **core domain terms** with tight definitions (what it IS, not implementation)
+- Terms to **avoid** when evident
+- Ambiguities where one word maps to multiple concepts
 
 #### Agent setup
 
@@ -269,15 +269,14 @@ The bundled planning skills ship with upstream Matt Pocock defaults (publish to 
 
 **Installation context (pre-check recommendations):**
 
-- **Issue tracker:** `repo-prd` — recommend Git-based `docs/prds/` and `docs/issues/` output options.
-- **Bundle paths:** `docs/prds/` is auto-included — recommend per-feature PRD folder options for `to-spec`.
-- **Bundle paths:** `docs/issues/` is auto-included — recommend local issue file options for `to-tickets`.
+- **Issue tracker:** `repo-prd` — recommend Git-based `docs/features/` output options.
+- **Bundle paths:** `docs/features/` is the canonical planning location — recommend one folder per feature for both PRDs and slices.
 - **Both planning skills selected** — recommend cross-link and matching `<feature_name>` folder layout.
 
 **Workflow:**
 
 1. **Ask one question** listing the applicable menu options. Pre-check your recommendations; let the human uncheck any they decline.
-2. **Investigate first** — infer monorepo packages, test runners, and any existing `docs/prds/` / `docs/issues/` layout from repo discovery; do not ask what evidence already provides.
+2. **Investigate first** — infer monorepo packages, test runners, and any existing `docs/features/` layout from repo discovery; do not ask what evidence already provides.
 3. Apply **only approved** options to the editable paths: `.agents/skills/to-spec/SKILL.md` and `.agents/skills/to-tickets/SKILL.md`. These may be bundled or upstream-installed copies — tailor whichever live in this repo, protecting pre-existing edits with `git diff --quiet HEAD -- <path>` before overwriting.
 4. When `repo-prd` issue tracker is configured, keep `docs/agents/issue-tracker-repo-prd.md` (or the agent-setup equivalent from the bundle) aligned with approved path conventions.
 
@@ -293,16 +292,16 @@ Present only options that apply to the selected skills. Omit rows for skills not
 
 - [ ] **Frontend test guidance** — Note the missing runner in the module-sketch step; add a Vitest/Jest bullet under Testing Decisions (`to-spec`) or vertical-slice rules (`to-tickets`).
 
-**`to-spec` output (recommend checked when `agentSetup.issueTracker.type` is `repo-prd` or `docs/prds/` is auto-included):**
+**`to-spec` output (recommend checked when `agentSetup.issueTracker.type` is `repo-prd`):**
 
 - [ ] **Save PRDs to Git** — Replace "publish to the issue tracker" with save-to-directory wording.
-- [ ] **Per-feature PRD folders** — Add a `<feature_name>` slug step; save to `docs/prds/<feature_name>/prd.md` and create the directory when missing.
+- [ ] **Per-feature PRD folders** — Add a `<feature_name>` slug step; save to `docs/features/<feature_name>/prd.md` and create the directory when missing.
 
-**`to-tickets` output (recommend checked when `repo-prd` or `docs/issues/` is auto-included; pair with per-feature PRD folders when both skills are selected):**
+**`to-tickets` output (recommend checked when `repo-prd`; pair with per-feature PRD folders when both skills are selected):**
 
-- [ ] **Read PRDs from `docs/prds/`** — In gather context, read `docs/prds/<feature_name>/prd.md` when the source is a PRD.
-- [ ] **Save issues locally** — Replace the publish step with `docs/issues/<feature_name>/<slice-slug>.md`.
-- [ ] **Per-feature issue folders** — Derive `<feature_name>` from the PRD path or user input; reference sibling slice paths in **Blocked by**; link **Parent** to `docs/prds/<feature_name>/prd.md` when a PRD exists.
+- [ ] **Read PRDs from `docs/features/`** — In gather context, read `docs/features/<feature_name>/prd.md` when the source is a PRD.
+- [ ] **Save issues locally** — Replace the publish step with `docs/features/<feature_name>/<slice-slug>.md`.
+- [ ] **Per-feature issue folders** — Derive `<feature_name>` from the PRD path or user input; reference sibling slice paths in **Blocked by**; link **Parent** to `docs/features/<feature_name>/prd.md` when a PRD exists.
 
 **Consistency (when any Git path option above is approved):**
 
@@ -393,9 +392,9 @@ The bundled skill ships **portable** — it references `/review` and `/code-revi
 **Workflow:**
 
 1. **Confirm the review seams from repo evidence** — locate where the `review` and `code-review` skills actually live here (for example `.pi/skills/review/`, `.agents/skills/review/`, or a bundled path) and how they are invoked. Do not invent paths that are not installed.
-2. **Confirm the issue source/tracker** — identify the repo's issue tracker and command set (for example the `gh` CLI with a specific owner/repo, a local `docs/issues/…` convention, or none). Ground this in repo evidence (config, seed docs, existing skill bodies).
-3. **Replace the portables in the bundled skill** — in `.agents/skills/implement/SKILL.md`, replace the `/review` and `/code-review` slash references with the confirmed concrete skill paths, and replace the tracker placeholders (issue-tracker commands step, and the knowledge-handoff destination: issue comment vs local `docs/issues/…` file vs none) with the confirmed commands/convention.
-4. **Set the knowledge-handoff destination** — pick the destination the repo actually uses (GitHub issue comment vs local `docs/issues/…` file vs none) and make the handoff section reference it concretely.
+2. **Confirm the issue source/tracker** — identify the repo's issue tracker and command set (for example the `gh` CLI with a specific owner/repo, a local `docs/features/…` convention, or none). Ground this in repo evidence (config, seed docs, existing skill bodies).
+3. **Replace the portables in the bundled skill** — in `.agents/skills/implement/SKILL.md`, replace the `/review` and `/code-review` slash references with the confirmed concrete skill paths, and replace the tracker placeholders (issue-tracker commands step, and the knowledge-handoff destination: issue comment vs local `docs/features/…` file vs none) with the confirmed commands/convention.
+4. **Set the knowledge-handoff destination** — pick the destination the repo actually uses (GitHub issue comment vs local `docs/features/…` file vs none) and make the handoff section reference it concretely.
 5. **Keep the body portable where not this-repo-specific** — only substitute what is evidenced for this repository; leave the operational workflow (branch safety, TDD seams, sub-agent review, handoff buckets) as-is.
 6. Apply edits wherever the implement skill lives: `.agents/skills/implement/SKILL.md` (bundled or upstream-installed). Protect pre-existing edits with `git diff --quiet HEAD -- <path>` before overwriting.
 7. After tailoring edits, update `.agentic-config/manifest.json` `contentHashes` for the edited skill file (see **Save content hashes**).

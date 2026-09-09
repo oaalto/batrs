@@ -10,7 +10,7 @@ Implement the work described by the user in the spec or tickets.
 
 1. Check `git branch --show-current` and `git status`.
 2. **Already on the right branch** — if the current branch matches the spec/ticket (or the user named one this session), proceed.
-3. **Clean tree on default branch** — ask once: create `feature/<short-name>` from the spec/issue? Propose the name; recommend yes. Only create after confirmation.
+3. **Clean tree on default branch** — ask once: create `feature/<short-name>` from the spec/issue? Propose the name; recommend yes. Base it on the feature folder / PRD slug when one exists. Only create after confirmation.
 4. **Unrelated dirty WIP** — if changes are not part of this spec/ticket, ask once:
     - **Worktree** (recommended for substantial or active WIP): isolated checkout, original WIP untouched.
     - **Stash and branch** — fine for small WIP.
@@ -45,3 +45,21 @@ Launch the risk-first sub-agent and both two-axis sub-agents in one parallel bat
 Run typechecking regularly, single test files regularly, and the full test suite once at the end.
 
 Do **not** commit unless the user explicitly asks. When work is ready, offer to commit and wait for confirmation.
+
+### After implementation: hand off knowledge to future tickets
+
+If this ticket is part of a multi-ticket feature/PRD, pass along knowledge that future sibling tickets would otherwise rediscover the hard way.
+
+1. **Identify future siblings.** Find the feature folder / PRD this ticket belongs to. In this repo, the canonical planning tracker is repo-local markdown under `docs/features/<feature_name>/`: the parent spec is `prd.md`, and sibling slice files live in the same folder. A **future sibling** = same feature folder, still not implemented/closed, and not the current ticket. If there is no feature-folder linkage (free-text spec), **skip** — do not fabricate a group.
+2. **Cap the knowledge** to what a future ticket actually needs — four buckets only:
+   - **Contracts/seams** established that siblings touch (interfaces, boundaries, seams tested at).
+   - **Decisions that changed the plan** — divergence from the spec and why; flag ADR candidates, don't write ADRs here.
+   - **Traps/gotchas** hit and the fix (matches the repo `known-traps` concept).
+   - **File/API map** of touched surfaces relevant to siblings.
+     Exclude progress status and anything that only concerns the current ticket. If a sibling depends on an interface/seam this ticket changed, call out the **breaking change** and the dependency explicitly.
+3. **Draft, don't write.** Draft one delivery per future sibling, prefixed with `**Implementation knowledge from <current ticket>**`, covering the four buckets above, addressed to the sibling slice file or feature-folder handoff note in `docs/features/<feature_name>/`.
+4. **Confirm once before delivering** — same approval gate as committing. Show the drafted delivery, ask, and only deliver after confirmation. Fire this section only after review passes, and before the "offer to commit" step.
+
+> **Tracker seam (wired for this repo):** review runs through `.agents/skills/review/SKILL.md` and `.pi/skills/code-review/SKILL.md`. Planning artifacts and knowledge handoff live under `docs/features/<feature_name>/`, not GitHub Issues.
+
+This section is a no-op when the ticket is not part of a multi-ticket feature.

@@ -1,31 +1,15 @@
 ---
 name: grill-with-docs
-description: A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.
+description: A relentless interview to sharpen a plan or design, which also creates docs (ADRs and glossary) as the model solidifies.
 disable-model-invocation: true
 ---
 
-Interview the user relentlessly about every aspect of their plan until you reach a shared understanding. Walk down each branch of the decision tree, resolving dependencies one-by-one. For each question, provide your recommended answer.
+Use the installed `grilling` and `domain-modeling` skills directly; Pi does not resolve bare `/skill` references for you.
 
-Ask questions **one at a time**, waiting for feedback before continuing.
+## Process
 
-While grilling, actively sharpen the domain model:
-
-- When the user uses a term that conflicts with `CONTEXT.md`, call it out. "Your glossary defines X as Y, but you seem to mean Z — which is it?"
-- When the user uses vague terms, propose a precise canonical term. "You're saying 'account' — do you mean Customer or User?"
-- Stress-test domain relationships with concrete edge-case scenarios.
-- When the user states how something works, check whether the code agrees and surface contradictions.
-
-Update `CONTEXT.md` and glossary terms inline as they crystallise. Offer ADRs only when all three apply: hard to reverse, surprising without context, result of a real trade-off.
-
-Consult the engineering wiki (`docs/wiki/`) and, when `graphify-out/graph.json` exists, the code graph (`graphify-out/`). Load `.agents/skills/repo-navigation/SKILL.md` for exploration routing. Delegate background research and exploration to sub-agents; keep the grilling conversation inline.
-
-Delegate to sub-agents for:
-
-- **Wiki consultation** — delegate to a sub-agent that follows `.agents/skills/wiki/SKILL.md`: "Query the engineering wiki for context on [topic/area]. Report findings as a structured summary."
-- **Code graph exploration** — when the graph exists, delegate to an exploration sub-agent: "Explore the code graph in `graphify-out/` for [area]. Report call chains, import paths, and dependency structure."
-- **CONTEXT.md / ADR lookup** — delegate to a sub-agent: "Read `CONTEXT.md` and any ADRs in [area]. Report any terms, decisions, or constraints relevant to [topic]."
-- **Research tickets** — delegate to a sub-agent that follows the installed research skill instructions when knowledge outside the working directory is required.
-
-**Termination.** Stop the interview when the user has answered every question, confirmed they have nothing more to add, or explicitly signals agreement (e.g. "looks good", "let's go with that", "that works").
-
-**On completion.** Produce a structured summary of every decision agreed upon — each decision on its own line, with the chosen option and any open constraints. Do not start implementing. After the summary, suggest turning the result into a formal spec using the installed planning flow, and wait for an explicit command from the user before proceeding.
+1. Load the `grilling` skill and run its frontier-based interview loop to stress-test the plan or design.
+2. In parallel with that reasoning discipline, apply the `domain-modeling` skill whenever terms, boundaries, or hard-to-reverse trade-offs become concrete.
+3. For this repo, read `CONTEXT.md`, relevant ADRs under `docs/adr/`, and existing feature planning in `docs/features/<feature_name>/` before proposing new glossary terms or decisions.
+4. When planning artifacts are needed, keep them repo-local: PRDs live at `docs/features/<feature_name>/prd.md`, and sibling slices live in the same feature folder.
+5. Do not assume Pi will dispatch another skill from a bare slash command inside this body; carry out the referenced skill instructions yourself.

@@ -1,53 +1,121 @@
 ---
 name: to-tickets
-description: Break an accepted PRD or plan into repo-local slice files under `docs/features/<feature_name>/`, linked back to the folder's `prd.md`.
+description: Break a plan, spec, or the current conversation into a set of tracer-bullet tickets, each declaring its blocking edges, saved as repo-local slice files under docs/features/<feature_name>/.
+disable-model-invocation: true
 ---
 
-# to-tickets
+# To Tickets
 
-Split an accepted plan into implementation slices stored in this repository.
+Break a plan, spec, or conversation into a set of **tickets**: tracer-bullet vertical slices, each declaring the tickets that **block** it.
 
-This repo keeps planning artifacts for each feature under `docs/features/<feature_name>/`; slices are markdown files in that same folder.
+The repo-local planning tracker and triage label vocabulary should have been provided to you. If not, read `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`.
 
-## Input sources
+## Process
 
-- Preferred PRD source: `docs/features/<feature_name>/prd.md`.
-- If the human starts from chat or another doc, derive `<feature_name>` from the topic and confirm the parent path in the output.
-- Treat PRDs as historical for behavior claims until verified against live code, tests, and `CONTEXT.md`.
+### 1. Gather context
 
-## Output path
+Work from whatever is already in the conversation context. If the user passes a reference, fetch it and read its full body. In this repo, prefer `docs/features/<feature_name>/prd.md` when the source is a PRD; treat external issue URLs as supplementary historical context only.
 
-- Save slice files to `docs/features/<feature_name>/<slice-slug>.md`.
-- Keep all slices for one feature in the same folder as the feature's `prd.md`.
-- Link each slice's **Parent** section to `docs/features/<feature_name>/prd.md` when that PRD exists.
-- In **Blocked by**, reference sibling slice paths in the same folder when dependencies exist.
+### 2. Explore the codebase (optional)
 
-## Workflow
+If you have not already explored the codebase, do so to understand the current state of the code. Ticket titles and descriptions should use the project's domain glossary vocabulary, and respect ADRs in the area you're touching.
 
-1. **Read the source plan**
-   - Read the PRD or planning source fully.
-   - Read `CONTEXT.md` and relevant ADRs.
-   - Verify any behavior-sensitive claims against current code and tests before turning them into required slice outcomes.
+Look for opportunities to prefactor the code to make the implementation easier. "Make the change easy, then make the easy change."
 
-2. **Map the implementation seams**
-   - This repo is a single Rust crate, so slice by capability or seam, not by package.
-   - Prefer slices that follow existing repository boundaries (`src/app/`, `src/command/`, `src/guilds/`, `src/triggers/`, `src/ui/`, docs/wiki/docs updates) when evidence supports them.
-   - Keep each slice independently reviewable and buildable.
+### 3. Draft vertical slices
 
-3. **Write slice files**
-   - One file per slice under `docs/features/<feature_name>/`.
-   - Each slice should state the goal, concrete scope, non-goals when needed, dependencies, and acceptance checks.
-   - Use repository gate language already evidenced in docs when relevant: `cargo fmt`, build/typecheck, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test --all-targets --all-features`.
-   - Keep acceptance criteria specific enough that another agent can pick up the slice without reopening product decisions.
+Break the work into **tracer bullet** tickets.
 
-4. **Cross-link and stop**
-   - Cross-link sibling slices where ordering matters.
-   - Keep naming consistent with the PRD folder layout from `to-spec`.
-   - Stop after writing tickets; do not start implementation unless the human explicitly asks.
+<vertical-slice-rules>
 
-## Rules
+- Each slice cuts a narrow but COMPLETE path through every layer (schema, API, UI, tests): vertical, NOT a horizontal slice of one layer
+- A completed slice is demoable or verifiable on its own
+- Each slice is sized to fit in a single fresh context window
+- Any prefactoring should be done first
 
-- Save tickets locally in Git, not to an external issue tracker, unless the human explicitly redirects.
-- Keep path conventions aligned with `docs/agents/issue-tracker.md`.
-- Prefer a small number of meaningful slices over speculative micro-tickets.
-- Do not invent monorepo package steps or frontend test guidance for this repo; use Cargo-based examples instead.
+</vertical-slice-rules>
+
+Give each ticket its **blocking edges**: the other tickets that must complete before it can start. A ticket with no blockers can start immediately.
+
+**Wide refactors are the exception to vertical slicing.** A **wide refactor** is one mechanical change (rename a column, retype a shared symbol) whose **blast radius** fans across the whole codebase, so a single edit breaks thousands of call sites at once and no vertical slice can land green. Don't force it into a tracer bullet; sequence it as **expand–contract**. First expand: add the new form beside the old so nothing breaks. Then migrate the call sites over in batches sized by blast radius (per package, per directory), each batch its own ticket blocked by the expand, keeping CI green batch to batch because the old form still exists. Finally contract: delete the old form once no caller remains, in a ticket blocked by every migrate batch. When even the batches can't stay green alone, keep the sequence but let them share an integration branch that all block a final integrate-and-verify ticket; green is promised only there.
+
+### 4. Quiz the user
+
+Present the proposed breakdown as a numbered list. For each ticket, show:
+
+- **Title**: short descriptive name
+- **Blocked by**: which other tickets (if any) must complete first
+- **What it delivers**: the end-to-end behaviour this ticket makes work
+
+Ask the user:
+
+- Does the granularity feel right? (too coarse / too fine)
+- Are the blocking edges correct: does each ticket only depend on tickets that genuinely gate it?
+- Should any tickets be merged or split further?
+
+Iterate until the user approves the breakdown.
+
+### 5. Save the tickets to the configured tracker
+
+Save the approved tickets to the repo-local planning tracker. In this repo, that means one slice file per ticket under `docs/features/<feature_name>/`, alongside the feature PRD, using descriptive slugs rather than numeric prefixes unless the existing feature folder already uses a numbering scheme you should continue.
+
+- Derive `<feature_name>` from the parent PRD path or the user's topic.
+- Read `docs/features/<feature_name>/prd.md` first when it exists.
+- Write one markdown file per approved slice under `docs/features/<feature_name>/<slice-slug>.md`.
+- In each slice file, set **Parent** to `docs/features/<feature_name>/prd.md` when the PRD exists.
+- In each slice file, set **Blocked by** to sibling slice paths or titles from the same feature folder.
+- Mark each slice `ready-for-agent` in its status/body wording; do not publish to GitHub Issues by default.
+
+Work the **frontier**: any ticket whose blockers are all done. For a purely linear chain that means top to bottom.
+
+Do NOT close or modify the parent PRD except for cross-links the user asked for.
+
+<local-ticket-template>
+
+# <Ticket title>
+
+## Parent
+
+`docs/features/<feature_name>/prd.md`
+
+## What to build
+
+The end-to-end behaviour this ticket makes work, from the user's perspective, not a layer-by-layer implementation list.
+
+## Acceptance criteria
+
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+## Blocked by
+
+- Sibling slice path/title, or "None (can start immediately)".
+
+## Status
+
+ready-for-agent
+
+</local-ticket-template>
+
+<issue-template>
+
+## Parent
+
+A reference to the parent issue on the tracker (if the source was an existing issue, otherwise omit this section).
+
+## What to build
+
+The end-to-end behaviour this ticket makes work, from the user's perspective, not layer-by-layer implementation.
+
+## Acceptance criteria
+
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+## Blocked by
+
+- A reference to each blocking ticket, or "None (can start immediately)".
+
+</issue-template>
+
+In either form, avoid specific file paths or code snippets: they go stale fast. Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it and note briefly that it came from a prototype. Trim to the decision-rich parts, not a working demo, just the important bits.
