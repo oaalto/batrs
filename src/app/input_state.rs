@@ -6,6 +6,7 @@ pub struct InputState {
     current_typed_input: String,
     displayed_input: String,
     cursor_position: usize,
+    cursor_display_offset: u16,
     history: Vec<String>,
     cur_history_pos: usize,
 }
@@ -15,9 +16,17 @@ impl InputState {
         Self::default()
     }
 
+    /// Recompute the visible cursor offset from the current grapheme prefix.
+    fn refresh_cursor_display_offset(&mut self) {
+        self.cursor_display_offset = self.displayed_input[..self.cursor_position]
+            .graphemes(true)
+            .count() as u16;
+    }
+
     pub fn insert_char(&mut self, c: char) {
         self.displayed_input.insert(self.cursor_position, c);
         self.cursor_position += c.len_utf8();
+        self.refresh_cursor_display_offset();
         self.sync_current_typed_input();
     }
 
@@ -28,6 +37,7 @@ impl InputState {
 
         self.displayed_input.insert_str(self.cursor_position, text);
         self.cursor_position += text.len();
+        self.refresh_cursor_display_offset();
         self.sync_current_typed_input();
     }
 
@@ -45,6 +55,7 @@ impl InputState {
 
         self.displayed_input.drain(index..self.cursor_position);
         self.cursor_position = index;
+        self.refresh_cursor_display_offset();
         self.sync_current_typed_input();
     }
 
@@ -61,6 +72,7 @@ impl InputState {
         let start = self.cursor_position + offset;
         let end = start + grapheme.len();
         self.displayed_input.drain(start..end);
+        self.refresh_cursor_display_offset();
         self.sync_current_typed_input();
     }
 
@@ -70,6 +82,7 @@ impl InputState {
             .next_back()
         {
             self.cursor_position = index;
+            self.refresh_cursor_display_offset();
         }
     }
 
@@ -81,6 +94,7 @@ impl InputState {
         let remainder = &self.displayed_input[self.cursor_position..];
         if let Some((offset, grapheme)) = remainder.grapheme_indices(true).next() {
             self.cursor_position += offset + grapheme.len();
+            self.refresh_cursor_display_offset();
         }
     }
 
@@ -94,6 +108,7 @@ impl InputState {
             .map(|(index, _)| index)
             .next_back()
             .unwrap_or(0);
+        self.refresh_cursor_display_offset();
     }
 
     pub fn move_cursor_word_right(&mut self) {
@@ -103,18 +118,22 @@ impl InputState {
             .find(|(index, _)| *index > self.cursor_position)
         else {
             self.cursor_position = self.displayed_input.len();
+            self.refresh_cursor_display_offset();
             return;
         };
 
         self.cursor_position = index;
+        self.refresh_cursor_display_offset();
     }
 
     pub fn move_cursor_to_start(&mut self) {
         self.cursor_position = 0;
+        self.cursor_display_offset = 0;
     }
 
     pub fn move_cursor_to_end(&mut self) {
         self.cursor_position = self.displayed_input.len();
+        self.refresh_cursor_display_offset();
     }
 
     fn sync_current_typed_input(&mut self) {
@@ -149,6 +168,7 @@ impl InputState {
                 self.displayed_input.clone_from(&self.current_typed_input);
             }
             self.cursor_position = self.displayed_input.len();
+            self.refresh_cursor_display_offset();
         }
     }
 
@@ -156,10 +176,7 @@ impl InputState {
         if hide_input {
             1
         } else {
-            self.displayed_input[..self.cursor_position]
-                .graphemes(true)
-                .count() as u16
-                + 1
+            self.cursor_display_offset + 1
         }
     }
 
@@ -169,6 +186,7 @@ impl InputState {
 
     pub fn take_displayed_input(&mut self) -> String {
         self.cursor_position = 0;
+        self.cursor_display_offset = 0;
         mem::take(&mut self.displayed_input)
     }
 
@@ -186,6 +204,7 @@ impl InputState {
         self.displayed_input.clear();
         self.current_typed_input.clear();
         self.cursor_position = 0;
+        self.cursor_display_offset = 0;
     }
 
     pub fn clear_current_typed_input(&mut self) {
@@ -405,6 +424,29 @@ mod tests {
         let state = InputState::new();
 
         assert_eq!(state.cursor_offset(true), 1);
+    }
+
+    #[test]
+    fn cursor_offset_stays_correct_after_history_and_clear_paths() {
+        let mut state = InputState::new();
+        state.insert_str("hé");
+        let history_entry = state.take_displayed_input();
+        state.push_history(history_entry);
+
+        state.insert_str("🙂x");
+        assert_eq!(state.cursor_offset(false), 3);
+
+        state.move_history(-1);
+        assert_eq!(state.displayed_input(), "hé");
+        assert_eq!(state.cursor_offset(false), 3);
+
+        state.move_history(1);
+        assert_eq!(state.displayed_input(), "🙂x");
+        assert_eq!(state.cursor_offset(false), 3);
+
+        state.clear_all();
+        assert_eq!(state.displayed_input(), "");
+        assert_eq!(state.cursor_offset(false), 1);
     }
 
     #[test]
