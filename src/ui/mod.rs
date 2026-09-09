@@ -18,7 +18,7 @@ pub struct ViewModel<'a> {
     /// Guild-specific HUD rows below the main stats line, such as Soul, Tzarakk mount, and Nergal minions.
     pub secondary_status_lines: Vec<Line<'static>>,
     pub clock: String,
-    pub input_text: String,
+    pub input_text: Line<'a>,
     pub cursor_offset: u16,
     pub show_cursor: bool,
     pub guild_dialog: Option<GuildDialogViewModel>,
@@ -904,7 +904,7 @@ mod tests {
             combat_status_lines: vec!["enemy status".into()],
             secondary_status_lines: vec!["guild status".into()],
             clock: "12:34".to_string(),
-            input_text: ">look".to_string(),
+            input_text: Line::from(vec![Span::raw(">"), Span::raw("look")]),
             cursor_offset: 5,
             show_cursor: false,
             guild_dialog: None,

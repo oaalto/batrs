@@ -38,7 +38,7 @@ use libmudtelnet::events::TelnetEvents;
 use log::{error, warn};
 use player_logger::PlayerLogger;
 use ratatui::Frame;
-use ratatui::text::Line;
+use ratatui::text::{Line, Span};
 use raw_logger::RawLogger;
 use std::sync::mpsc::{Receiver, Sender};
 use telnet_buffer::TelnetBuffer;
@@ -447,7 +447,14 @@ impl BatApp {
             Line::from("")
         };
         let hide_input = self.session.login_state() == LoginState::Password;
-        let input_text = format!(">{}", self.input.displayed_text(hide_input));
+        let input_text = if hide_input {
+            Line::from(vec![Span::raw(">")])
+        } else {
+            Line::from(vec![
+                Span::raw(">"),
+                Span::raw(self.input.displayed_input()),
+            ])
+        };
         let view = ViewModel {
             output_lines: output_lines.to_vec(),
             scroll_offset,

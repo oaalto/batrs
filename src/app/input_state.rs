@@ -118,6 +118,10 @@ impl InputState {
     }
 
     fn sync_current_typed_input(&mut self) {
+        if self.cur_history_pos == self.history.len() {
+            return;
+        }
+
         self.current_typed_input.clone_from(&self.displayed_input);
         self.cur_history_pos = self.history.len();
     }
@@ -134,6 +138,10 @@ impl InputState {
         }
 
         if prev_pos != self.cur_history_pos {
+            if prev_pos == self.history.len() {
+                self.current_typed_input.clone_from(&self.displayed_input);
+            }
+
             if self.cur_history_pos < self.history.len() {
                 self.displayed_input
                     .clone_from(&self.history[self.cur_history_pos]);
@@ -141,14 +149,6 @@ impl InputState {
                 self.displayed_input.clone_from(&self.current_typed_input);
             }
             self.cursor_position = self.displayed_input.len();
-        }
-    }
-
-    pub fn displayed_text(&self, hide_input: bool) -> String {
-        if hide_input {
-            String::new()
-        } else {
-            self.displayed_input.clone()
         }
     }
 
@@ -405,5 +405,24 @@ mod tests {
         let state = InputState::new();
 
         assert_eq!(state.cursor_offset(true), 1);
+    }
+
+    #[test]
+    fn editing_history_entry_promotes_it_to_current_typed_input() {
+        let mut state = InputState::new();
+        state.push_history("look".to_string());
+        state.insert_str("say");
+
+        state.move_history(-1);
+        assert_eq!(state.displayed_input(), "look");
+
+        state.insert_char('!');
+        assert_eq!(state.displayed_input(), "look!");
+
+        state.move_history(-1);
+        assert_eq!(state.displayed_input(), "look");
+
+        state.move_history(1);
+        assert_eq!(state.displayed_input(), "look!");
     }
 }
