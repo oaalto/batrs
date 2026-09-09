@@ -6,6 +6,8 @@ use crate::app::{
     INITIAL_CONNECTION_ID, ReconnectResult,
 };
 use crossterm::event::{self, DisableBracketedPaste, EnableBracketedPaste, Event};
+
+const CLOCK_REDRAW_INTERVAL: Duration = Duration::from_secs(1);
 use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
@@ -75,18 +77,20 @@ fn run_app(
     terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
     mut app: BatApp,
 ) -> std::io::Result<()> {
-    let tick_rate = Duration::from_millis(200);
-    let mut last_tick = Instant::now();
+    let mut last_redraw_tick = Instant::now();
 
     loop {
         if app.take_pending_terminal_clear() {
             terminal.clear()?;
         }
-        terminal.draw(|frame| app.draw(frame))?;
+        if app.take_redraw() {
+            terminal.draw(|frame| app.draw(frame))?;
+        }
 
-        let timeout = tick_rate
-            .checked_sub(last_tick.elapsed())
-            .unwrap_or(Duration::from_millis(0));
+        let now = Instant::now();
+        let timeout = CLOCK_REDRAW_INTERVAL
+            .checked_sub(now.duration_since(last_redraw_tick))
+            .unwrap_or(Duration::ZERO);
 
         if event::poll(timeout)? {
             handle_terminal_event(event::read()?, &mut app);
@@ -97,8 +101,10 @@ fn run_app(
 
         app.read_input();
 
-        if last_tick.elapsed() >= tick_rate {
-            last_tick = Instant::now();
+        let now = Instant::now();
+        if now.duration_since(last_redraw_tick) >= CLOCK_REDRAW_INTERVAL {
+            last_redraw_tick = now;
+            app.request_redraw();
         }
 
         if app.should_quit() {
@@ -113,6 +119,7 @@ fn handle_terminal_event(event: Event, app: &mut BatApp) {
     match event {
         Event::Key(key) => app.handle_key_event(key),
         Event::Paste(text) => app.handle_paste_event(text),
+        Event::Resize(_, _) => app.request_redraw(),
         _ => {}
     }
 }

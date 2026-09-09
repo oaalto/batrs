@@ -98,6 +98,7 @@ pub struct BatApp {
     guild_selection: GuildSelection,
     should_quit: bool,
     pending_terminal_clear: bool,
+    redraw_needed: bool,
     automation: Automation,
     config_manager: Option<ConfigManager>,
     user_config_loaded: bool,
@@ -165,6 +166,7 @@ impl BatApp {
             guild_selection: GuildSelection::default(),
             should_quit: false,
             pending_terminal_clear: false,
+            redraw_needed: true,
             automation: Automation::new(),
             config_manager,
             user_config_loaded: false,
@@ -181,6 +183,7 @@ impl BatApp {
         };
 
         app.apply_guild_selection(app.guild_selection.clone());
+        app.request_redraw();
 
         app
     }
@@ -269,6 +272,16 @@ impl BatApp {
         }
 
         self.output.append_lines(output_lines);
+        self.request_redraw();
+    }
+
+    fn reset_dialogs(&mut self) {
+        self.guild_dialog = None;
+        self.generic_commands_dialog = None;
+        self.triggers_dialog = None;
+        self.settings_dialog = None;
+        self.monk_dialog = None;
+        self.request_redraw();
     }
 
     pub fn read_input(&mut self) {
@@ -313,7 +326,20 @@ impl BatApp {
         pending
     }
 
+    /// Consume the pending redraw flag set by visible state changes.
+    pub fn take_redraw(&mut self) -> bool {
+        let redraw_needed = self.redraw_needed;
+        self.redraw_needed = false;
+        redraw_needed
+    }
+
+    /// Mark the UI dirty so the next loop iteration redraws the terminal.
+    pub fn request_redraw(&mut self) {
+        self.redraw_needed = true;
+    }
+
     pub fn handle_key_event(&mut self, event: KeyEvent) {
+        self.request_redraw();
         if self.guild_dialog.is_some() {
             self.handle_guild_dialog_event(event);
             return;
@@ -367,6 +393,7 @@ impl BatApp {
     }
 
     pub fn handle_paste_event(&mut self, text: String) {
+        self.request_redraw();
         if self.guild_dialog.is_some()
             || self.generic_commands_dialog.is_some()
             || self.triggers_dialog.is_some()
@@ -410,7 +437,7 @@ impl BatApp {
         let output_area_height = frame.area().height.saturating_sub(reserved_rows);
         let output_area_width = frame.area().width;
         let visible_height = output_area_height as usize;
-        let output_lines: Vec<Line<'_>> = self.output.wrapped_lines(output_area_width);
+        let output_lines = self.output.wrapped_lines(output_area_width);
         self.scrollback
             .update_viewport(output_lines.len(), visible_height);
         let scroll_offset = self.scrollback.offset();
@@ -422,7 +449,7 @@ impl BatApp {
         let hide_input = self.session.login_state() == LoginState::Password;
         let input_text = format!(">{}", self.input.displayed_text(hide_input));
         let view = ViewModel {
-            output_lines,
+            output_lines: output_lines.to_vec(),
             scroll_offset,
             show_stats,
             stats_line,
@@ -552,6 +579,7 @@ impl BatApp {
                 }
                 command::CommandEffect::Output(line) => {
                     self.output.append_lines(vec![line]);
+                    self.request_redraw();
                 }
                 command::CommandEffect::OpenDialog(kind) => match kind {
                     command::DialogKind::Guilds => self.open_guilds_dialog(),
@@ -562,8 +590,14 @@ impl BatApp {
                 },
                 command::CommandEffect::Reconnect => self.start_reconnect(),
                 command::CommandEffect::ToggleRawLogs => self.toggle_raw_logs(),
-                command::CommandEffect::Quit => self.should_quit = true,
-                command::CommandEffect::Redraw => self.pending_terminal_clear = true,
+                command::CommandEffect::Quit => {
+                    self.should_quit = true;
+                    self.request_redraw();
+                }
+                command::CommandEffect::Redraw => {
+                    self.pending_terminal_clear = true;
+                    self.request_redraw();
+                }
             }
         }
         sent_command
@@ -576,6 +610,7 @@ impl BatApp {
             Err(()) => {
                 self.output
                     .append_lines(vec![StyledLine::new("Reconnect already in progress.")]);
+                self.request_redraw();
                 return;
             }
         };
@@ -583,6 +618,7 @@ impl BatApp {
         self.apply_fresh_session_plan(plan);
         self.output
             .append_lines(vec![StyledLine::new("Reconnect started.")]);
+        self.request_redraw();
 
         match complete_connect(
             &mut self.session_lifecycle,
@@ -593,6 +629,7 @@ impl BatApp {
             ReconnectAttemptResult::Failed(error) => {
                 self.output
                     .append_lines(vec![StyledLine::new(&format!("Reconnect failed: {error}"))]);
+                self.request_redraw();
             }
         }
     }
@@ -600,19 +637,28 @@ impl BatApp {
     fn apply_fresh_session_plan(&mut self, plan: FreshSessionPlan) {
         for reset in plan.resets() {
             match reset {
-                FreshSessionReset::Session => self.session.reset(),
-                FreshSessionReset::Stats => self.stats = Stats::default(),
+                FreshSessionReset::Session => {
+                    self.session.reset();
+                    self.request_redraw();
+                }
+                FreshSessionReset::Stats => {
+                    self.stats = Stats::default();
+                    self.request_redraw();
+                }
                 FreshSessionReset::SecondaryStatus => {
                     self.secondary_status = SecondaryStatus::default();
+                    self.request_redraw();
                 }
                 FreshSessionReset::CombatAwareness => {
                     self.combat_awareness = CombatAwareness::default();
+                    self.request_redraw();
                 }
                 FreshSessionReset::DamageCollector => self.damage_collector.reset_buffer(),
                 FreshSessionReset::TelnetBuffer => self.telnet_buffer = TelnetBuffer::new(),
                 FreshSessionReset::GuildSelection => {
                     self.selected_guilds.clear();
                     self.guild_selection = GuildSelection::default();
+                    self.request_redraw();
                 }
                 FreshSessionReset::Automation => {
                     self.automation = Automation::new();
@@ -621,16 +667,12 @@ impl BatApp {
                 FreshSessionReset::UserConfigLoaded => self.user_config_loaded = false,
                 FreshSessionReset::PlayerProfile => {
                     self.player_profile = PlayerRuntimeProfile::default();
+                    self.request_redraw();
                 }
                 FreshSessionReset::GenericCommands => {
                     self.generic_commands = GenericCommands::default();
                 }
-                FreshSessionReset::Dialogs => {
-                    self.guild_dialog = None;
-                    self.generic_commands_dialog = None;
-                    self.triggers_dialog = None;
-                    self.settings_dialog = None;
-                }
+                FreshSessionReset::Dialogs => self.reset_dialogs(),
             }
         }
     }
@@ -638,6 +680,7 @@ impl BatApp {
     fn install_connection(&mut self, channels: ConnectionChannels) {
         self.event_receiver = channels.event_receiver;
         self.command_sender = channels.command_sender;
+        self.request_redraw();
     }
 
     fn apply_automation_actions(&mut self, actions: Vec<Action>) -> bool {
@@ -649,18 +692,26 @@ impl BatApp {
     }
 
     fn apply_stats_effects(&mut self, effects: Vec<crate::stats::StatsEffect>) {
+        if effects.is_empty() {
+            return;
+        }
         for effect in effects {
             self.stats.apply_effect(effect);
         }
+        self.request_redraw();
     }
 
     fn apply_secondary_status_effects(
         &mut self,
         effects: Vec<crate::secondary_status::SecondaryStatusEffect>,
     ) {
+        if effects.is_empty() {
+            return;
+        }
         for effect in effects {
             self.secondary_status.apply_effect(effect);
         }
+        self.request_redraw();
     }
 
     fn apply_combat_awareness_effects(&mut self, effects: Vec<CombatAwarenessEffect>) -> bool {
@@ -713,6 +764,7 @@ impl BatApp {
             self.apply_guild_selection(guild_selection);
         } else {
             self.apply_player_profile_to_automation();
+            self.request_redraw();
         }
         self.clamp_monk_rotation_vars();
         self.apply_player_profile_to_generic_commands();
@@ -771,6 +823,7 @@ impl BatApp {
         }
         self.automation.set_flag("in_battle", false);
         self.apply_player_profile_to_automation();
+        self.request_redraw();
     }
 
     fn open_guilds_dialog(&mut self) {
@@ -802,6 +855,7 @@ impl BatApp {
             defaults.sabre_weapon.clone(),
             defaults.riftwalker_entity_labels.clone(),
         ));
+        self.request_redraw();
     }
 
     fn open_settings_dialog(&mut self) {
@@ -822,6 +876,7 @@ impl BatApp {
             }
         };
         self.settings_dialog = Some(SettingsDialog::new(entries));
+        self.request_redraw();
     }
 
     fn handle_guild_dialog_event(&mut self, event: KeyEvent) {
@@ -835,6 +890,7 @@ impl BatApp {
                 } else {
                     dialog.back_to_browse();
                 }
+                self.request_redraw();
             }
             KeyCode::Enter => {
                 if dialog.is_browsing_backgrounds() {
@@ -846,6 +902,7 @@ impl BatApp {
                 let sabre_weapon = dialog.sabre_weapon();
                 let riftwalker_entities = dialog.riftwalker_entity_labels();
                 self.guild_dialog = None;
+                self.request_redraw();
                 self.apply_guild_selection(guild_selection.clone());
                 self.save_selected_guilds_with_auxiliary(
                     guild_selection,
@@ -877,10 +934,12 @@ impl BatApp {
             }
             KeyCode::Esc => {
                 self.settings_dialog = None;
+                self.request_redraw();
             }
             KeyCode::Enter => {
                 let entries = dialog.entries();
                 self.settings_dialog = None;
+                self.request_redraw();
                 self.apply_user_settings(UserSettings { entries });
             }
             _ => {}
@@ -896,6 +955,7 @@ impl BatApp {
         }
 
         self.generic_commands_dialog = Some(GenericCommandsDialog::new(&self.generic_commands));
+        self.request_redraw();
     }
 
     fn handle_generic_commands_dialog_event(&mut self, event: KeyEvent) {
@@ -908,10 +968,12 @@ impl BatApp {
             KeyCode::Char(' ') => dialog.toggle_selected(),
             KeyCode::Esc => {
                 self.generic_commands_dialog = None;
+                self.request_redraw();
             }
             KeyCode::Enter => {
                 let (enabled_groups, disabled_commands) = dialog.to_config();
                 self.generic_commands_dialog = None;
+                self.request_redraw();
                 self.save_generic_commands(enabled_groups, disabled_commands);
             }
             _ => {}
@@ -950,6 +1012,7 @@ impl BatApp {
         }
 
         self.triggers_dialog = Some(TriggersDialog::new(&self.player_profile.trigger_config));
+        self.request_redraw();
     }
 
     fn handle_triggers_dialog_event(&mut self, event: KeyEvent) {
@@ -962,10 +1025,12 @@ impl BatApp {
             KeyCode::Char(' ') => dialog.toggle_selected(),
             KeyCode::Esc => {
                 self.triggers_dialog = None;
+                self.request_redraw();
             }
             KeyCode::Enter => {
                 if dialog.draft_equals_saved() {
                     self.triggers_dialog = None;
+                    self.request_redraw();
                     return;
                 }
                 let draft = dialog.draft().clone();
@@ -976,6 +1041,7 @@ impl BatApp {
                         }
                         self.player_profile.trigger_config = saved;
                         self.triggers_dialog = None;
+                        self.request_redraw();
                     }
                     Err(message) => {
                         if let Some(dialog) = self.triggers_dialog.as_mut() {
@@ -1019,6 +1085,7 @@ impl BatApp {
         }
 
         self.monk_dialog = Some(MonkDialog::new(&self.player_profile.monk_skills_config));
+        self.request_redraw();
     }
 
     fn handle_monk_dialog_event(&mut self, event: KeyEvent) {
@@ -1031,10 +1098,12 @@ impl BatApp {
             KeyCode::Char(' ') => dialog.toggle_selected(),
             KeyCode::Esc => {
                 self.monk_dialog = None;
+                self.request_redraw();
             }
             KeyCode::Enter => {
                 if dialog.draft_equals_saved() {
                     self.monk_dialog = None;
+                    self.request_redraw();
                     return;
                 }
                 let draft = dialog.draft().clone();
@@ -1046,6 +1115,7 @@ impl BatApp {
                         self.player_profile.monk_skills_config = saved;
                         self.clamp_monk_rotation_vars();
                         self.monk_dialog = None;
+                        self.request_redraw();
                     }
                     Err(message) => {
                         if let Some(dialog) = self.monk_dialog.as_mut() {
@@ -1139,6 +1209,7 @@ impl BatApp {
             self.output.append_lines(vec![StyledLine::new(
                 "Raw logging unavailable: HOME is not set.",
             )]);
+            self.request_redraw();
             return;
         };
 
@@ -1146,17 +1217,23 @@ impl BatApp {
             logger.disable();
             self.output
                 .append_lines(vec![StyledLine::new("Raw logging disabled.")]);
+            self.request_redraw();
             return;
         }
 
         match logger.enable(self.session.login_name()) {
-            Ok(path) => self.output.append_lines(vec![StyledLine::new(&format!(
-                "Raw logging enabled: {}",
-                path.display()
-            ))]),
-            Err(e) => self
-                .output
-                .append_lines(vec![StyledLine::new(&format!("Raw logging failed: {e}"))]),
+            Ok(path) => {
+                self.output.append_lines(vec![StyledLine::new(&format!(
+                    "Raw logging enabled: {}",
+                    path.display()
+                ))]);
+                self.request_redraw();
+            }
+            Err(e) => {
+                self.output
+                    .append_lines(vec![StyledLine::new(&format!("Raw logging failed: {e}"))]);
+                self.request_redraw();
+            }
         }
     }
 
@@ -1231,6 +1308,7 @@ mod tests {
             guild_selection: GuildSelection::default(),
             should_quit: false,
             pending_terminal_clear: false,
+            redraw_needed: false,
             automation: Automation::new(),
             config_manager: None,
             user_config_loaded: true,
@@ -2044,8 +2122,40 @@ mod tests {
         assert!(!followed);
         assert!(app.take_pending_terminal_clear());
         assert!(!app.take_pending_terminal_clear());
+        assert!(app.take_redraw());
+        assert!(!app.take_redraw());
         assert_eq!(app.output.plain_lines().len(), line_count_before);
         assert_eq!(app.scrollback.offset(), scroll_offset_before);
+    }
+
+    #[test]
+    fn output_buffer_reuses_wrapped_cache_until_output_changes() {
+        let mut output = OutputBuffer::new();
+        output.append_lines(vec![StyledLine::new("abcdefgh")]);
+
+        let first = output.wrapped_lines(4).as_ptr();
+        let second = output.wrapped_lines(4).as_ptr();
+        assert_eq!(first, second);
+
+        output.append_lines(vec![StyledLine::new("ijkl")]);
+
+        let third = output.wrapped_lines(4).as_ptr();
+        assert_ne!(second, third);
+    }
+
+    #[test]
+    fn output_buffer_rewraps_when_width_changes() {
+        let mut output = OutputBuffer::new();
+        output.append_lines(vec![StyledLine::new("abcdefgh")]);
+
+        let wide_ptr = output.wrapped_lines(8).as_ptr();
+        let wide_len = output.wrapped_lines(8).len();
+        let narrow_ptr = output.wrapped_lines(4).as_ptr();
+        let narrow_len = output.wrapped_lines(4).len();
+
+        assert_ne!(wide_ptr, narrow_ptr);
+        assert_eq!(wide_len, 1);
+        assert_eq!(narrow_len, 2);
     }
 
     #[test]
