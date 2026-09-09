@@ -25,6 +25,16 @@
       "source": "catalog"
     },
     {
+      "id": "pi-package-improvement-scanner",
+      "kind": "pi-extension-placement",
+      "bundlePath": "pi-extensions/improvement-scanner",
+      "requires": [
+        "jq"
+      ],
+      "optional": false,
+      "source": "catalog"
+    },
+    {
       "id": "pi-package-ponytail",
       "kind": "pi-install",
       "command": "pi install -l npm:@dietrichgebert/ponytail",

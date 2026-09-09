@@ -1,14 +1,10 @@
-# @oaalto-kodanbce/pi-ignore
+# pi-ignore
 
 Pi extension: make selected gitignored files discoverable via a project `.piignore` file (gitignore negation syntax).
 
-## Install
+## Delivery
 
-```bash
-pi install npm:@oaalto-kodanbce/pi-ignore@1.1.1
-pi install npm:@oaalto-kodanbce/pi-ignore@1.1.1 -l   # project-local
-pi -e npm:@oaalto-kodanbce/pi-ignore                 # try once
-```
+Bundle-installed Pi extension/package (`file-placement`): ADC vendors this source at repo root `pi-extensions/pi-ignore/`, stages it into the generated bundle under `.agentic-config/bundle/pi-extensions/pi-ignore/`, and the installer places it into the target project's `.pi/extensions/pi-ignore/` (no `pi install`, no network). Pi auto-discovers it after the project is trusted, then `/reload` hot-loads it. Select **pi-ignore** on the ADC **Pi packages** step to emit the placement step.
 
 ## Setup
 
@@ -35,4 +31,4 @@ Start pi → info notification about `.piignore` → `@docs/...` suggests gitign
 
 ## Update
 
-`pi update npm:@oaalto-kodanbce/pi-ignore` or bump pinned version in `.pi/settings.json`.
+Snapshotted per ADC release — re-download the ADC bundle to take a newer version. `pi update` does not apply.

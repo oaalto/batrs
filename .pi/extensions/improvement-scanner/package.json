@@ -1,0 +1,23 @@
+{
+  "name": "improvement-scanner",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Pi extension: research-only /improvement-scan command for improvement-oriented repo scans",
+  "keywords": [
+    "pi-package"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "scripts": {
+    "test": "node --test --experimental-strip-types tests/improvementScanner.test.ts"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/improvementScanner.ts"
+    ]
+  }
+}

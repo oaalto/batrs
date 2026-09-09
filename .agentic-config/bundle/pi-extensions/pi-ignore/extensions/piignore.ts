@@ -297,7 +297,7 @@ export function patternOverlapsSearch(negatedPattern: string, searchPath: string
   );
 }
 
-async function runFdPaths(fdPath: string, baseDir: string, args: string[], signal?: AbortSignal): Promise<string[]> {
+async function runFdPaths(fdPath: string, _baseDir: string, args: string[], signal?: AbortSignal): Promise<string[]> {
   return new Promise((resolvePromise, reject) => {
     if (signal?.aborted) {
       reject(new Error("Operation aborted"));
