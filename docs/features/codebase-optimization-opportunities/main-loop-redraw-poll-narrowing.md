@@ -21,4 +21,8 @@ Reduce measurable redundant work in the batrs client main loop when idle or unde
 
 ## Status
 
-ready-for-agent
+dropped
+
+## Drop rationale
+
+Dropped per the parent PRD's provision that lower-ranked opportunities may be dropped when evidence shows they are noise. The scan flagged this track as explicitly contingent on profiling evidence ("if profiling still shows meaningful idle overhead"), and no measured redundant redraw or polling source emerged once the higher-value hot paths were reduced. The only candidate change (replacing duplicate `Instant::now()` calls with `last_redraw_tick.elapsed()`) is a minor API cleanup that narrows no actual redraw or poll work and does not meet the slice's own evidence bar, so it is not worth a `done` ticket. Revisit if a later profile of idle CPU shows a real bottleneck.
