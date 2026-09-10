@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-09-10] skip | Combat Damage melee matcher reuse
+
+- Updated: none
+- Sources: `src/combat_damage/matcher.rs`, `docs/features/codebase-optimization-opportunities/combat-damage-melee-matcher-reuse.md`
+- Notes: Reused a precomputed melee match order and kept the existing recent-family preference inside the matcher. Combat Damage semantics and wiki-owned behavior stayed unchanged.
+
 ## [2026-09-10] skip | Automation trigger-state borrowing
 
 - Updated: none

@@ -10,10 +10,10 @@ Make Combat Damage melee attribution reuse static catalog structure instead of r
 
 ## Acceptance criteria
 
-- [ ] Melee candidate matching preserves current verb attribution and `weapon_family` semantics, including ADR-backed family-sensitive aggregation behavior.
-- [ ] Incoming melee matching no longer allocates and sorts a fresh search-order structure for each line.
-- [ ] Existing Combat Damage matcher behavior remains unchanged for recent-family preference and family-collision cases.
-- [ ] Existing matcher tests, or equivalent behavior checks, cover the preserved classification semantics.
+- [x] Melee candidate matching preserves current verb attribution and `weapon_family` semantics, including ADR-backed family-sensitive aggregation behavior.
+- [x] Incoming melee matching no longer allocates and sorts a fresh search-order structure for each line.
+- [x] Existing Combat Damage matcher behavior remains unchanged for recent-family preference and family-collision cases.
+- [x] Existing matcher tests, or equivalent behavior checks, cover the preserved classification semantics.
 
 ## Blocked by
 
@@ -21,4 +21,4 @@ Make Combat Damage melee attribution reuse static catalog structure instead of r
 
 ## Status
 
-ready-for-agent
+done

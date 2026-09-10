@@ -2,6 +2,7 @@ use crate::combat_damage::catalog::{CATALOG, CatalogEntry, FAMILY_IDS};
 #[cfg(test)]
 use crate::combat_damage::conjugate::conjugate_verb;
 use regex::Regex;
+use std::cmp::Reverse;
 use std::sync::LazyLock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,6 +27,12 @@ pub struct Matcher {
     last_family: Option<usize>,
     pending_riposte_source: Option<String>,
 }
+
+static MELEE_MATCH_ORDER: LazyLock<Vec<usize>> = LazyLock::new(|| {
+    let mut order = (0..CATALOG.len()).collect::<Vec<_>>();
+    order.sort_by_key(|&idx| Reverse(CATALOG[idx].canonical.len()));
+    order
+});
 
 struct SkillPattern {
     verb: &'static str,
@@ -158,16 +165,21 @@ impl Matcher {
             return None;
         }
 
-        let mut best: Option<(usize, String)> = None;
-        for idx in self.melee_search_order() {
-            let entry = &CATALOG[idx];
-            if let Some(source) = match_catalog_entry(line, entry) {
-                let len = entry.canonical.len();
-                if best.as_ref().is_none_or(|(best_len, _)| len > *best_len) {
-                    best = Some((idx, source));
-                }
-            }
-        }
+        let recency_match = self.last_family.and_then(|last_family| {
+            MELEE_MATCH_ORDER.iter().find_map(|&idx| {
+                let entry = &CATALOG[idx];
+                (entry.family == last_family)
+                    .then(|| match_catalog_entry(line, entry).map(|source| (idx, source)))
+                    .flatten()
+            })
+        });
+
+        let best = recency_match.or_else(|| {
+            MELEE_MATCH_ORDER.iter().find_map(|&idx| {
+                let entry = &CATALOG[idx];
+                match_catalog_entry(line, entry).map(|source| (idx, source))
+            })
+        });
 
         let (idx, source) = best?;
         let entry = &CATALOG[idx];
@@ -180,30 +192,6 @@ impl Matcher {
             catalog_rank: Some(entry.rank),
             weapon_family: Some(FAMILY_IDS[entry.family].to_string()),
         })
-    }
-
-    fn melee_search_order(&self) -> Vec<usize> {
-        let mut recency: Vec<usize> = Vec::new();
-        let mut rest: Vec<usize> = Vec::new();
-
-        for (idx, entry) in CATALOG.iter().enumerate() {
-            if Some(entry.family) == self.last_family {
-                recency.push(idx);
-            } else {
-                rest.push(idx);
-            }
-        }
-
-        let by_len = |a: &usize, b: &usize| {
-            CATALOG[*b]
-                .canonical
-                .len()
-                .cmp(&CATALOG[*a].canonical.len())
-        };
-        recency.sort_by(by_len);
-        rest.sort_by(by_len);
-        recency.extend(rest);
-        recency
     }
 
     pub(crate) fn match_skill(&mut self, line: &str) -> Option<DamageCandidate> {
@@ -700,6 +688,31 @@ mod tests {
         let line = format_incoming_line("Holy man", "boot");
         matcher.match_incoming(&line).unwrap();
         assert_eq!(matcher.last_family, Some(5));
+    }
+
+    #[test]
+    fn recency_prefers_last_family_when_collision_exists() {
+        let line = format_incoming_line("Holy man", "boot");
+
+        let mut preferred = Matcher {
+            last_family: Some(5), // unarmed
+            pending_riposte_source: None,
+        };
+        let candidate = preferred
+            .match_melee_for_test(&line)
+            .expect("recency should keep unarmed family");
+        assert_eq!(candidate.message_verb, "boot");
+        assert_eq!(candidate.weapon_family.as_deref(), Some("unarmed"));
+
+        let mut fallback = Matcher {
+            last_family: Some(7), // monk
+            pending_riposte_source: None,
+        };
+        let candidate = fallback
+            .match_melee_for_test(&line)
+            .expect("without same-family hit, matcher should fall back");
+        assert_eq!(candidate.message_verb, "boot");
+        assert_eq!(candidate.weapon_family.as_deref(), Some("unarmed"));
     }
 
     #[test]
