@@ -10,10 +10,10 @@ Make ordinary Combat Damage database usage stop rerunning heavyweight schema-mai
 
 ## Acceptance criteria
 
-- [ ] Normal batrs startup preserves current Combat Damage behavior without rerunning unnecessary migration/backfill work on ordinary opens.
-- [ ] Combat Damage viewer actions that write local review state preserve current behavior and stored-data semantics without paying full routine-maintenance cost on every open.
-- [ ] Schema upgrades and any required historical maintenance still run when genuinely needed.
-- [ ] Existing Combat Damage semantics remain unchanged, including ADR-backed melee aggregation and separate unattributed HP-loss storage.
+- [x] Normal batrs startup preserves current Combat Damage behavior without rerunning unnecessary migration/backfill work on ordinary opens.
+- [x] Combat Damage viewer actions that write local review state preserve current behavior and stored-data semantics without paying full routine-maintenance cost on every open.
+- [x] Schema upgrades and any required historical maintenance still run when genuinely needed.
+- [x] Existing Combat Damage semantics remain unchanged, including ADR-backed melee aggregation and separate unattributed HP-loss storage.
 
 ## Blocked by
 
@@ -21,4 +21,4 @@ Make ordinary Combat Damage database usage stop rerunning heavyweight schema-mai
 
 ## Status
 
-ready-for-agent
+done

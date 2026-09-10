@@ -4,7 +4,7 @@ use crate::combat_damage::aggregate::{
     delete_reviewed_unattributed, get_unattributed, list_events, list_players, list_unattributed,
     mark_unattributed_reviewed, melee_family_aggregates,
 };
-use crate::combat_damage::storage::{open_db, open_readonly_db};
+use crate::combat_damage::storage::{open_readonly_db, open_validated_db};
 use axum::{
     Form, Router,
     extract::{Path, Query, State},
@@ -145,7 +145,7 @@ async fn remove_reviewed_unattributed(
     Form(form): Form<RemoveReviewedForm>,
 ) -> impl IntoResponse {
     let filters = FilterParams::from_query(form.range.as_deref(), form.player.as_deref());
-    match open_db(&state.db_path) {
+    match open_validated_db(&state.db_path) {
         Ok(conn) => {
             if let Err(err) = delete_reviewed_unattributed(&conn, &filters) {
                 log::warn!("failed to remove reviewed unattributed triggers: {err}");
@@ -164,7 +164,7 @@ async fn unattributed_drill_down(
     Query(query): Query<ViewerQuery>,
 ) -> impl IntoResponse {
     let filters = FilterParams::from_query(query.range.as_deref(), query.player.as_deref());
-    match open_db(&state.db_path) {
+    match open_validated_db(&state.db_path) {
         Ok(conn) => match unattributed_drill_down_data(&conn, id, &filters, &query) {
             Ok(html) => Html(html).into_response(),
             Err(message) => service_unavailable(message),

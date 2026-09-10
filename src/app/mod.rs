@@ -136,10 +136,18 @@ impl BatApp {
         let damage_collector = match &config_manager {
             Some(manager) => {
                 let db_path = manager.base_dir().join("combat_damage.db");
-                DamageCollector::open(&db_path).unwrap_or_else(|error| {
-                    warn!("failed to open combat damage database: {error}");
-                    DamageCollector::inert()
-                })
+                match crate::combat_damage::open_db(&db_path) {
+                    Ok(conn) => {
+                        if let Err(error) = crate::combat_damage::run_backfills(&conn) {
+                            warn!("failed to backfill combat damage database: {error}");
+                        }
+                        DamageCollector::new(conn)
+                    }
+                    Err(error) => {
+                        warn!("failed to open combat damage database: {error}");
+                        DamageCollector::inert()
+                    }
+                }
             }
             None => DamageCollector::inert(),
         };

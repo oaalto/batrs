@@ -9,15 +9,24 @@ pub const CURRENT_SCHEMA_VERSION: i32 = 5;
 const SCHEMA_NEWER_THAN_BINARY: &str = "Database schema newer than batrs; upgrade batrs.";
 pub const CANNOT_OPEN_DATABASE: &str = "Cannot open combat damage database.";
 
+/// Opens the Combat Damage database for routine writable use.
+///
+/// This path creates the parent directory when needed, opens the SQLite file,
+/// enables WAL mode, and validates or migrates schema structure. It does not run
+/// historical backfill or repair work.
 pub fn open_db(path: &Path) -> Result<Connection, String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|err| err.to_string())?;
-    }
-    let conn = Connection::open(path).map_err(|err| err.to_string())?;
-    conn.pragma_update(None, "journal_mode", "WAL")
-        .map_err(|err| err.to_string())?;
+    let conn = open_writable_db(path, true)?;
     migrate(&conn)?;
     Ok(conn)
+}
+
+/// Opens the Combat Damage database for viewer write-state actions.
+///
+/// This path validates that the schema is readable by the current binary but does
+/// not run migrations or backfills, so routine review-mark and delete-reviewed
+/// actions avoid heavyweight maintenance work.
+pub fn open_validated_db(path: &Path) -> Result<Connection, String> {
+    open_writable_db(path, true)
 }
 
 pub fn open_readonly_db(path: &Path) -> Result<Connection, String> {
@@ -41,6 +50,23 @@ fn validate_readable_schema(conn: &Connection) -> Result<(), String> {
     }
 }
 
+fn open_writable_db(path: &Path, create_if_missing: bool) -> Result<Connection, String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+    }
+    let mut flags = OpenFlags::SQLITE_OPEN_READ_WRITE;
+    if create_if_missing {
+        flags |= OpenFlags::SQLITE_OPEN_CREATE;
+    }
+    let conn = Connection::open_with_flags(path, flags).map_err(|err| err.to_string())?;
+    conn.pragma_update(None, "journal_mode", "WAL")
+        .map_err(|err| err.to_string())?;
+    if read_schema_version(&conn)?.is_some() {
+        validate_readable_schema(&conn)?;
+    }
+    Ok(conn)
+}
+
 fn migrate(conn: &Connection) -> Result<(), String> {
     let version = read_schema_version(conn)?;
     match version {
@@ -53,6 +79,10 @@ fn migrate(conn: &Connection) -> Result<(), String> {
         }
         Some(_) => {}
     }
+    Ok(())
+}
+
+pub fn run_backfills(conn: &Connection) -> Result<(), String> {
     backfill_melee_catalog_metadata(conn)?;
     backfill_riposte_from_unattributed(conn)?;
     backfill_skills_from_unattributed(conn)?;
@@ -950,7 +980,8 @@ mod tests {
         )
         .unwrap();
         drop(conn);
-        open_db(&path).expect("backfill on open");
+        let conn = open_db(&path).expect("backfill on maintenance open");
+        run_backfills(&conn).expect("run maintenance backfills");
         let conn = Connection::open(&path).unwrap();
         let scrape: (Option<i32>, Option<String>) = conn
             .query_row(
@@ -1056,7 +1087,8 @@ mod tests {
         )
         .unwrap();
         drop(conn);
-        open_db(&path).expect("open and backfill");
+        let conn = open_db(&path).expect("open and backfill");
+        run_backfills(&conn).expect("run maintenance backfills");
         let conn = Connection::open(&path).unwrap();
         let damage_count: i64 = conn
             .query_row("SELECT COUNT(*) FROM damage_events", [], |row| row.get(0))
@@ -1130,7 +1162,8 @@ mod tests {
         )
         .unwrap();
         drop(conn);
-        open_db(&path).expect("open and backfill");
+        let conn = open_db(&path).expect("open and backfill");
+        run_backfills(&conn).expect("run maintenance backfills");
         let conn = Connection::open(&path).unwrap();
         let riposte_rows: i64 = conn
             .query_row(
@@ -1208,7 +1241,8 @@ mod tests {
         )
         .unwrap();
         drop(conn);
-        open_db(&path).expect("open and backfill");
+        let conn = open_db(&path).expect("open and backfill");
+        run_backfills(&conn).expect("run maintenance backfills");
         let conn = Connection::open(&path).unwrap();
         let stab_rows: i64 = conn
             .query_row(
@@ -1286,7 +1320,8 @@ mod tests {
         )
         .unwrap();
         drop(conn);
-        open_db(&path).expect("open without skill backfill match");
+        let conn = open_db(&path).expect("open without skill backfill match");
+        run_backfills(&conn).expect("run maintenance backfills");
         let conn = Connection::open(&path).unwrap();
         let damage_count: i64 = conn
             .query_row("SELECT COUNT(*) FROM damage_events", [], |row| row.get(0))
@@ -1328,7 +1363,8 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
-        open_db(path).expect("open and backfill user db");
+        let conn = open_db(path).expect("open and backfill user db");
+        run_backfills(&conn).expect("run maintenance backfills");
         let after_riposte: i64 = Connection::open(path)
             .unwrap()
             .query_row(

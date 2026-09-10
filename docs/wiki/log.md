@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-09-10] skip | Combat Damage open-path split
+
+- Updated: none
+- Sources: `src/combat_damage/storage.rs`, `src/combat_damage/viewer.rs`, `src/app/mod.rs`, `docs/features/codebase-optimization-opportunities/combat-damage-open-path.md`
+- Notes: Open-path maintenance split is implementation-local to Combat Damage storage/runtime flow; no wiki concept page required changes.
+
 ## [2026-09-08] skip | Ranger cs opener now uses explicit kill
 
 - Updated: none

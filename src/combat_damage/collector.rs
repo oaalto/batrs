@@ -1,11 +1,9 @@
 use crate::combat_damage::attribution::{catalog_weights, confidence};
 use crate::combat_damage::matcher::{DamageCandidate, DamageCategory, Matcher};
-use crate::combat_damage::storage::open_db;
 use crate::triggers::SC_REGEX;
 use chrono::Utc;
 use log::warn;
 use rusqlite::Connection;
-use std::path::Path;
 
 struct PendingBatch {
     batch_id: i64,
@@ -61,11 +59,6 @@ pub struct DamageCollector {
 }
 
 impl DamageCollector {
-    pub fn open(path: &Path) -> Result<Self, String> {
-        let conn = open_db(path)?;
-        Ok(Self::new(conn))
-    }
-
     pub fn new(conn: Connection) -> Self {
         let next_batch_id = conn
             .query_row(
@@ -449,6 +442,7 @@ pub fn parse_json_string_array(json: &str) -> Vec<String> {
 mod tests {
     use super::*;
     use crate::combat_damage::matcher::DamageCategory;
+    use crate::combat_damage::storage::open_db;
 
     fn temp_db_path(name: &str) -> std::path::PathBuf {
         std::env::temp_dir().join(format!(
@@ -461,7 +455,7 @@ mod tests {
     fn collector_with_temp_db(name: &str) -> (DamageCollector, std::path::PathBuf) {
         let path = temp_db_path(name);
         let _ = std::fs::remove_file(&path);
-        let collector = DamageCollector::open(&path).expect("open temp db");
+        let collector = DamageCollector::new(open_db(&path).expect("open temp db"));
         (collector, path)
     }
 
