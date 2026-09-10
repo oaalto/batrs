@@ -215,7 +215,10 @@ impl ReaverGuild {
         ]
     }
 
-    pub fn scythe_swipe_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn scythe_swipe_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if SCYTHE_SWIPE_REGEX.is_match(line.plain_line) {
             return TriggerEffects::none().style_line(TextStyle::BLUE);
         }
@@ -224,7 +227,7 @@ impl ReaverGuild {
 
     pub fn rampant_cutting_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts,
+        _facts: &TriggerFacts<'_>,
     ) -> TriggerEffects {
         if RAMPANT_CUTTING_REGEXS
             .iter()
@@ -235,7 +238,10 @@ impl ReaverGuild {
         TriggerEffects::none()
     }
 
-    pub fn reaver_strike_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn reaver_strike_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if REAVER_STRIKE_REGEXS
             .iter()
             .any(|r| r.is_match(line.plain_line))
@@ -245,21 +251,30 @@ impl ReaverGuild {
         TriggerEffects::none()
     }
 
-    pub fn attack_fails_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn attack_fails_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if ATTACK_FAILS.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::BRIGHT_RED);
         }
         TriggerEffects::none()
     }
 
-    pub fn killing_blow_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn killing_blow_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if KILLING_BLOW.is_match(line.plain_line) {
             return TriggerEffects::none().style_block("KILLING BLOW", TextStyle::BRIGHT_RED);
         }
         TriggerEffects::none()
     }
 
-    pub fn speak_ancient_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn speak_ancient_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         let plain_line = line.plain_line;
         let mut output = TriggerEffects::none();
         if let Some(captures) = SPEAK_ANCIENT.captures(plain_line) {
@@ -275,7 +290,7 @@ impl ReaverGuild {
 
     pub fn destructive_energy_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts,
+        _facts: &TriggerFacts<'_>,
     ) -> TriggerEffects {
         let plain_line = line.plain_line;
         let mut output = TriggerEffects::none();
@@ -289,7 +304,10 @@ impl ReaverGuild {
         output
     }
 
-    pub fn blue_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn blue_hilites_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if BLUE_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::BLUE);
         }
@@ -298,7 +316,7 @@ impl ReaverGuild {
 
     pub fn magenta_hilites_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts,
+        _facts: &TriggerFacts<'_>,
     ) -> TriggerEffects {
         if MAGENTA_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::BRIGHT_MAGENTA);
@@ -306,21 +324,30 @@ impl ReaverGuild {
         TriggerEffects::none()
     }
 
-    pub fn green_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn green_hilites_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if GREEN_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::GREEN);
         }
         TriggerEffects::none()
     }
 
-    pub fn red_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn red_hilites_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if RED_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::RED);
         }
         TriggerEffects::none()
     }
 
-    pub fn threaten_usage_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn threaten_usage_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if "Can only be used once per 10 minutes." == line.plain_line {
             return TriggerEffects::none().gag();
         }

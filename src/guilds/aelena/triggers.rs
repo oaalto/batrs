@@ -66,7 +66,7 @@ impl AelenaGuild {
         ]
     }
 
-    pub fn aelena_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn aelena_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         let line = line.plain_line;
 

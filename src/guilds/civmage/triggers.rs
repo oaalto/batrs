@@ -25,7 +25,7 @@ impl CivmageGuild {
         entries
     }
 
-    pub fn civmage_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn civmage_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
         let line = line.plain_line.trim_end_matches('\r').trim().to_string();
 
         if line == "You feel odd. Not weaker, but..." {

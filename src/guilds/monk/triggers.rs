@@ -90,7 +90,7 @@ impl MonkGuild {
         entries
     }
 
-    pub fn state_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
+    pub fn state_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         let line = line.plain_line;
 
@@ -129,7 +129,10 @@ impl MonkGuild {
         output
     }
 
-    pub fn skill_result_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
+    pub fn skill_result_trigger(
+        line: &TriggerLine<'_>,
+        facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         let line = line.plain_line.to_string();
         let config = facts.monk_skills();
@@ -530,10 +533,10 @@ mod tests {
     use crate::automation::Automation;
     use crate::triggers::{TriggerFacts, TriggerLine};
 
-    fn facts(automation: &Automation) -> TriggerFacts {
+    fn facts(automation: &Automation) -> TriggerFacts<'_> {
         TriggerFacts::new(
-            automation.snapshot_flags(),
-            automation.snapshot_vars(),
+            automation.flags(),
+            automation.vars(),
             None,
             None,
             crate::guilds::MonkSkillsConfig::default(),
@@ -548,13 +551,9 @@ mod tests {
         line_text: &str,
         config: &MonkSkillsConfig,
     ) -> (TriggerEffects, StyledLine) {
-        let facts = TriggerFacts::new(
-            std::collections::HashMap::new(),
-            std::collections::HashMap::new(),
-            None,
-            None,
-            config.clone(),
-        );
+        let flags = std::collections::HashMap::new();
+        let vars = std::collections::HashMap::new();
+        let facts = TriggerFacts::new(&flags, &vars, None, None, config.clone());
         let output = MonkGuild::skill_result_trigger(&TriggerLine::new(line_text), &facts);
         let mut line = StyledLine::new(line_text);
         output.apply_line_effects_to(&mut line);

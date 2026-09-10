@@ -7,7 +7,7 @@ pub static SC_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^H:(.+)/(.+) \[(.*)\] S:(.+)/(.+) \[(.*)\] E:(.+)/(.+) \[(.*)\] \$:(.+) \[(.*)\] exp:(.+) \[(.*)\]$").unwrap()
 });
 
-pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
     if let Some(captures) = SC_REGEX.captures(line.plain_line) {
         let (_, stats): (&str, [&str; 13]) = captures.extract();
         let stats = stats.map(|stat| stat.parse::<i32>().unwrap_or_default());

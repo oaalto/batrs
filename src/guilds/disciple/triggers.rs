@@ -62,7 +62,7 @@ impl DiscipleGuild {
 
     pub fn spawn_going_down_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts,
+        _facts: &TriggerFacts<'_>,
     ) -> TriggerEffects {
         if SPAWN_GOING_DOWN.is_match(line.plain_line) {
             let mut alert = StyledLine::new("*************** SPAWN GOING DOWN!! ***************");
@@ -74,14 +74,20 @@ impl DiscipleGuild {
         TriggerEffects::none()
     }
 
-    pub fn red_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn red_hilites_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if RED_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::BRIGHT_RED);
         }
         TriggerEffects::none()
     }
 
-    pub fn green_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn green_hilites_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if GREEN_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::GREEN);
         }

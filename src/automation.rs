@@ -2,6 +2,9 @@ use regex::{Captures, Regex};
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
+pub type AutomationFlags = HashMap<String, bool>;
+pub type AutomationVars = HashMap<String, String>;
+
 #[derive(Clone, Debug)]
 pub struct Waiter {
     pub pattern: Regex,
@@ -21,8 +24,8 @@ pub enum Action {
 
 #[derive(Default, Debug)]
 pub struct Automation {
-    flags: HashMap<String, bool>,
-    vars: HashMap<String, String>,
+    flags: AutomationFlags,
+    vars: AutomationVars,
     waiters: Vec<Waiter>,
 }
 
@@ -31,12 +34,12 @@ impl Automation {
         Self::default()
     }
 
-    pub fn snapshot_flags(&self) -> HashMap<String, bool> {
-        self.flags.clone()
+    pub fn flags(&self) -> &AutomationFlags {
+        &self.flags
     }
 
-    pub fn snapshot_vars(&self) -> HashMap<String, String> {
-        self.vars.clone()
+    pub fn vars(&self) -> &AutomationVars {
+        &self.vars
     }
 
     #[cfg(test)]

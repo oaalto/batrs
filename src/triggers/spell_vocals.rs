@@ -59,7 +59,7 @@ fn is_word_continuation(ch: char) -> bool {
     ch.is_alphanumeric() || ch == '_'
 }
 
-pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
     let plain = line.plain_line;
 
     for rule in CONTEXTUAL_RULES.iter() {

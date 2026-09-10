@@ -36,7 +36,7 @@ pub fn sect_cultivation_catalog_entries() -> Vec<TriggerCatalogEntry> {
 
 pub fn sect_cultivation_hilite_trigger(
     line: &TriggerLine<'_>,
-    _facts: &TriggerFacts,
+    _facts: &TriggerFacts<'_>,
 ) -> TriggerEffects {
     let line = line.plain_line;
     if FINISHED_CULTIVATING.is_match(line) {

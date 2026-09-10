@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 pub static REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^Hp:(.+)/(.+) Sp:(.+)/(.+) Ep:(.+)/(.+) Exp:(.+) >$").unwrap());
 
-pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
     if let Some(captures) = REGEX.captures(line.plain_line) {
         let (_, stats): (&str, [&str; 7]) = captures.extract();
         let stats = stats.map(|stat| stat.parse::<i32>().unwrap_or_default());

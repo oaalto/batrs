@@ -19,7 +19,7 @@ impl FolkloristGuild {
 
     pub fn folklorist_highlight_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts,
+        _facts: &TriggerFacts<'_>,
     ) -> TriggerEffects {
         let plain = line.plain_line.trim_end_matches('\r').trim();
 

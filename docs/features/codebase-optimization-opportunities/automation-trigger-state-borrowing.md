@@ -10,10 +10,10 @@ Make incoming-line trigger evaluation read the current automation flags and vars
 
 ## Acceptance criteria
 
-- [ ] Trigger evaluation still sees the correct automation flags, vars, login name, and Player Profile-derived facts for incoming lines.
-- [ ] Logged-in line processing no longer clones whole automation flag and var maps merely to construct trigger facts.
-- [ ] Existing trigger and automation behavior remains unchanged from the player's perspective.
-- [ ] Existing automation or trigger tests, or equivalent behavior checks, cover the preserved semantics.
+- [x] Trigger evaluation still sees the correct automation flags, vars, login name, and Player Profile-derived facts for incoming lines.
+- [x] Logged-in line processing no longer clones whole automation flag and var maps merely to construct trigger facts.
+- [x] Existing trigger and automation behavior remains unchanged from the player's perspective.
+- [x] Existing automation or trigger tests, or equivalent behavior checks, cover the preserved semantics.
 
 ## Blocked by
 
@@ -21,4 +21,4 @@ Make incoming-line trigger evaluation read the current automation flags and vars
 
 ## Status
 
-ready-for-agent
+done

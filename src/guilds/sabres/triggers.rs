@@ -88,13 +88,13 @@ impl SabresGuild {
         ]
     }
 
-    fn configured_weapon(facts: &TriggerFacts) -> Option<String> {
+    fn configured_weapon(facts: &TriggerFacts<'_>) -> Option<String> {
         let raw = facts.get_var(SABRE_WEAPON_VAR)?;
         let trimmed = raw.trim();
         (!trimmed.is_empty()).then(|| trimmed.to_string())
     }
 
-    pub fn notify_triggers(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn notify_triggers(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
         let plain = line.plain_line;
         if plain == BATTLE_CADENCE {
             TriggerEffects::none().style_line(TextStyle::BLUE)
@@ -109,7 +109,10 @@ impl SabresGuild {
         }
     }
 
-    pub fn fence_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn fence_hilites_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         let plain = line.plain_line;
         if FENCE_RED_HILITE.contains(&plain) {
             TriggerEffects::none().style_line(TextStyle::BRIGHT_RED)
@@ -122,7 +125,7 @@ impl SabresGuild {
 
     pub fn proficiency_blue_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts,
+        _facts: &TriggerFacts<'_>,
     ) -> TriggerEffects {
         if line.plain_line.starts_with("You feel more proficient in") {
             return TriggerEffects::none().style_line(TextStyle::BLUE);
@@ -132,7 +135,7 @@ impl SabresGuild {
 
     pub fn gloveknock_wield_trigger(
         line: &TriggerLine<'_>,
-        facts: &TriggerFacts,
+        facts: &TriggerFacts<'_>,
     ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         let plain = line.plain_line;
@@ -152,7 +155,10 @@ impl SabresGuild {
         output
     }
 
-    pub fn green_wield_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn green_wield_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if GREEN_WIELD.is_match(line.plain_line) {
             return TriggerEffects::none().style_line(TextStyle::GREEN);
         }

@@ -141,7 +141,7 @@ impl TzarakkGuild {
 
     pub fn mount_detection_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts,
+        _facts: &TriggerFacts<'_>,
     ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if MOUNT_DETECTION_REGEX.is_match(line.plain_line) {
@@ -152,12 +152,12 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn round_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
+    pub fn round_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if ROUND_REGEX.is_match(line.plain_line) && facts.flag_is_set(MOUNT_SUMMONED_FLAG) {
             let mount = facts
                 .get_var(TZARAKK_MOUNT_VAR)
-                .cloned()
+                .map(str::to_string)
                 .unwrap_or_else(|| "Vedir".to_string());
             output.actions.push(Action::Send(format!("@x {}", mount)));
         }
@@ -166,14 +166,14 @@ impl TzarakkGuild {
 
     pub fn chaosfeed_replenish_trigger(
         line: &TriggerLine<'_>,
-        facts: &TriggerFacts,
+        facts: &TriggerFacts<'_>,
     ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if let Some(captures) = CHAOSFEED_REPLENISH_REGEX.captures(line.plain_line) {
             let replenished_mount = captures.get(1).map(|m| m.as_str()).unwrap_or("");
             let tzarakk_mount = facts
                 .get_var(TZARAKK_MOUNT_VAR)
-                .cloned()
+                .map(str::to_string)
                 .unwrap_or_else(|| "Vedir".to_string());
 
             if replenished_mount == tzarakk_mount {
@@ -186,7 +186,7 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn dismount_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn dismount_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if DISMOUNT_REGEXES.iter().any(|r| r.is_match(line.plain_line)) {
             output = output.style_line(TextStyle::BRIGHT_RED);
@@ -197,13 +197,16 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn mount_appears_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
+    pub fn mount_appears_trigger(
+        line: &TriggerLine<'_>,
+        facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if let Some(captures) = MOUNT_APPEARS_REGEX.captures(line.plain_line) {
             let mount_name = captures.get(1).map(|m| m.as_str()).unwrap_or("");
             let tzarakk_mount = facts
                 .get_var(TZARAKK_MOUNT_VAR)
-                .cloned()
+                .map(str::to_string)
                 .unwrap_or_else(|| "Vedir".to_string());
             if mount_name == tzarakk_mount {
                 output
@@ -214,13 +217,13 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn mount_death_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
+    pub fn mount_death_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if facts.flag_is_set(DISMOUNTED_FLAG) && MOUNT_DEATH_REGEX.is_match(line.plain_line) {
             output = output.style_line(TextStyle::BRIGHT_RED);
             let mount = facts
                 .get_var(TZARAKK_MOUNT_VAR)
-                .cloned()
+                .map(str::to_string)
                 .unwrap_or_else(|| "Vedir".to_string());
             output
                 .actions
@@ -229,7 +232,7 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn riding_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn riding_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if RIDING_REGEX.is_match(line.plain_line) {
             output
@@ -242,7 +245,10 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn banish_mount_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn banish_mount_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if BANISH_MOUNT_REGEX.is_match(line.plain_line) {
             output
@@ -258,7 +264,10 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn charge_result_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn charge_result_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if CHARGE_MISS_REGEXES
             .iter()
             .any(|r| r.is_match(line.plain_line))
@@ -271,12 +280,15 @@ impl TzarakkGuild {
         }
     }
 
-    pub fn steed_summoned_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
+    pub fn steed_summoned_trigger(
+        line: &TriggerLine<'_>,
+        facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if STEED_SUMMONED_REGEX.is_match(line.plain_line) {
             let mount = facts
                 .get_var(TZARAKK_MOUNT_VAR)
-                .cloned()
+                .map(str::to_string)
                 .unwrap_or_else(|| "Vedir".to_string());
             output
                 .actions
@@ -292,7 +304,10 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn mount_status_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn mount_status_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         let plain = line.plain_line.trim_end_matches('\r').trim();
         if let Some(captures) = MOUNT_STATUS_REGEX.captures(plain) {
             let name = captures[1].to_string();
@@ -319,10 +334,10 @@ mod tests {
     use crate::secondary_status::SecondaryStatus;
     use crate::triggers::{TriggerFacts, TriggerLine};
 
-    fn facts(automation: &Automation) -> TriggerFacts {
+    fn facts(automation: &Automation) -> TriggerFacts<'_> {
         TriggerFacts::new(
-            automation.snapshot_flags(),
-            automation.snapshot_vars(),
+            automation.flags(),
+            automation.vars(),
             None,
             None,
             crate::guilds::MonkSkillsConfig::default(),

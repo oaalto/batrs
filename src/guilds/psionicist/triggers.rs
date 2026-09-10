@@ -45,7 +45,7 @@ static STUNNED_INTRUSION: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(.+) is stunned from the intrusion into (.+) mind\.").unwrap());
 
 impl PsionicistGuild {
-    pub fn psionicist_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn psionicist_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         let line = line.plain_line;
 

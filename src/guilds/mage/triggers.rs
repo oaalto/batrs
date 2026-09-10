@@ -13,7 +13,7 @@ impl MageGuild {
         magic_lore_analysis_catalog_entries()
     }
 
-    pub fn mage_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn mage_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
         let line = line.plain_line.trim_end_matches('\r').trim().to_string();
 
         if let Some(effect) = magic_lore_analysis_effect(line.as_str()) {

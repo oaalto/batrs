@@ -1,12 +1,11 @@
 use crate::ansi::{StyledLine, TextStyle};
-use crate::automation::Action;
+use crate::automation::{Action, AutomationFlags, AutomationVars};
 use crate::guilds::Guild;
 use crate::guilds::MonkSkillsConfig;
 use crate::secondary_status::SecondaryStatusEffect;
 use crate::stats::StatsEffect;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::LazyLock;
+use std::sync::{LazyLock, OnceLock};
 
 pub use crate::ansi::LineEffect;
 
@@ -78,28 +77,32 @@ impl<'a> TriggerLine<'a> {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct TriggerFacts {
-    flags: HashMap<String, bool>,
-    vars: HashMap<String, String>,
-    pub rig: Option<String>,
-    pub player_name: Option<String>,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TriggerFacts<'a> {
+    flags: &'a AutomationFlags,
+    vars: &'a AutomationVars,
+    pub rig: Option<&'a str>,
+    pub player_name: Option<&'a str>,
     monk_skills: MonkSkillsConfig,
 }
 
-impl TriggerFacts {
+static DEFAULT_AUTOMATION_FLAGS: OnceLock<AutomationFlags> = OnceLock::new();
+static DEFAULT_AUTOMATION_VARS: OnceLock<AutomationVars> = OnceLock::new();
+static DEFAULT_MONK_SKILLS: OnceLock<MonkSkillsConfig> = OnceLock::new();
+
+impl<'a> TriggerFacts<'a> {
     pub fn new(
-        flags: HashMap<String, bool>,
-        vars: HashMap<String, String>,
-        rig: Option<&str>,
-        player_name: Option<&str>,
+        flags: &'a AutomationFlags,
+        vars: &'a AutomationVars,
+        rig: Option<&'a str>,
+        player_name: Option<&'a str>,
         monk_skills: MonkSkillsConfig,
     ) -> Self {
         Self {
             flags,
             vars,
-            rig: rig.map(str::to_string),
-            player_name: player_name.map(str::to_string),
+            rig,
+            player_name,
             monk_skills,
         }
     }
@@ -112,16 +115,30 @@ impl TriggerFacts {
         self.flags.get(key).copied().unwrap_or(false)
     }
 
-    pub fn get_var(&self, key: &str) -> Option<&String> {
-        self.vars.get(key)
+    pub fn get_var(&self, key: &str) -> Option<&str> {
+        self.vars.get(key).map(String::as_str)
     }
 
     pub fn rig(&self) -> Option<&str> {
-        self.rig.as_deref()
+        self.rig
     }
 
     pub fn player_name(&self) -> Option<&str> {
-        self.player_name.as_deref()
+        self.player_name
+    }
+}
+
+impl Default for TriggerFacts<'_> {
+    fn default() -> Self {
+        Self::new(
+            DEFAULT_AUTOMATION_FLAGS.get_or_init(AutomationFlags::default),
+            DEFAULT_AUTOMATION_VARS.get_or_init(AutomationVars::default),
+            None,
+            None,
+            DEFAULT_MONK_SKILLS
+                .get_or_init(MonkSkillsConfig::default)
+                .clone(),
+        )
     }
 }
 
@@ -211,14 +228,14 @@ impl TriggerEffects {
     }
 }
 
-pub type Trigger = fn(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects;
+pub type Trigger = for<'a> fn(line: &TriggerLine<'_>, facts: &TriggerFacts<'a>) -> TriggerEffects;
 
 pub fn common_trigger_catalog() -> Vec<crate::command::TriggerCatalogEntry> {
     common::trigger_catalog()
 }
 
 pub fn process(
-    facts: &TriggerFacts,
+    facts: &TriggerFacts<'_>,
     guilds: &[Box<dyn Guild>],
     line: &str,
     config: &TriggerConfig,
@@ -287,9 +304,11 @@ mod tests {
     #[test]
     fn process_without_animist_applies_player_combat_hit_hilite() {
         let text = "Fueryon hits Reaver 5 times causing a nasty laceration.";
+        let flags = HashMap::new();
+        let vars = HashMap::new();
         let facts = TriggerFacts::new(
-            HashMap::new(),
-            HashMap::new(),
+            &flags,
+            &vars,
             None,
             Some("Fueryon"),
             MonkSkillsConfig::default(),
@@ -305,9 +324,11 @@ mod tests {
     #[test]
     fn process_without_animist_skips_companion_combat_hilite() {
         let text = "A blue-glowing soul companion [Nynn].";
+        let flags = HashMap::new();
+        let vars = HashMap::new();
         let facts = TriggerFacts::new(
-            HashMap::new(),
-            HashMap::new(),
+            &flags,
+            &vars,
             None,
             Some("Nynn"),
             MonkSkillsConfig::default(),
@@ -323,9 +344,11 @@ mod tests {
     #[test]
     fn process_with_animist_applies_companion_combat_hilite() {
         let text = "A blue-glowing soul companion [Nynn].";
+        let flags = HashMap::new();
+        let vars = HashMap::new();
         let facts = TriggerFacts::new(
-            HashMap::new(),
-            HashMap::new(),
+            &flags,
+            &vars,
             None,
             Some("Nynn"),
             MonkSkillsConfig::default(),
@@ -341,9 +364,11 @@ mod tests {
     #[test]
     fn process_with_guild_triggers_disabled_skips_companion_combat_hilite() {
         let text = "A blue-glowing soul companion [Nynn].";
+        let flags = HashMap::new();
+        let vars = HashMap::new();
         let facts = TriggerFacts::new(
-            HashMap::new(),
-            HashMap::new(),
+            &flags,
+            &vars,
             None,
             Some("Nynn"),
             MonkSkillsConfig::default(),

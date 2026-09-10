@@ -618,7 +618,7 @@ pub fn trigger_catalog() -> Vec<crate::command::TriggerCatalogEntry> {
     entries
 }
 
-pub fn trigger(line: &TriggerLine<'_>, facts: &TriggerFacts) -> TriggerEffects {
+pub fn trigger(line: &TriggerLine<'_>, facts: &TriggerFacts<'_>) -> TriggerEffects {
     let mut output = TriggerEffects::default();
     if let Some(rig) = facts.rig()
         && !rig.is_empty()
@@ -666,8 +666,8 @@ mod tests {
         let mut automation = Automation::new();
         setup(&mut automation);
         let facts = TriggerFacts::new(
-            automation.snapshot_flags(),
-            automation.snapshot_vars(),
+            automation.flags(),
+            automation.vars(),
             rig,
             player_name,
             crate::guilds::MonkSkillsConfig::default(),

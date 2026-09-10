@@ -70,7 +70,7 @@ impl RuleMatcher {
 }
 
 impl Rule {
-    fn condition_met(&self, facts: &TriggerFacts) -> bool {
+    fn condition_met(&self, facts: &TriggerFacts<'_>) -> bool {
         match self.condition {
             Some(RuleCondition::FlagSet(key)) => facts.flag_is_set(key),
             None => true,
@@ -135,7 +135,7 @@ pub(crate) fn apply_rules<'a>(
     // ponytail: callers must pass rules already sorted via sort_rules (priority desc, order asc)
     rules: impl IntoIterator<Item = &'a Rule>,
     plain_line: &str,
-    facts: &TriggerFacts,
+    facts: &TriggerFacts<'_>,
     output: &mut TriggerEffects,
 ) {
     for rule in rules {
@@ -261,7 +261,7 @@ mod tests {
     use crate::ansi::StyledLine;
     use crate::automation::Action;
 
-    fn run_rule(line: &str, rule: &Rule, facts: &TriggerFacts) -> (TriggerEffects, StyledLine) {
+    fn run_rule(line: &str, rule: &Rule, facts: &TriggerFacts<'_>) -> (TriggerEffects, StyledLine) {
         let mut output = TriggerEffects::default();
         apply_rules(std::iter::once(rule), line, facts, &mut output);
         let mut styled = StyledLine::new(line);
@@ -326,9 +326,10 @@ mod tests {
 
         let mut flags = std::collections::HashMap::new();
         flags.insert("is_lich".to_string(), true);
+        let vars = Default::default();
         let facts = TriggerFacts::new(
-            flags,
-            Default::default(),
+            &flags,
+            &vars,
             None,
             None,
             crate::guilds::MonkSkillsConfig::default(),

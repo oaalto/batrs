@@ -56,14 +56,20 @@ impl TigerGuild {
         entries
     }
 
-    pub fn red_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn red_hilites_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if RED_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::BRIGHT_RED);
         }
         TriggerEffects::none()
     }
 
-    pub fn green_hilites_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn green_hilites_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerFacts<'_>,
+    ) -> TriggerEffects {
         if GREEN_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::GREEN);
         }

@@ -250,8 +250,8 @@ impl BatApp {
                     continue;
                 }
                 let facts = triggers::TriggerFacts::new(
-                    self.automation.snapshot_flags(),
-                    self.automation.snapshot_vars(),
+                    self.automation.flags(),
+                    self.automation.vars(),
                     self.player_profile.settings.rig_for_triggers(),
                     self.session.login_name(),
                     self.player_profile.monk_skills_config.clone(),
@@ -508,8 +508,8 @@ impl BatApp {
                     command::CommandDispatchInput::new(
                         &input,
                         false,
-                        self.automation.snapshot_flags(),
-                        self.automation.snapshot_vars(),
+                        self.automation.flags().clone(),
+                        self.automation.vars().clone(),
                         self.player_profile.monk_skills_config.clone(),
                         self.guild_selection.clone(),
                         self.player_profile.trigger_config.clone(),
@@ -541,8 +541,8 @@ impl BatApp {
             command::CommandDispatchInput::new(
                 self.input.displayed_input(),
                 true,
-                self.automation.snapshot_flags(),
-                self.automation.snapshot_vars(),
+                self.automation.flags().clone(),
+                self.automation.vars().clone(),
                 self.player_profile.monk_skills_config.clone(),
                 self.guild_selection.clone(),
                 self.player_profile.trigger_config.clone(),
@@ -1169,7 +1169,7 @@ impl BatApp {
 
     fn clamp_monk_rotation_vars(&mut self) {
         let config = self.player_profile.monk_skills_config.clone();
-        let vars = self.automation.snapshot_vars();
+        let vars = self.automation.vars().clone();
         for (key, value) in config.clamp_rotation_vars(&vars) {
             self.automation.set_var(&key, value);
         }

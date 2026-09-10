@@ -29,7 +29,7 @@ impl TriadGuild {
 
     pub fn triad_highlight_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts,
+        _facts: &TriggerFacts<'_>,
     ) -> TriggerEffects {
         let line = line.plain_line.trim_end_matches('\r').trim();
 

@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-09-10] skip | Automation trigger-state borrowing
+
+- Updated: none
+- Sources: `src/app/mod.rs`, `src/automation.rs`, `src/triggers/mod.rs`, `docs/features/codebase-optimization-opportunities/automation-trigger-state-borrowing.md`
+- Notes: Trigger evaluation now borrows automation flags/vars instead of cloning them per logged-in line. The change stays within the existing TriggerFacts seam and does not change wiki-owned subsystem behavior.
+
 ## [2026-09-10] skip | Combat Damage open-path split
 
 - Updated: none

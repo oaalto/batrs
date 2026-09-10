@@ -92,7 +92,7 @@ impl NergalGuild {
         ]
     }
 
-    pub fn nergal_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+    pub fn nergal_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         let line = line.plain_line.trim_end_matches('\r').trim();
 

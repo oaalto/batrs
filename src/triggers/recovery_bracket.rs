@@ -9,7 +9,7 @@ const START_MEDITATING: &str = "You sit down and start meditating.";
 const MEDITATION_HARMONY: &str =
     "You feel in harmony with yourself, the universe and life in general.";
 
-pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts) -> TriggerEffects {
+pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
     let plain = line.plain_line.trim_end_matches('\r').trim();
     match plain {
         LIE_DOWN_REST => TriggerEffects::none().stat(StatsEffect::SetRecoveryBracketCamping(false)),
