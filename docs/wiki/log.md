@@ -1,5 +1,12 @@
 # Engineering Wiki Log
 
+## [2026-09-10] skip | Combat Damage row-processing optimization
+
+- Updated: none
+- Sources: `src/combat_damage/aggregate.rs`, `src/combat_damage/storage.rs`, `docs/features/codebase-optimization-opportunities/combat-damage-row-processing.md`
+- Notes: Reduced intermediate collection in Combat Damage aggregate and backfill paths without changing wiki-owned behavior or domain semantics.
+
+
 ## [2026-09-10] skip | Combat Damage melee matcher reuse
 
 - Updated: none

@@ -498,6 +498,23 @@ fn rank_point_estimates(batch_rows: &[&RawEventRow], hp_delta: i32) -> Vec<f64> 
     }
 }
 
+fn empty_aggregate(key: &AggKey, catalog_rank: Option<i32>) -> VerbAggregate {
+    VerbAggregate {
+        verb: key.verb.clone(),
+        weapon_family: key.family.clone(),
+        catalog_rank,
+        confirmed_obs: 0,
+        confirmed_min: None,
+        confirmed_max: None,
+        confirmed_avg: None,
+        estimated_obs: 0,
+        estimated_min: None,
+        estimated_max: None,
+        estimated_avg: None,
+        estimated_loose: false,
+    }
+}
+
 fn estimated_contributions(rows: &[RawEventRow]) -> Vec<EstimatedContribution> {
     let known_mins = known_mins_from_isolated(rows);
     let mut contributions = Vec::new();
@@ -519,15 +536,16 @@ fn estimated_contributions(rows: &[RawEventRow]) -> Vec<EstimatedContribution> {
             .collect::<Vec<_>>();
         let bounds = extrapolate_batch(hp_delta, &candidates, &known_mins);
         let batch_loose = bounds.iter().all(|bound| bound.loose);
-        let point_estimates = if batch_loose {
-            rank_point_estimates(batch_rows, hp_delta)
+        let mut point_estimates = if batch_loose {
+            rank_point_estimates(batch_rows, hp_delta).into_iter()
         } else {
             bounds
                 .iter()
                 .map(|bound| (f64::from(bound.min) + f64::from(bound.max)) / 2.0)
-                .collect()
+                .collect::<Vec<_>>()
+                .into_iter()
         };
-        for ((row, bound), point_estimate) in batch_rows.iter().zip(bounds).zip(point_estimates) {
+        for (row, bound) in batch_rows.iter().zip(bounds) {
             contributions.push(EstimatedContribution {
                 key: agg_key(
                     &row.damage_category,
@@ -537,7 +555,7 @@ fn estimated_contributions(rows: &[RawEventRow]) -> Vec<EstimatedContribution> {
                 min: bound.min,
                 max: bound.max,
                 loose: bound.loose,
-                point_estimate,
+                point_estimate: point_estimates.next().unwrap_or(0.0),
             });
         }
     }
@@ -547,26 +565,17 @@ fn estimated_contributions(rows: &[RawEventRow]) -> Vec<EstimatedContribution> {
 
 fn rollup_confirmed(rows: &[RawEventRow]) -> HashMap<AggKey, VerbAggregate> {
     let mut by_verb = HashMap::new();
+    let mut confirmed_sums: HashMap<AggKey, i64> = HashMap::new();
+
     for row in rows.iter().filter(|row| row.candidate_count == 1) {
         let key = agg_key(
             &row.damage_category,
             row.weapon_family.as_deref(),
             &row.message_verb,
         );
-        let entry = by_verb.entry(key).or_insert(VerbAggregate {
-            verb: row.message_verb.clone(),
-            weapon_family: row.weapon_family.clone(),
-            catalog_rank: row.catalog_rank,
-            confirmed_obs: 0,
-            confirmed_min: None,
-            confirmed_max: None,
-            confirmed_avg: None,
-            estimated_obs: 0,
-            estimated_min: None,
-            estimated_max: None,
-            estimated_avg: None,
-            estimated_loose: false,
-        });
+        let entry = by_verb
+            .entry(key.clone())
+            .or_insert_with(|| empty_aggregate(&key, row.catalog_rank));
         entry.confirmed_obs += 1;
         if let Some(rank) = row.catalog_rank {
             entry.catalog_rank = Some(entry.catalog_rank.map_or(rank, |current| current.min(rank)));
@@ -581,21 +590,12 @@ fn rollup_confirmed(rows: &[RawEventRow]) -> HashMap<AggKey, VerbAggregate> {
                 .confirmed_max
                 .map_or(row.hp_delta, |current| current.max(row.hp_delta)),
         );
+        *confirmed_sums.entry(key).or_insert(0) += i64::from(row.hp_delta);
     }
+
     for (key, aggregate) in by_verb.iter_mut() {
         if aggregate.confirmed_obs > 0 {
-            let sum: i64 = rows
-                .iter()
-                .filter(|row| {
-                    row.candidate_count == 1
-                        && agg_key(
-                            &row.damage_category,
-                            row.weapon_family.as_deref(),
-                            &row.message_verb,
-                        ) == *key
-                })
-                .map(|row| i64::from(row.hp_delta))
-                .sum();
+            let sum = confirmed_sums.get(key).copied().unwrap_or_default();
             aggregate.confirmed_avg = Some(sum as f64 / aggregate.confirmed_obs as f64);
         }
     }
@@ -606,23 +606,12 @@ fn rollup_estimated(
     confirmed: &mut HashMap<AggKey, VerbAggregate>,
     contributions: &[EstimatedContribution],
 ) {
+    let mut estimated_sums: HashMap<AggKey, f64> = HashMap::new();
+
     for contribution in contributions {
         let entry = confirmed
             .entry(contribution.key.clone())
-            .or_insert_with(|| VerbAggregate {
-                verb: contribution.key.verb.clone(),
-                weapon_family: contribution.key.family.clone(),
-                catalog_rank: None,
-                confirmed_obs: 0,
-                confirmed_min: None,
-                confirmed_max: None,
-                confirmed_avg: None,
-                estimated_obs: 0,
-                estimated_min: None,
-                estimated_max: None,
-                estimated_avg: None,
-                estimated_loose: false,
-            });
+            .or_insert_with(|| empty_aggregate(&contribution.key, None));
         entry.estimated_obs += 1;
         entry.estimated_min = Some(
             entry
@@ -635,15 +624,15 @@ fn rollup_estimated(
                 .map_or(contribution.max, |current| current.max(contribution.max)),
         );
         entry.estimated_loose |= contribution.loose;
+        *estimated_sums
+            .entry(contribution.key.clone())
+            .or_insert(0.0) += contribution.point_estimate;
     }
+
     for (key, aggregate) in confirmed.iter_mut() {
         if aggregate.estimated_obs > 0 {
-            let points: Vec<f64> = contributions
-                .iter()
-                .filter(|row| row.key == *key)
-                .map(|row| row.point_estimate)
-                .collect();
-            aggregate.estimated_avg = Some(points.iter().sum::<f64>() / points.len().max(1) as f64);
+            let sum = estimated_sums.get(key).copied().unwrap_or_default();
+            aggregate.estimated_avg = Some(sum / aggregate.estimated_obs as f64);
         }
     }
 }
@@ -876,20 +865,21 @@ pub fn list_unattributed(
          ORDER BY recorded_at DESC, id DESC"
     );
     let mut statement = conn.prepare(&sql).map_err(|err| err.to_string())?;
-    let rows = statement
-        .query_map(rusqlite::params_from_iter(params.drain(..)), |row| {
-            Ok(UnattributedHpSummary {
-                id: row.get(0)?,
-                recorded_at: row.get(1)?,
-                player: row.get(2)?,
-                hp_delta: row.get(3)?,
-                line_count: row.get::<_, i64>(4)? as usize,
-                reviewed: row.get(5)?,
-            })
-        })
+    let mut rows = statement
+        .query(rusqlite::params_from_iter(params.drain(..)))
         .map_err(|err| err.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>()
-        .map_err(|err| err.to_string())
+    let mut out = Vec::new();
+    while let Some(row) = rows.next().map_err(|err| err.to_string())? {
+        out.push(UnattributedHpSummary {
+            id: row.get(0).map_err(|err| err.to_string())?,
+            recorded_at: row.get(1).map_err(|err| err.to_string())?,
+            player: row.get(2).map_err(|err| err.to_string())?,
+            hp_delta: row.get(3).map_err(|err| err.to_string())?,
+            line_count: row.get::<_, i64>(4).map_err(|err| err.to_string())? as usize,
+            reviewed: row.get(5).map_err(|err| err.to_string())?,
+        });
+    }
+    Ok(out)
 }
 
 pub fn get_unattributed(
@@ -956,7 +946,77 @@ pub fn delete_reviewed_unattributed(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::combat_damage::test_fixtures::{FixtureRow, open_fixture_db, remove_db_files};
+    use crate::combat_damage::test_fixtures::{
+        FixtureRow, UnattributedFixtureRow, insert_unattributed_rows, open_fixture_db,
+        remove_db_files, temp_db_path,
+    };
+
+    #[test]
+    fn list_unattributed_preserves_order_line_count_and_reviewed_flag() {
+        let path = temp_db_path("aggregate-unattributed-list");
+        remove_db_files(&path);
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE unattributed_hp_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recorded_at TEXT NOT NULL,
+                player TEXT NOT NULL,
+                hp_delta INTEGER NOT NULL,
+                hp_before INTEGER NOT NULL,
+                hp_after INTEGER NOT NULL,
+                h_line_text TEXT NOT NULL,
+                context_lines TEXT NOT NULL,
+                reviewed_at TEXT
+            );
+            CREATE INDEX idx_unattributed_hp_events_recorded_at ON unattributed_hp_events (recorded_at);
+            CREATE INDEX idx_unattributed_hp_events_player ON unattributed_hp_events (player);
+            ",
+        )
+        .unwrap();
+        insert_unattributed_rows(
+            &conn,
+            &[
+                UnattributedFixtureRow::new(
+                    "Odefu",
+                    11,
+                    "2026-08-06T10:00:00Z",
+                    "H:90/101 [] S:0/0 [] E:0/0 []",
+                    &["line one", "line two"],
+                ),
+                UnattributedFixtureRow::new(
+                    "Arska",
+                    7,
+                    "2026-08-06T12:00:00Z",
+                    "H:93/100 [] S:0/0 [] E:0/0 []",
+                    &["line three"],
+                ),
+            ],
+        );
+        conn.execute(
+            "UPDATE unattributed_hp_events SET reviewed_at = '2026-08-06T12:30:00Z' WHERE player = 'Arska'",
+            [],
+        )
+        .unwrap();
+
+        let all = list_unattributed(&conn, &FilterParams::from_query(None, None)).unwrap();
+        assert_eq!(all.len(), 2);
+        assert_eq!(all[0].player, "Arska");
+        assert_eq!(all[0].line_count, 1);
+        assert!(all[0].reviewed);
+        assert_eq!(all[1].player, "Odefu");
+        assert_eq!(all[1].line_count, 2);
+        assert!(!all[1].reviewed);
+
+        let filtered =
+            list_unattributed(&conn, &FilterParams::from_query(None, Some("Odefu"))).unwrap();
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].player, "Odefu");
+        assert_eq!(filtered[0].line_count, 2);
+        assert!(!filtered[0].reviewed);
+
+        remove_db_files(&path);
+    }
 
     #[test]
     fn isolated_only_verb_does_not_double_count_estimated_obs() {

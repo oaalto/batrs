@@ -111,25 +111,7 @@ pub fn backfill_riposte_from_unattributed(conn: &Connection) -> Result<usize, St
              ORDER BY id",
         )
         .map_err(|err| err.to_string())?;
-    let rows = select
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, i32>(3)?,
-                row.get::<_, i32>(4)?,
-                row.get::<_, i32>(5)?,
-                row.get::<_, String>(6)?,
-            ))
-        })
-        .map_err(|err| err.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|err| err.to_string())?;
-
-    if rows.is_empty() {
-        return Ok(0);
-    }
+    let mut rows = select.query([]).map_err(|err| err.to_string())?;
 
     let mut next_batch_id: i64 = conn
         .query_row(
@@ -141,7 +123,15 @@ pub fn backfill_riposte_from_unattributed(conn: &Connection) -> Result<usize, St
     let mut pending_parries: HashMap<String, Vec<PendingParry>> = HashMap::new();
     let mut converted = 0usize;
 
-    for (row_id, recorded_at, player, hp_delta, hp_before, hp_after, context_json) in rows {
+    while let Some(row) = rows.next().map_err(|err| err.to_string())? {
+        let row_id: i64 = row.get(0).map_err(|err| err.to_string())?;
+        let recorded_at: String = row.get(1).map_err(|err| err.to_string())?;
+        let player: String = row.get(2).map_err(|err| err.to_string())?;
+        let hp_delta: i32 = row.get(3).map_err(|err| err.to_string())?;
+        let hp_before: i32 = row.get(4).map_err(|err| err.to_string())?;
+        let hp_after: i32 = row.get(5).map_err(|err| err.to_string())?;
+        let context_json: String = row.get(6).map_err(|err| err.to_string())?;
+
         let recorded_at_dt = DateTime::parse_from_rfc3339(&recorded_at)
             .map(|value| value.with_timezone(&Utc))
             .map_err(|err| err.to_string())?;
@@ -237,25 +227,7 @@ pub fn backfill_skills_from_unattributed(conn: &Connection) -> Result<usize, Str
              ORDER BY id",
         )
         .map_err(|err| err.to_string())?;
-    let rows = select
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, i32>(3)?,
-                row.get::<_, i32>(4)?,
-                row.get::<_, i32>(5)?,
-                row.get::<_, String>(6)?,
-            ))
-        })
-        .map_err(|err| err.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|err| err.to_string())?;
-
-    if rows.is_empty() {
-        return Ok(0);
-    }
+    let mut rows = select.query([]).map_err(|err| err.to_string())?;
 
     let mut next_batch_id: i64 = conn
         .query_row(
@@ -266,7 +238,15 @@ pub fn backfill_skills_from_unattributed(conn: &Connection) -> Result<usize, Str
         .unwrap_or(1);
     let mut converted = 0usize;
 
-    for (row_id, recorded_at, player, hp_delta, hp_before, hp_after, context_json) in rows {
+    while let Some(row) = rows.next().map_err(|err| err.to_string())? {
+        let row_id: i64 = row.get(0).map_err(|err| err.to_string())?;
+        let recorded_at: String = row.get(1).map_err(|err| err.to_string())?;
+        let player: String = row.get(2).map_err(|err| err.to_string())?;
+        let hp_delta: i32 = row.get(3).map_err(|err| err.to_string())?;
+        let hp_before: i32 = row.get(4).map_err(|err| err.to_string())?;
+        let hp_after: i32 = row.get(5).map_err(|err| err.to_string())?;
+        let context_json: String = row.get(6).map_err(|err| err.to_string())?;
+
         let context_lines = parse_json_string_array(&context_json);
         let mut matcher = Matcher::new();
         let mut candidates = Vec::new();
@@ -348,22 +328,14 @@ fn backfill_melee_catalog_metadata(conn: &Connection) -> Result<(), String> {
              WHERE damage_category = 'melee' AND weapon_family IS NULL",
         )
         .map_err(|err| err.to_string())?;
-    let rows = select
-        .query_map([], |row| {
-            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
-        })
-        .map_err(|err| err.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|err| err.to_string())?;
-
-    if rows.is_empty() {
-        return Ok(());
-    }
-
+    let mut rows = select.query([]).map_err(|err| err.to_string())?;
     let mut update = conn
         .prepare("UPDATE damage_events SET catalog_rank = ?1, weapon_family = ?2 WHERE id = ?3")
         .map_err(|err| err.to_string())?;
-    for (id, verb) in rows {
+
+    while let Some(row) = rows.next().map_err(|err| err.to_string())? {
+        let id: i64 = row.get(0).map_err(|err| err.to_string())?;
+        let verb: String = row.get(1).map_err(|err| err.to_string())?;
         let Some(meta) = unambiguous_melee_catalog_meta(&verb) else {
             continue;
         };

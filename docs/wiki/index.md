@@ -26,4 +26,6 @@
 
 ## Source Notes
 
+- [Text input slowness profiling note](source-notes/text-input-slow-profiling.md)
+
 ## Synthesis
