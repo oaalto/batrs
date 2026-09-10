@@ -278,3 +278,8 @@
 - Updated: [Nergal Status](concepts/nergal-status.md), [Session Lifecycle](concepts/session-lifecycle.md), `docs/wiki/index.md`, `docs/wiki/path-map.json`, `docs/guilds/riftwalker.md`
 - Sources: `src/secondary_status.rs`, `src/app/mod.rs`, `src/app/session_lifecycle/fresh_session.rs`, `src/guilds/*/triggers.rs`, `CONTEXT.md`
 - Notes: Guild HUD ownership moved from stats to Secondary Status; Nergal and session-lifecycle pages updated; nergal-resource-status-ownership tickets marked superseded; stale riftwalker guild-selected-only wording fixed.
+
+## [2026-09-10] skip | Command Dispatch active-lookup caching
+
+- Sources: `src/command/mod.rs`, `src/app/mod.rs`
+- Notes: Pure refactor with identical dispatch behavior; merged guild-command map now built once per guild-selection change and passed to `dispatch`. No user-visible or API-visible behavior change, so no wiki page update.

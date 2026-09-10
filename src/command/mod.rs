@@ -77,6 +77,7 @@ const HELP_LINES: [&str; 12] = [
 pub fn dispatch(
     input: CommandDispatchInput,
     guilds: &[Box<dyn Guild>],
+    guild_command_lookup: &HashMap<String, Command>,
     generic: &GenericCommands,
 ) -> Vec<CommandEffect> {
     let parsed = ParsedCommand::new(&input.line);
@@ -115,14 +116,8 @@ pub fn dispatch(
     }
 
     let env = CommandEnvironment::new(input.flags, input.vars, input.monk_skills);
-    let mut guild_cmds: HashMap<String, Command> = HashMap::new();
-    for g in guilds {
-        for (key, handler) in g.commands() {
-            guild_cmds.entry(key).or_insert(handler);
-        }
-    }
 
-    if let Some(cmd) = guild_cmds.get(parsed.name()) {
+    if let Some(cmd) = guild_command_lookup.get(parsed.name()) {
         return cmd(&parsed, &env);
     }
 
@@ -136,6 +131,18 @@ pub fn dispatch(
 pub type Command = fn(&ParsedCommand, &CommandEnvironment) -> Vec<CommandEffect>;
 
 pub type Data = ParsedCommand;
+
+/// Merged command lookup for the active guild set. First selected guild wins
+/// per alias. Rebuilt on guild-selection changes, not on every dispatch.
+pub fn build_guild_command_lookup(guilds: &[Box<dyn Guild>]) -> HashMap<String, Command> {
+    let mut lookup: HashMap<String, Command> = HashMap::new();
+    for g in guilds {
+        for (key, handler) in g.commands() {
+            lookup.entry(key).or_insert(handler);
+        }
+    }
+    lookup
+}
 
 pub struct CommandDispatchInput {
     line: String,
@@ -406,6 +413,7 @@ mod tests {
                 TriggerConfig::default(),
             ),
             guilds,
+            &build_guild_command_lookup(guilds),
             &GenericCommands::default(),
         )
     }
@@ -584,6 +592,7 @@ mod tests {
                 TriggerConfig::default(),
             ),
             &guilds,
+            &build_guild_command_lookup(&guilds),
             &GenericCommands::default(),
         );
         let lines: Vec<&str> = effects

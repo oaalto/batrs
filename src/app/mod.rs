@@ -40,6 +40,7 @@ use player_logger::PlayerLogger;
 use ratatui::Frame;
 use ratatui::text::{Line, Span};
 use raw_logger::RawLogger;
+use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, Sender};
 use telnet_buffer::TelnetBuffer;
 use util::show_clock;
@@ -95,6 +96,7 @@ pub struct BatApp {
     session_lifecycle: SessionLifecycle,
     telnet_buffer: TelnetBuffer,
     selected_guilds: Vec<Box<dyn Guild>>,
+    guild_command_lookup: HashMap<String, command::Command>,
     guild_selection: GuildSelection,
     should_quit: bool,
     pending_terminal_clear: bool,
@@ -171,6 +173,7 @@ impl BatApp {
             session_lifecycle: SessionLifecycle::new(),
             telnet_buffer: TelnetBuffer::new(),
             selected_guilds: Vec::new(),
+            guild_command_lookup: HashMap::new(),
             guild_selection: GuildSelection::default(),
             should_quit: false,
             pending_terminal_clear: false,
@@ -512,6 +515,7 @@ impl BatApp {
                         self.player_profile.trigger_config.clone(),
                     ),
                     &self.selected_guilds,
+                    &self.guild_command_lookup,
                     &self.generic_commands,
                 );
                 if self.apply_command_effects(effects) {
@@ -544,6 +548,7 @@ impl BatApp {
                 self.player_profile.trigger_config.clone(),
             ),
             &self.selected_guilds,
+            &self.guild_command_lookup,
             &self.generic_commands,
         );
 
@@ -672,6 +677,7 @@ impl BatApp {
                 FreshSessionReset::TelnetBuffer => self.telnet_buffer = TelnetBuffer::new(),
                 FreshSessionReset::GuildSelection => {
                     self.selected_guilds.clear();
+                    self.guild_command_lookup = HashMap::new();
                     self.guild_selection = GuildSelection::default();
                     self.request_redraw();
                 }
@@ -830,6 +836,7 @@ impl BatApp {
 
     fn apply_guild_selection(&mut self, selection: GuildSelection) {
         self.selected_guilds = selection.build_guilds();
+        self.guild_command_lookup = command::build_guild_command_lookup(&self.selected_guilds);
         self.guild_selection = selection.clone();
         self.secondary_status.sync_guild_selection(&selection);
         self.automation = Automation::new();
@@ -1320,6 +1327,7 @@ mod tests {
             session_lifecycle: SessionLifecycle::new(),
             telnet_buffer: TelnetBuffer::new(),
             selected_guilds: Vec::new(),
+            guild_command_lookup: HashMap::new(),
             guild_selection: GuildSelection::default(),
             should_quit: false,
             pending_terminal_clear: false,
@@ -1457,6 +1465,31 @@ mod tests {
         assert_eq!(app.output.plain_lines(), vec![line]);
         assert!(rendered_status.is_empty());
         assert!(!app.secondary_status.has_nergal_resource_status());
+    }
+
+    #[test]
+    fn guild_command_lookup_refreshes_on_guild_selection_change() {
+        let (mut app, command_receiver) = test_app();
+        log_in(&mut app);
+
+        app.apply_guild_selection(GuildSelection::from_playable_keys(
+            [GuildKey::Tzarakk],
+            Some("evil"),
+        ));
+        app.input.insert_str("med");
+        app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(
+            drain_commands(&command_receiver),
+            vec!["@dismount;use 'meditation'"]
+        );
+
+        app.apply_guild_selection(GuildSelection::from_playable_keys(
+            [GuildKey::Tiger],
+            Some("neutral"),
+        ));
+        app.input.insert_str("med");
+        app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(drain_commands(&command_receiver), vec!["@use 'meditation'"]);
     }
 
     #[test]

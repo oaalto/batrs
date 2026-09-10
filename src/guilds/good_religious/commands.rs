@@ -183,6 +183,7 @@ mod tests {
                 crate::triggers::TriggerConfig::default(),
             ),
             guilds,
+            &command::build_guild_command_lookup(guilds),
             &GenericCommands::default(),
         );
         effects

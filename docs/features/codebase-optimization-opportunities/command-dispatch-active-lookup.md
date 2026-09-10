@@ -10,10 +10,10 @@ Make Command Dispatch reuse a stable active slash-command lookup for the current
 
 ## Acceptance criteria
 
-- [ ] Slash-command behavior remains unchanged for builtin commands, guild commands, precedence, and generic-command fallback.
-- [ ] Changing the active Guild Catalog selection updates the active command lookup correctly.
-- [ ] Command Dispatch no longer rebuilds the same merged guild command map on each dispatch for an unchanged guild selection.
-- [ ] Existing Command Dispatch tests or equivalent behavior checks cover the preserved resolution semantics.
+- [x] Slash-command behavior remains unchanged for builtin commands, guild commands, precedence, and generic-command fallback.
+- [x] Changing the active Guild Catalog selection updates the active command lookup correctly.
+- [x] Command Dispatch no longer rebuilds the same merged guild command map on each dispatch for an unchanged guild selection.
+- [x] Existing Command Dispatch tests or equivalent behavior checks cover the preserved resolution semantics.
 
 ## Blocked by
 
@@ -21,4 +21,4 @@ Make Command Dispatch reuse a stable active slash-command lookup for the current
 
 ## Status
 
-ready-for-agent
+done
