@@ -1,10 +1,6 @@
-import type { ExtensionAPI, ToolDefinition } from "@earendil-works/pi-coding-agent";
-import type { AssistantMessage, ToolCall } from "@earendil-works/pi-ai";
-import { BorderedLoader } from "@earendil-works/pi-coding-agent";
-import { Type } from "typebox";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const COMMAND_NAME = "improvement-scan";
-const SUMMARY_TOOL_NAME = "improvement_scan_summary";
 
 type LaneId =
   | "bug-diagnosis"
@@ -16,17 +12,7 @@ type LaneId =
 
 type QuestionReason = "lane-shape" | "next-step";
 
-type ImprovementScanDetails = {
-  lane: LaneId;
-  confidence: "high" | "medium" | "low";
-  scope: string;
-  researchBoundary: string;
-  findings: string[];
-  evidence: string[];
-  recommendations: string[];
-  details: LaneDetails;
-  toSpecRecommendation?: string;
-};
+type Confidence = "high" | "medium" | "low";
 
 type LaneDefinition = {
   label: string;
@@ -37,62 +23,12 @@ type LaneDefinition = {
   repoSignals: string[];
 };
 
-type BugDiagnosisDetails = {
-  symptoms: string[];
-  likelyRootCause?: string;
-  reproClues: string[];
-  debuggingGaps: string[];
-};
-
-type ArchitectureDetails = {
-  components: string[];
-  seams: string[];
-  boundaryPressure: string[];
-  structuralOptions: string[];
-};
-
-type DomainModelingDetails = {
-  glossary: string[];
-  ambiguities: string[];
-  missingConcepts: string[];
-  namingRecommendations: string[];
-};
-
-type DocumentationDetails = {
-  gaps: string[];
-  stalePages: string[];
-  missingReferences: string[];
-  updateTargets: string[];
-};
-
-type RefactorStyleDetails = {
-  duplication: string[];
-  localComplexity: string[];
-  cleanupCandidates: string[];
-  lowRiskRefactors: string[];
-};
-
-type GenericImprovementAuditDetails = {
-  rankedOpportunities: string[];
-  candidateAreas: string[];
-  rationale: string[];
-};
-
-type LaneDetails =
-  | BugDiagnosisDetails
-  | ArchitectureDetails
-  | DomainModelingDetails
-  | DocumentationDetails
-  | RefactorStyleDetails
-  | GenericImprovementAuditDetails;
-
 type RepoSignals = {
   hasBackend: boolean;
   hasFrontend: boolean;
   hasDocs: boolean;
   hasAdr: boolean;
   hasContext: boolean;
-  hasPiSubagents: boolean;
 };
 
 type FileProbe = {
@@ -255,150 +191,6 @@ const LANE_DEFINITIONS: Record<LaneId, LaneDefinition> = {
   }
 };
 
-const BUG_DIAGNOSIS_DETAILS_SCHEMA = Type.Object({
-  symptoms: Type.Array(Type.String()),
-  likelyRootCause: Type.Optional(Type.String()),
-  reproClues: Type.Array(Type.String()),
-  debuggingGaps: Type.Array(Type.String())
-});
-
-const ARCHITECTURE_DETAILS_SCHEMA = Type.Object({
-  components: Type.Array(Type.String()),
-  seams: Type.Array(Type.String()),
-  boundaryPressure: Type.Array(Type.String()),
-  structuralOptions: Type.Array(Type.String())
-});
-
-const DOMAIN_MODELING_DETAILS_SCHEMA = Type.Object({
-  glossary: Type.Array(Type.String()),
-  ambiguities: Type.Array(Type.String()),
-  missingConcepts: Type.Array(Type.String()),
-  namingRecommendations: Type.Array(Type.String())
-});
-
-const DOCUMENTATION_DETAILS_SCHEMA = Type.Object({
-  gaps: Type.Array(Type.String()),
-  stalePages: Type.Array(Type.String()),
-  missingReferences: Type.Array(Type.String()),
-  updateTargets: Type.Array(Type.String())
-});
-
-const REFACTOR_STYLE_DETAILS_SCHEMA = Type.Object({
-  duplication: Type.Array(Type.String()),
-  localComplexity: Type.Array(Type.String()),
-  cleanupCandidates: Type.Array(Type.String()),
-  lowRiskRefactors: Type.Array(Type.String())
-});
-
-const GENERIC_IMPROVEMENT_AUDIT_DETAILS_SCHEMA = Type.Object({
-  rankedOpportunities: Type.Array(Type.String()),
-  candidateAreas: Type.Array(Type.String()),
-  rationale: Type.Array(Type.String())
-});
-
-const DETAILS_SCHEMA = Type.Union([
-  Type.Object({
-    lane: Type.Literal("bug-diagnosis"),
-    confidence: Type.Union([Type.Literal("high"), Type.Literal("medium"), Type.Literal("low")]),
-    scope: Type.String({ description: "What the scan covered." }),
-    researchBoundary: Type.String({ description: "How the command stayed research-only." }),
-    findings: Type.Array(Type.String(), { description: "Improvement opportunities found during the scan." }),
-    evidence: Type.Array(Type.String(), { description: "Repository evidence that supports the findings." }),
-    recommendations: Type.Array(Type.String(), { description: "Concrete next steps, still research-only." }),
-    details: BUG_DIAGNOSIS_DETAILS_SCHEMA,
-    toSpecRecommendation: Type.Optional(Type.String({ description: "When /to-spec is warranted, and why." }))
-  }),
-  Type.Object({
-    lane: Type.Literal("architecture"),
-    confidence: Type.Union([Type.Literal("high"), Type.Literal("medium"), Type.Literal("low")]),
-    scope: Type.String({ description: "What the scan covered." }),
-    researchBoundary: Type.String({ description: "How the command stayed research-only." }),
-    findings: Type.Array(Type.String(), { description: "Improvement opportunities found during the scan." }),
-    evidence: Type.Array(Type.String(), { description: "Repository evidence that supports the findings." }),
-    recommendations: Type.Array(Type.String(), { description: "Concrete next steps, still research-only." }),
-    details: ARCHITECTURE_DETAILS_SCHEMA,
-    toSpecRecommendation: Type.Optional(Type.String({ description: "When /to-spec is warranted, and why." }))
-  }),
-  Type.Object({
-    lane: Type.Literal("domain-modeling"),
-    confidence: Type.Union([Type.Literal("high"), Type.Literal("medium"), Type.Literal("low")]),
-    scope: Type.String({ description: "What the scan covered." }),
-    researchBoundary: Type.String({ description: "How the command stayed research-only." }),
-    findings: Type.Array(Type.String(), { description: "Improvement opportunities found during the scan." }),
-    evidence: Type.Array(Type.String(), { description: "Repository evidence that supports the findings." }),
-    recommendations: Type.Array(Type.String(), { description: "Concrete next steps, still research-only." }),
-    details: DOMAIN_MODELING_DETAILS_SCHEMA,
-    toSpecRecommendation: Type.Optional(Type.String({ description: "When /to-spec is warranted, and why." }))
-  }),
-  Type.Object({
-    lane: Type.Literal("documentation"),
-    confidence: Type.Union([Type.Literal("high"), Type.Literal("medium"), Type.Literal("low")]),
-    scope: Type.String({ description: "What the scan covered." }),
-    researchBoundary: Type.String({ description: "How the command stayed research-only." }),
-    findings: Type.Array(Type.String(), { description: "Improvement opportunities found during the scan." }),
-    evidence: Type.Array(Type.String(), { description: "Repository evidence that supports the findings." }),
-    recommendations: Type.Array(Type.String(), { description: "Concrete next steps, still research-only." }),
-    details: DOCUMENTATION_DETAILS_SCHEMA,
-    toSpecRecommendation: Type.Optional(Type.String({ description: "When /to-spec is warranted, and why." }))
-  }),
-  Type.Object({
-    lane: Type.Literal("refactor-style"),
-    confidence: Type.Union([Type.Literal("high"), Type.Literal("medium"), Type.Literal("low")]),
-    scope: Type.String({ description: "What the scan covered." }),
-    researchBoundary: Type.String({ description: "How the command stayed research-only." }),
-    findings: Type.Array(Type.String(), { description: "Improvement opportunities found during the scan." }),
-    evidence: Type.Array(Type.String(), { description: "Repository evidence that supports the findings." }),
-    recommendations: Type.Array(Type.String(), { description: "Concrete next steps, still research-only." }),
-    details: REFACTOR_STYLE_DETAILS_SCHEMA,
-    toSpecRecommendation: Type.Optional(Type.String({ description: "When /to-spec is warranted, and why." }))
-  }),
-  Type.Object({
-    lane: Type.Literal("generic-improvement-audit"),
-    confidence: Type.Union([Type.Literal("high"), Type.Literal("medium"), Type.Literal("low")]),
-    scope: Type.String({ description: "What the scan covered." }),
-    researchBoundary: Type.String({ description: "How the command stayed research-only." }),
-    findings: Type.Array(Type.String(), { description: "Improvement opportunities found during the scan." }),
-    evidence: Type.Array(Type.String(), { description: "Repository evidence that supports the findings." }),
-    recommendations: Type.Array(Type.String(), { description: "Concrete next steps, still research-only." }),
-    details: GENERIC_IMPROVEMENT_AUDIT_DETAILS_SCHEMA,
-    toSpecRecommendation: Type.Optional(Type.String({ description: "When /to-spec is warranted, and why." }))
-  })
-]);
-
-const SUMMARY_SYSTEM_PROMPT = `You are improvement-scanner, a research-only repository improvement analyst.
-
-Your job is to inspect the repository and produce a concise improvement scan summary.
-
-Hard boundaries:
-- Research only.
-- Do not implement, refactor, edit, or write files.
-- Do not produce direct spec text.
-- You may recommend next steps, including /to-spec, only when warranted.
-- Prefer existing evidence from repository inspection over guesses.
-
-Routing contract:
-- Respect the provided routed lane, confidence, and repo signals.
-- Use the lane as the primary mode for the investigation.
-- Mention when pi-subagents are available and worth using, but degrade gracefully when they are not.
-- Ask a clarifying question only when the prompt explicitly says ambiguity would materially change the answer shape or next-step recommendation.
-
-Required output:
-- End by calling the improvement_scan_summary tool.
-- Keep findings evidence-backed and concise.
-- State the research-only boundary explicitly.
-- Return the shared summary envelope: lane, confidence, findings, evidence, recommendations, details, and optional /to-spec guidance.
-- Mention /to-spec only as a recommendation, never as a generated spec.`;
-
-const TOOL_PROMPT_SNIPPET =
-  "Emit the final research-only /improvement-scan summary with lane, confidence, findings, evidence, recommendations, details, and /to-spec guidance.";
-
-const TOOL_PROMPT_GUIDELINES = [
-  "Use improvement_scan_summary as the final action for /improvement-scan results.",
-  "Do not call the tool until repository inspection is complete.",
-  "Keep the result research-only: no implementation steps phrased as completed work, no patches, no direct spec text.",
-  "Preserve the routed lane and return lane-specific information under details."
-];
-
 function normalizeRequest(args: string): string {
   return args.trim() || "Scan this repository for improvement opportunities.";
 }
@@ -423,9 +215,7 @@ function detectRepoSignals(): RepoSignals {
     hasFrontend: fileExists("frontend/package.json"),
     hasDocs: fileExists("docs/agent-commands.md") || fileExists("README.md") || fileExists("help-book/README.md"),
     hasAdr: fileExists("docs/adr/0042-bundle-delivered-pi-package.md"),
-    hasContext: fileExists("CONTEXT.md"),
-    hasPiSubagents:
-      fileExists(".pi/extensions/pi-subagents/package.json") || fileExists("pi-extensions/pi-subagents/package.json")
+    hasContext: fileExists("CONTEXT.md")
   };
 }
 
@@ -537,7 +327,7 @@ function decideClarification(scores: LaneScore[]): ClarificationDecision {
   return { shouldAsk: false };
 }
 
-function confidenceFromScores(scores: LaneScore[]): ImprovementScanDetails["confidence"] {
+function confidenceFromScores(scores: LaneScore[]): Confidence {
   const [first, second] = scores;
   if (!first) {
     return "low";
@@ -558,7 +348,7 @@ function buildUserPrompt(
   request: string,
   signals: RepoSignals,
   lane: LaneId,
-  confidence: ImprovementScanDetails["confidence"],
+  confidence: Confidence,
   clarification: ClarificationDecision
 ): string {
   const laneDefinition = LANE_DEFINITIONS[lane];
@@ -568,13 +358,11 @@ function buildUserPrompt(
     signals.hasDocs ? "- docs/help-book surfaces present" : null,
     signals.hasAdr ? "- ADRs present" : null,
     signals.hasContext ? "- CONTEXT.md present" : null,
-    signals.hasPiSubagents
-      ? "- pi-subagents likely available; prefer them when they help"
-      : "- pi-subagents not detected; degrade gracefully"
+    "- Prefer native Pi subagents for parallel research where useful; fall back to single-agent if unavailable"
   ].filter((line): line is string => line !== null);
 
   return [
-    "Run /improvement-scan.",
+    "Run an improvement scan for /improvement-scan.",
     "",
     `User request: ${request}`,
     `Routed lane: ${lane} (${laneDefinition.label})`,
@@ -589,200 +377,19 @@ function buildUserPrompt(
       : "Clarifying-question policy: Do not ask a clarifying question unless ambiguity would materially change the answer shape or next-step recommendation.",
     "",
     "Instructions:",
-    "1. Stay strictly on the research side of the line.",
-    "2. Use the routed lane as the primary frame unless the evidence clearly forces a nearby lane.",
-    "3. Prefer native Pi subagents when present and useful; otherwise continue without them.",
-    "4. Do not edit files or write specs.",
-    "5. End with a structured summary via improvement_scan_summary.",
-    "6. Put lane-specific structure inside details.",
+    "1. Actually inspect the repository — read the relevant source, config, and docs.",
+    "2. Stay strictly on the research side of the line: no file edits, no writing specs.",
+    "3. Use the routed lane as the primary frame unless the evidence clearly forces a nearby lane.",
+    "4. Prefer native Pi subagents when present and useful; otherwise continue without them.",
+    "5. End with a concise structured improvement report in the transcript with these sections: findings, evidence, recommendations.",
+    `6. ${laneDefinition.label} focus areas to cover: ${laneDefinition.detailDescription}`,
     "7. Recommend /to-spec only if the destination is clear, the findings are synthesized, and a spec adds coordination value.",
-    "",
-    `Lane-specific details should cover: ${laneDefinition.detailDescription}`,
     "",
     "Return only evidence-backed findings."
   ].join("\n");
 }
 
-function renderDetailSection(label: string, values: string[]): string[] {
-  return [`### ${label}`, ...(values.length > 0 ? values.map((value) => `- ${value}`) : ["- None"]), ""];
-}
-
-function renderLaneDetails(details: ImprovementScanDetails): string[] {
-  switch (details.lane) {
-    case "bug-diagnosis": {
-      const laneDetails = details.details as BugDiagnosisDetails;
-      return [
-        ...renderDetailSection("Symptoms", laneDetails.symptoms),
-        ...renderDetailSection("Likely root cause", laneDetails.likelyRootCause ? [laneDetails.likelyRootCause] : []),
-        ...renderDetailSection("Repro clues", laneDetails.reproClues),
-        ...renderDetailSection("Debugging gaps", laneDetails.debuggingGaps)
-      ];
-    }
-    case "architecture": {
-      const laneDetails = details.details as ArchitectureDetails;
-      return [
-        ...renderDetailSection("Components", laneDetails.components),
-        ...renderDetailSection("Seams", laneDetails.seams),
-        ...renderDetailSection("Boundary pressure", laneDetails.boundaryPressure),
-        ...renderDetailSection("Structural options", laneDetails.structuralOptions)
-      ];
-    }
-    case "domain-modeling": {
-      const laneDetails = details.details as DomainModelingDetails;
-      return [
-        ...renderDetailSection("Glossary", laneDetails.glossary),
-        ...renderDetailSection("Ambiguities", laneDetails.ambiguities),
-        ...renderDetailSection("Missing concepts", laneDetails.missingConcepts),
-        ...renderDetailSection("Naming recommendations", laneDetails.namingRecommendations)
-      ];
-    }
-    case "documentation": {
-      const laneDetails = details.details as DocumentationDetails;
-      return [
-        ...renderDetailSection("Gaps", laneDetails.gaps),
-        ...renderDetailSection("Stale pages", laneDetails.stalePages),
-        ...renderDetailSection("Missing references", laneDetails.missingReferences),
-        ...renderDetailSection("Update targets", laneDetails.updateTargets)
-      ];
-    }
-    case "refactor-style": {
-      const laneDetails = details.details as RefactorStyleDetails;
-      return [
-        ...renderDetailSection("Duplication", laneDetails.duplication),
-        ...renderDetailSection("Local complexity", laneDetails.localComplexity),
-        ...renderDetailSection("Cleanup candidates", laneDetails.cleanupCandidates),
-        ...renderDetailSection("Low-risk refactors", laneDetails.lowRiskRefactors)
-      ];
-    }
-    case "generic-improvement-audit": {
-      const laneDetails = details.details as GenericImprovementAuditDetails;
-      return [
-        ...renderDetailSection("Ranked opportunities", laneDetails.rankedOpportunities),
-        ...renderDetailSection("Candidate areas", laneDetails.candidateAreas),
-        ...renderDetailSection("Rationale", laneDetails.rationale)
-      ];
-    }
-  }
-}
-
-function renderSummaryText(details: ImprovementScanDetails): string {
-  const laneDefinition = LANE_DEFINITIONS[details.lane];
-  const sections = [
-    "# Improvement scan",
-    "",
-    `- Lane: ${details.lane} (${laneDefinition.label})`,
-    `- Confidence: ${details.confidence}`,
-    `- Scope: ${details.scope}`,
-    `- Research boundary: ${details.researchBoundary}`,
-    ...(details.toSpecRecommendation ? [`- /to-spec: ${details.toSpecRecommendation}`] : []),
-    "",
-    "## Findings",
-    ...(details.findings.length > 0 ? details.findings.map((item) => `- ${item}`) : ["- None"]),
-    "",
-    "## Evidence",
-    ...(details.evidence.length > 0 ? details.evidence.map((item) => `- ${item}`) : ["- None"]),
-    "",
-    "## Recommendations",
-    ...(details.recommendations.length > 0 ? details.recommendations.map((item) => `- ${item}`) : ["- None"]),
-    "",
-    "## Details",
-    ...renderLaneDetails(details)
-  ];
-  return sections.join("\n");
-}
-
-/**
- * Markers every /improvement-scan summary shares, regardless of lane, in the
- * order `renderSummaryText` emits them. Used to distinguish a conforming
- * summary from free-form model output.
- */
-const SUMMARY_ENVELOPE_MARKERS = [
-  "- Lane:",
-  "- Confidence:",
-  "## Findings",
-  "## Evidence",
-  "## Recommendations",
-  "## Details"
-] as const;
-
-const SUMMARY_TITLE = "# Improvement scan";
-
-/**
- * True when `text` looks like a rendered /improvement-scan summary — i.e. it
- * carries the shared envelope: the title leads and the required fields and
- * sections appear in the fixed rendered order. Free-form prose that merely
- * echoes the heading strings out of order (or omits the contract) is not a
- * valid scan result.
- */
-export function validateSummaryEnvelope(text: string): boolean {
-  let cursor = text.indexOf(SUMMARY_TITLE);
-  if (cursor === -1) {
-    return false;
-  }
-  for (const marker of SUMMARY_ENVELOPE_MARKERS) {
-    cursor = text.indexOf(marker, cursor + 1);
-    if (cursor === -1) {
-      return false;
-    }
-  }
-  return true;
-}
-
-/**
- * Extract the rendered /improvement-scan summary from a completed `AssistantMessage`.
- * Prefers the `improvement_scan_summary` tool call (the model's required final action).
- * When the model answers only in prose without invoking the tool, the text is
- * validated against the shared envelope rather than accepted as a successful scan.
- */
-export function summaryTextFromResult(result: AssistantMessage): string {
-  const summaryCall = result.content.find(
-    (part): part is ToolCall => part.type === "toolCall" && part.name === SUMMARY_TOOL_NAME
-  );
-
-  if (summaryCall) {
-    return renderSummaryText(summaryCall.arguments as ImprovementScanDetails);
-  }
-
-  const text = result.content
-    .filter((part): part is { type: "text"; text: string } => part.type === "text")
-    .map((part) => part.text)
-    .join("\n")
-    .trim();
-
-  if (text && !validateSummaryEnvelope(text)) {
-    return (
-      "Improvement scan could not produce a structured summary: the model returned " +
-      "free-form output instead of the required summary envelope (findings, evidence, " +
-      "recommendations, details)."
-    );
-  }
-
-  return text || "No improvement scan summary returned.";
-}
-
 export default function improvementScanner(pi: ExtensionAPI) {
-  // Shared summary tool definition: the pi-ai `Context.tools` entry mirrors the
-  // registered tool so the completion sees the same name/description/schema.
-  const summaryTool: ToolDefinition = {
-    name: SUMMARY_TOOL_NAME,
-    label: "Improvement scan summary",
-    description:
-      "Return the final research-only /improvement-scan summary. Use as the last action after repository inspection.",
-    promptSnippet: TOOL_PROMPT_SNIPPET,
-    promptGuidelines: TOOL_PROMPT_GUIDELINES,
-    parameters: DETAILS_SCHEMA,
-    async execute(_toolCallId, params) {
-      const details = params as ImprovementScanDetails;
-      return {
-        content: [{ type: "text", text: renderSummaryText(details) }],
-        details,
-        terminate: true
-      };
-    }
-  };
-
-  pi.registerTool(summaryTool);
-
   pi.registerCommand(COMMAND_NAME, {
     description: "Research-only repository improvement scan",
     handler: async (args, ctx) => {
@@ -816,72 +423,18 @@ export default function improvementScanner(pi: ExtensionAPI) {
       }
 
       const effectiveLane = clarificationAnswer?.lane ?? lane;
-
-      const userMessage = {
-        role: "user" as const,
-        content: [
-          {
-            type: "text" as const,
-            text: buildUserPrompt(
-              request,
-              repoSignals,
-              effectiveLane,
-              confidence,
-              clarificationAnswer ? { shouldAsk: false } : clarification
-            )
-          }
-        ],
-        timestamp: Date.now()
-      };
-
-      const response = await ctx.ui.custom<string | null>((tui, theme, _kb, done) => {
-        const loader = new BorderedLoader(tui, theme, `Running /${COMMAND_NAME} with ${ctx.model!.id}...`);
-        loader.onAbort = () => done(null);
-
-        const run = async (): Promise<void> => {
-          try {
-            const result = await ctx.modelRegistry.complete(
-              ctx.model!,
-              {
-                systemPrompt: SUMMARY_SYSTEM_PROMPT,
-                messages: [userMessage],
-                tools: [
-                  {
-                    name: summaryTool.name,
-                    description: summaryTool.description,
-                    parameters: summaryTool.parameters
-                  }
-                ]
-              },
-              {
-                signal: loader.signal,
-                cacheRetention: "none"
-              }
-            );
-
-            if (result.stopReason === "aborted") {
-              done(null);
-              return;
-            }
-
-            done(summaryTextFromResult(result));
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            done(`Improvement scan failed: ${message}`);
-          }
-        };
-
-        void run();
-        return loader;
-      });
-
-      if (response === null) {
-        ctx.ui.notify("Improvement scan cancelled", "info");
-        return;
-      }
-
-      ctx.ui.setEditorText(response);
-      ctx.ui.notify("Improvement scan loaded into the editor.", "info");
+      ctx.ui.notify("Improvement scan started.", "info");
+      // Route the scan prompt into the normal agent turn so the model streams its
+      // report into the transcript like any other response — no composer fill.
+      pi.sendUserMessage(
+        buildUserPrompt(
+          request,
+          repoSignals,
+          effectiveLane,
+          confidence,
+          clarificationAnswer ? { shouldAsk: false } : clarification
+        )
+      );
     }
   });
 }
