@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-09-14] skip | Manual dark-theme palette
+
+- Updated: none
+- Sources: `mkdocs.yml`
+- Notes: Added Material `theme.palette` (system-preference + toggle, dark-anchored) to the user-facing manual. Presentation-only change; maps to no `docs/wiki/path-map.json` source and alters no domain vocabulary, so no wiki page update.
+
 ## [2026-09-10] skip | Combat Damage row-processing optimization
 
 - Updated: none
