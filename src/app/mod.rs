@@ -38,9 +38,8 @@ use libmudtelnet::events::TelnetEvents;
 use log::{error, warn};
 use player_logger::PlayerLogger;
 use ratatui::Frame;
-use ratatui::text::{Line, Span};
+use ratatui::text::Line;
 use raw_logger::RawLogger;
-use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, Sender};
 use telnet_buffer::TelnetBuffer;
 use util::show_clock;
@@ -96,7 +95,7 @@ pub struct BatApp {
     session_lifecycle: SessionLifecycle,
     telnet_buffer: TelnetBuffer,
     selected_guilds: Vec<Box<dyn Guild>>,
-    guild_command_lookup: HashMap<String, command::Command>,
+    selected_guild_triggers: Vec<triggers::Trigger>,
     guild_selection: GuildSelection,
     should_quit: bool,
     pending_terminal_clear: bool,
@@ -173,7 +172,7 @@ impl BatApp {
             session_lifecycle: SessionLifecycle::new(),
             telnet_buffer: TelnetBuffer::new(),
             selected_guilds: Vec::new(),
-            guild_command_lookup: HashMap::new(),
+            selected_guild_triggers: Vec::new(),
             guild_selection: GuildSelection::default(),
             should_quit: false,
             pending_terminal_clear: false,
@@ -249,7 +248,7 @@ impl BatApp {
                     output_lines.push(styled_line);
                     continue;
                 }
-                let facts = triggers::TriggerFacts::new(
+                let trigger_context = triggers::TriggerContext::new(
                     self.automation.flags(),
                     self.automation.vars(),
                     self.player_profile.settings.rig_for_triggers(),
@@ -257,8 +256,8 @@ impl BatApp {
                     self.player_profile.monk_skills_config.clone(),
                 );
                 let result = triggers::process(
-                    &facts,
-                    &self.selected_guilds,
+                    &trigger_context,
+                    &self.selected_guild_triggers,
                     &styled_line.plain_line,
                     &self.player_profile.trigger_config,
                 );
@@ -388,10 +387,11 @@ impl BatApp {
             }
             KeyCode::Right => self.input.move_cursor_right(),
             KeyCode::Up if self.session.is_logged_in() => {
-                self.input.move_history(-1);
+                self.input
+                    .move_history(input_state::HistoryDirection::Previous);
             }
             KeyCode::Down if self.session.is_logged_in() => {
-                self.input.move_history(1);
+                self.input.move_history(input_state::HistoryDirection::Next);
             }
             KeyCode::Char(c)
                 if !event.modifiers.contains(KeyModifiers::CONTROL)
@@ -458,14 +458,7 @@ impl BatApp {
             Line::from("")
         };
         let hide_input = self.session.login_state() == LoginState::Password;
-        let input_text = if hide_input {
-            Line::from(vec![Span::raw(">")])
-        } else {
-            Line::from(vec![
-                Span::raw(">"),
-                Span::raw(self.input.displayed_input()),
-            ])
-        };
+        let input_text = self.input.render_line(hide_input);
         let view = ViewModel {
             output_lines: output_lines.to_vec(),
             scroll_offset,
@@ -515,7 +508,7 @@ impl BatApp {
                         self.player_profile.trigger_config.clone(),
                     ),
                     &self.selected_guilds,
-                    &self.guild_command_lookup,
+                    &command::build_guild_command_lookup(&self.selected_guilds),
                     &self.generic_commands,
                 );
                 if self.apply_command_effects(effects) {
@@ -548,7 +541,7 @@ impl BatApp {
                 self.player_profile.trigger_config.clone(),
             ),
             &self.selected_guilds,
-            &self.guild_command_lookup,
+            &command::build_guild_command_lookup(&self.selected_guilds),
             &self.generic_commands,
         );
 
@@ -677,7 +670,7 @@ impl BatApp {
                 FreshSessionReset::TelnetBuffer => self.telnet_buffer = TelnetBuffer::new(),
                 FreshSessionReset::GuildSelection => {
                     self.selected_guilds.clear();
-                    self.guild_command_lookup = HashMap::new();
+                    self.selected_guild_triggers.clear();
                     self.guild_selection = GuildSelection::default();
                     self.request_redraw();
                 }
@@ -836,7 +829,11 @@ impl BatApp {
 
     fn apply_guild_selection(&mut self, selection: GuildSelection) {
         self.selected_guilds = selection.build_guilds();
-        self.guild_command_lookup = command::build_guild_command_lookup(&self.selected_guilds);
+        self.selected_guild_triggers = self
+            .selected_guilds
+            .iter()
+            .flat_map(|guild| guild.triggers())
+            .collect();
         self.guild_selection = selection.clone();
         self.secondary_status.sync_guild_selection(&selection);
         self.automation = Automation::new();
@@ -1286,6 +1283,8 @@ mod tests {
     use crate::app::fake_connection_coordinator::{FakeConnectionCoordinator, connection_channels};
     use crate::automation::Waiter;
     use crate::guilds::catalog::GuildKey;
+    use ratatui::Terminal;
+    use ratatui::backend::{Backend, TestBackend};
     use regex::Regex;
     use std::sync::mpsc;
 
@@ -1327,7 +1326,7 @@ mod tests {
             session_lifecycle: SessionLifecycle::new(),
             telnet_buffer: TelnetBuffer::new(),
             selected_guilds: Vec::new(),
-            guild_command_lookup: HashMap::new(),
+            selected_guild_triggers: Vec::new(),
             guild_selection: GuildSelection::default(),
             should_quit: false,
             pending_terminal_clear: false,
@@ -1468,28 +1467,24 @@ mod tests {
     }
 
     #[test]
-    fn guild_command_lookup_refreshes_on_guild_selection_change() {
-        let (mut app, command_receiver) = test_app();
+    fn guild_trigger_cache_refreshes_on_guild_selection_change() {
+        let (mut app, _command_receiver) = test_app();
         log_in(&mut app);
 
         app.apply_guild_selection(GuildSelection::from_playable_keys(
-            [GuildKey::Tzarakk],
-            Some("evil"),
+            [GuildKey::Animist],
+            Some("nature"),
         ));
-        app.input.insert_str("med");
-        app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-        assert_eq!(
-            drain_commands(&command_receiver),
-            vec!["@dismount;use 'meditation'"]
-        );
+        app.process_input_lines(vec!["Your soul companion: exc (88%) guarding you".to_string()]);
+        assert!(app.secondary_status.has_soul_companion_status());
 
         app.apply_guild_selection(GuildSelection::from_playable_keys(
-            [GuildKey::Tiger],
-            Some("neutral"),
+            [GuildKey::Monk],
+            Some("evil_religious"),
         ));
-        app.input.insert_str("med");
-        app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-        assert_eq!(drain_commands(&command_receiver), vec!["@use 'meditation'"]);
+        app.secondary_status = SecondaryStatus::default();
+        app.process_input_lines(vec!["Your soul companion: exc (88%) guarding you".to_string()]);
+        assert!(!app.secondary_status.has_soul_companion_status());
     }
 
     #[test]
@@ -2207,6 +2202,74 @@ mod tests {
     }
 
     #[test]
+    fn draw_uses_input_cursor_offset_for_visible_input() {
+        let (mut app, _command_receiver) = test_app();
+        log_in(&mut app);
+        app.input.insert_str("hé");
+
+        let backend = TestBackend::new(20, 3);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+
+        assert_eq!(
+            terminal.backend_mut().get_cursor_position().unwrap(),
+            (3, 2).into()
+        );
+    }
+
+    #[test]
+    fn draw_hides_input_cursor_while_dialog_is_open() {
+        let (mut app, _command_receiver) = test_app();
+        log_in(&mut app);
+        app.open_guilds_dialog();
+
+        assert!(!app.guild_dialog.is_none());
+
+        let hide_input = app.session.login_state() == LoginState::Password;
+        let view = ViewModel {
+            output_lines: app.output.wrapped_lines(20).to_vec(),
+            scroll_offset: app.scrollback.offset(),
+            show_stats: true,
+            stats_line: app.stats.render_inline(),
+            combat_status_lines: Vec::new(),
+            secondary_status_lines: app.secondary_status.render_lines(20, &app.guild_selection),
+            clock: show_clock(),
+            input_text: app.input.render_line(hide_input),
+            cursor_offset: app.input.cursor_offset(hide_input),
+            show_cursor: app.guild_dialog.is_none()
+                && app.generic_commands_dialog.is_none()
+                && app.triggers_dialog.is_none()
+                && app.settings_dialog.is_none()
+                && app.monk_dialog.is_none(),
+            guild_dialog: app.guild_dialog.as_ref().map(|dialog| dialog.view_model()),
+            generic_commands_dialog: None,
+            triggers_dialog: None,
+            monk_dialog: None,
+            settings_dialog: None,
+        };
+
+        assert!(!view.show_cursor);
+    }
+
+    #[test]
+    fn draw_preserves_scrollback_offset() {
+        let (mut app, _command_receiver) = test_app();
+        for index in 0..50 {
+            app.output
+                .append_lines(vec![StyledLine::new(&format!("line {index}"))]);
+        }
+        app.scrollback.update_viewport(50, 5);
+        app.scrollback.page_up();
+        let scroll_offset_before = app.scrollback.offset();
+
+        let backend = TestBackend::new(20, 7);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+
+        assert_eq!(app.scrollback.offset(), scroll_offset_before);
+    }
+
+    #[test]
     fn reconnect_effect_starts_fresh_connection_and_replaces_command_sender() {
         let (new_channels, new_command_receiver, _new_event_sender) = connection_channels();
         let (coordinator, calls, _results) =
@@ -2327,7 +2390,8 @@ mod tests {
             app.output.plain_lines(),
             vec!["old output", "Reconnect started."]
         );
-        app.input.move_history(-1);
+        app.input
+            .move_history(input_state::HistoryDirection::Previous);
         assert_eq!(app.input.displayed_input(), "look");
         assert_eq!(app.session.login_state(), LoginState::Choice);
         assert!(app.selected_guilds.is_empty());

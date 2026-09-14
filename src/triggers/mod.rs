@@ -1,6 +1,5 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::{Action, AutomationFlags, AutomationVars};
-use crate::guilds::Guild;
 use crate::guilds::MonkSkillsConfig;
 use crate::secondary_status::SecondaryStatusEffect;
 use crate::stats::StatsEffect;
@@ -78,7 +77,7 @@ impl<'a> TriggerLine<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TriggerFacts<'a> {
+pub struct TriggerContext<'a> {
     flags: &'a AutomationFlags,
     vars: &'a AutomationVars,
     pub rig: Option<&'a str>,
@@ -90,7 +89,7 @@ static DEFAULT_AUTOMATION_FLAGS: OnceLock<AutomationFlags> = OnceLock::new();
 static DEFAULT_AUTOMATION_VARS: OnceLock<AutomationVars> = OnceLock::new();
 static DEFAULT_MONK_SKILLS: OnceLock<MonkSkillsConfig> = OnceLock::new();
 
-impl<'a> TriggerFacts<'a> {
+impl<'a> TriggerContext<'a> {
     pub fn new(
         flags: &'a AutomationFlags,
         vars: &'a AutomationVars,
@@ -128,7 +127,7 @@ impl<'a> TriggerFacts<'a> {
     }
 }
 
-impl Default for TriggerFacts<'_> {
+impl Default for TriggerContext<'_> {
     fn default() -> Self {
         Self::new(
             DEFAULT_AUTOMATION_FLAGS.get_or_init(AutomationFlags::default),
@@ -228,15 +227,16 @@ impl TriggerEffects {
     }
 }
 
-pub type Trigger = for<'a> fn(line: &TriggerLine<'_>, facts: &TriggerFacts<'a>) -> TriggerEffects;
+pub type Trigger =
+    for<'a> fn(line: &TriggerLine<'_>, context: &TriggerContext<'a>) -> TriggerEffects;
 
 pub fn common_trigger_catalog() -> Vec<crate::command::TriggerCatalogEntry> {
     common::trigger_catalog()
 }
 
 pub fn process(
-    facts: &TriggerFacts<'_>,
-    guilds: &[Box<dyn Guild>],
+    context: &TriggerContext<'_>,
+    guild_triggers: &[Trigger],
     line: &str,
     config: &TriggerConfig,
 ) -> TriggerEffects {
@@ -245,23 +245,22 @@ pub fn process(
 
     // Guild triggers first so stats hooks (e.g. Animist soul companion) always run before spell labels and common rules.
     if config.guild_triggers {
-        let guild_triggers: Vec<Trigger> = guilds.iter().flat_map(|g| g.triggers()).collect();
-        for trigger in guild_triggers.iter() {
-            let result = trigger(&TriggerLine::new(&current_line.plain_line), facts);
+        for trigger in guild_triggers {
+            let result = trigger(&TriggerLine::new(&current_line.plain_line), context);
             result.apply_line_effects_to(&mut current_line);
             output.extend(result);
         }
     }
 
     if config.spell_vocals {
-        let result = spell_vocals::trigger(&TriggerLine::new(&current_line.plain_line), facts);
+        let result = spell_vocals::trigger(&TriggerLine::new(&current_line.plain_line), context);
         result.apply_line_effects_to(&mut current_line);
         output.extend(result);
     }
 
     if config.common_triggers {
         for trigger in COMMON_TRIGGERS.iter() {
-            let result = trigger(&TriggerLine::new(&current_line.plain_line), facts);
+            let result = trigger(&TriggerLine::new(&current_line.plain_line), context);
             result.apply_line_effects_to(&mut current_line);
             output.extend(result);
         }
@@ -269,7 +268,7 @@ pub fn process(
 
     if config.core_triggers {
         for trigger in CORE_TRIGGERS.iter() {
-            let result = trigger(&TriggerLine::new(&current_line.plain_line), facts);
+            let result = trigger(&TriggerLine::new(&current_line.plain_line), context);
             result.apply_line_effects_to(&mut current_line);
             output.extend(result);
         }
@@ -283,7 +282,7 @@ mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
     use crate::ansi::StyledLine;
-    use crate::guilds::{AnimistGuild, MonkGuild};
+    use crate::guilds::{AnimistGuild, Guild, MonkGuild};
     use std::collections::HashMap;
 
     fn companion_line_is_blue(output: &TriggerEffects, line: &str) -> bool {
@@ -306,7 +305,7 @@ mod tests {
         let text = "Fueryon hits Reaver 5 times causing a nasty laceration.";
         let flags = HashMap::new();
         let vars = HashMap::new();
-        let facts = TriggerFacts::new(
+        let facts = TriggerContext::new(
             &flags,
             &vars,
             None,
@@ -314,7 +313,8 @@ mod tests {
             MonkSkillsConfig::default(),
         );
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(MonkGuild::default())];
-        let output = process(&facts, &guilds, text, &TriggerConfig::default());
+        let guild_triggers: Vec<Trigger> = guilds.iter().flat_map(|g| g.triggers()).collect();
+        let output = process(&facts, &guild_triggers, text, &TriggerConfig::default());
         assert!(
             player_hit_line_is_green(&output, text),
             "player combat hit hilite should run without Animist active"
@@ -326,7 +326,7 @@ mod tests {
         let text = "A blue-glowing soul companion [Nynn].";
         let flags = HashMap::new();
         let vars = HashMap::new();
-        let facts = TriggerFacts::new(
+        let facts = TriggerContext::new(
             &flags,
             &vars,
             None,
@@ -334,7 +334,8 @@ mod tests {
             MonkSkillsConfig::default(),
         );
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(MonkGuild::default())];
-        let output = process(&facts, &guilds, text, &TriggerConfig::default());
+        let guild_triggers: Vec<Trigger> = guilds.iter().flat_map(|g| g.triggers()).collect();
+        let output = process(&facts, &guild_triggers, text, &TriggerConfig::default());
         assert!(
             !companion_line_is_blue(&output, text),
             "companion hilite should not run without Animist active"
@@ -346,7 +347,7 @@ mod tests {
         let text = "A blue-glowing soul companion [Nynn].";
         let flags = HashMap::new();
         let vars = HashMap::new();
-        let facts = TriggerFacts::new(
+        let facts = TriggerContext::new(
             &flags,
             &vars,
             None,
@@ -354,7 +355,8 @@ mod tests {
             MonkSkillsConfig::default(),
         );
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(AnimistGuild::default())];
-        let output = process(&facts, &guilds, text, &TriggerConfig::default());
+        let guild_triggers: Vec<Trigger> = guilds.iter().flat_map(|g| g.triggers()).collect();
+        let output = process(&facts, &guild_triggers, text, &TriggerConfig::default());
         assert!(
             companion_line_is_blue(&output, text),
             "companion hilite should run when Animist is active"
@@ -366,7 +368,7 @@ mod tests {
         let text = "A blue-glowing soul companion [Nynn].";
         let flags = HashMap::new();
         let vars = HashMap::new();
-        let facts = TriggerFacts::new(
+        let facts = TriggerContext::new(
             &flags,
             &vars,
             None,
@@ -374,11 +376,12 @@ mod tests {
             MonkSkillsConfig::default(),
         );
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(AnimistGuild::default())];
+        let guild_triggers: Vec<Trigger> = guilds.iter().flat_map(|g| g.triggers()).collect();
         let config = TriggerConfig {
             guild_triggers: false,
             ..TriggerConfig::default()
         };
-        let output = process(&facts, &guilds, text, &config);
+        let output = process(&facts, &guild_triggers, text, &config);
         assert!(
             !companion_line_is_blue(&output, text),
             "companion hilite should not run when guild triggers are disabled"

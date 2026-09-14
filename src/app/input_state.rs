@@ -1,5 +1,12 @@
+use ratatui::text::{Line, Span};
 use std::mem;
 use unicode_segmentation::UnicodeSegmentation;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HistoryDirection {
+    Previous,
+    Next,
+}
 
 #[derive(Default, Debug)]
 pub struct InputState {
@@ -8,12 +15,32 @@ pub struct InputState {
     cursor_position: usize,
     cursor_display_offset: u16,
     history: Vec<String>,
-    cur_history_pos: usize,
+    history_index: usize,
 }
 
 impl InputState {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    fn sync_current_typed_input_if_browsing_history(&mut self) {
+        if self.history_index == self.history.len() {
+            return;
+        }
+
+        self.current_typed_input.clone_from(&self.displayed_input);
+        self.history_index = self.history.len();
+    }
+
+    fn insert_text(&mut self, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+
+        self.sync_current_typed_input_if_browsing_history();
+        self.displayed_input.insert_str(self.cursor_position, text);
+        self.cursor_position += text.len();
+        self.cursor_display_offset += text.graphemes(true).count() as u16;
     }
 
     /// Recompute the visible cursor offset from the current grapheme prefix.
@@ -24,21 +51,12 @@ impl InputState {
     }
 
     pub fn insert_char(&mut self, c: char) {
-        self.displayed_input.insert(self.cursor_position, c);
-        self.cursor_position += c.len_utf8();
-        self.refresh_cursor_display_offset();
-        self.sync_current_typed_input();
+        let mut encoded = [0; 4];
+        self.insert_text(c.encode_utf8(&mut encoded));
     }
 
     pub fn insert_str(&mut self, text: &str) {
-        if text.is_empty() {
-            return;
-        }
-
-        self.displayed_input.insert_str(self.cursor_position, text);
-        self.cursor_position += text.len();
-        self.refresh_cursor_display_offset();
-        self.sync_current_typed_input();
+        self.insert_text(text);
     }
 
     pub fn backspace(&mut self) {
@@ -53,10 +71,10 @@ impl InputState {
             return;
         };
 
+        self.sync_current_typed_input_if_browsing_history();
         self.displayed_input.drain(index..self.cursor_position);
         self.cursor_position = index;
         self.refresh_cursor_display_offset();
-        self.sync_current_typed_input();
     }
 
     pub fn delete(&mut self) {
@@ -71,9 +89,9 @@ impl InputState {
 
         let start = self.cursor_position + offset;
         let end = start + grapheme.len();
+        self.sync_current_typed_input_if_browsing_history();
         self.displayed_input.drain(start..end);
         self.refresh_cursor_display_offset();
-        self.sync_current_typed_input();
     }
 
     pub fn move_cursor_left(&mut self) {
@@ -136,35 +154,28 @@ impl InputState {
         self.refresh_cursor_display_offset();
     }
 
-    fn sync_current_typed_input(&mut self) {
-        if self.cur_history_pos == self.history.len() {
-            return;
-        }
+    pub fn move_history(&mut self, direction: HistoryDirection) {
+        let previous_index = self.history_index;
 
-        self.current_typed_input.clone_from(&self.displayed_input);
-        self.cur_history_pos = self.history.len();
-    }
-
-    pub fn move_history(&mut self, direction: i32) {
-        let prev_pos = self.cur_history_pos;
-
-        if direction < 0 {
-            if self.cur_history_pos > 0 {
-                self.cur_history_pos = self.cur_history_pos.saturating_sub(1);
+        match direction {
+            HistoryDirection::Previous if self.history_index > 0 => {
+                self.history_index = self.history_index.saturating_sub(1);
             }
-        } else if self.cur_history_pos < self.history.len() {
-            self.cur_history_pos = self.cur_history_pos.saturating_add(1);
+            HistoryDirection::Next if self.history_index < self.history.len() => {
+                self.history_index = self.history_index.saturating_add(1);
+            }
+            _ => {}
         }
 
-        if prev_pos != self.cur_history_pos {
-            if prev_pos == self.history.len() {
+        if previous_index != self.history_index {
+            if previous_index == self.history.len() {
                 self.current_typed_input.clone_from(&self.displayed_input);
             }
 
-            if self.cur_history_pos < self.history.len() {
+            if self.history_index < self.history.len() {
                 self.displayed_input
-                    .clone_from(&self.history[self.cur_history_pos]);
-            } else if self.cur_history_pos == self.history.len() {
+                    .clone_from(&self.history[self.history_index]);
+            } else if self.history_index == self.history.len() {
                 self.displayed_input.clone_from(&self.current_typed_input);
             }
             self.cursor_position = self.displayed_input.len();
@@ -180,6 +191,15 @@ impl InputState {
         }
     }
 
+    /// Render the prompt and visible input without cloning the current buffer.
+    pub fn render_line(&self, hide_input: bool) -> Line<'_> {
+        if hide_input {
+            Line::from(vec![Span::raw(">")])
+        } else {
+            Line::from(vec![Span::raw(">"), Span::raw(self.displayed_input())])
+        }
+    }
+
     pub fn displayed_input(&self) -> &str {
         &self.displayed_input
     }
@@ -192,12 +212,12 @@ impl InputState {
 
     pub fn push_history(&mut self, input: String) {
         if input.is_empty() || self.history.last() == Some(&input) {
-            self.cur_history_pos = self.history.len();
+            self.history_index = self.history.len();
             return;
         }
 
         self.history.push(input);
-        self.cur_history_pos = self.history.len();
+        self.history_index = self.history.len();
     }
 
     pub fn clear_all(&mut self) {
@@ -214,7 +234,7 @@ impl InputState {
 
 #[cfg(test)]
 mod tests {
-    use super::InputState;
+    use super::{HistoryDirection, InputState};
 
     #[test]
     fn history_moves_and_restores_typed_input() {
@@ -227,11 +247,11 @@ mod tests {
         state.insert_char('b');
         state.insert_char('y');
         state.insert_char('e');
-        state.move_history(-1);
+        state.move_history(HistoryDirection::Previous);
 
         assert_eq!(state.displayed_input(), "hi");
 
-        state.move_history(1);
+        state.move_history(HistoryDirection::Next);
         assert_eq!(state.displayed_input(), "bye");
         assert_eq!(state.cursor_offset(false), 4);
 
@@ -248,13 +268,13 @@ mod tests {
         state.push_history("look".to_string());
         state.push_history("north".to_string());
 
-        state.move_history(-1);
+        state.move_history(HistoryDirection::Previous);
         assert_eq!(state.displayed_input(), "north");
 
-        state.move_history(-1);
+        state.move_history(HistoryDirection::Previous);
         assert_eq!(state.displayed_input(), "look");
 
-        state.move_history(-1);
+        state.move_history(HistoryDirection::Previous);
         assert_eq!(state.displayed_input(), "look");
     }
 
@@ -412,10 +432,10 @@ mod tests {
         state.push_history(history_entry);
         state.clear_current_typed_input();
 
-        state.move_history(-1);
+        state.move_history(HistoryDirection::Previous);
         assert_eq!(state.displayed_input(), "look");
 
-        state.move_history(1);
+        state.move_history(HistoryDirection::Next);
         assert_eq!(state.displayed_input(), "");
     }
 
@@ -424,6 +444,18 @@ mod tests {
         let state = InputState::new();
 
         assert_eq!(state.cursor_offset(true), 1);
+    }
+
+    #[test]
+    fn render_line_reuses_visible_input_without_cloning_text() {
+        let mut state = InputState::new();
+        state.insert_str("look");
+
+        let rendered = state.render_line(false);
+
+        assert_eq!(rendered.spans.len(), 2);
+        assert_eq!(rendered.spans[0].content.as_ref(), ">");
+        assert_eq!(rendered.spans[1].content.as_ref(), "look");
     }
 
     #[test]
@@ -436,11 +468,11 @@ mod tests {
         state.insert_str("🙂x");
         assert_eq!(state.cursor_offset(false), 3);
 
-        state.move_history(-1);
+        state.move_history(HistoryDirection::Previous);
         assert_eq!(state.displayed_input(), "hé");
         assert_eq!(state.cursor_offset(false), 3);
 
-        state.move_history(1);
+        state.move_history(HistoryDirection::Next);
         assert_eq!(state.displayed_input(), "🙂x");
         assert_eq!(state.cursor_offset(false), 3);
 
@@ -455,16 +487,16 @@ mod tests {
         state.push_history("look".to_string());
         state.insert_str("say");
 
-        state.move_history(-1);
+        state.move_history(HistoryDirection::Previous);
         assert_eq!(state.displayed_input(), "look");
 
         state.insert_char('!');
         assert_eq!(state.displayed_input(), "look!");
 
-        state.move_history(-1);
+        state.move_history(HistoryDirection::Previous);
         assert_eq!(state.displayed_input(), "look");
 
-        state.move_history(1);
+        state.move_history(HistoryDirection::Next);
         assert_eq!(state.displayed_input(), "look!");
     }
 }
