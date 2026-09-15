@@ -1,4 +1,5 @@
 use crate::abilities;
+use crate::abilities::use_skill;
 use crate::ansi::{StyledLine, TextStyle};
 use crate::command;
 use crate::command::Command;
@@ -9,6 +10,7 @@ use std::collections::HashMap;
 impl SpiderGuild {
     pub fn get_commands(&self) -> HashMap<String, Command> {
         HashMap::from([
+            ("cere".to_string(), Self::use_ceremony as Command),
             ("csw".to_string(), Self::cast_spider_wrath as Command),
             ("chs".to_string(), Self::cast_hunger_of_the_spider),
             ("csum".to_string(), Self::cast_spider_demon_conjuration),
@@ -30,6 +32,7 @@ impl SpiderGuild {
 
     pub fn get_shortcut_catalog(&self) -> Vec<ShortcutEntry> {
         vec![
+            ShortcutEntry::new("cere", "Use ceremony."),
             ShortcutEntry::new("csw", "Cast spider wrath."),
             ShortcutEntry::new("chs", "Cast hunger of the spider at a required target."),
             ShortcutEntry::new("csum", "Cast spider demon conjuration on self or a target."),
@@ -47,6 +50,13 @@ impl SpiderGuild {
             ShortcutEntry::new("crmp", "Cast remove poison on self or a target."),
             ShortcutEntry::new("us", "Use stab."),
         ]
+    }
+
+    fn use_ceremony(
+        data: &command::Data,
+        _: &command::CommandEnvironment,
+    ) -> Vec<command::CommandEffect> {
+        command::send(use_skill("ceremony", data))
     }
 
     fn cast_spider_wrath(
@@ -257,6 +267,26 @@ mod tests {
         fn as_deref(&self) -> Vec<command::CommandEffect> {
             self.clone()
         }
+    }
+
+    #[test]
+    fn cere_without_target() {
+        let data = command::Data {
+            cmd: "cere".into(),
+            args: "".into(),
+        };
+        let out = send_line(SpiderGuild::use_ceremony(&data, &ctx())).unwrap();
+        assert_eq!(out, "@use 'ceremony'");
+    }
+
+    #[test]
+    fn cere_with_target() {
+        let data = command::Data {
+            cmd: "cere".into(),
+            args: "altar".into(),
+        };
+        let out = send_line(SpiderGuild::use_ceremony(&data, &ctx())).unwrap();
+        assert_eq!(out, "@target altar;use 'ceremony' altar");
     }
 
     #[test]
