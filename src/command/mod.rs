@@ -80,7 +80,53 @@ pub fn dispatch(
     guild_command_lookup: &HashMap<String, Command>,
     generic: &GenericCommands,
 ) -> Vec<CommandEffect> {
-    let parsed = ParsedCommand::new(&input.line);
+    let env = CommandEnvironment::new(
+        input.flags.clone(),
+        input.vars.clone(),
+        input.monk_skills.clone(),
+    );
+    if input.logged_in && !input.line.trim_start().starts_with('/') && input.line.contains(';') {
+        return dispatch_compound_line(&input, guilds, guild_command_lookup, generic, &env);
+    }
+    dispatch_single_segment(
+        &input,
+        guilds,
+        guild_command_lookup,
+        generic,
+        &env,
+        &input.line,
+    )
+}
+
+fn dispatch_compound_line(
+    input: &CommandDispatchInput,
+    guilds: &[Box<dyn Guild>],
+    guild_command_lookup: &HashMap<String, Command>,
+    generic: &GenericCommands,
+    env: &CommandEnvironment,
+) -> Vec<CommandEffect> {
+    collapse_adjacent_sends(
+        input
+            .line
+            .split(';')
+            .map(str::trim)
+            .filter(|segment| !segment.is_empty())
+            .flat_map(|segment| {
+                dispatch_single_segment(input, guilds, guild_command_lookup, generic, env, segment)
+            })
+            .collect(),
+    )
+}
+
+fn dispatch_single_segment(
+    input: &CommandDispatchInput,
+    guilds: &[Box<dyn Guild>],
+    guild_command_lookup: &HashMap<String, Command>,
+    generic: &GenericCommands,
+    env: &CommandEnvironment,
+    line: &str,
+) -> Vec<CommandEffect> {
+    let parsed = ParsedCommand::new(line);
     if parsed.original().is_empty() {
         return if input.logged_in {
             vec![CommandEffect::Send(String::new())]
@@ -115,10 +161,8 @@ pub fn dispatch(
         return Vec::new();
     }
 
-    let env = CommandEnvironment::new(input.flags, input.vars, input.monk_skills);
-
     if let Some(cmd) = guild_command_lookup.get(parsed.name()) {
-        return cmd(&parsed, &env);
+        return cmd(&parsed, env);
     }
 
     if let Some(send) = generic.render_command(parsed.name(), &parsed.args) {
@@ -126,6 +170,24 @@ pub fn dispatch(
     }
 
     vec![CommandEffect::Send(parsed.original())]
+}
+
+fn collapse_adjacent_sends(effects: Vec<CommandEffect>) -> Vec<CommandEffect> {
+    effects
+        .into_iter()
+        .fold(Vec::new(), |mut collapsed, effect| {
+            match effect {
+                CommandEffect::Send(send) => match collapsed.last_mut() {
+                    Some(CommandEffect::Send(previous)) => {
+                        previous.push(';');
+                        previous.push_str(&send);
+                    }
+                    _ => collapsed.push(CommandEffect::Send(send)),
+                },
+                other => collapsed.push(other),
+            }
+            collapsed
+        })
 }
 
 pub type Command = fn(&ParsedCommand, &CommandEnvironment) -> Vec<CommandEffect>;
@@ -610,5 +672,66 @@ mod tests {
         let effects = dispatch_line("  some raw text  ", true, &[]);
 
         assert_eq!(send_effects(&effects), vec!["some raw text"]);
+    }
+
+    #[test]
+    fn dispatch_splits_logged_in_compound_input_and_preserves_passthrough_order() {
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
+        let effects = dispatch_line("say hello; ping world ; raw", true, &guilds);
+
+        assert_eq!(send_effects(&effects), vec!["say hello;pong world;raw"]);
+    }
+
+    #[test]
+    fn dispatch_skips_empty_compound_segments() {
+        let effects = dispatch_line(" ; look ;; score ; ", true, &[]);
+
+        assert_eq!(send_effects(&effects), vec!["look;score"]);
+    }
+
+    #[test]
+    fn dispatch_keeps_pre_login_input_unchanged() {
+        let effects = dispatch_line("look;score", false, &[]);
+
+        assert!(effects.is_empty());
+    }
+
+    #[test]
+    fn dispatch_keeps_standalone_slash_commands_unchanged() {
+        let effects = dispatch_line("/clear", true, &[]);
+
+        assert!(matches!(effects.as_slice(), [CommandEffect::Redraw]));
+    }
+
+    #[test]
+    fn dispatch_keeps_non_send_effects_in_order_when_collapsing_compound_sends() {
+        let effects = collapse_adjacent_sends(vec![
+            CommandEffect::Send("use 'ceremony'".to_string()),
+            CommandEffect::Automation(Action::SetFlag("pending".to_string(), true)),
+            CommandEffect::Send("cast 'join soul'".to_string()),
+            CommandEffect::Send("raw".to_string()),
+        ]);
+
+        assert_eq!(
+            effects,
+            vec![
+                CommandEffect::Send("use 'ceremony'".to_string()),
+                CommandEffect::Automation(Action::SetFlag("pending".to_string(), true)),
+                CommandEffect::Send("cast 'join soul';raw".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn dispatch_does_not_resplit_existing_shortcut_send_payloads() {
+        let effects = collapse_adjacent_sends(vec![
+            CommandEffect::Send("target foe;use ceremony foe".to_string()),
+            CommandEffect::Send("look".to_string()),
+        ]);
+
+        assert_eq!(
+            send_effects(&effects),
+            vec!["target foe;use ceremony foe;look"]
+        );
     }
 }
