@@ -10,7 +10,7 @@ use crate::guilds::monk::{
     DISRUPT_SKILL_3, DOING_MEDITATION_FLAG, KATA_DONE_FLAG, MonkSkillsConfig,
 };
 use crate::guilds::sects_triggers;
-use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{Trigger, TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -90,7 +90,7 @@ impl MonkGuild {
         entries
     }
 
-    pub fn state_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts<'_>) -> TriggerEffects {
+    pub fn state_trigger(line: &TriggerLine<'_>, facts: &TriggerContext<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         let line = line.plain_line;
 
@@ -131,7 +131,7 @@ impl MonkGuild {
 
     pub fn skill_result_trigger(
         line: &TriggerLine<'_>,
-        facts: &TriggerFacts<'_>,
+        facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         let line = line.plain_line.to_string();
@@ -531,10 +531,10 @@ mod tests {
     use crate::ansi::AnsiCode;
     use crate::ansi::StyledLine;
     use crate::automation::Automation;
-    use crate::triggers::{TriggerFacts, TriggerLine};
+    use crate::triggers::{TriggerContext, TriggerLine};
 
-    fn facts(automation: &Automation) -> TriggerFacts<'_> {
-        TriggerFacts::new(
+    fn facts(automation: &Automation) -> TriggerContext<'_> {
+        TriggerContext::new(
             automation.flags(),
             automation.vars(),
             None,
@@ -553,7 +553,7 @@ mod tests {
     ) -> (TriggerEffects, StyledLine) {
         let flags = std::collections::HashMap::new();
         let vars = std::collections::HashMap::new();
-        let facts = TriggerFacts::new(&flags, &vars, None, None, config.clone());
+        let facts = TriggerContext::new(&flags, &vars, None, None, config.clone());
         let output = MonkGuild::skill_result_trigger(&TriggerLine::new(line_text), &facts);
         let mut line = StyledLine::new(line_text);
         output.apply_line_effects_to(&mut line);
@@ -579,7 +579,7 @@ mod tests {
     fn interrupt_resets_current_skills() {
         let output = MonkGuild::state_trigger(
             &TriggerLine::new("You break your skill attempt."),
-            &TriggerFacts::default(),
+            &TriggerContext::default(),
         );
 
         assert_eq!(output.actions.len(), 4);
@@ -593,7 +593,7 @@ mod tests {
     fn not_in_combat_resets_current_skills() {
         let output = MonkGuild::state_trigger(
             &TriggerLine::new(crate::combat_awareness::NOT_IN_COMBAT_LINE),
-            &TriggerFacts::default(),
+            &TriggerContext::default(),
         );
 
         assert_eq!(output.actions.len(), 4);
@@ -619,7 +619,7 @@ mod tests {
     fn death_combat_end_resets_current_skills() {
         let output = MonkGuild::state_trigger(
             &TriggerLine::new(crate::combat_awareness::DEATH_COMBAT_END_LINE),
-            &TriggerFacts::default(),
+            &TriggerContext::default(),
         );
 
         assert_eq!(output.actions.len(), 4);

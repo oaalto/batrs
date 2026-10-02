@@ -1,7 +1,7 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::command::TriggerCatalogEntry;
 use crate::guilds::SpiderGuild;
-use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -75,7 +75,7 @@ impl SpiderGuild {
 
     pub fn spider_highlight_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let line = line.plain_line.trim_end_matches('\r').trim();
 
@@ -153,12 +153,12 @@ static FAIL_STAB_RED: LazyLock<Regex> =
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::triggers::{TriggerFacts, TriggerLine};
+    use crate::triggers::{TriggerContext, TriggerLine};
 
     fn run(line: &str) -> (TriggerEffects, StyledLine) {
         let output = SpiderGuild::spider_highlight_trigger(
             &TriggerLine::new(line),
-            &TriggerFacts::default(),
+            &TriggerContext::default(),
         );
         let mut styled = StyledLine::new(line);
         output.apply_line_effects_to(&mut styled);

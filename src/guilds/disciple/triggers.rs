@@ -1,7 +1,7 @@
 use crate::ansi::{StyledLine, TextStyle};
 use crate::command::TriggerCatalogEntry;
 use crate::guilds::DiscipleGuild;
-use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -62,7 +62,7 @@ impl DiscipleGuild {
 
     pub fn spawn_going_down_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if SPAWN_GOING_DOWN.is_match(line.plain_line) {
             let mut alert = StyledLine::new("*************** SPAWN GOING DOWN!! ***************");
@@ -76,7 +76,7 @@ impl DiscipleGuild {
 
     pub fn red_hilites_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if RED_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::BRIGHT_RED);
@@ -86,7 +86,7 @@ impl DiscipleGuild {
 
     pub fn green_hilites_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if GREEN_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::GREEN);

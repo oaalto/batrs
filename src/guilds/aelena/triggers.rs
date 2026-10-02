@@ -3,7 +3,7 @@ use crate::ansi::{StyledLine, TextStyle};
 use crate::automation::Action;
 use crate::command::TriggerCatalogEntry;
 use crate::guilds::AelenaGuild;
-use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{Trigger, TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -66,7 +66,7 @@ impl AelenaGuild {
         ]
     }
 
-    pub fn aelena_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
+    pub fn aelena_trigger(line: &TriggerLine<'_>, _facts: &TriggerContext<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         let line = line.plain_line;
 
@@ -123,11 +123,12 @@ impl AelenaGuild {
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::triggers::{TriggerFacts, TriggerLine};
+    use crate::triggers::{TriggerContext, TriggerLine};
 
     fn run(line: &str) -> (TriggerEffects, StyledLine) {
         let mut styled_line = StyledLine::new(line);
-        let output = AelenaGuild::aelena_trigger(&TriggerLine::new(line), &TriggerFacts::default());
+        let output =
+            AelenaGuild::aelena_trigger(&TriggerLine::new(line), &TriggerContext::default());
         output.apply_line_effects_to(&mut styled_line);
         (output, styled_line)
     }

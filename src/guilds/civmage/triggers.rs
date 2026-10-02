@@ -3,7 +3,7 @@ use crate::command::TriggerCatalogEntry;
 use crate::guilds::CivmageGuild;
 use crate::guilds::magic_lore_analysis::magic_lore_analysis_catalog_entries;
 use crate::guilds::magic_lore_analysis::magic_lore_analysis_effect;
-use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{Trigger, TriggerContext, TriggerEffects, TriggerLine};
 
 impl CivmageGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
@@ -25,7 +25,7 @@ impl CivmageGuild {
         entries
     }
 
-    pub fn civmage_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
+    pub fn civmage_trigger(line: &TriggerLine<'_>, _facts: &TriggerContext<'_>) -> TriggerEffects {
         let line = line.plain_line.trim_end_matches('\r').trim().to_string();
 
         if line == "You feel odd. Not weaker, but..." {
@@ -56,12 +56,12 @@ fn disc_notice() -> StyledLine {
 mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
-    use crate::triggers::{TriggerFacts, TriggerLine};
+    use crate::triggers::{TriggerContext, TriggerLine};
 
     fn run_trigger(line: &str) -> (TriggerEffects, StyledLine) {
         let mut styled = StyledLine::new(line);
         let output =
-            CivmageGuild::civmage_trigger(&TriggerLine::new(line), &TriggerFacts::default());
+            CivmageGuild::civmage_trigger(&TriggerLine::new(line), &TriggerContext::default());
         output.apply_line_effects_to(&mut styled);
         (output, styled)
     }

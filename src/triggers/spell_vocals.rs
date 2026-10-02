@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 use crate::ansi::StyledLine;
-use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -59,7 +59,7 @@ fn is_word_continuation(ch: char) -> bool {
     ch.is_alphanumeric() || ch == '_'
 }
 
-pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
+pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerContext<'_>) -> TriggerEffects {
     let plain = line.plain_line;
 
     for rule in CONTEXTUAL_RULES.iter() {
@@ -87,7 +87,7 @@ pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffe
 pub fn annotate(styled_line: &mut StyledLine) {
     let effects = trigger(
         &TriggerLine::new(&styled_line.plain_line),
-        &TriggerFacts::default(),
+        &TriggerContext::default(),
     );
     for edit in effects.original.edits {
         edit.apply_to(styled_line);

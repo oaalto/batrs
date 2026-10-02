@@ -3,7 +3,7 @@ use crate::automation::Action;
 use crate::command::TriggerCatalogEntry;
 use crate::guilds::NergalGuild;
 use crate::secondary_status::{NergalMinion, NergalResourceStatus, SecondaryStatusEffect};
-use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{Trigger, TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -92,7 +92,7 @@ impl NergalGuild {
         ]
     }
 
-    pub fn nergal_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
+    pub fn nergal_trigger(line: &TriggerLine<'_>, _facts: &TriggerContext<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         let line = line.plain_line.trim_end_matches('\r').trim();
 
@@ -268,11 +268,11 @@ mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
     use crate::secondary_status::SecondaryStatus;
-    use crate::triggers::{TriggerFacts, TriggerLine};
+    use crate::triggers::{TriggerContext, TriggerLine};
 
     fn run(line_text: &str, status: &mut SecondaryStatus) -> (TriggerEffects, StyledLine) {
         let output =
-            NergalGuild::nergal_trigger(&TriggerLine::new(line_text), &TriggerFacts::default());
+            NergalGuild::nergal_trigger(&TriggerLine::new(line_text), &TriggerContext::default());
         for effect in output.secondary_status.clone() {
             status.apply_effect(effect);
         }

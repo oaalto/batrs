@@ -3,7 +3,7 @@
 use crate::ansi::TextStyle;
 use crate::command::TriggerCatalogEntry;
 use crate::guilds::KharimGuild;
-use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -55,7 +55,7 @@ impl KharimGuild {
 
     pub fn kharim_highlight_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let plain = line.plain_line.trim_end_matches('\r').trim();
 
@@ -88,12 +88,12 @@ mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
     use crate::ansi::StyledLine;
-    use crate::triggers::{TriggerFacts, TriggerLine};
+    use crate::triggers::{TriggerContext, TriggerLine};
 
     fn run(line: &str) -> StyledLine {
         let output = KharimGuild::kharim_highlight_trigger(
             &TriggerLine::new(line),
-            &TriggerFacts::default(),
+            &TriggerContext::default(),
         );
         let mut styled = StyledLine::new(line);
         output.apply_line_effects_to(&mut styled);

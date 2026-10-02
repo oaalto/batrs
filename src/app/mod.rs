@@ -1475,7 +1475,9 @@ mod tests {
             [GuildKey::Animist],
             Some("nature"),
         ));
-        app.process_input_lines(vec!["Your soul companion: exc (88%) guarding you".to_string()]);
+        app.process_input_lines(vec![
+            "Your soul companion: exc (88%) guarding you".to_string(),
+        ]);
         assert!(app.secondary_status.has_soul_companion_status());
 
         app.apply_guild_selection(GuildSelection::from_playable_keys(
@@ -1483,7 +1485,9 @@ mod tests {
             Some("evil_religious"),
         ));
         app.secondary_status = SecondaryStatus::default();
-        app.process_input_lines(vec!["Your soul companion: exc (88%) guarding you".to_string()]);
+        app.process_input_lines(vec![
+            "Your soul companion: exc (88%) guarding you".to_string(),
+        ]);
         assert!(!app.secondary_status.has_soul_companion_status());
     }
 

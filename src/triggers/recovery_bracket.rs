@@ -1,5 +1,5 @@
 use crate::stats::StatsEffect;
-use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{TriggerContext, TriggerEffects, TriggerLine};
 
 const LIE_DOWN_REST: &str = "You lie down and begin to rest for a while.";
 const FEEL_TIRED: &str = "You feel a bit tired.";
@@ -9,7 +9,7 @@ const START_MEDITATING: &str = "You sit down and start meditating.";
 const MEDITATION_HARMONY: &str =
     "You feel in harmony with yourself, the universe and life in general.";
 
-pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
+pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerContext<'_>) -> TriggerEffects {
     let plain = line.plain_line.trim_end_matches('\r').trim();
     match plain {
         LIE_DOWN_REST => TriggerEffects::none().stat(StatsEffect::SetRecoveryBracketCamping(false)),
@@ -33,7 +33,7 @@ mod tests {
     use ratatui::text::Line;
 
     fn apply_trigger(line: &str, stats: &mut Stats) {
-        let output = trigger(&TriggerLine::new(line), &TriggerFacts::default());
+        let output = trigger(&TriggerLine::new(line), &TriggerContext::default());
         for effect in output.stats {
             stats.apply_effect(effect);
         }

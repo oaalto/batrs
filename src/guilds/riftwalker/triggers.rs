@@ -8,7 +8,7 @@ use crate::guilds::riftwalker::{
     RIFTWALKER_SKILL_VAR, WATER_SKILL,
 };
 use crate::secondary_status::SecondaryStatusEffect;
-use crate::triggers::{LineEffect, Trigger, TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{LineEffect, Trigger, TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -119,7 +119,7 @@ impl RiftwalkerGuild {
         ]
     }
 
-    pub fn primary_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts<'_>) -> TriggerEffects {
+    pub fn primary_trigger(line: &TriggerLine<'_>, facts: &TriggerContext<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         battle_listen_entity_status(facts, line.plain_line, &mut output);
         if output.original.gag {
@@ -142,7 +142,7 @@ impl RiftwalkerGuild {
     }
 }
 
-fn automation_label(facts: &TriggerFacts<'_>, key: &str) -> String {
+fn automation_label(facts: &TriggerContext<'_>, key: &str) -> String {
     facts
         .get_var(key)
         .filter(|segment| !segment.is_empty())
@@ -162,7 +162,7 @@ fn status_line_noun_regex_chunk(configured: &str) -> String {
     }
 }
 
-fn aura_noun_alternation(facts: &TriggerFacts<'_>) -> String {
+fn aura_noun_alternation(facts: &TriggerContext<'_>) -> String {
     let base = noun_alt_pattern(facts);
     if base.is_empty() {
         "entity".to_string()
@@ -172,7 +172,7 @@ fn aura_noun_alternation(facts: &TriggerFacts<'_>) -> String {
 }
 
 /// Sorted, deduped, regex-escaped alternation of per-element nouns.
-fn noun_alt_pattern(facts: &TriggerFacts<'_>) -> String {
+fn noun_alt_pattern(facts: &TriggerContext<'_>) -> String {
     let mut parts = vec![
         automation_label(facts, ENTITY_LABEL_FIRE),
         automation_label(facts, ENTITY_LABEL_AIR),
@@ -189,7 +189,7 @@ fn noun_alt_pattern(facts: &TriggerFacts<'_>) -> String {
 }
 
 fn battle_listen_entity_status(
-    facts: &TriggerFacts<'_>,
+    facts: &TriggerContext<'_>,
     plain_line: &str,
     output: &mut TriggerEffects,
 ) {
@@ -266,7 +266,7 @@ fn push_entity_hp_notices(hp: i32, output: &mut TriggerEffects) {
     output.lines.push(notice);
 }
 
-fn clears_and_keeps(facts: &TriggerFacts<'_>, line: &str, output: &mut TriggerEffects) {
+fn clears_and_keeps(facts: &TriggerContext<'_>, line: &str, output: &mut TriggerEffects) {
     let n_alt = noun_alt_pattern(facts);
     let lost_entity = format!(
         r"(?i)^Your\s+(?:{n_alt})\s+begins to warp, seeming to become unstable\. It folds in on itself and vanishes!$"
@@ -295,7 +295,7 @@ fn clears_and_keeps(facts: &TriggerFacts<'_>, line: &str, output: &mut TriggerEf
     }
 }
 
-fn line_sync_entity_skill(facts: &TriggerFacts<'_>, line: &str, output: &mut TriggerEffects) {
+fn line_sync_entity_skill(facts: &TriggerContext<'_>, line: &str, output: &mut TriggerEffects) {
     let trimmed = line.trim();
     let mapping = [
         ("fire", FIRE_SKILL, "fire", ENTITY_LABEL_FIRE),
@@ -328,7 +328,7 @@ fn entity_skill_actions(skill: &str, element: &str) -> Vec<Action> {
     ]
 }
 
-fn is_prepared_line(facts: &TriggerFacts<'_>, line: &str) -> bool {
+fn is_prepared_line(facts: &TriggerContext<'_>, line: &str) -> bool {
     let n_alt = noun_alt_pattern(facts);
     let Ok(re) = Regex::new(&format!(
         r"(?i)^Your\s+(?:{n_alt})\s+is prepared to do the skill\.?$"
@@ -338,7 +338,7 @@ fn is_prepared_line(facts: &TriggerFacts<'_>, line: &str) -> bool {
     re.is_match(line.trim())
 }
 
-fn is_concentration_lost_line(facts: &TriggerFacts<'_>, line: &str) -> bool {
+fn is_concentration_lost_line(facts: &TriggerContext<'_>, line: &str) -> bool {
     let n_alt = noun_alt_pattern(facts);
     let Ok(re) = Regex::new(&format!(
         r"(?i)^Your\s+(?:{n_alt})\s+loses its concentration and cannot do the skill\.$"
@@ -348,7 +348,7 @@ fn is_concentration_lost_line(facts: &TriggerFacts<'_>, line: &str) -> bool {
     re.is_match(line.trim())
 }
 
-fn skill_state_echoes(facts: &TriggerFacts<'_>, line: &str, output: &mut TriggerEffects) {
+fn skill_state_echoes(facts: &TriggerContext<'_>, line: &str, output: &mut TriggerEffects) {
     if is_prepared_line(facts, line) {
         let mut banner = StyledLine::new("!!!!!!!!!! Entity Skill !!!!!!!!!!");
         banner.set_line_style(TextStyle::BRIGHT_BLUE);
@@ -409,7 +409,7 @@ fn matches_line_insensitive(got: &str, expected_ascii: String) -> bool {
     got.eq_ignore_ascii_case(expected_ascii.as_str())
 }
 
-fn current_skill_equals(facts: &TriggerFacts<'_>, needle: &str) -> bool {
+fn current_skill_equals(facts: &TriggerContext<'_>, needle: &str) -> bool {
     facts
         .get_var(RIFTWALKER_SKILL_VAR)
         .map(|skill| skill == needle)
@@ -422,7 +422,7 @@ fn down_notice(message: &'static str) -> StyledLine {
     line
 }
 
-fn elemental_line_paint(facts: &TriggerFacts<'_>, text: &str, output: &mut TriggerEffects) {
+fn elemental_line_paint(facts: &TriggerContext<'_>, text: &str, output: &mut TriggerEffects) {
     let f = regex::escape(&automation_label(facts, ENTITY_LABEL_FIRE));
     let a = regex::escape(&automation_label(facts, ENTITY_LABEL_AIR));
     let w = regex::escape(&automation_label(facts, ENTITY_LABEL_WATER));
@@ -464,7 +464,7 @@ fn elemental_line_paint(facts: &TriggerFacts<'_>, text: &str, output: &mut Trigg
     }
 }
 
-fn summon_entity_line_paint(facts: &TriggerFacts<'_>, text: &str, output: &mut TriggerEffects) {
+fn summon_entity_line_paint(facts: &TriggerContext<'_>, text: &str, output: &mut TriggerEffects) {
     let rows = [
         ("air", ENTITY_LABEL_AIR, TextStyle::BRIGHT_CYAN),
         ("fire", ENTITY_LABEL_FIRE, TextStyle::RED),
@@ -485,7 +485,7 @@ fn summon_entity_line_paint(facts: &TriggerFacts<'_>, text: &str, output: &mut T
     }
 }
 
-fn elemental_tokens_paint(facts: &TriggerFacts<'_>, output: &mut TriggerEffects) {
+fn elemental_tokens_paint(facts: &TriggerContext<'_>, output: &mut TriggerEffects) {
     let pairs = [
         ("Fire entity", ENTITY_LABEL_FIRE, TextStyle::RED),
         ("Air entity", ENTITY_LABEL_AIR, TextStyle::BRIGHT_CYAN),
@@ -547,7 +547,7 @@ fn aura_style_for(word: &str) -> Option<TextStyle> {
     None
 }
 
-fn aura_paint(facts: &TriggerFacts<'_>, text: &str, output: &mut TriggerEffects) {
+fn aura_paint(facts: &TriggerContext<'_>, text: &str, output: &mut TriggerEffects) {
     let n_alt = aura_noun_alternation(facts);
     let aura_alt = AURA_WORDS.join("|");
     let Ok(re) = Regex::new(&format!(
@@ -570,7 +570,7 @@ fn aura_paint(facts: &TriggerFacts<'_>, text: &str, output: &mut TriggerEffects)
     });
 }
 
-fn misc_paint(facts: &TriggerFacts<'_>, text: &str, output: &mut TriggerEffects) {
+fn misc_paint(facts: &TriggerContext<'_>, text: &str, output: &mut TriggerEffects) {
     let a = regex::escape(&automation_label(facts, ENTITY_LABEL_AIR));
     if let Ok(air_embrace) = Regex::new(&format!(
         r"(?i)^Air\s+{a}\s+embraces .+ with its wispy tendrils\.$"
@@ -654,7 +654,7 @@ mod tests {
     use super::*;
     use crate::automation::Automation;
     use crate::secondary_status::SecondaryStatus;
-    use crate::triggers::{TriggerFacts, TriggerLine};
+    use crate::triggers::{TriggerContext, TriggerLine};
     use ratatui::text::Line;
     use unicode_segmentation::UnicodeSegmentation;
 
@@ -665,8 +665,8 @@ mod tests {
             .collect()
     }
 
-    fn facts(automation: &Automation) -> TriggerFacts<'_> {
-        TriggerFacts::new(
+    fn facts(automation: &Automation) -> TriggerContext<'_> {
+        TriggerContext::new(
             automation.flags(),
             automation.vars(),
             None,

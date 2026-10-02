@@ -2,7 +2,7 @@ use crate::ansi::TextStyle;
 use crate::command::TriggerCatalogEntry;
 use crate::guilds::TigerGuild;
 use crate::guilds::sects_triggers;
-use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -58,7 +58,7 @@ impl TigerGuild {
 
     pub fn red_hilites_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if RED_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::BRIGHT_RED);
@@ -68,7 +68,7 @@ impl TigerGuild {
 
     pub fn green_hilites_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if GREEN_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::GREEN);

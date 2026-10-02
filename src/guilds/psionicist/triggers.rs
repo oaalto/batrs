@@ -2,7 +2,7 @@ use crate::abilities;
 use crate::ansi::TextStyle;
 use crate::automation::Action;
 use crate::guilds::PsionicistGuild;
-use crate::triggers::{LineEffect, TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{LineEffect, TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -45,7 +45,10 @@ static STUNNED_INTRUSION: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(.+) is stunned from the intrusion into (.+) mind\.").unwrap());
 
 impl PsionicistGuild {
-    pub fn psionicist_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
+    pub fn psionicist_trigger(
+        line: &TriggerLine<'_>,
+        _facts: &TriggerContext<'_>,
+    ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         let line = line.plain_line;
 
@@ -150,13 +153,15 @@ mod tests {
     use crate::ansi::AnsiCode;
     use crate::ansi::StyledLine;
     use crate::automation::Action;
-    use crate::triggers::{TriggerFacts, TriggerLine};
+    use crate::triggers::{TriggerContext, TriggerLine};
     use unicode_segmentation::UnicodeSegmentation;
 
     fn run(line: &str) -> (TriggerEffects, StyledLine) {
         let mut styled_line = StyledLine::new(line);
-        let output =
-            PsionicistGuild::psionicist_trigger(&TriggerLine::new(line), &TriggerFacts::default());
+        let output = PsionicistGuild::psionicist_trigger(
+            &TriggerLine::new(line),
+            &TriggerContext::default(),
+        );
         output.apply_line_effects_to(&mut styled_line);
         (output, styled_line)
     }

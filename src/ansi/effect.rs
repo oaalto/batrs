@@ -20,9 +20,9 @@
 //!
 //! ```
 //! use crate::ansi::{LineEffect, StyledLine, TextStyle};
-//! use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
+//! use crate::triggers::{TriggerEffects, TriggerContext, TriggerLine};
 //!
-//! fn example_trigger(_line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
+//! fn example_trigger(_line: &TriggerLine<'_>, _facts: &TriggerContext<'_>) -> TriggerEffects {
 //!     TriggerEffects::none()
 //!         .style_line(TextStyle::GREEN) // pushes LineEffect::StyleLine into original.edits
 //!         .gag() // sets original.gag — separate from LineEffect

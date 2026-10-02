@@ -4,7 +4,7 @@ use crate::command::TriggerCatalogEntry;
 use crate::guilds::TzarakkGuild;
 use crate::guilds::tzarakk::{DISMOUNTED_FLAG, MOUNT_SUMMONED_FLAG, TZARAKK_MOUNT_VAR};
 use crate::secondary_status::SecondaryStatusEffect;
-use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{Trigger, TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -141,7 +141,7 @@ impl TzarakkGuild {
 
     pub fn mount_detection_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if MOUNT_DETECTION_REGEX.is_match(line.plain_line) {
@@ -152,7 +152,7 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn round_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts<'_>) -> TriggerEffects {
+    pub fn round_trigger(line: &TriggerLine<'_>, facts: &TriggerContext<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if ROUND_REGEX.is_match(line.plain_line) && facts.flag_is_set(MOUNT_SUMMONED_FLAG) {
             let mount = facts
@@ -166,7 +166,7 @@ impl TzarakkGuild {
 
     pub fn chaosfeed_replenish_trigger(
         line: &TriggerLine<'_>,
-        facts: &TriggerFacts<'_>,
+        facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if let Some(captures) = CHAOSFEED_REPLENISH_REGEX.captures(line.plain_line) {
@@ -186,7 +186,7 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn dismount_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
+    pub fn dismount_trigger(line: &TriggerLine<'_>, _facts: &TriggerContext<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if DISMOUNT_REGEXES.iter().any(|r| r.is_match(line.plain_line)) {
             output = output.style_line(TextStyle::BRIGHT_RED);
@@ -199,7 +199,7 @@ impl TzarakkGuild {
 
     pub fn mount_appears_trigger(
         line: &TriggerLine<'_>,
-        facts: &TriggerFacts<'_>,
+        facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if let Some(captures) = MOUNT_APPEARS_REGEX.captures(line.plain_line) {
@@ -217,7 +217,10 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn mount_death_trigger(line: &TriggerLine<'_>, facts: &TriggerFacts<'_>) -> TriggerEffects {
+    pub fn mount_death_trigger(
+        line: &TriggerLine<'_>,
+        facts: &TriggerContext<'_>,
+    ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if facts.flag_is_set(DISMOUNTED_FLAG) && MOUNT_DEATH_REGEX.is_match(line.plain_line) {
             output = output.style_line(TextStyle::BRIGHT_RED);
@@ -232,7 +235,7 @@ impl TzarakkGuild {
         output
     }
 
-    pub fn riding_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
+    pub fn riding_trigger(line: &TriggerLine<'_>, _facts: &TriggerContext<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if RIDING_REGEX.is_match(line.plain_line) {
             output
@@ -247,7 +250,7 @@ impl TzarakkGuild {
 
     pub fn banish_mount_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if BANISH_MOUNT_REGEX.is_match(line.plain_line) {
@@ -266,7 +269,7 @@ impl TzarakkGuild {
 
     pub fn charge_result_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if CHARGE_MISS_REGEXES
             .iter()
@@ -282,7 +285,7 @@ impl TzarakkGuild {
 
     pub fn steed_summoned_trigger(
         line: &TriggerLine<'_>,
-        facts: &TriggerFacts<'_>,
+        facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if STEED_SUMMONED_REGEX.is_match(line.plain_line) {
@@ -306,7 +309,7 @@ impl TzarakkGuild {
 
     pub fn mount_status_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let plain = line.plain_line.trim_end_matches('\r').trim();
         if let Some(captures) = MOUNT_STATUS_REGEX.captures(plain) {
@@ -332,10 +335,10 @@ mod tests {
     use crate::ansi::StyledLine;
     use crate::automation::Automation;
     use crate::secondary_status::SecondaryStatus;
-    use crate::triggers::{TriggerFacts, TriggerLine};
+    use crate::triggers::{TriggerContext, TriggerLine};
 
-    fn facts(automation: &Automation) -> TriggerFacts<'_> {
-        TriggerFacts::new(
+    fn facts(automation: &Automation) -> TriggerContext<'_> {
+        TriggerContext::new(
             automation.flags(),
             automation.vars(),
             None,

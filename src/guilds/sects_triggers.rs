@@ -2,7 +2,7 @@
 
 use crate::ansi::TextStyle;
 use crate::command::TriggerCatalogEntry;
-use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -36,7 +36,7 @@ pub fn sect_cultivation_catalog_entries() -> Vec<TriggerCatalogEntry> {
 
 pub fn sect_cultivation_hilite_trigger(
     line: &TriggerLine<'_>,
-    _facts: &TriggerFacts<'_>,
+    _facts: &TriggerContext<'_>,
 ) -> TriggerEffects {
     let line = line.plain_line;
     if FINISHED_CULTIVATING.is_match(line) {
@@ -55,11 +55,11 @@ mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
     use crate::ansi::StyledLine;
-    use crate::triggers::{TriggerFacts, TriggerLine};
+    use crate::triggers::{TriggerContext, TriggerLine};
 
     fn run(line: &str) -> StyledLine {
         let output =
-            sect_cultivation_hilite_trigger(&TriggerLine::new(line), &TriggerFacts::default());
+            sect_cultivation_hilite_trigger(&TriggerLine::new(line), &TriggerContext::default());
         let mut styled = StyledLine::new(line);
         output.apply_line_effects_to(&mut styled);
         styled

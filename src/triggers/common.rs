@@ -5,7 +5,7 @@ use crate::triggers::rule_engine::{
     HiliteTarget, Rule, RuleAction, RuleCondition, RuleMatcher, apply_rules, push_rule, sort_rules,
     tf_echo, tf_hilite,
 };
-use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::{Arc, LazyLock};
 
@@ -618,7 +618,7 @@ pub fn trigger_catalog() -> Vec<crate::command::TriggerCatalogEntry> {
     entries
 }
 
-pub fn trigger(line: &TriggerLine<'_>, facts: &TriggerFacts<'_>) -> TriggerEffects {
+pub fn trigger(line: &TriggerLine<'_>, facts: &TriggerContext<'_>) -> TriggerEffects {
     let mut output = TriggerEffects::default();
     if let Some(rig) = facts.rig()
         && !rig.is_empty()
@@ -665,7 +665,7 @@ mod tests {
     ) -> (TriggerEffects, StyledLine, Automation) {
         let mut automation = Automation::new();
         setup(&mut automation);
-        let facts = TriggerFacts::new(
+        let facts = TriggerContext::new(
             automation.flags(),
             automation.vars(),
             rig,

@@ -2,7 +2,7 @@ use crate::ansi::TextStyle;
 use crate::command::TriggerCatalogEntry;
 use crate::guilds::ReaverGuild;
 use crate::triggers::Trigger;
-use crate::triggers::{LineEffect, TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{LineEffect, TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -217,7 +217,7 @@ impl ReaverGuild {
 
     pub fn scythe_swipe_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if SCYTHE_SWIPE_REGEX.is_match(line.plain_line) {
             return TriggerEffects::none().style_line(TextStyle::BLUE);
@@ -227,7 +227,7 @@ impl ReaverGuild {
 
     pub fn rampant_cutting_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if RAMPANT_CUTTING_REGEXS
             .iter()
@@ -240,7 +240,7 @@ impl ReaverGuild {
 
     pub fn reaver_strike_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if REAVER_STRIKE_REGEXS
             .iter()
@@ -253,7 +253,7 @@ impl ReaverGuild {
 
     pub fn attack_fails_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if ATTACK_FAILS.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::BRIGHT_RED);
@@ -263,7 +263,7 @@ impl ReaverGuild {
 
     pub fn killing_blow_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if KILLING_BLOW.is_match(line.plain_line) {
             return TriggerEffects::none().style_block("KILLING BLOW", TextStyle::BRIGHT_RED);
@@ -273,7 +273,7 @@ impl ReaverGuild {
 
     pub fn speak_ancient_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let plain_line = line.plain_line;
         let mut output = TriggerEffects::none();
@@ -290,7 +290,7 @@ impl ReaverGuild {
 
     pub fn destructive_energy_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let plain_line = line.plain_line;
         let mut output = TriggerEffects::none();
@@ -306,7 +306,7 @@ impl ReaverGuild {
 
     pub fn blue_hilites_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if BLUE_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::BLUE);
@@ -316,7 +316,7 @@ impl ReaverGuild {
 
     pub fn magenta_hilites_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if MAGENTA_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::BRIGHT_MAGENTA);
@@ -326,7 +326,7 @@ impl ReaverGuild {
 
     pub fn green_hilites_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if GREEN_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::GREEN);
@@ -336,7 +336,7 @@ impl ReaverGuild {
 
     pub fn red_hilites_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if RED_HILITES.iter().any(|r| r.is_match(line.plain_line)) {
             return TriggerEffects::none().style_line(TextStyle::RED);
@@ -346,7 +346,7 @@ impl ReaverGuild {
 
     pub fn threaten_usage_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if "Can only be used once per 10 minutes." == line.plain_line {
             return TriggerEffects::none().gag();
@@ -372,14 +372,14 @@ mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
     use crate::ansi::StyledLine;
-    use crate::triggers::{TriggerFacts, TriggerLine};
+    use crate::triggers::{TriggerContext, TriggerLine};
 
     #[test]
     fn speak_ancient_highlights_only_matches() {
         let mut line = StyledLine::new("You speak the ancient Ruun 'kael'");
         let output = ReaverGuild::speak_ancient_trigger(
             &TriggerLine::new("You speak the ancient Ruun 'kael'"),
-            &TriggerFacts::default(),
+            &TriggerContext::default(),
         );
 
         output.apply_line_effects_to(&mut line);
@@ -403,7 +403,7 @@ mod tests {
             StyledLine::new("You feel you have released 42 amount of destructive energy.");
         let output = ReaverGuild::destructive_energy_trigger(
             &TriggerLine::new("You feel you have released 42 amount of destructive energy."),
-            &TriggerFacts::default(),
+            &TriggerContext::default(),
         );
 
         output.apply_line_effects_to(&mut line);

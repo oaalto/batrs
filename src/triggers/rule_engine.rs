@@ -1,7 +1,7 @@
 use crate::ansi::TextStyle;
 use crate::automation::Action;
 use crate::triggers::money_summary::push_money_summary;
-use crate::triggers::{LineEffect, TriggerEffects, TriggerFacts};
+use crate::triggers::{LineEffect, TriggerContext, TriggerEffects};
 use regex::{Captures, Regex};
 
 #[derive(Clone, Copy)]
@@ -70,7 +70,7 @@ impl RuleMatcher {
 }
 
 impl Rule {
-    fn condition_met(&self, facts: &TriggerFacts<'_>) -> bool {
+    fn condition_met(&self, facts: &TriggerContext<'_>) -> bool {
         match self.condition {
             Some(RuleCondition::FlagSet(key)) => facts.flag_is_set(key),
             None => true,
@@ -135,7 +135,7 @@ pub(crate) fn apply_rules<'a>(
     // ponytail: callers must pass rules already sorted via sort_rules (priority desc, order asc)
     rules: impl IntoIterator<Item = &'a Rule>,
     plain_line: &str,
-    facts: &TriggerFacts<'_>,
+    facts: &TriggerContext<'_>,
     output: &mut TriggerEffects,
 ) {
     for rule in rules {
@@ -261,7 +261,11 @@ mod tests {
     use crate::ansi::StyledLine;
     use crate::automation::Action;
 
-    fn run_rule(line: &str, rule: &Rule, facts: &TriggerFacts<'_>) -> (TriggerEffects, StyledLine) {
+    fn run_rule(
+        line: &str,
+        rule: &Rule,
+        facts: &TriggerContext<'_>,
+    ) -> (TriggerEffects, StyledLine) {
         let mut output = TriggerEffects::default();
         apply_rules(std::iter::once(rule), line, facts, &mut output);
         let mut styled = StyledLine::new(line);
@@ -282,11 +286,11 @@ mod tests {
             vec![tf_hilite("Cgreen", HiliteTarget::Whole)],
         );
 
-        let (output, styled) = run_rule("hello", &rules[0], &TriggerFacts::default());
+        let (output, styled) = run_rule("hello", &rules[0], &TriggerContext::default());
         assert!(!output.original.edits.is_empty());
         assert_eq!(styled.styled_chars[0].color, AnsiCode::Green);
 
-        let (output, _) = run_rule("goodbye", &rules[0], &TriggerFacts::default());
+        let (output, _) = run_rule("goodbye", &rules[0], &TriggerContext::default());
         assert!(output.original.edits.is_empty());
     }
 
@@ -303,7 +307,7 @@ mod tests {
             vec![tf_hilite("Cred", HiliteTarget::Group(1))],
         );
 
-        let (output, styled) = run_rule("orc dies", &rules[0], &TriggerFacts::default());
+        let (output, styled) = run_rule("orc dies", &rules[0], &TriggerContext::default());
         assert_eq!(output.original.edits.len(), 1);
         assert_eq!(styled.styled_chars[0].color, AnsiCode::Red);
     }
@@ -321,13 +325,13 @@ mod tests {
             vec![RuleAction::Send("@lich drain")],
         );
 
-        let (output, _) = run_rule("drain", &rules[0], &TriggerFacts::default());
+        let (output, _) = run_rule("drain", &rules[0], &TriggerContext::default());
         assert!(output.actions.is_empty());
 
         let mut flags = std::collections::HashMap::new();
         flags.insert("is_lich".to_string(), true);
         let vars = Default::default();
-        let facts = TriggerFacts::new(
+        let facts = TriggerContext::new(
             &flags,
             &vars,
             None,
@@ -351,7 +355,7 @@ mod tests {
             vec![tf_echo("BCred", "STUNNED!")],
         );
 
-        let (output, _) = run_rule("stunned", &rules[0], &TriggerFacts::default());
+        let (output, _) = run_rule("stunned", &rules[0], &TriggerContext::default());
         assert_eq!(output.lines.len(), 1);
         assert_eq!(output.lines[0].plain_line, "STUNNED!");
         assert_eq!(output.lines[0].styled_chars[0].color, AnsiCode::Red);

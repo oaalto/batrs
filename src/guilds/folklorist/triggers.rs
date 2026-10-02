@@ -1,7 +1,7 @@
 use crate::ansi::TextStyle;
 use crate::command::TriggerCatalogEntry;
 use crate::guilds::FolkloristGuild;
-use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{TriggerContext, TriggerEffects, TriggerLine};
 
 const MINOR_PROTECTION_FADES: &str = "The minor protection fades away.";
 
@@ -19,7 +19,7 @@ impl FolkloristGuild {
 
     pub fn folklorist_highlight_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let plain = line.plain_line.trim_end_matches('\r').trim();
 
@@ -36,14 +36,14 @@ mod tests {
     use super::*;
     use crate::ansi::AnsiCode;
     use crate::ansi::StyledLine;
-    use crate::triggers::{TriggerFacts, TriggerLine};
+    use crate::triggers::{TriggerContext, TriggerLine};
 
     #[test]
     fn minor_protection_fade_prompt_red_bold() {
         let mut line = StyledLine::new(MINOR_PROTECTION_FADES);
         let output = FolkloristGuild::folklorist_highlight_trigger(
             &TriggerLine::new(MINOR_PROTECTION_FADES),
-            &TriggerFacts::default(),
+            &TriggerContext::default(),
         );
 
         output.apply_line_effects_to(&mut line);

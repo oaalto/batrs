@@ -5,7 +5,7 @@ use crate::guilds::AnimistGuild;
 use crate::guilds::animist::companion_combat_rules::companion_rules_arc;
 use crate::secondary_status::SecondaryStatusEffect;
 use crate::triggers::rule_engine::apply_rules;
-use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{Trigger, TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -47,7 +47,7 @@ impl AnimistGuild {
 
     pub fn soul_companion_status_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let plain = line.plain_line.trim_end_matches('\r').trim();
         if let Some(captures) = SOUL_COMPANION_STATUS.captures(plain) {
@@ -66,7 +66,7 @@ impl AnimistGuild {
 
     pub fn spirit_appears_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         if SPIRIT_APPEARS.is_match(line.plain_line) {
@@ -79,7 +79,7 @@ impl AnimistGuild {
 
     pub fn soul_companion_training_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if line.plain_line == "You feel slightly better at fighting with your soul companion." {
             return TriggerEffects::none().style_line(TextStyle::BLUE);
@@ -89,7 +89,7 @@ impl AnimistGuild {
 
     pub fn soul_companion_sword_hit_trigger(
         line: &TriggerLine<'_>,
-        _facts: &TriggerFacts<'_>,
+        _facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         if SOUL_COMPANION_SWORD_HIT.is_match(line.plain_line) {
             return TriggerEffects::none().style_line(TextStyle::BRIGHT_BLUE);
@@ -99,7 +99,7 @@ impl AnimistGuild {
 
     pub fn soul_companion_combat_hilite_trigger(
         line: &TriggerLine<'_>,
-        facts: &TriggerFacts<'_>,
+        facts: &TriggerContext<'_>,
     ) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         let Some(name) = facts.player_name() else {
@@ -127,20 +127,20 @@ mod tests {
     use crate::ansi::AnsiCode;
     use crate::ansi::StyledLine;
     use crate::secondary_status::SecondaryStatus;
-    use crate::triggers::{Trigger, TriggerFacts, TriggerLine};
+    use crate::triggers::{Trigger, TriggerContext, TriggerLine};
 
     fn run(
         trigger: Trigger,
         line_text: &str,
         status: &mut SecondaryStatus,
     ) -> (TriggerEffects, StyledLine) {
-        run_with_facts(trigger, line_text, &TriggerFacts::default(), status)
+        run_with_facts(trigger, line_text, &TriggerContext::default(), status)
     }
 
     fn run_with_facts(
         trigger: Trigger,
         line_text: &str,
-        facts: &TriggerFacts<'_>,
+        facts: &TriggerContext<'_>,
         status: &mut SecondaryStatus,
     ) -> (TriggerEffects, StyledLine) {
         let output = trigger(&TriggerLine::new(line_text), facts);
@@ -248,7 +248,7 @@ mod tests {
         let text = "A blue-glowing soul companion [Nynn].";
         let flags = Default::default();
         let vars = Default::default();
-        let facts = TriggerFacts::new(
+        let facts = TriggerContext::new(
             &flags,
             &vars,
             None,
@@ -272,7 +272,7 @@ mod tests {
         let text = "A blue-glowing soul companion [Nynn].";
         let flags = Default::default();
         let vars = Default::default();
-        let facts = TriggerFacts::new(
+        let facts = TriggerContext::new(
             &flags,
             &vars,
             None,

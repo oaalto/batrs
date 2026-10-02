@@ -2,7 +2,7 @@ use crate::command::TriggerCatalogEntry;
 use crate::guilds::MageGuild;
 use crate::guilds::magic_lore_analysis::magic_lore_analysis_catalog_entries;
 use crate::guilds::magic_lore_analysis::magic_lore_analysis_effect;
-use crate::triggers::{Trigger, TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{Trigger, TriggerContext, TriggerEffects, TriggerLine};
 
 impl MageGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
@@ -13,7 +13,7 @@ impl MageGuild {
         magic_lore_analysis_catalog_entries()
     }
 
-    pub fn mage_trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
+    pub fn mage_trigger(line: &TriggerLine<'_>, _facts: &TriggerContext<'_>) -> TriggerEffects {
         let line = line.plain_line.trim_end_matches('\r').trim().to_string();
 
         if let Some(effect) = magic_lore_analysis_effect(line.as_str()) {

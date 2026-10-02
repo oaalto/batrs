@@ -1,5 +1,5 @@
 use crate::stats::StatsEffect;
-use crate::triggers::{TriggerEffects, TriggerFacts, TriggerLine};
+use crate::triggers::{TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -7,7 +7,7 @@ pub static SC_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^H:(.+)/(.+) \[(.*)\] S:(.+)/(.+) \[(.*)\] E:(.+)/(.+) \[(.*)\] \$:(.+) \[(.*)\] exp:(.+) \[(.*)\]$").unwrap()
 });
 
-pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerFacts<'_>) -> TriggerEffects {
+pub fn trigger(line: &TriggerLine<'_>, _facts: &TriggerContext<'_>) -> TriggerEffects {
     if let Some(captures) = SC_REGEX.captures(line.plain_line) {
         let (_, stats): (&str, [&str; 13]) = captures.extract();
         let stats = stats.map(|stat| stat.parse::<i32>().unwrap_or_default());
@@ -37,7 +37,7 @@ mod tests {
         let mut stats = Stats::default();
         let line_text = "H:571/802 [+20] S:635/635 [] E:311/311 [] $:2786 [] exp:21657 []";
         let mut line = StyledLine::new(line_text);
-        let output = trigger(&TriggerLine::new(line_text), &TriggerFacts::default());
+        let output = trigger(&TriggerLine::new(line_text), &TriggerContext::default());
 
         for effect in output.stats.clone() {
             stats.apply_effect(effect);
