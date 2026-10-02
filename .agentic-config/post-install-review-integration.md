@@ -15,8 +15,8 @@ Copy the files you resolve from `.agentic-config/bundle/` to the project root as
 - **Engineering wiki:** enabled — `docs/wiki/` installed (index, schema, log, topic directories)
 - **Graphify:** not installed in this bundle
 - **Headroom:** not installed in this bundle
-- **Skills added:** wiki, code-review, codebase-design, diagnosing-bugs, domain-modeling, grill-with-docs, grilling, handoff, implement, improve-codebase-architecture, ponytail, prototype, repo-navigation, research, resolving-merge-conflicts, review, tdd, teach, to-spec, to-tickets, triage, vertical-slice-migration, wayfinder, workflow, grill-with-docs-batch, improve-documentation, orchestrator
-- **Rules added:** ponytail, commit, decision-making, definition-of-done, role, signature, strict-output-execution, adr-discipline, documentation, domain-language, dependency-boundaries, vertical-slice-boundaries, current-state, restricted-operations, testing, api-design-basics, code-format, functional-programming, result-handling, warning-hygiene, logging-practices, runtime-handoff, rust-api-semver, rust-dependency-hygiene, rust-error-handling, rust-observability, rust-testing-strategy, rust-workflow-gates
+- **Skills added:** wiki, code-review, codebase-design, diagnosing-bugs, domain-modeling, plan-review, handoff, implement, improve-codebase-architecture, ponytail, prototype, repo-navigation, research, resolving-merge-conflicts, review, tdd, teach, to-spec, to-tickets, triage, vertical-slice-migration, wayfinder, workflow, improve-documentation, orchestrator, fix
+- **Rules added:** ponytail, commit, decision-making, definition-of-done, role, signature, strict-output-execution, adr-discipline, documentation, domain-language, dependency-boundaries, vertical-slice-boundaries, current-state, restricted-operations, testing, api-design-basics, code-format, functional-programming, result-handling, warning-hygiene, logging-practices, runtime-handoff, rust-api-semver, rust-dependency-hygiene, rust-error-handling, rust-observability, rust-testing-strategy, rust-workflow-gates, mkdocs
 - **Install record:** `.agentic-config/manifest.json` (files and selections), `.agentic-config/install-plan.json` (installer steps when present)
 
 ## Constraints (mandatory)
@@ -48,7 +48,11 @@ Do not assume any particular slash command or skill is installed — follow the 
 
 Work through the task sections below iteratively. Pause for questions at decision points; produce the **Setup completion report** when the human is ready to finish (or when remaining work is only follow-ups).
 
-## Your task (in order)
+## Your task
+
+**Start here:** run Repo discovery first, then do the **Required flow** in order. Pause at each decision point for the human. Defer the **Optional refinements** unless they apply — stop once the setup is complete.
+
+### Required flow
 
 ### Repo discovery
 
@@ -68,15 +72,6 @@ Before editing agent-setup files, explore the repository read-only and record fi
 - Package manager(s) and notable workspace layout
 - CI/CD signals when present
 - Conventions worth preserving (formatting, branching, review norms)
-
-#### Commands & tooling
-
-This install may add `docs/agent-commands.md`. From the repo (inspect-only):
-
-- Format, build/typecheck, lint, and test **tooling** (Vitest, ESLint, Cargo, etc.)
-- Likely script names **only when** evidenced in `package.json`, Makefile, CI, or similar
-- Docs-check commands if documented
-- Runtime-restricted checks — **only** if explicitly documented; never guess
 
 #### Domain terms
 
@@ -106,6 +101,15 @@ This install includes issue-tracker / PRD workflow agent setup. From the repo:
 - Links or conventions for issues/PRs the process should respect
 - Gaps between existing workflow and structured PRD/issue setup
 
+#### Commands & tooling
+
+This install may add `docs/agent-commands.md`. From the repo (inspect-only):
+
+- Format, build/typecheck, lint, and test **tooling** (Vitest, ESLint, Cargo, etc.)
+- Likely script names **only when** evidenced in `package.json`, Makefile, CI, or similar
+- Docs-check commands if documented
+- Runtime-restricted checks — **only** if explicitly documented; never guess
+
 
 
 #### Gaps & unknowns
@@ -133,16 +137,6 @@ For each seed path in Setup context, check whether `git show HEAD:{path}` succee
 1. Compare new `.cursor/rules/*.mdc` and `.agents/rules/*.md` with rules that were already in the repo.
 2. When two files cover the same concern, keep one canonical copy or merge bodies; remove duplicates only when the intent is clear.
 3. Edit agent-setup files when safe; when intent is unclear, **ask one question** (with recommendation) before deleting or merging rule bodies.
-
-### Duplicate content audit
-
-1. For each newly installed skill (`.agents/skills/*/SKILL.md`), scoped rule (`.agents/rules/*.md`), and the host file (`AGENTS.md`), scan for **identical or near-identical blocks** — especially sections like `## Repo Context`, `## Project overview`, or bullet lists describing stack, monorepo layout, or team conventions.
-   - **Ponytail Pi overlap:** When `ponytail` is selected (skill or rule) and the target is Pi, compare the bundled Ponytail rule (inline `### ponytail` in `AGENTS.md` for compiled hosts, or `.cursor/rules/ponytail.mdc` for Cursor) with Ponytail content injected by the Pi extension. Remove duplicate ladder blocks; keep one canonical always-on copy in the bundled rule and replace duplicates with short cross-references. If you tailor upstream Ponytail slash skills delivered by `pi install`, amend them to fit this repo and protect pre-existing edits with `git diff --quiet HEAD -- <path>`.
-2. When the same global context block appears in **two or more files**, remove it from the duplicates:
-   - Keep it in at most one location (prefer `AGENTS.md` for compiled-markdown targets, or the root-level documentation file).
-   - If the block is only a high-level repo overview, remove it from skills and rules entirely — those files should contain their own scoped instructions, not a project summary.
-2. When a duplicated block has been customized per-file (e.g., slightly different stack notes in each skill), merge the unique details into one authoritative version and replace the rest with a short cross-reference (e.g., "See project stack details in `CONTEXT.md`" if applicable).
-3. Do not delete unique, file-specific content — only remove blocks that are repeated across files with no file-specific variation.
 
 ### Seed docs fill
 
@@ -253,14 +247,14 @@ When `restricted-operations` is in `.agentic-config/manifest.json` `selection.ru
 
 When `ponytail` is in `.agentic-config/manifest.json` `selection.skills` or `selection.rules`:
 
-Harmonize Ponytail (lazy minimalism / YAGNI ladder) with other selected catalog items. Tailor the Ponytail rule **and any installed Ponytail slash skills** — bundled or upstream — to this repository.
+Harmonize Ponytail (lazy minimalism / YAGNI ladder) with other selected catalog items. Tailor the **bundled Ponytail rule content only** to this repository; do not edit upstream-installed Ponytail slash skills from this section.
 
 **Known conflict pairs:**
 
 1. **vs `strict-output-execution`:** Ponytail allows brief post-code explanation when it aids clarity; strict-output forbids preamble and filler. In the bundled Ponytail rule (inline `### ponytail` in `AGENTS.md` or `.cursor/rules/ponytail.mdc`), state precedence: default to strict artifact-only output when both apply; allow one short trailing line only when the user explicitly asked for explanation.
 2. **vs `workflow-gates` / `testing`:** Ponytail minimizes code but does **not** skip validation gates or meaningful tests. Keep workflow-gates and testing rules authoritative; trim redundant “run tests” prose from Ponytail only where it duplicates gate wording.
 3. **vs `functional-programming`:** Deduplicate overlapping style guidance (immutability, small functions, avoid mutation). Keep one canonical home — usually the more specific rule — and stub-pointer the other.
-4. **Pi implicit install (rule and/or skill):** On Pi targets, `install.sh` runs implicit `pi install` for Ponytail when the catalog skill or rule is selected. Audit overlap among the bundled rule, Pi extension injection, and upstream slash skills. Consolidate always-on ladder text in the bundled rule; use stub pointers in extension overlap rather than triplicating the full ladder. If you tailor an upstream slash skill (e.g. `.pi/skills/ponytail-*`), protect any pre-existing edits with `git diff --quiet HEAD -- <path>` before overwriting.
+4. **Pi implicit install (rule and/or skill):** On Pi targets, `install.sh` runs implicit `pi install` for Ponytail when the catalog skill or rule is selected. Audit overlap among the bundled rule, Pi extension injection, and upstream slash skills. Consolidate always-on ladder text in the bundled rule; use stub pointers in extension overlap rather than triplicating the full ladder. Keep the ownership boundary consistent: this tailoring section edits bundled rule paths only, while any upstream slash-skill cleanup stays in the separate Pi duplicate-content audit step.
 
 Ground edits in repo evidence. Do not remove Ponytail’s non-negotiables (trust boundaries, security, accessibility, required checks).
 
@@ -272,14 +266,15 @@ The bundled planning skills ship with upstream Matt Pocock defaults (publish to 
 
 **Installation context (pre-check recommendations):**
 
-- **Issue tracker:** `repo-prd` — recommend Git-based `docs/features/` output options.
-- **Bundle paths:** `docs/features/` is the canonical planning location — recommend one folder per feature for both PRDs and slices.
+- **Issue tracker:** `repo-prd` — recommend Git-based `docs/prds/` and `docs/issues/` output options.
+- **Bundle paths:** `docs/prds/` is auto-included — recommend per-feature PRD folder options for `to-spec`.
+- **Bundle paths:** `docs/issues/` is auto-included — recommend local issue file options for `to-tickets`.
 - **Both planning skills selected** — recommend cross-link and matching `<feature_name>` folder layout.
 
 **Workflow:**
 
 1. **Ask one question** listing the applicable menu options. Pre-check your recommendations; let the human uncheck any they decline.
-2. **Investigate first** — infer monorepo packages, test runners, and any existing `docs/features/` layout from repo discovery; do not ask what evidence already provides.
+2. **Investigate first** — infer monorepo packages, test runners, and any existing `docs/prds/` / `docs/issues/` layout from repo discovery; do not ask what evidence already provides.
 3. Apply **only approved** options to the editable paths: `.agents/skills/to-spec/SKILL.md` and `.agents/skills/to-tickets/SKILL.md`. These may be bundled or upstream-installed copies — tailor whichever live in this repo, protecting pre-existing edits with `git diff --quiet HEAD -- <path>` before overwriting.
 4. When `repo-prd` issue tracker is configured, keep `docs/agents/issue-tracker-repo-prd.md` (or the agent-setup equivalent from the bundle) aligned with approved path conventions.
 
@@ -295,16 +290,16 @@ Present only options that apply to the selected skills. Omit rows for skills not
 
 - [ ] **Frontend test guidance** — Note the missing runner in the module-sketch step; add a Vitest/Jest bullet under Testing Decisions (`to-spec`) or vertical-slice rules (`to-tickets`).
 
-**`to-spec` output (recommend checked when `agentSetup.issueTracker.type` is `repo-prd`):**
+**`to-spec` output (recommend checked when `agentSetup.issueTracker.type` is `repo-prd` or `docs/prds/` is auto-included):**
 
 - [ ] **Save PRDs to Git** — Replace "publish to the issue tracker" with save-to-directory wording.
-- [ ] **Per-feature PRD folders** — Add a `<feature_name>` slug step; save to `docs/features/<feature_name>/prd.md` and create the directory when missing.
+- [ ] **Per-feature PRD folders** — Add a `<feature_name>` slug step; save to `docs/prds/<feature_name>/prd.md` and create the directory when missing.
 
-**`to-tickets` output (recommend checked when `repo-prd`; pair with per-feature PRD folders when both skills are selected):**
+**`to-tickets` output (recommend checked when `repo-prd` or `docs/issues/` is auto-included; pair with per-feature PRD folders when both skills are selected):**
 
-- [ ] **Read PRDs from `docs/features/`** — In gather context, read `docs/features/<feature_name>/prd.md` when the source is a PRD.
-- [ ] **Save issues locally** — Replace the publish step with `docs/features/<feature_name>/<slice-slug>.md`.
-- [ ] **Per-feature issue folders** — Derive `<feature_name>` from the PRD path or user input; reference sibling slice paths in **Blocked by**; link **Parent** to `docs/features/<feature_name>/prd.md` when a PRD exists.
+- [ ] **Read PRDs from `docs/prds/`** — In gather context, read `docs/prds/<feature_name>/prd.md` when the source is a PRD.
+- [ ] **Save issues locally** — Replace the publish step with `docs/issues/<feature_name>/<slice-slug>.md`.
+- [ ] **Per-feature issue folders** — Derive `<feature_name>` from the PRD path or user input; reference sibling slice paths in **Blocked by**; link **Parent** to `docs/prds/<feature_name>/prd.md` when a PRD exists.
 
 **Consistency (when any Git path option above is approved):**
 
@@ -395,12 +390,39 @@ The bundled skill ships **portable** — it references `/review` and `/code-revi
 **Workflow:**
 
 1. **Confirm the review seams from repo evidence** — locate where the `review` and `code-review` skills actually live here (for example `.pi/skills/review/`, `.agents/skills/review/`, or a bundled path) and how they are invoked. Do not invent paths that are not installed.
-2. **Confirm the issue source/tracker** — identify the repo's issue tracker and command set (for example the `gh` CLI with a specific owner/repo, a local `docs/features/…` convention, or none). Ground this in repo evidence (config, seed docs, existing skill bodies).
-3. **Replace the portables in the bundled skill** — in `.agents/skills/implement/SKILL.md`, replace the `/review` and `/code-review` slash references with the confirmed concrete skill paths, and replace the tracker placeholders (issue-tracker commands step, and the knowledge-handoff destination: issue comment vs local `docs/features/…` file vs none) with the confirmed commands/convention.
-4. **Set the knowledge-handoff destination** — pick the destination the repo actually uses (GitHub issue comment vs local `docs/features/…` file vs none) and make the handoff section reference it concretely.
+2. **Confirm the issue source/tracker** — identify the repo's issue tracker and command set (for example the `gh` CLI with a specific owner/repo, a local `docs/issues/…` convention, or none). Ground this in repo evidence (config, seed docs, existing skill bodies).
+3. **Replace the portables in the bundled skill** — in `.agents/skills/implement/SKILL.md`, replace the `/review` and `/code-review` slash references with the confirmed concrete skill paths, and replace the tracker placeholders (issue-tracker commands step, and the knowledge-handoff destination: issue comment vs local `docs/issues/…` file vs none) with the confirmed commands/convention.
+4. **Set the knowledge-handoff destination** — pick the destination the repo actually uses (GitHub issue comment vs local `docs/issues/…` file vs none) and make the handoff section reference it concretely.
 5. **Keep the body portable where not this-repo-specific** — only substitute what is evidenced for this repository; leave the operational workflow (branch safety, TDD seams, sub-agent review, handoff buckets) as-is.
 6. Apply edits wherever the implement skill lives: `.agents/skills/implement/SKILL.md` (bundled or upstream-installed). Protect pre-existing edits with `git diff --quiet HEAD -- <path>` before overwriting.
 7. After tailoring edits, update `.agentic-config/manifest.json` `contentHashes` for the edited skill file (see **Save content hashes**).
+
+Ground every edit in repo evidence. Preserve the skill's portable posture, workflow order, and identity.
+
+### Fix skill tailoring (`fix`)
+
+When `fix` is in `.agentic-config/manifest.json` `selection.skills`:
+
+The bundled skill ships **portable** — it references `/review`, `/code-review`, and the diagnosis skill by slash-name and leaves the issue-tracker commands and knowledge-handoff destination as placeholders, so no other repo's paths leak into the installed body. This section wires those seams to this repository.
+
+**Installation context to use while tailoring:**
+
+- **Diagnosis guidance:** If the repo installs `diagnosing-bugs`, use that concrete skill path/name. Otherwise ground the diagnosis seam in the repo's actual bug workflow docs, commands, or host-file guidance before editing `/fix`.
+- **Issue tracker:** `repo-prd` — recommend Git-based `docs/prds/` and `docs/issues/` output options.
+- **Bundle paths:** `docs/prds/` is auto-included — recommend per-feature PRD folder options for `to-spec`.
+- **Bundle paths:** `docs/issues/` is auto-included — recommend local issue file options for `to-tickets`.
+- **Both planning skills selected** — recommend cross-link and matching `<feature_name>` folder layout.
+
+**Workflow:**
+
+1. **Confirm the review seams from repo evidence** — locate where the `review` and `code-review` skills actually live here (for example `.pi/skills/review/`, `.agents/skills/review/`, or a bundled path) and how they are invoked. Do not invent paths that are not installed.
+2. **Confirm the diagnosis seam from repo evidence** — locate the installed diagnosis skill the repo actually uses for bug work (for example `diagnosing-bugs`) and how it is invoked. If the repo uses bug-workflow docs, a host-file rule, or another local convention instead of that generic slash-name, wire the installed `/fix` body to that concrete evidence rather than leaving a generic diagnosis placeholder.
+3. **Confirm the issue source/tracker** — identify the repo's issue tracker and command set (for example the `gh` CLI with a specific owner/repo, a local `docs/issues/…` convention, or none). Ground this in repo evidence (config, seed docs, existing skill bodies).
+4. **Replace the portables in the bundled skill** — in `.agents/skills/fix/SKILL.md`, replace the `/review`, `/code-review`, and diagnosis-skill slash references with the confirmed concrete skill paths/commands, and replace the tracker placeholders (issue-tracker commands step, and the knowledge-handoff destination: issue comment vs local `docs/issues/…` file vs none) with the confirmed commands/convention.
+5. **Set the knowledge-handoff destination** — pick the destination the repo actually uses (GitHub issue comment vs local `docs/issues/…` file vs none) and make the handoff section reference it concretely.
+6. **Keep the body portable where not this-repo-specific** — only substitute what is evidenced for this repository; leave the operational workflow (branch safety, diagnosis-first discipline, review delegation, handoff buckets) as-is.
+7. Apply edits wherever the fix skill lives: `.agents/skills/fix/SKILL.md` (bundled or upstream-installed). Protect pre-existing edits with `git diff --quiet HEAD -- <path>` before overwriting.
+8. After tailoring edits, update `.agentic-config/manifest.json` `contentHashes` for the edited skill file (see **Save content hashes**).
 
 Ground every edit in repo evidence. Preserve the skill's portable posture, workflow order, and identity.
 
@@ -428,30 +450,6 @@ After completing all tailoring and merge work above, save SHA256 content hashes 
    ```
 5. Write the updated manifest back to disk, preserving all other fields.
 6. If the write fails for any reason (permissions, file locked, etc.), log a warning and **continue** — do not block the setup completion.
-
-### Existing documentation review
-
-For each seed doc path (and any other documentation path) the bundle did **not** replace — see Setup context and your **Repo discovery** pre-existing findings:
-
-1. Read the current file — no full rewrite.
-2. Check alignment with the new setup: terms used in new rules/skills (see `.agentic-config/manifest.json`), links to `.agentic-config/USAGE.md` and wiki, and any **To Complete** / follow-up sections.
-3. Under **Existing documentation review → Proposed changes**, list small fixes only (missing cross-refs, stale commands, terms that clash with new rules). Do not replace established domain definitions.
-
-### Skill body resolution (pi only)
-
-Some skills in the bundle may reference other skills by name (for example a body that says "run a `/grilling` session, using the `/domain-modeling` skill"). Pi does **not** resolve these references — the body is just instructions for the agent, and a bare `/skillName` reference gives the agent nothing to do.
-
-Scan every `*.SKILL.md` in `.pi/skills/` and `.agents/skills/` installed by this bundle:
-
-1. Read the body (everything after the front-matter `---` block).
-2. If the body contains a bare reference like `/grilling` or `/domain-modeling` — or any line that says "run a `/X` session" or "use the `/Y` skill" — **resolve it**:
-   - Read the referenced skill's body.
-   - Replace the referencing skill's body with the referenced skill's actual content (strip the referenced skill's own front-matter, keep the instruction text).
-   - If the referencing skill has its own useful content beyond the reference, merge: keep the original body, append the referenced skill's body, and mark the source with `<!-- sourced from: /skillName -->`.
-3. If the referenced skill is **not** installed alongside the referencing one, add a comment in the body: `<!-- TODO: /skillName not installed — resolve this reference -->`.
-4. Do **not** ask the human about this — it's mechanical and the agent is the reader. Include findings in the **Setup completion report**.
-
-This only applies to skills whose bodies rely on pi resolving `/skillName` references. Skills with substantive bodies (interview questions, domain modeling rules, etc.) leave alone.
 
 
 
@@ -493,6 +491,44 @@ Skip when `docs/wiki/schema.md` or `docs/wiki/path-map.json` is absent.
 1. Read `CONTEXT.md`, `docs/adr/`, `docs/wiki/schema.md` when present, installed skills and rules, and `docs/agent-commands.md`.
 2. Run the safe commands listed in `docs/agent-commands.md` in gate order (format → build/typecheck → lint → test).
 3. Note which commands work, which are missing, which need a human, and inconsistencies between docs.
+
+### Optional refinements
+
+Defer any block below that does not apply to this install; each is safe to skip. Only run the ones the required flow surfaces as relevant.
+
+### Duplicate content audit
+
+1. For each newly installed skill (`.agents/skills/*/SKILL.md`), scoped rule (`.agents/rules/*.md`), and the host file (`AGENTS.md`), scan for **identical or near-identical blocks** — especially sections like `## Repo Context`, `## Project overview`, or bullet lists describing stack, monorepo layout, or team conventions.
+   - **Ponytail Pi overlap:** When `ponytail` is selected (skill or rule) and the target is Pi, compare the bundled Ponytail rule (inline `### ponytail` in `AGENTS.md` for compiled hosts, or `.cursor/rules/ponytail.mdc` for Cursor) with Ponytail content injected by the Pi extension. Remove duplicate ladder blocks; keep one canonical always-on copy in the bundled rule and replace duplicates with short cross-references. If you tailor upstream Ponytail slash skills delivered by `pi install`, amend them to fit this repo and protect pre-existing edits with `git diff --quiet HEAD -- <path>`.
+2. When the same global context block appears in **two or more files**, remove it from the duplicates:
+   - Keep it in at most one location (prefer `AGENTS.md` for compiled-markdown targets, or the root-level documentation file).
+   - If the block is only a high-level repo overview, remove it from skills and rules entirely — those files should contain their own scoped instructions, not a project summary.
+2. When a duplicated block has been customized per-file (e.g., slightly different stack notes in each skill), merge the unique details into one authoritative version and replace the rest with a short cross-reference (e.g., "See project stack details in `CONTEXT.md`" if applicable).
+3. Do not delete unique, file-specific content — only remove blocks that are repeated across files with no file-specific variation.
+
+### Existing documentation review
+
+For each seed doc path (and any other documentation path) the bundle did **not** replace — see Setup context and your **Repo discovery** pre-existing findings:
+
+1. Read the current file — no full rewrite.
+2. Check alignment with the new setup: terms used in new rules/skills (see `.agentic-config/manifest.json`), links to `.agentic-config/USAGE.md` and wiki, and any **To Complete** / follow-up sections.
+3. Under **Existing documentation review → Proposed changes**, list small fixes only (missing cross-refs, stale commands, terms that clash with new rules). Do not replace established domain definitions.
+
+### Skill body resolution (pi only)
+
+Some skills in the bundle may reference other skills by name (for example a body that says "run a `/grilling` session, using the `/domain-modeling` skill"). Pi does **not** resolve these references — the body is just instructions for the agent, and a bare `/skillName` reference gives the agent nothing to do.
+
+Scan every `*.SKILL.md` in `.pi/skills/` and `.agents/skills/` installed by this bundle:
+
+1. Read the body (everything after the front-matter `---` block).
+2. Only treat a skill as unresolved when the body is effectively a thin pointer that Pi cannot act on as written.
+3. If the body contains a bare reference like `/grilling` or `/domain-modeling` — or any line that says "run a `/X` session" or "use the `/Y` skill" — decide which case you have:
+   - **Thin unresolved pointer:** read the referenced skill's body and replace or append only the missing instruction text needed to make the referencing skill runnable. Mark sourced material with `<!-- sourced from: /skillName -->`.
+   - **Portable bundled seam:** leave substantive bundled skills alone when the slash-command reference is an intentional repository-wiring seam. `implement` and `fix` are examples of bundled portable skills whose slash-command seams should stay explicit and be tailored in their dedicated catalog-tailoring sections, not mechanically inlined here.
+4. If the referenced skill is **not** installed alongside the referencing one and the body is still unresolved after that check, add a comment in the body: `<!-- TODO: /skillName not installed — resolve this reference -->`.
+5. Do **not** ask the human about ordinary thin-pointer resolution — it's mechanical and the agent is the reader. Do ask if you are unsure whether a reference is a real missing dependency or an intentional repository seam. Include findings in the **Setup completion report**.
+
+This only applies to skills whose bodies rely on Pi resolving `/skillName` references. Skills with substantive bodies, repository-specific tailoring hooks, or intentional portable seams stay as written.
 
 ## Setup completion report (mandatory — last message)
 

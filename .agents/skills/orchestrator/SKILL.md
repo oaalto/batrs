@@ -7,6 +7,8 @@ description: Orchestrate multiple sub-agents safely — delegate discovery/resea
 
 Adopt this posture when a task is large enough to warrant splitting into distinct sub-agent lanes. It names no orchestration engine, extension, or command — the concrete tooling and role definitions are decided per repo, not hardcoded here.
 
+For this repo on Pi, the orchestration engine is Pi sub-agents. When you need execution details or limits, load the `pi-subagents` skill and follow the repo's AGENTS.md delegation rules.
+
 You remain the **single decision-maker**. Children are advisors and executors, never authorities. Keep one writer per workspace, keep lanes narrow and non-overlapping, and only delegate implementation work whose boundaries you have already settled.
 
 ## Proactive discovery/research delegation
@@ -55,6 +57,16 @@ Each lane gets a **narrow, non-overlapping prompt**. Never hand multiple lanes t
 
 Receipts, CI results, review-bot reports, and lane outputs are **evidence that informs** your decision — they never grant merge, close, or release authority. Authority stays with you, or with a human/operator you escalate to. "CI passed" is a report to weigh, not a permission to merge.
 
+## Parent-facing summaries stay narrow
+
+In ordinary progress updates, report only:
+
+- the **current phase**,
+- the **current dependency barrier** (what is waiting on what), and
+- the **current decision owner**.
+
+Do not replay the whole orchestration model, every lane, or the full future plan unless the user asks for that wider view.
+
 ## Escalate-up on unapproved decisions
 
 Escalate to a supervisor, operator, or human on any unapproved decision involving:
@@ -87,15 +99,8 @@ Review findings arrive in cycles. Apply **one fix wave per accepted defect class
 
 Before shipping, run an **adversarial fresh-context review** by a reviewer with no accumulated context bias. Disposition its findings, re-run the gates after fixes, and only then ship. Ship quality is the reviewer's job — and yours to honour by acting on the disposition.
 
+When reporting that review stage, summarize the present barrier and disposition status rather than restating the whole orchestration playbook.
+
 ## Post-install tailoring
 
 This skill carries its guardrails in the body rather than as a scoped rule; treat the discipline here as the operative guidance when orchestrating lanes. The concrete orchestration engine, agent roles, and workspace tooling are repo-specific — the target repo's post-install review prompt names them. Do not invent references to any particular extension or tool in this skill's body.
-
-### Repo-specific tailoring for this repository
-
-- **Engine**: Pi subagents (`subagent` workflows / child runs) are the concrete orchestration mechanism in this repo.
-- **Lane launch**: use Pi child runs with narrow prompts and non-overlapping deliverables; prefer async recon/research lanes first, then wait at dependency barriers.
-- **Workspace discipline**: keep one writer per workspace. If two Pi child lanes need to edit concurrently, isolate them to separate worktrees or serialize them.
-- **Barrier waits**: let read-only recon/research lanes run in the background and use Pi wait/barrier behavior only when the parent actually needs their output to proceed.
-- **Fresh-context reviewer**: use a fresh-context reviewer lane in Pi before ship so review is adversarial and not biased by the implementation context.
-- **Escalate-up path**: unresolved product, architecture, scope, credentials, merge, or release decisions escalate to the human operator in the main chat; child lanes do not decide them.

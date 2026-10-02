@@ -27,7 +27,8 @@ Apply before reading, searching, or editing task-relevant paths — not only whe
 1. **Tier 1 (always):** Read `docs/wiki/path-map.json` and `docs/wiki/index.md`. List candidate pages from path-map `sources` matching paths you plan to read, search, or edit **or** index entries matching domain terms in the task.
 2. **Tier 2 (when candidates exist):** Read up to **3** candidate pages (subsystem → concept → workflow priority).
 3. **Tier 3 (before implementing from wiki):** Verify claims against code, tests, or ADRs; treat unverified synthesis as hypothesis.
-4. **No match:** Proceed; note no wiki coverage.
+4. **Stop when the current question is covered:** Once you have enough verified wiki-backed context for the task at hand, stop reading. Do not keep touring related pages unless the current task needs them.
+5. **No match:** Proceed; note no wiki coverage.
 
 ### Architecture and exploration questions
 
@@ -68,8 +69,9 @@ Wiki completion gates before commit (path-map check, skip log policy, mechanical
 1. Read `docs/wiki/index.md`.
 2. Read relevant wiki pages.
 3. Verify critical claims against live sources.
-4. Answer with citations to files, URLs, or wiki pages.
-5. If the answer contains durable new synthesis, ask whether to file it back into the wiki.
+4. Answer the current question first, with citations to files, URLs, or wiki pages.
+5. Keep follow-up ideas clearly optional.
+6. If the answer contains durable new synthesis, ask whether to file it back into the wiki.
 
 ## `/wiki-ingest`
 

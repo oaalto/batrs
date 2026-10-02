@@ -30,6 +30,7 @@
 | rust-observability | scoped | "**/*.rs" | .agents/rules/rust-observability.md |
 | rust-testing-strategy | scoped | "**/*.rs" | .agents/rules/rust-testing-strategy.md |
 | rust-workflow-gates | scoped | "**/*.rs" | .agents/rules/rust-workflow-gates.md |
+| mkdocs | scoped | "**/mkdocs.yml, docs/**, **/*.md, **/requirements-docs*.txt" | .agents/rules/mkdocs.md |
 
 ## How project rules apply
 

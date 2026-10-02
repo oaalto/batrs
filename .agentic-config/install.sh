@@ -115,6 +115,7 @@ print_node_version_help() {
 # Args: tool name
 print_tool_help() {
   local tool="$1"
+  local runtime_id="${2:-}"
   echo ""
   echo "  ${tool} is not installed or not on PATH."
   case "$tool" in
@@ -167,8 +168,14 @@ print_tool_help() {
     uv)
       echo "  Docs:    https://docs.astral.sh/uv/getting-started/installation/"
       echo "  Install: curl -LsSf https://astral.sh/uv/install.sh | sh"
-      echo "  Note:    Graphify install uses \`uv tool install graphifyy[mcp]\`."
-      echo "           Headroom install uses \`uv tool install 'headroom-ai[proxy,mcp]'\`."
+      if [[ "$runtime_id" == "laya" ]]; then
+        echo "  Why:     The selected local runtime 'Laya' installs via \`uv tool install laya\`."
+        echo "  Note:    This installs the runtime only; checkpoints/model assets may still download on first use."
+        echo "  Next:    Re-run ./.agentic-config/install.sh after uv is on PATH."
+      else
+        echo "  Note:    Graphify install uses \`uv tool install graphifyy[mcp]\`."
+        echo "           Headroom install uses \`uv tool install 'headroom-ai[proxy,mcp]'\`."
+      fi
       ;;
     graphify)
       echo "  Docs:    https://github.com/safishamsi/graphify"
@@ -318,6 +325,43 @@ command -v jq >/dev/null 2>&1 || {
   exit 1
 }
 
+local_runtime_option_enabled() {
+  local runtime_id="$1"
+  local option_key="$2"
+  jq -e --arg runtime_id "$runtime_id" --arg option_key "$option_key" '(.localRuntimes[]? | select(.runtimeId == $runtime_id) | .options[$option_key]) == true' "$PLAN" >/dev/null 2>&1
+}
+
+run_local_runtime_step() {
+  local runtime_id="$1"
+  case "$runtime_id" in
+    laya)
+      if ! have uv; then
+        echo "[fail] local-runtime-${runtime_id}: missing prerequisite 'uv' for Laya" >&2
+        print_tool_help "uv" "$runtime_id"
+        return 1
+      fi
+
+      local -a cmd=(uv tool install --force laya)
+
+      printf '[run] local-runtime-%s:' "$runtime_id"
+      printf ' %q' "${cmd[@]}"
+      printf '\n'
+      if [[ "$DRY_RUN" -eq 1 ]]; then
+        return 0
+      fi
+      if ! "${cmd[@]}"; then
+        echo "[fail] local-runtime-${runtime_id}: Laya install failed. Verify uv works, then retry ./.agentic-config/install.sh" >&2
+        return 1
+      fi
+      echo "[ok] local-runtime-${runtime_id}: installed Laya runtime. Checkpoints/model assets are still fetched by Laya on first use if not already cached."
+      ;;
+    *)
+      echo "[fail] local-runtime-${runtime_id}: unsupported local runtime" >&2
+      return 1
+      ;;
+  esac
+}
+
 if [[ "$SKIP_ENV_CHECK" -eq 0 ]]; then
   if ! run_env_check; then
     exit 1
@@ -449,6 +493,13 @@ for ((i = 0; i < step_count; i++)); do
   kind="$(jq -r ".steps[$i].kind" "$PLAN")"
   if [[ "$kind" == "pi-extension-placement" ]]; then
     if ! run_pi_extension_placement "$i"; then
+      failed=1
+      break
+    fi
+    continue
+  fi
+  if [[ "$kind" == "local-runtime" ]]; then
+    if ! run_local_runtime_step "${id#local-runtime-}"; then
       failed=1
       break
     fi

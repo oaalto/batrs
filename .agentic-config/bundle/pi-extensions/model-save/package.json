@@ -1,0 +1,22 @@
+{
+  "name": "model-save",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Pi extension package: model-save",
+  "keywords": [
+    "pi-package"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "scripts": {
+    "test": "node --test --experimental-strip-types tests/modelSave.test.ts"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/modelSave.ts"
+    ]
+  }
+}

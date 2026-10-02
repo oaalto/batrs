@@ -55,6 +55,16 @@ Each lane gets a **narrow, non-overlapping prompt**. Never hand multiple lanes t
 
 Receipts, CI results, review-bot reports, and lane outputs are **evidence that informs** your decision — they never grant merge, close, or release authority. Authority stays with you, or with a human/operator you escalate to. "CI passed" is a report to weigh, not a permission to merge.
 
+## Parent-facing summaries stay narrow
+
+In ordinary progress updates, report only:
+
+- the **current phase**,
+- the **current dependency barrier** (what is waiting on what), and
+- the **current decision owner**.
+
+Do not replay the whole orchestration model, every lane, or the full future plan unless the user asks for that wider view.
+
 ## Escalate-up on unapproved decisions
 
 Escalate to a supervisor, operator, or human on any unapproved decision involving:
@@ -86,6 +96,8 @@ Review findings arrive in cycles. Apply **one fix wave per accepted defect class
 ## Adversarial fresh-context review before ship
 
 Before shipping, run an **adversarial fresh-context review** by a reviewer with no accumulated context bias. Disposition its findings, re-run the gates after fixes, and only then ship. Ship quality is the reviewer's job — and yours to honour by acting on the disposition.
+
+When reporting that review stage, summarize the present barrier and disposition status rather than restating the whole orchestration playbook.
 
 ## Post-install tailoring
 

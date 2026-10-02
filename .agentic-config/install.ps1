@@ -79,9 +79,17 @@ $ToolHelp = @{
   )
 }
 
-function Show-ToolHelp([string]$Tool) {
+function Show-ToolHelp([string]$Tool, [string]$RuntimeId = "") {
   Write-Host ""
   Write-Host "  $Tool is not installed or not on PATH."
+  if ($Tool -eq "uv" -and $RuntimeId -eq "laya") {
+    Write-Host "  Docs:    https://docs.astral.sh/uv/getting-started/installation/"
+    Write-Host "  Install: powershell -ExecutionPolicy Bypass -c \"irm https://astral.sh/uv/install.ps1 | iex\""
+    Write-Host "  Why:     The selected local runtime 'Laya' installs via ``uv tool install laya``."
+    Write-Host "  Note:    This installs the runtime only; checkpoints/model assets may still download on first use."
+    Write-Host "  Next:    Re-run .\.agentic-config\install.ps1 after uv is on PATH."
+    return
+  }
   if ($ToolHelp.ContainsKey($Tool)) {
     $ToolHelp[$Tool] | ForEach-Object { Write-Host "  $_" }
   } else {
@@ -244,6 +252,37 @@ function Get-RequiredTools($Plan) {
   return @($required)
 }
 
+function Test-LocalRuntimeOptionEnabled($Plan, [string]$RuntimeId, [string]$OptionKey) {
+  $runtime = $Plan.localRuntimes | Where-Object { $_.runtimeId -eq $RuntimeId } | Select-Object -First 1
+  if ($null -eq $runtime -or $null -eq $runtime.options) { return $false }
+  $value = $runtime.options.PSObject.Properties[$OptionKey]
+  return $null -ne $value -and $value.Value -eq $true
+}
+
+function Invoke-LocalRuntimeStep($Plan, $Step) {
+  $runtimeId = $Step.id -replace '^local-runtime-', ''
+  switch ($runtimeId) {
+    "laya" {
+      if (-not (Test-Have "uv")) {
+        Show-ToolHelp "uv" $runtimeId
+        throw "local-runtime-$runtimeId missing prerequisite 'uv' for Laya"
+      }
+      $args = @("tool", "install", "--force", "laya")
+      Write-Host "[run] $($Step.id): uv $($args -join ' ')"
+      if ($DryRun) { return }
+      & uv @args
+      if ($LASTEXITCODE -ne 0) {
+        throw "local-runtime-$runtimeId failed; verify uv works, then retry .\.agentic-config\install.ps1"
+      }
+      Write-Host "[ok] local-runtime-$runtimeId: installed Laya runtime. Checkpoints/model assets are still fetched by Laya on first use if not already cached."
+      return
+    }
+    default {
+      throw "local-runtime-$runtimeId is not supported by install.ps1"
+    }
+  }
+}
+
 function Invoke-EnvCheck($Plan) {
   Write-Host "Environment check"
   Write-Host "================="
@@ -313,6 +352,16 @@ $failed = $false
 $upstreamWarnings = 0
 
 foreach ($step in $plan.steps) {
+  if ($step.kind -eq "local-runtime") {
+    try {
+      Invoke-LocalRuntimeStep $plan $step
+    } catch {
+      $failed = $true
+      Write-Host -ForegroundColor Red "[fail] $($step.id): $_"
+      break
+    }
+    continue
+  }
   if ($step.kind -eq "pi-extension-placement") {
     if ($SkipPi) {
       Write-Host "[skip] $($step.id) (-SkipPi)"

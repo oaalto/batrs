@@ -14,11 +14,10 @@ The command is extension-owned (`pi.registerCommand`) and does not depend on a r
 
 ## Behavior
 
-- Uses extension-owned routing plus prompt text and a terminating structured-summary tool.
+- Uses extension-owned routing plus prompt text; routes the scan prompt into the normal agent turn so the model streams its report into the transcript like any other response.
 - Routes deterministically across v1 research lanes: bug diagnosis, architecture, domain modeling, documentation, refactor/style, and generic improvement audit.
 - Uses cheap repository signals as tie-breakers after request/path scoring, asks at most one explicit clarification and then continues the same scan flow when ambiguity would materially change the answer shape, and degrades gracefully when `pi-subagents` is absent.
 - Stays research-only: scans and summarizes, but does not edit files, execute implementation, refactor code, or write specs.
-- Ends with one shared summary envelope: lane, confidence, findings, evidence, recommendations, and lane-specific `details` validated against the routed v1 lane and rendered in lane-aware sections; `/to-spec` is included only when warranted.
 
 ## Requirements
 

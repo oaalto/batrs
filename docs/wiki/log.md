@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-02] skip | ADC update for bundled Pi skills and rules
+
+- Updated: none
+- Sources: `AGENTS.md`, `.agents/skills/implement/SKILL.md`, `.agents/skills/fix/SKILL.md`, `.agents/skills/orchestrator/SKILL.md`, `.agents/rules/mkdocs.md`, `.agentic-config/manifest.json`
+- Notes: Updated agent setup, bundled skill wiring, and rule configuration only. No engineering wiki concept/subsystem/workflow page owns this setup metadata, so no wiki page change was needed.
+
 ## [2026-09-14] skip | Manual dark-theme palette
 
 - Updated: none
