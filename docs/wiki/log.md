@@ -1,5 +1,12 @@
 # Engineering Wiki Log
 
+## [2026-10-05] skip | Compound Command Dispatch effect ordering
+
+- Updated: none
+- Sources: `src/command/mod.rs`, `docs/features/compound-command-dispatch/02-preserve-effect-ordering-and-automation-in-compound-command-dispatch.md`
+- Notes: Kept the change inside Command Dispatch effect ordering and regression coverage only. No wiki-owned concept or subsystem page required updates.
+
+
 ## [2026-10-02] skip | ADC update for bundled Pi skills and rules
 
 - Updated: none

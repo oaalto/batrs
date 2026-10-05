@@ -16,11 +16,15 @@ This slice is complete when shortcut segments that rely on automation functional
 
 ## Acceptance criteria
 
-- [ ] Compound input preserves the same per-segment effect ordering as standalone Command Dispatch.
-- [ ] Adjacent send effects are collapsed into one send payload joined with `;`.
-- [ ] Automation and other non-send effects remain separate and keep their relative order.
-- [ ] Shortcut segments that emit both send and automation effects continue to work inside compound input.
-- [ ] Existing shortcut send payloads that already contain `;` are not recursively re-split or reinterpreted.
+- [x] Compound input preserves the same per-segment effect ordering as standalone Command Dispatch.
+- [x] Adjacent send effects are collapsed into one send payload joined with `;`.
+- [x] Automation and other non-send effects remain separate and keep their relative order.
+- [x] Shortcut segments that emit both send and automation effects continue to work inside compound input.
+- [x] Existing shortcut send payloads that already contain `;` are not recursively re-split or reinterpreted.
+
+## Status
+
+completed
 
 ## Blocked by
 

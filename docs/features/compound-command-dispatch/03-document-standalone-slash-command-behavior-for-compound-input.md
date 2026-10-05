@@ -23,4 +23,11 @@ This slice is complete when the manual explains the new compound-input behavior 
 
 ## Blocked by
 
-- `docs/features/compound-command-dispatch/02-preserve-effect-ordering-and-automation-in-compound-command-dispatch.md`
+- none
+
+**Implementation knowledge from 02-preserve-effect-ordering-and-automation-in-compound-command-dispatch**
+
+- Contracts/seams: `src/command/mod.rs` keeps compound splitting in `dispatch_compound_line`, while per-segment effect shaping now happens by applying `collapse_adjacent_sends` to each segment result before flattening. Compound input therefore preserves each segment's effect order instead of globally re-collapsing sends across segment boundaries.
+- Decisions that changed the plan: the implemented behavior keeps per-segment equivalence ahead of whole-line send collapsing. That means docs should describe player-visible compound behavior in terms of segment-by-segment Command Dispatch, not one final merged BatMUD send.
+- Traps/gotchas: existing send payloads that already contain `;` are still opaque payload text. Do not document compound input as recursively splitting shortcut-generated send strings.
+- File/API map: player-facing behavior lives in `src/command/mod.rs` tests `dispatch_splits_logged_in_compound_input_and_preserves_passthrough_order`, `dispatch_skips_empty_compound_segments`, `dispatch_preserves_segment_effect_order_with_automation`, and `dispatch_does_not_resplit_existing_shortcut_send_payloads`.

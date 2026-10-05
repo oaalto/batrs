@@ -88,14 +88,14 @@ pub fn dispatch(
     if input.logged_in && !input.line.trim_start().starts_with('/') && input.line.contains(';') {
         return dispatch_compound_line(&input, guilds, guild_command_lookup, generic, &env);
     }
-    dispatch_single_segment(
+    collapse_adjacent_sends(dispatch_single_segment(
         &input,
         guilds,
         guild_command_lookup,
         generic,
         &env,
         &input.line,
-    )
+    ))
 }
 
 fn dispatch_compound_line(
@@ -105,17 +105,22 @@ fn dispatch_compound_line(
     generic: &GenericCommands,
     env: &CommandEnvironment,
 ) -> Vec<CommandEffect> {
-    collapse_adjacent_sends(
-        input
-            .line
-            .split(';')
-            .map(str::trim)
-            .filter(|segment| !segment.is_empty())
-            .flat_map(|segment| {
-                dispatch_single_segment(input, guilds, guild_command_lookup, generic, env, segment)
-            })
-            .collect(),
-    )
+    input
+        .line
+        .split(';')
+        .map(str::trim)
+        .filter(|segment| !segment.is_empty())
+        .flat_map(|segment| {
+            collapse_adjacent_sends(dispatch_single_segment(
+                input,
+                guilds,
+                guild_command_lookup,
+                generic,
+                env,
+                segment,
+            ))
+        })
+        .collect()
 }
 
 fn dispatch_single_segment(
@@ -679,14 +684,17 @@ mod tests {
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
         let effects = dispatch_line("say hello; ping world ; raw", true, &guilds);
 
-        assert_eq!(send_effects(&effects), vec!["say hello;pong world;raw"]);
+        assert_eq!(
+            send_effects(&effects),
+            vec!["say hello", "pong world", "raw"]
+        );
     }
 
     #[test]
     fn dispatch_skips_empty_compound_segments() {
         let effects = dispatch_line(" ; look ;; score ; ", true, &[]);
 
-        assert_eq!(send_effects(&effects), vec!["look;score"]);
+        assert_eq!(send_effects(&effects), vec!["look", "score"]);
     }
 
     #[test]
@@ -733,5 +741,68 @@ mod tests {
             send_effects(&effects),
             vec!["target foe;use ceremony foe;look"]
         );
+    }
+
+    #[test]
+    fn dispatch_preserves_segment_effect_order_with_automation() {
+        let effects = dispatch_line(
+            "csum;look",
+            true,
+            &[Box::new(crate::guilds::AnimistGuild {})],
+        );
+
+        assert_eq!(
+            effects,
+            vec![
+                CommandEffect::Automation(Action::SetFlag(
+                    "animist_separating_soul".to_string(),
+                    false,
+                )),
+                CommandEffect::Automation(Action::SetFlag(
+                    "animist_joining_soul".to_string(),
+                    false,
+                )),
+                CommandEffect::Automation(Action::SetFlag(
+                    "animist_conjuring_mount".to_string(),
+                    false,
+                )),
+                CommandEffect::Automation(Action::SetFlag(
+                    "animist_dismissing_mount".to_string(),
+                    false,
+                )),
+                CommandEffect::Automation(Action::SetFlag(
+                    "animist_conjuring_mount".to_string(),
+                    true,
+                )),
+                CommandEffect::Send("@use 'ceremony'".to_string()),
+                CommandEffect::Send("look".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn dispatch_collapses_adjacent_send_effects_within_one_segment() {
+        let effects = dispatch_line("cmd", true, &[Box::new(MultiSendGuild)]);
+
+        assert_eq!(send_effects(&effects), vec!["first;second"]);
+    }
+
+    struct MultiSendGuild;
+
+    impl Guild for MultiSendGuild {
+        fn commands(&self) -> HashMap<String, Command> {
+            HashMap::from([("cmd".to_string(), multi_send_handler as Command)])
+        }
+
+        fn triggers(&self) -> Vec<crate::triggers::Trigger> {
+            Vec::new()
+        }
+    }
+
+    fn multi_send_handler(_data: &Data, _env: &CommandEnvironment) -> Vec<CommandEffect> {
+        vec![
+            CommandEffect::Send("first".to_string()),
+            CommandEffect::Send("second".to_string()),
+        ]
     }
 }
