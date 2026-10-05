@@ -469,6 +469,15 @@ mod tests {
     }
 
     fn dispatch_line(line: &str, logged_in: bool, guilds: &[Box<dyn Guild>]) -> Vec<CommandEffect> {
+        dispatch_with_generic(line, logged_in, guilds, GenericCommands::default())
+    }
+
+    fn dispatch_with_generic(
+        line: &str,
+        logged_in: bool,
+        guilds: &[Box<dyn Guild>],
+        generic: GenericCommands,
+    ) -> Vec<CommandEffect> {
         dispatch(
             CommandDispatchInput::new(
                 line,
@@ -481,7 +490,7 @@ mod tests {
             ),
             guilds,
             &build_guild_command_lookup(guilds),
-            &GenericCommands::default(),
+            &generic,
         )
     }
 
@@ -691,6 +700,28 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_expands_generic_and_guild_shortcuts_in_one_compound_line() {
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
+        let effects = dispatch_line("clw;ping world;raw", true, &guilds);
+
+        assert_eq!(
+            send_effects(&effects),
+            vec!["@cast 'cure light wounds' me", "pong world", "raw"]
+        );
+    }
+
+    #[test]
+    fn dispatch_expands_multiple_shortcut_segments_with_whitespace() {
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
+        let effects = dispatch_line(" ping one ; clw ; ping two ", true, &guilds);
+
+        assert_eq!(
+            send_effects(&effects),
+            vec!["pong one", "@cast 'cure light wounds' me", "pong two"]
+        );
+    }
+
+    #[test]
     fn dispatch_skips_empty_compound_segments() {
         let effects = dispatch_line(" ; look ;; score ; ", true, &[]);
 
@@ -709,6 +740,14 @@ mod tests {
         let effects = dispatch_line("/clear", true, &[]);
 
         assert!(matches!(effects.as_slice(), [CommandEffect::Redraw]));
+    }
+
+    #[test]
+    fn dispatch_keeps_compound_input_with_leading_slash_as_standalone_only() {
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
+        let effects = dispatch_line("/clear;ping world", true, &guilds);
+
+        assert_eq!(send_effects(&effects), vec!["/clear;ping world"]);
     }
 
     #[test]
