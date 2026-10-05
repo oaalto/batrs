@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-05] skip | Compound input manual clarification
+
+- Updated: none
+- Sources: `docs/manual/commands.md`, `src/command/mod.rs`, `docs/features/compound-command-dispatch/03-document-standalone-slash-command-behavior-for-compound-input.md`
+- Notes: Updated the player manual to explain logged-in semicolon-separated compound input, trimming and empty-segment skipping, standalone-only slash commands, and non-recursive shortcut payload handling. No engineering wiki concept page required updates.
+
 ## [2026-10-05] skip | Compound Command Dispatch effect ordering
 
 - Updated: none

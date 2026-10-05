@@ -13,6 +13,17 @@ While you are **logged in**, the client looks at what you typed **before** sendi
 
 If nothing matches, your line is sent to the game unchanged.
 
+## Compound input
+
+While you are logged in, a non-slash line that contains `;` is treated as compound input. The client splits the line on semicolons, trims whitespace around each separator, skips empty segments, and runs each remaining segment through the normal Command Dispatch order above.
+
+What BatMUD sees depends on the resulting effects for each segment, but as a player rule of thumb you can read `look ; score ;; say hi` as `look`, then `score`, then `say hi`; the extra spaces and empty `;;` segment are ignored.
+
+!!! warning "Slash commands stay standalone"
+    Client slash commands still apply only when the whole input line starts with `/`. They are **not** valid compound segments inside a semicolon-separated line. For example, `look;/clear` is treated as ordinary game input segments, not as `look` plus the client redraw command.
+
+Shortcuts that expand to game text containing `;` keep that text as-is. The client does not recursively split shortcut-generated send strings.
+
 ```mermaid
 flowchart LR
   input[What you typed]
@@ -37,8 +48,10 @@ flowchart LR
 | `/clear` | no | Redraws the display from memory (fixes screen artifacts) |
 | `/guilds` | yes | Opens the guild picker |
 | `/generic` | yes | Opens generic shortcut groups |
+| `/triggers` | yes | Opens trigger-group toggles |
 | `/show` | yes | Lists active shortcuts or line triggers (see below) |
 | `/settings` | yes | Opens the settings editor |
+| `/monk` | yes | Opens monk skill-track settings |
 | `/raw_logs` | no | Toggles raw log capture |
 
 ## `/show` — list shortcuts and triggers
