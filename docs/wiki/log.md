@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-05] skip | Slash-prefixed input passthrough bug fix
+
+- Updated: none
+- Sources: `src/command/mod.rs`, `docs/manual/commands.md`
+- Notes: Blocked logged-in slash-prefixed input from falling through to BatMUD passthrough and clarified the player manual. No engineering wiki concept page required updates.
+
 ## [2026-10-05] skip | Compound input manual clarification
 
 - Updated: none

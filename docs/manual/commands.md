@@ -3,7 +3,7 @@
 While you are **logged in**, the client looks at what you typed **before** sending it to the game. It may open a dialog, run a small automatic sequence, or turn your shortcut into the real game command.
 
 !!! warning "Slash only for client commands"
-    Commands that start with **`/`** are for the client (`/help`, `/quit`, `/guilds`, …). **Guild and generic shortcuts do not use a leading slash** (`ucs`, `clw`, …). If you type `/ucs`, the game will usually see that whole line instead of your Disciple shortcut.
+    Commands that start with **`/`** are for the client (`/help`, `/quit`, `/guilds`, …). **Guild and generic shortcuts do not use a leading slash** (`ucs`, `clw`, …). If you type `/ucs`, the client ignores it instead of running your Disciple shortcut or forwarding it to BatMUD.
 
 ## Order of handling
 
@@ -20,7 +20,7 @@ While you are logged in, a non-slash line that contains `;` is treated as compou
 What BatMUD sees depends on the resulting effects for each segment, but as a player rule of thumb you can read `look ; score ;; say hi` as `look`, then `score`, then `say hi`; the extra spaces and empty `;;` segment are ignored.
 
 !!! warning "Slash commands stay standalone"
-    Client slash commands still apply only when the whole input line starts with `/`. They are **not** valid compound segments inside a semicolon-separated line. For example, `look;/clear` is treated as ordinary game input segments, not as `look` plus the client redraw command.
+    Client slash commands still apply only when the whole input line starts with `/`. They are **not** valid compound segments inside a semicolon-separated line. Slash-prefixed input is never forwarded to BatMUD, so `look;/clear` treats only `look` as game input and `/clear;ll` does nothing instead of reaching the game.
 
 Shortcuts that expand to game text containing `;` keep that text as-is. The client does not recursively split shortcut-generated send strings.
 

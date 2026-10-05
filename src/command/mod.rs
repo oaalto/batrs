@@ -166,6 +166,10 @@ fn dispatch_single_segment(
         return Vec::new();
     }
 
+    if parsed.name().starts_with('/') {
+        return Vec::new();
+    }
+
     if let Some(cmd) = guild_command_lookup.get(parsed.name()) {
         return cmd(&parsed, env);
     }
@@ -743,11 +747,18 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_keeps_compound_input_with_leading_slash_as_standalone_only() {
+    fn dispatch_drops_compound_input_with_leading_slash() {
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
         let effects = dispatch_line("/clear;ping world", true, &guilds);
 
-        assert_eq!(send_effects(&effects), vec!["/clear;ping world"]);
+        assert!(effects.is_empty());
+    }
+
+    #[test]
+    fn dispatch_drops_unknown_slash_prefixed_input() {
+        let effects = dispatch_line("/ll", true, &[]);
+
+        assert!(effects.is_empty());
     }
 
     #[test]
