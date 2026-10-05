@@ -205,8 +205,6 @@ Use this format:
 
 - Prefer `rg` filtering first when reading large files, command output, or test logs.
 - Run commands from `docs/agent-commands.md` (for example `cargo test --all-targets --all-features`) to verify modifications.
-- Upon successful execution, terminate the response immediately with `DONE`.
-- Never summarize test results or verification steps.
 - When unexpected file changes appear, assume they are intentional user edits and never revert them.
 
 ### restricted-operations
