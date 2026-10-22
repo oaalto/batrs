@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-22] update | Remove game-output wait and completed-line buffering
+
+- Updated: [batrs client application](subsystems/batrs-client.md)
+- Sources: `src/main.rs`, `src/app/telnet_buffer.rs`, `docs/manual/ui.md`
+- Notes: Network arrival now wakes the UI independently of terminal input and clock ticks, including reconnects. Complete CRLF lines are released before partial prompts; regression checks cover wake permits and split delimiters.
+
 ## [2026-10-05] skip | Slash-prefixed input passthrough bug fix
 
 - Updated: none

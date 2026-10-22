@@ -5,7 +5,7 @@ use crate::app::{
     AppEvent, BatApp, ConnectionChannels, ConnectionCoordinator, ConnectionId,
     INITIAL_CONNECTION_ID, ReconnectResult,
 };
-use crossterm::event::{self, DisableBracketedPaste, EnableBracketedPaste, Event};
+use crossterm::event::{DisableBracketedPaste, EnableBracketedPaste, Event, EventStream};
 
 const CLOCK_REDRAW_INTERVAL: Duration = Duration::from_secs(1);
 use crossterm::execute;
@@ -17,11 +17,13 @@ use futures::stream::StreamExt;
 use libmudtelnet::Parser;
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
-use std::sync::mpsc;
-use std::time::{Duration, Instant};
+use std::sync::{Arc, mpsc};
+use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
+use tokio::sync::Notify;
+use tokio::time::Instant;
 use tokio_util::codec::{BytesCodec, FramedRead};
 
 mod abilities;
@@ -43,7 +45,10 @@ mod ui;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
 
-    let channels = setup_connection(INITIAL_CONNECTION_ID).map_err(std::io::Error::other)?;
+    let runtime = Runtime::new()?;
+    let network_ready = Arc::new(Notify::new());
+    let channels = setup_connection(INITIAL_CONNECTION_ID, network_ready.clone())
+        .map_err(std::io::Error::other)?;
 
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
@@ -56,10 +61,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = BatApp::new(
         channels.event_receiver,
         channels.command_sender,
-        Box::new(TcpConnectionCoordinator),
+        Box::new(TcpConnectionCoordinator(network_ready.clone())),
         viewer_port,
     );
-    let result = run_app(&mut terminal, app);
+    let result = runtime.block_on(run_app(&mut terminal, app, &network_ready));
 
     disable_raw_mode()?;
     execute!(
@@ -73,10 +78,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn run_app(
+async fn run_app(
     terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
     mut app: BatApp,
+    network_ready: &Notify,
 ) -> std::io::Result<()> {
+    let mut events = EventStream::new();
     let mut last_redraw_tick = Instant::now();
 
     loop {
@@ -87,16 +94,14 @@ fn run_app(
             terminal.draw(|frame| app.draw(frame))?;
         }
 
-        let now = Instant::now();
-        let timeout = CLOCK_REDRAW_INTERVAL
-            .checked_sub(now.duration_since(last_redraw_tick))
-            .unwrap_or(Duration::ZERO);
-
-        if event::poll(timeout)? {
-            handle_terminal_event(event::read()?, &mut app);
-            while event::poll(Duration::ZERO)? {
-                handle_terminal_event(event::read()?, &mut app);
-            }
+        if let Some(event) = wait_for_input(
+            &mut events,
+            network_ready,
+            last_redraw_tick + CLOCK_REDRAW_INTERVAL,
+        )
+        .await?
+        {
+            handle_terminal_event(event, &mut app);
         }
 
         app.read_input();
@@ -115,6 +120,22 @@ fn run_app(
     Ok(())
 }
 
+/// Wait for terminal input, queued game output, or the clock redraw deadline.
+/// Terminal read failures propagate to the caller.
+async fn wait_for_input(
+    events: &mut (impl futures::Stream<Item = std::io::Result<Event>> + Unpin),
+    network_ready: &Notify,
+    deadline: Instant,
+) -> std::io::Result<Option<Event>> {
+    tokio::select! {
+        event = events.next() => event.ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "terminal event stream ended")
+        })?.map(Some),
+        () = network_ready.notified() => Ok(None),
+        () = tokio::time::sleep_until(deadline) => Ok(None),
+    }
+}
+
 fn handle_terminal_event(event: Event, app: &mut BatApp) {
     match event {
         Event::Key(key) => app.handle_key_event(key),
@@ -124,18 +145,21 @@ fn handle_terminal_event(event: Event, app: &mut BatApp) {
     }
 }
 
-struct TcpConnectionCoordinator;
+struct TcpConnectionCoordinator(Arc<Notify>);
 
 impl ConnectionCoordinator for TcpConnectionCoordinator {
     fn reconnect(&mut self, connection_id: ConnectionId) -> ReconnectResult {
-        match setup_connection(connection_id) {
+        match setup_connection(connection_id, self.0.clone()) {
             Ok(channels) => ReconnectResult::Connected(channels),
             Err(error) => ReconnectResult::Failed(error),
         }
     }
 }
 
-fn setup_connection(connection_id: ConnectionId) -> Result<ConnectionChannels, String> {
+fn setup_connection(
+    connection_id: ConnectionId,
+    network_ready: Arc<Notify>,
+) -> Result<ConnectionChannels, String> {
     let rt = Runtime::new().map_err(|e| format!("unable to create runtime: {e}"))?;
     let stream = rt
         .block_on(TcpStream::connect("95.175.124.84:23"))
@@ -161,6 +185,7 @@ fn setup_connection(connection_id: ConnectionId) -> Result<ConnectionChannels, S
                 stream
                     .for_each(|data| {
                         let sender = event_sender.clone();
+                        let network_ready = network_ready.clone();
 
                         async move {
                             sender
@@ -179,6 +204,7 @@ fn setup_connection(connection_id: ConnectionId) -> Result<ConnectionChannels, S
                                     })
                                     .expect("failed to send telnet event to channel");
                             }
+                            network_ready.notify_one();
                         }
                     })
                     .await;
@@ -200,4 +226,80 @@ fn setup_connection(connection_id: ConnectionId) -> Result<ConnectionChannels, S
         event_receiver,
         command_sender,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn game_output_wakes_wait_without_keyboard_input_or_clock_tick() {
+        let network_ready = Arc::new(Notify::new());
+        let sender_ready = network_ready.clone();
+        let (sender, receiver) = mpsc::channel();
+        let producer = tokio::spawn(async move {
+            tokio::task::yield_now().await;
+            sender.send("response").unwrap();
+            sender_ready.notify_one();
+        });
+        let mut events = futures::stream::pending();
+        let result = tokio::time::timeout(
+            Duration::from_millis(200),
+            wait_for_input(
+                &mut events,
+                &network_ready,
+                Instant::now() + CLOCK_REDRAW_INTERVAL,
+            ),
+        )
+        .await
+        .expect("game output must not wait for the one-second clock tick")
+        .unwrap();
+        assert_eq!(result, None);
+        assert_eq!(receiver.try_recv(), Ok("response"));
+        producer.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn game_output_queued_before_wait_is_not_lost() {
+        let network_ready = Notify::new();
+        network_ready.notify_one();
+        let mut events = futures::stream::pending();
+        assert_eq!(
+            tokio::time::timeout(
+                Duration::from_millis(200),
+                wait_for_input(
+                    &mut events,
+                    &network_ready,
+                    Instant::now() + CLOCK_REDRAW_INTERVAL
+                ),
+            )
+            .await
+            .unwrap()
+            .unwrap(),
+            None
+        );
+    }
+
+    #[tokio::test]
+    async fn terminal_input_and_clock_deadline_still_wake_wait() {
+        let network_ready = Notify::new();
+        let mut events = futures::stream::iter([Ok(Event::Resize(80, 24))]);
+        assert_eq!(
+            wait_for_input(
+                &mut events,
+                &network_ready,
+                Instant::now() + CLOCK_REDRAW_INTERVAL
+            )
+            .await
+            .unwrap(),
+            Some(Event::Resize(80, 24))
+        );
+        let mut events = futures::stream::pending();
+        assert_eq!(
+            wait_for_input(&mut events, &network_ready, Instant::now())
+                .await
+                .unwrap(),
+            None
+        );
+    }
 }

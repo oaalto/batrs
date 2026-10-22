@@ -4,7 +4,7 @@ The client fills the terminal. The **main area** is game text (scrolls as new li
 
 ## Game text and typing
 
-- Text wraps to the width of your terminal.
+- Text wraps to the width of your terminal. Completed game lines appear as they arrive, without waiting for a keypress or clock tick; an incomplete prompt waits for its line ending or telnet Go-Ahead.
 - Use **PageUp** and **PageDown** to review earlier game text. When you type a command and send it to the game with **Enter**, the view jumps back to the newest output.
 - After login, **Up** and **Down** recall prior commands you typed.
 - Select and copy game text with your terminal’s normal drag-select (right-click for the context menu works too).

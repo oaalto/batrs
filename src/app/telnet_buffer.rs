@@ -1,7 +1,8 @@
 //! Telnet receive buffer: assembles complete lines from mud telnet data events.
 //!
 //! Lines are delimited by CRLF on incoming data payloads, or by a Go-Ahead (GA) IAC
-//! command flushing buffered bytes without a trailing CRLF.
+//! command flushing buffered bytes without a trailing CRLF. Completed lines are
+//! released immediately; only the incomplete suffix remains buffered.
 //!
 //! **UTF-8 policy:** Each completed line is decoded as UTF-8. Lines that are not
 //! valid UTF-8 are decoded lossily (`\u{FFFD}` replacement) rather than dropped,
@@ -41,15 +42,16 @@ impl TelnetBuffer {
                 debug!("Subnegotiation: {sub_neg:?}");
             }
             TelnetEvents::DataReceive(bytes) => {
-                if !bytes.ends_with(CARRIAGE_RETURN_NEW_LINE) {
-                    self.buffer.put(bytes.clone());
+                self.buffer.put(bytes.clone());
+                let Some(end) = self
+                    .buffer
+                    .windows(CARRIAGE_RETURN_NEW_LINE.len())
+                    .rposition(|pair| pair == CARRIAGE_RETURN_NEW_LINE)
+                else {
                     return Vec::new();
-                }
-
-                let mut buffer = std::mem::replace(&mut self.buffer, BytesMut::with_capacity(1024));
-                buffer.put(bytes.clone());
-
-                return self.process_input_data(buffer);
+                };
+                let completed = self.buffer.split_to(end + CARRIAGE_RETURN_NEW_LINE.len());
+                return self.process_input_data(completed);
             }
             TelnetEvents::DataSend(_) => {}
             TelnetEvents::DecompressImmediate(_) => {
@@ -116,6 +118,41 @@ mod tests {
         let lines = buffer.handle_event(&TelnetEvents::IAC(TelnetIAC::new(op_command::GA)));
 
         assert_eq!(lines, vec!["buffered line".to_string()]);
+    }
+
+    #[test]
+    fn complete_lines_are_released_before_a_partial_prompt() {
+        let mut buffer = TelnetBuffer::new();
+        assert_eq!(
+            buffer.handle_event(&TelnetEvents::DataReceive(Bytes::from_static(
+                b"response\r\npartial prompt"
+            ))),
+            vec!["response"]
+        );
+        assert_eq!(
+            buffer.handle_event(&TelnetEvents::IAC(TelnetIAC::new(op_command::GA))),
+            vec!["partial prompt"]
+        );
+    }
+
+    #[test]
+    fn crlf_split_between_events_releases_only_complete_lines() {
+        let mut buffer = TelnetBuffer::new();
+        assert!(
+            buffer
+                .handle_event(&TelnetEvents::DataReceive(Bytes::from_static(b"first\r")))
+                .is_empty()
+        );
+        assert_eq!(
+            buffer.handle_event(&TelnetEvents::DataReceive(Bytes::from_static(
+                b"\nsecond\r\nthird\r"
+            ))),
+            vec!["first", "second"]
+        );
+        assert_eq!(
+            buffer.handle_event(&TelnetEvents::DataReceive(Bytes::from_static(b"\n"))),
+            vec!["third"]
+        );
     }
 
     #[test]
