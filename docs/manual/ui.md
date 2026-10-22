@@ -2,6 +2,10 @@
 
 The client fills the terminal. The **main area** is game text (scrolls as new lines arrive). Below that you get **status lines**, a **clock**, and the **input** line where you type.
 
+## Connection failures
+
+If the initial BatMUD connection fails, the client prints only the error message to stderr and exits with status 1 before opening the full-screen interface. For example: `unable to connect to BatMUD: No route to host (os error 113)`.
+
 ## Game text and typing
 
 - Text wraps to the width of your terminal. Completed game lines appear as they arrive, without waiting for a keypress or clock tick; an incomplete prompt waits for its line ending or telnet Go-Ahead.

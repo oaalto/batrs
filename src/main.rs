@@ -41,7 +41,20 @@ mod stats;
 mod triggers;
 mod ui;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
+    if let Err(error) = run() {
+        report_error(error.as_ref());
+    }
+}
+
+/// Print a fatal client error without debug wrappers and exit unsuccessfully.
+fn report_error(error: &dyn std::error::Error) -> ! {
+    eprintln!("{error}");
+    std::process::exit(1);
+}
+
+/// Run the client, restoring the terminal before propagating application errors.
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
 
     let runtime = Runtime::new()?;
@@ -250,6 +263,34 @@ async fn setup_connection(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fatal_error_process_fixture() {
+        if std::env::var_os("BATRS_TEST_FATAL_ERROR").is_some() {
+            report_error(&std::io::Error::other(
+                "unable to connect to BatMUD: No route to host (os error 113)",
+            ));
+        }
+    }
+
+    #[test]
+    fn fatal_error_prints_only_message_and_exits_unsuccessfully() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "tests::fatal_error_process_fixture",
+                "--nocapture",
+            ])
+            .env("BATRS_TEST_FATAL_ERROR", "1")
+            .output()
+            .unwrap();
+
+        assert_eq!(output.status.code(), Some(1));
+        assert_eq!(
+            String::from_utf8(output.stderr).unwrap(),
+            "unable to connect to BatMUD: No route to host (os error 113)\n"
+        );
+    }
 
     #[tokio::test]
     async fn reconnect_inside_runtime_returns_pending_and_connects_locally() {

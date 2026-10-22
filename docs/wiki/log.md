@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-22] update | Plain fatal error output
+
+- Updated: [batrs client application](subsystems/batrs-client.md)
+- Sources: `src/main.rs`, `docs/manual/ui.md`
+- Notes: Fatal errors now print only their display message to stderr and exit with status 1. Initial connection errors remain before terminal setup; reconnect handling is unchanged.
+
 ## [2026-10-22] update | Nonblocking reconnect on the existing runtime
 
 - Updated: [Session Lifecycle](concepts/session-lifecycle.md), [batrs client application](subsystems/batrs-client.md)
