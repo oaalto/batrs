@@ -12,7 +12,6 @@ use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
-use futures::future;
 use futures::stream::StreamExt;
 use libmudtelnet::Parser;
 use ratatui::Terminal;
@@ -21,7 +20,7 @@ use std::sync::{Arc, mpsc};
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
-use tokio::runtime::Runtime;
+use tokio::runtime::{Handle, Runtime};
 use tokio::sync::Notify;
 use tokio::time::Instant;
 use tokio_util::codec::{BytesCodec, FramedRead};
@@ -47,7 +46,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let runtime = Runtime::new()?;
     let network_ready = Arc::new(Notify::new());
-    let channels = setup_connection(INITIAL_CONNECTION_ID, network_ready.clone())
+    let address = std::net::SocketAddr::from(([95, 175, 124, 84], 23));
+    let channels = runtime
+        .block_on(setup_connection(
+            INITIAL_CONNECTION_ID,
+            address,
+            network_ready.clone(),
+        ))
         .map_err(std::io::Error::other)?;
 
     enable_raw_mode()?;
@@ -61,7 +66,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = BatApp::new(
         channels.event_receiver,
         channels.command_sender,
-        Box::new(TcpConnectionCoordinator(network_ready.clone())),
+        Box::new(TcpConnectionCoordinator {
+            runtime: runtime.handle().clone(),
+            address,
+            network_ready: network_ready.clone(),
+        }),
         viewer_port,
     );
     let result = runtime.block_on(run_app(&mut terminal, app, &network_ready));
@@ -145,81 +154,91 @@ fn handle_terminal_event(event: Event, app: &mut BatApp) {
     }
 }
 
-struct TcpConnectionCoordinator(Arc<Notify>);
+struct TcpConnectionCoordinator {
+    runtime: Handle,
+    address: std::net::SocketAddr,
+    network_ready: Arc<Notify>,
+}
 
 impl ConnectionCoordinator for TcpConnectionCoordinator {
+    /// Start socket setup on the existing runtime; completion wakes the TUI.
     fn reconnect(&mut self, connection_id: ConnectionId) -> ReconnectResult {
-        match setup_connection(connection_id, self.0.clone()) {
-            Ok(channels) => ReconnectResult::Connected(channels),
-            Err(error) => ReconnectResult::Failed(error),
-        }
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let address = self.address;
+        let network_ready = self.network_ready.clone();
+        self.runtime.spawn(async move {
+            let result = setup_connection(connection_id, address, network_ready.clone()).await;
+            if sender.send(result).is_ok() {
+                network_ready.notify_one();
+            }
+        });
+        ReconnectResult::Pending(receiver)
     }
 }
 
-fn setup_connection(
+/// Connect and start cancellable reader/writer tasks on the caller's runtime.
+/// Socket setup errors include the connection operation's context.
+async fn setup_connection(
     connection_id: ConnectionId,
+    address: std::net::SocketAddr,
     network_ready: Arc<Notify>,
 ) -> Result<ConnectionChannels, String> {
-    let rt = Runtime::new().map_err(|e| format!("unable to create runtime: {e}"))?;
-    let stream = rt
-        .block_on(TcpStream::connect("95.175.124.84:23"))
+    let stream = TcpStream::connect(address)
+        .await
         .map_err(|e| format!("unable to connect to BatMUD: {e}"))?;
-
     let (event_sender, event_receiver) = mpsc::channel();
-    let (command_sender, command_receiver) = mpsc::channel::<String>();
+    let (command_sender, mut command_receiver) = tokio::sync::mpsc::unbounded_channel::<String>();
 
-    // Execute the runtime in its own thread.
-    std::thread::spawn(move || {
-        rt.block_on(async {
-            let (reader, mut writer) = stream.into_split();
-
-            tokio::spawn(async move {
-                let stream = FramedRead::new(reader, BytesCodec::new()).filter_map(|i| match i {
-                    Ok(i) => future::ready(Some(i.freeze())),
-                    Err(e) => {
-                        log::error!("failed to read from socket; error={e}");
-                        future::ready(None)
-                    }
-                });
-
-                stream
-                    .for_each(|data| {
-                        let sender = event_sender.clone();
-                        let network_ready = network_ready.clone();
-
-                        async move {
-                            sender
-                                .send(AppEvent::RawInput {
-                                    connection_id,
-                                    bytes: data.to_vec(),
-                                })
-                                .expect("failed to send raw input to channel");
-                            let mut parser = Parser::new();
-                            let events = parser.receive(&data);
-                            for event in events {
-                                sender
-                                    .send(AppEvent::Telnet {
-                                        connection_id,
-                                        event,
-                                    })
-                                    .expect("failed to send telnet event to channel");
-                            }
-                            network_ready.notify_one();
-                        }
-                    })
-                    .await;
-            });
-
+    tokio::spawn(async move {
+        let (reader, mut writer) = stream.into_split();
+        let read = async {
+            let mut stream = FramedRead::new(reader, BytesCodec::new());
             let mut parser = Parser::new();
-            loop {
-                if let Ok(message) = command_receiver.recv() {
-                    let events = parser.send_text(&message);
-                    if let Err(e) = writer.write_all(&events.to_bytes()).await {
-                        log::error!("failed to write telnet command to socket; error={e}");
+            while let Some(data) = stream.next().await {
+                let data = match data {
+                    Ok(data) => data,
+                    Err(error) => {
+                        log::error!("failed to read from socket; error={error}");
+                        break;
+                    }
+                };
+                if event_sender
+                    .send(AppEvent::RawInput {
+                        connection_id,
+                        bytes: data.to_vec(),
+                    })
+                    .is_err()
+                {
+                    break;
+                }
+                for event in parser.receive(&data) {
+                    if event_sender
+                        .send(AppEvent::Telnet {
+                            connection_id,
+                            event,
+                        })
+                        .is_err()
+                    {
+                        return;
                     }
                 }
+                network_ready.notify_one();
             }
-        })
+        };
+        let write = async {
+            let mut parser = Parser::new();
+            while let Some(message) = command_receiver.recv().await {
+                let events = parser.send_text(&message);
+                if let Err(error) = writer.write_all(&events.to_bytes()).await {
+                    log::error!("failed to write telnet command to socket; error={error}");
+                    break;
+                }
+            }
+        };
+        tokio::select! {
+            () = read => {},
+            () = write => {},
+        }
     });
 
     Ok(ConnectionChannels {
@@ -231,6 +250,80 @@ fn setup_connection(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn reconnect_inside_runtime_returns_pending_and_connects_locally() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let ready = Arc::new(Notify::new());
+        let mut coordinator = TcpConnectionCoordinator {
+            runtime: tokio::runtime::Handle::current(),
+            address: listener.local_addr().unwrap(),
+            network_ready: ready.clone(),
+        };
+        let started = std::time::Instant::now();
+        let ReconnectResult::Pending(result) = coordinator.reconnect(1) else {
+            panic!("reconnect must return pending without blocking the runtime");
+        };
+        assert!(started.elapsed() < Duration::from_millis(100));
+        let channels = tokio::time::timeout(Duration::from_secs(1), result)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        let (mut peer, _) = listener.accept().await.unwrap();
+        channels.command_sender.send("look".into()).unwrap();
+        use tokio::io::AsyncReadExt;
+        let mut command = [0; 4];
+        tokio::time::timeout(Duration::from_secs(1), peer.read_exact(&mut command))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(&command, b"look");
+        peer.write_all(b"hello\r\n").await.unwrap();
+        tokio::time::timeout(Duration::from_secs(1), ready.notified())
+            .await
+            .unwrap();
+        let receiver = channels.event_receiver;
+        tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                if let Ok(AppEvent::RawInput {
+                    connection_id,
+                    bytes,
+                }) = receiver.try_recv()
+                {
+                    assert_eq!(connection_id, 1);
+                    assert_eq!(bytes, b"hello\r\n");
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn reconnect_failure_wakes_client_and_reports_connection_error() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        drop(listener);
+        let ready = Arc::new(Notify::new());
+        let mut coordinator = TcpConnectionCoordinator {
+            runtime: Handle::current(),
+            address,
+            network_ready: ready.clone(),
+        };
+        let ReconnectResult::Pending(result) = coordinator.reconnect(1) else {
+            panic!("reconnect must return pending");
+        };
+        tokio::time::timeout(Duration::from_secs(1), ready.notified())
+            .await
+            .unwrap();
+        let Err(error) = result.await.unwrap() else {
+            panic!("closed port must fail")
+        };
+        assert!(error.contains("unable to connect to BatMUD"));
+    }
 
     #[tokio::test]
     async fn game_output_wakes_wait_without_keyboard_input_or_clock_tick() {

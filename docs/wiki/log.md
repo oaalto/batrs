@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-22] update | Nonblocking reconnect on the existing runtime
+
+- Updated: [Session Lifecycle](concepts/session-lifecycle.md), [batrs client application](subsystems/batrs-client.md)
+- Sources: `src/main.rs`, `src/app/mod.rs`, `src/app/session_lifecycle/reconnect.rs`, `docs/manual/commands.md`
+- Notes: Reconnect now returns pending setup, wakes on completion, retains duplicate protection, and discards game input while pending. Removed nested runtime startup and blocking command receives; superseded socket tasks terminate when their command channel closes.
+
 ## [2026-10-22] update | Remove game-output wait and completed-line buffering
 
 - Updated: [batrs client application](subsystems/batrs-client.md)

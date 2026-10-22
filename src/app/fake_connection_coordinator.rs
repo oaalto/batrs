@@ -50,11 +50,11 @@ impl ConnectionCoordinator for FakeConnectionCoordinator {
 
 pub fn connection_channels() -> (
     ConnectionChannels,
-    mpsc::Receiver<String>,
+    tokio::sync::mpsc::UnboundedReceiver<String>,
     mpsc::Sender<AppEvent>,
 ) {
     let (event_sender, event_receiver) = mpsc::channel();
-    let (command_sender, command_receiver) = mpsc::channel();
+    let (command_sender, command_receiver) = tokio::sync::mpsc::unbounded_channel();
     (
         ConnectionChannels {
             event_receiver,

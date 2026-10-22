@@ -54,6 +54,10 @@ flowchart LR
 | `/monk` | yes | Opens monk skill-track settings |
 | `/raw_logs` | no | Toggles raw log capture |
 
+## `/connect` — reconnect without blocking the display
+
+The client starts connection setup in the background and keeps local commands and the display responsive. A second `/connect` is rejected while setup is pending. Game input typed during setup is discarded rather than sent to the old connection. If setup fails, the client prints `Reconnect failed: …`; use `/connect` to retry.
+
 ## `/show` — list shortcuts and triggers
 
 While logged in, `/show` prints discovery text to the client scrollback (not to the game).

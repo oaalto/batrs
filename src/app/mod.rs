@@ -40,15 +40,16 @@ use player_logger::PlayerLogger;
 use ratatui::Frame;
 use ratatui::text::Line;
 use raw_logger::RawLogger;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Receiver;
 use telnet_buffer::TelnetBuffer;
+use tokio::sync::{mpsc::UnboundedSender, oneshot};
 use util::show_clock;
 
 use output_buffer::OutputBuffer;
 use scrollback::Scrollback;
 use session_lifecycle::{
-    FreshSessionPlan, FreshSessionReset, OutputDisposition, ReconnectAttemptResult,
-    SessionLifecycle, complete_connect, prepare_connect,
+    FreshSessionPlan, FreshSessionReset, OutputDisposition, SessionLifecycle, complete_connect,
+    prepare_connect,
 };
 use session_state::{LoginState, SessionState};
 
@@ -69,15 +70,17 @@ pub enum AppEvent {
 
 pub struct ConnectionChannels {
     pub event_receiver: Receiver<AppEvent>,
-    pub command_sender: Sender<String>,
+    pub command_sender: UnboundedSender<String>,
 }
 
 pub enum ReconnectResult {
     Connected(ConnectionChannels),
     Failed(String),
+    Pending(oneshot::Receiver<Result<ConnectionChannels, String>>),
 }
 
 pub trait ConnectionCoordinator {
+    /// Begin reconnecting; pending completion must wake the client event loop.
     fn reconnect(&mut self, connection_id: ConnectionId) -> ReconnectResult;
 }
 
@@ -90,9 +93,10 @@ pub struct BatApp {
     combat_awareness: CombatAwareness,
     damage_collector: DamageCollector,
     event_receiver: Receiver<AppEvent>,
-    command_sender: Sender<String>,
+    command_sender: UnboundedSender<String>,
     connection_coordinator: Box<dyn ConnectionCoordinator>,
     session_lifecycle: SessionLifecycle,
+    pending_reconnect: Option<oneshot::Receiver<Result<ConnectionChannels, String>>>,
     telnet_buffer: TelnetBuffer,
     selected_guilds: Vec<Box<dyn Guild>>,
     selected_guild_triggers: Vec<triggers::Trigger>,
@@ -118,7 +122,7 @@ pub struct BatApp {
 impl BatApp {
     pub fn new(
         event_receiver: Receiver<AppEvent>,
-        command_sender: Sender<String>,
+        command_sender: UnboundedSender<String>,
         connection_coordinator: Box<dyn ConnectionCoordinator>,
         viewer_port: u16,
     ) -> Self {
@@ -170,6 +174,7 @@ impl BatApp {
             command_sender,
             connection_coordinator,
             session_lifecycle: SessionLifecycle::new(),
+            pending_reconnect: None,
             telnet_buffer: TelnetBuffer::new(),
             selected_guilds: Vec::new(),
             selected_guild_triggers: Vec::new(),
@@ -295,6 +300,7 @@ impl BatApp {
     }
 
     pub fn read_input(&mut self) {
+        self.poll_reconnect();
         while let Ok(event) = self.event_receiver.try_recv() {
             match event {
                 AppEvent::RawInput {
@@ -629,17 +635,45 @@ impl BatApp {
         };
 
         self.apply_fresh_session_plan(plan);
+        // Disconnect the old writer immediately, including when the new attempt fails.
+        self.command_sender = tokio::sync::mpsc::unbounded_channel().0;
         self.output
             .append_lines(vec![StyledLine::new("Reconnect started.")]);
         self.request_redraw();
 
-        match complete_connect(
+        let result = complete_connect(
             &mut self.session_lifecycle,
             self.connection_coordinator.as_mut(),
             plan,
-        ) {
-            ReconnectAttemptResult::Connected(channels) => self.install_connection(channels),
-            ReconnectAttemptResult::Failed(error) => {
+        );
+        self.apply_reconnect_result(result);
+    }
+
+    /// Install completed socket setup without waiting; a dropped task permits retry.
+    fn poll_reconnect(&mut self) {
+        let Some(receiver) = self.pending_reconnect.as_mut() else {
+            return;
+        };
+        let result = match receiver.try_recv() {
+            Ok(result) => result,
+            Err(oneshot::error::TryRecvError::Empty) => return,
+            Err(oneshot::error::TryRecvError::Closed) => Err("connection task stopped".into()),
+        };
+        self.pending_reconnect = None;
+        self.session_lifecycle.set_reconnect_in_progress(false);
+        let result = match result {
+            Ok(channels) => ReconnectResult::Connected(channels),
+            Err(error) => ReconnectResult::Failed(error),
+        };
+        self.apply_reconnect_result(result);
+    }
+
+    /// Apply either immediate or asynchronously completed connection setup.
+    fn apply_reconnect_result(&mut self, result: ReconnectResult) {
+        match result {
+            ReconnectResult::Pending(receiver) => self.pending_reconnect = Some(receiver),
+            ReconnectResult::Connected(channels) => self.install_connection(channels),
+            ReconnectResult::Failed(error) => {
                 self.output
                     .append_lines(vec![StyledLine::new(&format!("Reconnect failed: {error}"))]);
                 self.request_redraw();
@@ -1214,6 +1248,9 @@ impl BatApp {
     }
 
     fn send_command(&mut self, command: String) -> bool {
+        if self.pending_reconnect.is_some() {
+            return false;
+        }
         match self.command_sender.send(command) {
             Ok(()) => true,
             Err(e) => {
@@ -1288,7 +1325,7 @@ mod tests {
     use regex::Regex;
     use std::sync::mpsc;
 
-    fn test_app() -> (BatApp, mpsc::Receiver<String>) {
+    fn test_app() -> (BatApp, tokio::sync::mpsc::UnboundedReceiver<String>) {
         let (app, command_receiver, _event_sender) =
             test_app_with_coordinator(Box::new(FakeConnectionCoordinator::default()));
         (app, command_receiver)
@@ -1300,7 +1337,9 @@ mod tests {
             .update_login_state("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >");
     }
 
-    fn drain_commands(command_receiver: &mpsc::Receiver<String>) -> Vec<String> {
+    fn drain_commands(
+        command_receiver: &mut tokio::sync::mpsc::UnboundedReceiver<String>,
+    ) -> Vec<String> {
         let mut commands = Vec::new();
         while let Ok(command) = command_receiver.try_recv() {
             commands.push(command);
@@ -1310,7 +1349,11 @@ mod tests {
 
     fn test_app_with_coordinator(
         connection_coordinator: Box<dyn ConnectionCoordinator>,
-    ) -> (BatApp, mpsc::Receiver<String>, mpsc::Sender<AppEvent>) {
+    ) -> (
+        BatApp,
+        tokio::sync::mpsc::UnboundedReceiver<String>,
+        mpsc::Sender<AppEvent>,
+    ) {
         let (channels, command_receiver, event_sender) = connection_channels();
         let app = BatApp {
             output: OutputBuffer::new(),
@@ -1324,6 +1367,7 @@ mod tests {
             command_sender: channels.command_sender,
             connection_coordinator,
             session_lifecycle: SessionLifecycle::new(),
+            pending_reconnect: None,
             telnet_buffer: TelnetBuffer::new(),
             selected_guilds: Vec::new(),
             selected_guild_triggers: Vec::new(),
@@ -1378,12 +1422,15 @@ mod tests {
 
     #[test]
     fn combat_round_starts_correlated_probe_before_short_score() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
 
         app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
 
-        assert_eq!(drain_commands(&command_receiver), vec!["@sc", "#scan all"]);
+        assert_eq!(
+            drain_commands(&mut command_receiver),
+            vec!["@sc", "#scan all"]
+        );
         assert_eq!(
             app.stats.start_combat_round_invocations(),
             1,
@@ -1395,7 +1442,7 @@ mod tests {
 
     #[test]
     fn correlated_scan_rows_are_gagged_and_kept_out_of_automation() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
         app.automation.add_waiter(Waiter {
             pattern: Regex::new("Guard").unwrap(),
@@ -1403,7 +1450,7 @@ mod tests {
             consume: true,
         });
         app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
 
         app.process_input_lines(vec![
             "scan all".to_string(),
@@ -1411,7 +1458,7 @@ mod tests {
             "The rain falls.".to_string(),
         ]);
 
-        assert_eq!(drain_commands(&command_receiver), Vec::<String>::new());
+        assert_eq!(drain_commands(&mut command_receiver), Vec::<String>::new());
         assert_eq!(
             app.output.plain_lines(),
             vec!["*** Round 1 ***", "The rain falls."]
@@ -1624,7 +1671,7 @@ mod tests {
 
     #[test]
     fn scan_capture_completes_when_next_round_header_arrives() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
 
         app.process_input_lines(vec![
@@ -1635,7 +1682,7 @@ mod tests {
             "********************** Round 2 **********************".to_string(),
         ]);
         assert_eq!(
-            drain_commands(&command_receiver),
+            drain_commands(&mut command_receiver),
             vec!["@sc", "#scan all", "@sc", "#scan all"]
         );
 
@@ -1664,7 +1711,7 @@ mod tests {
 
     #[test]
     fn gagged_prompt_before_scan_echo_does_not_cancel_probe() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
 
         app.process_input_lines(vec![
@@ -1675,7 +1722,7 @@ mod tests {
             "********************** Round 2 **********************".to_string(),
         ]);
         assert_eq!(
-            drain_commands(&command_receiver),
+            drain_commands(&mut command_receiver),
             vec!["@sc", "#scan all", "@sc", "#scan all"]
         );
 
@@ -1701,7 +1748,7 @@ mod tests {
 
     #[test]
     fn scan_row_before_echo_stays_out_of_game_output() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
 
         app.process_input_lines(vec![
@@ -1710,7 +1757,7 @@ mod tests {
             "scan all".to_string(),
             "The rain falls.".to_string(),
         ]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
 
         assert_eq!(
             app.output.plain_lines(),
@@ -1721,11 +1768,11 @@ mod tests {
 
     #[test]
     fn late_probe_response_after_echo_timeout_stays_out_of_game_output() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
 
         app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
 
         let filler = vec!["filler".to_string(); 30];
         app.process_input_lines(filler);
@@ -1752,7 +1799,7 @@ mod tests {
 
     #[test]
     fn round_header_before_probe_echo_stays_out_of_game_output() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
 
         app.process_input_lines(vec![
@@ -1763,7 +1810,7 @@ mod tests {
             "Guard swings.".to_string(),
         ]);
         assert_eq!(
-            drain_commands(&command_receiver),
+            drain_commands(&mut command_receiver),
             vec!["@sc", "#scan all", "@sc", "#scan all"]
         );
         assert_eq!(
@@ -1774,7 +1821,7 @@ mod tests {
 
     #[test]
     fn user_game_commands_probe_every_other_send_after_user_command() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
         app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
         app.process_input_lines(vec![
@@ -1782,7 +1829,7 @@ mod tests {
             "Guard is noticeably hurt (50%).".to_string(),
             "The rain falls.".to_string(),
         ]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
 
         app.input.insert_str("look");
         app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -1790,20 +1837,20 @@ mod tests {
         app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
 
         assert_eq!(
-            drain_commands(&command_receiver),
+            drain_commands(&mut command_receiver),
             vec!["look", "north", "#scan all"]
         );
     }
 
     #[test]
     fn second_combat_round_clears_accumulated_short_score_diffs() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
         app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
         app.process_input_lines(vec![
             "H:1/2 [+10] S:3/4 [-5] E:5/6 [] $:7 [-5] exp:8 [+9]".to_string(),
         ]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
 
         let line_with_diffs: String = app
             .stats
@@ -1818,7 +1865,7 @@ mod tests {
         );
 
         app.process_input_lines(vec!["*** Round 2 ***".to_string()]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
 
         let line_after_round: String = app
             .stats
@@ -1837,7 +1884,7 @@ mod tests {
 
     #[test]
     fn global_not_in_combat_clears_scan_state_and_stops_diff_accumulation() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
         app.automation.set_flag("is_lich", true);
         app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
@@ -1846,7 +1893,7 @@ mod tests {
             crate::combat_awareness::NOT_IN_COMBAT_LINE.to_string(),
             "H:1/2 [] S:3/4 [] E:5/6 [] $:7 [] exp:8 []".to_string(),
         ]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
 
         let rendered: String = app
             .stats
@@ -1870,7 +1917,7 @@ mod tests {
             "probe-returned combat-end should stay gagged while probe is in flight"
         );
         assert!(
-            drain_commands(&command_receiver).is_empty(),
+            drain_commands(&mut command_receiver).is_empty(),
             "gagged combat-end must not reach trigger pipeline"
         );
         assert!(
@@ -1881,18 +1928,18 @@ mod tests {
 
     #[test]
     fn capturing_probe_combat_end_gags_line_and_clears_snapshot() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
         app.automation.set_flag("is_lich", true);
         app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
 
         app.process_input_lines(vec![
             "scan all".to_string(),
             "Guard is noticeably hurt (50%).".to_string(),
             crate::combat_awareness::NOT_IN_COMBAT_LINE.to_string(),
         ]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
 
         assert!(!app.combat_awareness.is_active());
         assert!(!app.automation.flag_is_set("in_battle"));
@@ -1907,12 +1954,12 @@ mod tests {
                 .plain_lines()
                 .contains(&crate::combat_awareness::NOT_IN_COMBAT_LINE)
         );
-        assert!(drain_commands(&command_receiver).is_empty());
+        assert!(drain_commands(&mut command_receiver).is_empty());
     }
 
     #[test]
     fn combat_end_fan_out_runs_once_per_line() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
         app.automation.set_flag("is_lich", true);
         app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
@@ -1921,12 +1968,12 @@ mod tests {
             "Guard is noticeably hurt (50%).".to_string(),
             "done".to_string(),
         ]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
         assert_eq!(app.combat_awareness.snapshot().len(), 1);
         app.process_input_lines(vec![
             "H:1/2 [+10] S:3/4 [] E:5/6 [] $:7 [] exp:8 []".to_string(),
         ]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
 
         app.process_input_lines(vec![
             crate::combat_awareness::NOT_IN_COMBAT_LINE.to_string(),
@@ -1934,7 +1981,7 @@ mod tests {
         ]);
 
         assert_eq!(
-            drain_commands(&command_receiver),
+            drain_commands(&mut command_receiver),
             vec!["@lich drain"],
             "organic combat-end reaches triggers; lifecycle fans out once via CA"
         );
@@ -1962,16 +2009,16 @@ mod tests {
 
     #[test]
     fn second_combat_end_line_increments_end_combat_fan_out_once_per_line() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
         app.process_input_lines(vec!["*** Round 1 ***".to_string()]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
 
         app.process_input_lines(vec![
             crate::combat_awareness::NOT_IN_COMBAT_LINE.to_string(),
             crate::combat_awareness::NOT_IN_COMBAT_LINE.to_string(),
         ]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
 
         assert_eq!(
             app.stats.end_combat_invocations(),
@@ -1987,7 +2034,7 @@ mod tests {
         const AREA_VAR: &str = "monk_current_area_skill";
         const AVOID_VAR: &str = "monk_current_avoid_skill";
 
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         log_in(&mut app);
         app.apply_guild_selection(GuildSelection::from_playable_keys(
             [GuildKey::Monk],
@@ -2008,7 +2055,7 @@ mod tests {
             "Guard is noticeably hurt (50%).".to_string(),
             "done".to_string(),
         ]);
-        drain_commands(&command_receiver);
+        drain_commands(&mut command_receiver);
 
         app.process_input_lines(vec![
             crate::combat_awareness::NOT_IN_COMBAT_LINE.to_string(),
@@ -2034,7 +2081,7 @@ mod tests {
 
     #[test]
     fn command_effect_send_writes_to_command_sender() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
 
         let followed = app.apply_command_effects(vec![command::CommandEffect::Send("look".into())]);
 
@@ -2044,7 +2091,7 @@ mod tests {
 
     #[test]
     fn enter_on_empty_logged_in_input_sends_empty_command() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         app.session.set_login_name("tester".to_string());
         app.session
             .update_login_state("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >");
@@ -2056,7 +2103,7 @@ mod tests {
 
     #[test]
     fn enter_on_empty_pre_login_input_sends_empty_command() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
 
         app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
 
@@ -2090,7 +2137,7 @@ mod tests {
 
     #[test]
     fn command_effect_automation_expands_vars_and_sends() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         app.automation.set_var("rig", "satchel".to_string());
 
         let followed = app.apply_command_effects(vec![command::CommandEffect::Automation(
@@ -2275,10 +2322,10 @@ mod tests {
 
     #[test]
     fn reconnect_effect_starts_fresh_connection_and_replaces_command_sender() {
-        let (new_channels, new_command_receiver, _new_event_sender) = connection_channels();
+        let (new_channels, mut new_command_receiver, _new_event_sender) = connection_channels();
         let (coordinator, calls, _results) =
             FakeConnectionCoordinator::new(vec![ReconnectResult::Connected(new_channels)]);
-        let (mut app, old_command_receiver, _event_sender) =
+        let (mut app, mut old_command_receiver, _event_sender) =
             test_app_with_coordinator(Box::new(coordinator));
         app.session.set_login_name("tester".to_string());
         app.session
@@ -2320,6 +2367,79 @@ mod tests {
             ]
         );
         assert!(!app.session.is_logged_in());
+    }
+
+    #[test]
+    fn pending_reconnect_keeps_client_responsive_and_installs_completion() {
+        let (sender, receiver) = oneshot::channel();
+        let (coordinator, calls, _results) =
+            FakeConnectionCoordinator::new(vec![ReconnectResult::Pending(receiver)]);
+        let (mut app, mut old_commands, _old_events) =
+            test_app_with_coordinator(Box::new(coordinator));
+        app.handle_paste_event("/connect\n/connect\nlook\n/help\n".into());
+        assert_eq!(*calls.borrow(), vec![1]);
+        assert!(old_commands.try_recv().is_err());
+        assert!(
+            app.output
+                .plain_lines()
+                .contains(&"Reconnect already in progress.")
+        );
+        assert!(
+            app.output
+                .plain_lines()
+                .iter()
+                .any(|line| line.contains("/help"))
+        );
+        app.read_input();
+        assert!(app.pending_reconnect.is_some());
+
+        let (channels, mut new_commands, new_events) = connection_channels();
+        assert!(sender.send(Ok(channels)).is_ok());
+        app.read_input();
+        app.handle_paste_event("look\n".into());
+        assert_eq!(new_commands.try_recv().as_deref(), Ok("look"));
+        assert!(old_commands.try_recv().is_err());
+        new_events
+            .send(AppEvent::RawInput {
+                connection_id: 1,
+                bytes: b"hello".to_vec(),
+            })
+            .unwrap();
+        app.read_input();
+        assert!(app.pending_reconnect.is_none());
+        assert!(prepare_connect(&mut app.session_lifecycle, None).is_ok());
+    }
+
+    #[test]
+    fn pending_reconnect_failure_and_dropped_task_allow_retry() {
+        for drop_task in [false, true] {
+            let (sender, receiver) = oneshot::channel();
+            let (coordinator, calls, _results) = FakeConnectionCoordinator::new(vec![
+                ReconnectResult::Pending(receiver),
+                ReconnectResult::Failed("retry".into()),
+            ]);
+            let (mut app, _commands, _events) = test_app_with_coordinator(Box::new(coordinator));
+            app.handle_paste_event("/connect\n".into());
+            if drop_task {
+                drop(sender);
+            } else {
+                assert!(sender.send(Err("refused".into())).is_ok());
+            }
+            app.read_input();
+            let error = if drop_task {
+                "connection task stopped"
+            } else {
+                "refused"
+            };
+            assert!(
+                app.output
+                    .plain_lines()
+                    .contains(&format!("Reconnect failed: {error}").as_str())
+            );
+            assert!(app.take_redraw());
+            app.handle_paste_event("/connect\n".into());
+            assert_eq!(*calls.borrow(), vec![1, 2]);
+        }
     }
 
     #[test]
@@ -2566,7 +2686,7 @@ mod tests {
 
     #[test]
     fn multiline_paste_submits_completed_lines_and_keeps_remainder() {
-        let (mut app, command_receiver) = test_app();
+        let (mut app, mut command_receiver) = test_app();
         app.session.set_login_name("tester".to_string());
         app.session
             .update_login_state("Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >");

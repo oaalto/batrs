@@ -7,7 +7,8 @@ mod stale_events;
 pub use connect_command::{complete_connect, prepare_connect};
 pub use fresh_session::{FreshSessionPlan, FreshSessionReset};
 pub use output_disposition::OutputDisposition;
-pub use reconnect::ReconnectAttemptResult;
+#[cfg(test)]
+use reconnect::ReconnectAttemptResult;
 
 use super::{ConnectionId, INITIAL_CONNECTION_ID};
 
@@ -45,7 +46,6 @@ impl SessionLifecycle {
         &mut self.reconnect_in_progress
     }
 
-    #[cfg(test)]
     pub fn set_reconnect_in_progress(&mut self, in_progress: bool) {
         self.reconnect_in_progress = in_progress;
     }
