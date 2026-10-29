@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-29] update | Guild-gated meditation and dark meditation indicator
+
+- Updated: [Nergal Status](concepts/nergal-status.md)
+- Sources: `src/stats.rs`, `src/app/mod.rs`, `src/triggers/recovery_bracket.rs`, `docs/manual/ui.md`, `docs/guilds/tzarakk.md`
+- Notes: Yellow `m` requires selected Curate, Monk, Psionicist, Tiger, or Tzarakk and tracked readiness. Selection changes preserve readiness; Nergal alone no longer shows `m`. Dark meditation server messages remain unverified; existing trigger behavior is unchanged.
+
 ## [2026-10-29] update | Nergal dreary hibernation recovery readiness
 
 - Updated: [Nergal Status](concepts/nergal-status.md)

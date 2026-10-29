@@ -31,6 +31,7 @@ Tracks mount summoned / dismounted / riding / banish / charge hit or miss / moun
 | Shortcut | Full name | Notes |
 |----------|-----------|-------|
 | `med` | Meditation | **`dismount`**, then `use 'meditation'`. |
+| `dmed` | Dark meditation | Dismount first. Args `hp` → sacrifice health; `sp` → sacrifice power; anything else (including empty) → sacrifice endurance. |
 | `sleep` | Sleep | **`dismount`**, then `sleep`. |
 | `feed_mode` | Rip: feed | Sets `rip_action` chain: loot, `tzarakk chaosfeed corpse` (twice), drop zinc/mowgles. |
 | `heal_mode` | Rip: heal | Sets `rip_action`: loot, `use 'harvest soul' at corpse`, drops. |

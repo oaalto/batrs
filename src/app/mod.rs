@@ -1498,7 +1498,7 @@ mod tests {
         log_in(&mut app);
         app.stats.set_recovery_bracket_defaults_for_login();
         let selection = GuildSelection::from_playable_keys(
-            [GuildKey::Nergal, GuildKey::Monk],
+            [GuildKey::Nergal, GuildKey::Tzarakk],
             Some("evil_religious"),
         );
         let bracket = |app: &BatApp| -> String {
@@ -1511,9 +1511,9 @@ mod tests {
         };
         let start = "Dark mist floods the area around you as twisted, rotting roots spew forth from it, enveloping you in a cocoon.";
         let harmony = "You feel in harmony with yourself, the universe and life in general.";
-        assert!(bracket(&app).ends_with("  [cm]"));
+        assert!(bracket(&app).ends_with("  [c]"));
         app.process_input_lines(vec![harmony.into()]);
-        assert!(bracket(&app).ends_with("  [cm]"));
+        assert!(bracket(&app).ends_with("  [c]"));
         app.apply_guild_selection(selection.clone());
         drain_commands(&mut receiver);
         assert!(bracket(&app).ends_with("  [cmd]"));
@@ -1531,7 +1531,7 @@ mod tests {
         assert!(output.contains(&harmony));
         assert!(drain_commands(&mut receiver).is_empty());
         app.apply_guild_selection(GuildSelection::default());
-        assert!(bracket(&app).ends_with("  [cm]"));
+        assert!(bracket(&app).ends_with("  [c]"));
         assert!(
             app.stats
                 .render_inline(&selection)
@@ -1561,7 +1561,7 @@ mod tests {
                 let (mut app, _receiver) = test_app();
                 log_in(&mut app);
                 app.apply_guild_selection(GuildSelection::from_playable_keys(
-                    [GuildKey::Nergal],
+                    [GuildKey::Nergal, GuildKey::Tzarakk],
                     Some("evil_religious"),
                 ));
                 app.stats
@@ -1593,6 +1593,40 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn meditation_selection_changes_preserve_readiness() {
+        let (mut app, _receiver) = test_app();
+        log_in(&mut app);
+        app.stats.set_recovery_bracket_defaults_for_login();
+        let curate = GuildSelection::from_playable_keys([GuildKey::Curate], None);
+        let tzarakk = GuildSelection::from_playable_keys([GuildKey::Tzarakk], None);
+        let visible = |app: &BatApp| {
+            app.stats
+                .render_inline(&app.guild_selection)
+                .spans
+                .iter()
+                .any(|span| span.content == "m")
+        };
+        assert!(!visible(&app));
+        app.apply_guild_selection(curate.clone());
+        assert!(visible(&app));
+        app.process_input_lines(vec!["You sit down and start meditating.".into()]);
+        assert!(!visible(&app));
+        app.apply_guild_selection(GuildSelection::default());
+        app.apply_guild_selection(tzarakk);
+        assert!(!visible(&app));
+        app.process_input_lines(vec![
+            "You feel in harmony with yourself, the universe and life in general.".into(),
+        ]);
+        assert!(visible(&app));
+        app.apply_guild_selection(GuildSelection::default());
+        assert!(!visible(&app));
+        app.apply_guild_selection(curate);
+        assert!(visible(&app));
+        app.apply_fresh_session_plan(FreshSessionPlan::new(1));
+        assert!(!visible(&app));
     }
 
     #[test]

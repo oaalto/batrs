@@ -212,7 +212,7 @@ impl Stats {
         self.recovery_bracket_dreary_hibernation = ready;
     }
 
-    /// Render primary stats and recovery readiness; `d` is visible only for selected Nergal.
+    /// Render primary stats and recovery readiness, gated by selected guilds for `m` and `d`.
     pub fn render_inline(&self, guild_selection: &GuildSelection) -> Line<'static> {
         let mut spans = Vec::new();
         spans.extend(self.inline_stat_spans("Hp", self.hp, self.max_hp, self.diff_hp));
@@ -228,7 +228,17 @@ impl Stats {
         if self.recovery_bracket_camping {
             spans.push(Span::styled("c", Style::default().fg(palette::GREEN)));
         }
-        if self.recovery_bracket_meditation {
+        if self.recovery_bracket_meditation
+            && [
+                GuildKey::Curate,
+                GuildKey::Monk,
+                GuildKey::Psionicist,
+                GuildKey::Tiger,
+                GuildKey::Tzarakk,
+            ]
+            .iter()
+            .any(|key| guild_selection.is_selected(*key))
+        {
             spans.push(Span::styled("m", Style::default().fg(palette::YELLOW)));
         }
         if guild_selection.is_selected(GuildKey::Nergal) && self.recovery_bracket_dreary_hibernation
@@ -349,14 +359,14 @@ mod tests {
     #[test]
     fn dreary_hibernation_readiness_is_guild_gated_and_survives_stats_updates() {
         let nergal = GuildSelection::from_playable_keys(
-            [GuildKey::Nergal, GuildKey::Monk],
+            [GuildKey::Nergal, GuildKey::Tzarakk],
             Some("evil_religious"),
         );
         let mut stats = Stats::default();
         assert!(line_text(&stats.render_inline(&nergal)).ends_with("  []"));
         stats.set_recovery_bracket_defaults_for_login();
         assert!(line_text(&stats.render_inline(&nergal)).ends_with("  [cmd]"));
-        assert!(line_text(&stats.render_inline(&GuildSelection::default())).ends_with("  [cm]"));
+        assert!(line_text(&stats.render_inline(&GuildSelection::default())).ends_with("  [c]"));
         stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
         stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
         let rendered = stats.render_inline(&nergal);
@@ -374,6 +384,36 @@ mod tests {
         stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
         stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
         assert!(line_text(&stats.render_inline(&nergal)).ends_with("  [cm]"));
+    }
+
+    #[test]
+    fn meditation_visibility_matches_med_and_dmed_guild_commands() {
+        let mut stats = Stats::default();
+        for entry in crate::guilds::catalog::playable_entries() {
+            let commands = entry.build().unwrap().commands();
+            let qualifies = commands.contains_key("med") || commands.contains_key("dmed");
+            let selection = GuildSelection::from_playable_keys([entry.key], None);
+            for ready in [false, true] {
+                stats.apply_effect(StatsEffect::SetRecoveryBracketMeditation(ready));
+                let rendered = stats.render_inline(&selection);
+                assert_eq!(
+                    rendered
+                        .spans
+                        .iter()
+                        .filter(|span| span.content == "m")
+                        .count(),
+                    usize::from(qualifies && ready),
+                    "{} readiness={ready}",
+                    entry.persisted_key
+                );
+            }
+        }
+        assert!(line_text(&stats.render_inline(&GuildSelection::default())).ends_with("  []"));
+        let both = GuildSelection::from_playable_keys(
+            [GuildKey::Curate, GuildKey::Tzarakk],
+            Some("evil_religious"),
+        );
+        assert!(line_text(&stats.render_inline(&both)).ends_with("  [m]"));
     }
 
     #[test]
@@ -430,18 +470,19 @@ mod tests {
     #[test]
     fn render_inline_recovery_bracket_suffix() {
         let mut stats = Stats::default();
+        let selection = GuildSelection::from_playable_keys([GuildKey::Monk], None);
         stats.update_from_short_score([905, 905, 0, 143, 143, 0, 474, 474, 0, 0, 0, 87_333, 0]);
-        assert!(line_text(&stats.render_inline(&GuildSelection::default())).ends_with("  []"));
+        assert!(line_text(&stats.render_inline(&selection)).ends_with("  []"));
 
         stats.set_recovery_bracket_camping(true);
         stats.set_recovery_bracket_meditation(false);
-        assert!(line_text(&stats.render_inline(&GuildSelection::default())).ends_with("  [c]"));
+        assert!(line_text(&stats.render_inline(&selection)).ends_with("  [c]"));
 
         stats.set_recovery_bracket_meditation(true);
-        let line = line_text(&stats.render_inline(&GuildSelection::default()));
+        let line = line_text(&stats.render_inline(&selection));
         assert!(line.ends_with("  [cm]"), "got {line:?}");
 
-        let rendered = stats.render_inline(&GuildSelection::default());
+        let rendered = stats.render_inline(&selection);
         let camping = rendered
             .spans
             .iter()
@@ -459,20 +500,22 @@ mod tests {
     #[test]
     fn set_recovery_bracket_defaults_for_login_enables_both() {
         let mut stats = Stats::default();
+        let selection = GuildSelection::from_playable_keys([GuildKey::Monk], None);
         stats.set_recovery_bracket_camping(false);
         stats.set_recovery_bracket_meditation(false);
         stats.set_recovery_bracket_defaults_for_login();
         stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
-        assert!(line_text(&stats.render_inline(&GuildSelection::default())).ends_with("  [cm]"));
+        assert!(line_text(&stats.render_inline(&selection)).ends_with("  [cm]"));
     }
 
     #[test]
     fn prompt_updates_preserve_recovery_bracket_flags() {
         let mut stats = Stats::default();
+        let selection = GuildSelection::from_playable_keys([GuildKey::Monk], None);
         stats.set_recovery_bracket_camping(false);
         stats.set_recovery_bracket_meditation(true);
         stats.update_from_prompt([10, 20, 30, 40, 50, 60, 70]);
-        let line = line_text(&stats.render_inline(&GuildSelection::default()));
+        let line = line_text(&stats.render_inline(&selection));
         assert!(line.ends_with("  [m]"), "got {line:?}");
     }
 

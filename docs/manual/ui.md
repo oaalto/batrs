@@ -19,9 +19,9 @@ If the initial BatMUD connection fails, the client prints only the error message
 
 After you are logged in, a **single summary line** can show combat and character info. Before login it stays empty.
 
-The recovery bracket shows ready skills in order: green **`c`** for camping, yellow **`m`** for meditation, and normal-colored **`d`** for dreary hibernation only when **Nergal** is selected in `/guilds`. For example, `[cmd]` means all three are ready. Starting a skill hides its letter; recovery messages restore it. Dreary hibernation and meditation share the harmony recovery message, which restores both letters when their trigger groups are enabled.
+The recovery bracket shows tracked readiness in order: green **`c`** for camping, yellow **`m`** for meditation or dark meditation only when **Curate, Monk, Psionicist, Tiger, or Tzarakk** is selected in `/guilds`, and normal-colored **`d`** for dreary hibernation only when **Nergal** is selected. Multiple qualifying guilds still show only one `m`. For example, Nergal alone can show `[cd]`; Nergal with Tzarakk can show `[cmd]`. The meditation start message hides `m`; the harmony recovery message restores it and also restores `d` when their trigger groups are enabled. Dark meditation uses the existing readiness tracker; its server start/recovery messages have not been verified.
 
-Readiness defaults to ready on login; newly selecting Nergal also initializes `d` as ready. These defaults are not server-confirmed cooldown checks. Deselecting Nergal clears and hides `d`. Disabling guild triggers freezes dreary hibernation updates; disabling core triggers freezes camping and meditation updates.
+Readiness defaults to ready on login; newly selecting Nergal also initializes `d` as ready. These defaults are not server-confirmed cooldown checks. Deselecting Nergal clears and hides `d`. Removing the last meditation-capable guild hides `m`; selection changes preserve meditation readiness rather than resetting it. Disabling guild triggers freezes dreary hibernation updates; disabling core triggers freezes camping and meditation updates.
 
 ## Extra status rows
 
