@@ -83,6 +83,21 @@ a {
   color: var(--link);
 }
 
+.heading-anchor {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.heading-anchor:hover {
+  color: var(--link);
+  text-decoration: underline;
+}
+
+.heading-anchor:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;

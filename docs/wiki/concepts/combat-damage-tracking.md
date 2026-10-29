@@ -68,6 +68,21 @@ Isolated `known_min`/`known_max` from confirmed observations always override ran
 - **Melee** groups rows into `weapon_family` sub-sections (catalog file order from `hit_messages.md`; families with no rows under current filters are hidden). Each sub-section is one table with the same confirmed/estimated columns. Default verb order within a family: `catalog_rank` ascending, then `message_verb` ascending. Column sort applies within each family only.
 - Skill and spell remain flat single tables keyed on `damage_category` + `message_verb`.
 
+## Heading anchors and navigation
+
+All visible `h1`–`h3` headings in the local viewer have native `#` permalinks with accessible labels and keyboard focus styling. Stable targets are `combat-damage`, `melee`, `skill`, `spell`, `unattributed`, `melee-{family_id}`, `events`, and `context-lines`, as applicable. The landing page retains its existing `unattributed` wrapper ID; its heading links to that wrapper without a duplicate ID. The filter form additionally owns `filters`, without a new heading.
+
+Heading permalinks use fragment-only URLs, preserving the path, filters, family selection, and sorting. Cross-page and sort links append fragments after their existing query strings:
+
+- Attributed Back links target the landing category, or the selected melee family; family-less melee returns to `#melee`.
+- Unattributed Back and both deletion returns target the filtered landing page's `#unattributed` section.
+- **Change filters on main page** targets `#filters`, independently of Back. Apply and the general viewer entry URL still land at the top.
+- Landing sort links target the category/family whose header was clicked; sort selection still applies across tables. Event sort links target `#events`.
+- Landing verb links and drill-down verb/sibling links target `#events`; unattributed entry and Previous/Next links target the record's `#unattributed` heading, not its transcript. `#context-lines` is available as an explicit permalink.
+- Empty top-level sections retain targets; melee families without rows remain hidden. A bookmarked family fragment may have no target under different filters.
+
+These are rendering/navigation changes only: routes, query-selection semantics, database storage, review writes, and deletion scope remain unchanged. Sources: `src/combat_damage/viewer.rs`, `assets/combat_damage/style.css`.
+
 ## Drill-down and batch siblings
 
 Verb drill-down (`/events/{category}/{verb}`) lists focal rows for that verb. Optional `?family=` filters melee focal rows by `weapon_family` (e.g. disambiguate `savagely strike` in `bash` vs `claw`); page title includes the family when set. When a focal row belongs to an ambiguous attribution batch (`candidate_count > 1`), sibling rows from the same `batch_id` appear inline immediately after it — including cross-category siblings. Focal rows sort by the chosen column; siblings follow their focal row, sub-sorted by category then verb. Sibling rows are styled distinctly and link to their own verb drill-down.

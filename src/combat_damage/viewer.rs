@@ -156,7 +156,10 @@ async fn remove_reviewed_unattributed(
             log::warn!("failed to open database for remove reviewed: {message}");
         }
     }
-    Redirect::to(&build_query_string("/", &filters, None, None))
+    Redirect::to(&format!(
+        "{}#unattributed",
+        build_query_string("/", &filters, None, None)
+    ))
 }
 
 /// Deletes one ID and returns to the filtered landing section; failures return 503.
@@ -327,7 +330,7 @@ fn render_landing(
     let mut html = String::new();
     html.push_str("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">");
     html.push_str("<title>Combat damage</title><link rel=\"stylesheet\" href=\"/style.css\">");
-    html.push_str("</head><body><h1>Combat damage</h1>");
+    html.push_str("</head><body><h1 id=\"combat-damage\">Combat damage <a class=\"heading-anchor\" href=\"#combat-damage\" aria-label=\"Link to Combat damage\">#</a></h1>");
     html.push_str(&render_filters(filters, players, "/"));
     html.push_str(&render_melee_section(melee, filters, query));
     html.push_str(&render_category_table(
@@ -364,7 +367,7 @@ fn render_unattributed_section(rows: &[UnattributedHpSummary], filters: &FilterP
     };
     let mut html = String::from("<div id=\"unattributed\" class=\"unattributed-header\"><h2>");
     html.push_str(&heading);
-    html.push_str("</h2>");
+    html.push_str(" <a class=\"heading-anchor\" href=\"#unattributed\" aria-label=\"Link to Unattributed HP loss\">#</a></h2>");
     if reviewed_count > 0 {
         html.push_str(
             "<form method=\"post\" action=\"/unattributed/remove-reviewed\" class=\"remove-reviewed-form\">",
@@ -397,7 +400,11 @@ fn render_unattributed_section(rows: &[UnattributedHpSummary], filters: &FilterP
     );
     html.push_str("</tr></thead><tbody>");
     for row in rows {
-        let href = format!("/unattributed/{}{}", row.id, build_filter_query(filters));
+        let href = format!(
+            "/unattributed/{}{}#unattributed",
+            row.id,
+            build_filter_query(filters)
+        );
         let row_class = if row.reviewed {
             " class=\"reviewed\""
         } else {
@@ -462,7 +469,7 @@ fn render_unattributed_drill_down(
         prev_id,
         next_id,
     ));
-    html.push_str("<div class=\"unattributed-detail-header\"><h1>Unattributed HP loss</h1>");
+    html.push_str("<div class=\"unattributed-detail-header\"><h1 id=\"unattributed\">Unattributed HP loss <a class=\"heading-anchor\" href=\"#unattributed\" aria-label=\"Link to Unattributed HP loss\">#</a></h1>");
     html.push_str(&render_delete_unattributed_form(detail.id, filters));
     html.push_str("</div>");
     if !filtered.iter().any(|row| row.id == detail.id) {
@@ -494,7 +501,7 @@ fn render_unattributed_drill_down(
         html_escape(&detail.h_line_text)
     ));
     html.push_str("</tbody></table>");
-    html.push_str("<h2>Context lines</h2>");
+    html.push_str("<h2 id=\"context-lines\">Context lines <a class=\"heading-anchor\" href=\"#context-lines\" aria-label=\"Link to Context lines\">#</a></h2>");
     if detail.context_lines.is_empty() {
         html.push_str("<p class=\"empty-hint\">No context lines before this H line.</p>");
     }
@@ -517,13 +524,21 @@ fn render_unattributed_nav(
     prev_id: Option<i64>,
     next_id: Option<i64>,
 ) -> String {
-    let mut parts = vec![format!("<a href=\"{back_href}\">&larr; Back</a>")];
+    let mut parts = vec![format!(
+        "<a href=\"{back_href}#unattributed\">&larr; Back</a>"
+    )];
     if let Some(id) = prev_id {
-        let href = format!("/unattributed/{id}{}", build_filter_query(filters));
+        let href = format!(
+            "/unattributed/{id}{}#unattributed",
+            build_filter_query(filters)
+        );
         parts.push(format!("<a href=\"{href}\">&larr; Previous</a>"));
     }
     if let Some(id) = next_id {
-        let href = format!("/unattributed/{id}{}", build_filter_query(filters));
+        let href = format!(
+            "/unattributed/{id}{}#unattributed",
+            build_filter_query(filters)
+        );
         parts.push(format!("<a href=\"{href}\">Next &rarr;</a>"));
     }
     format!(
@@ -538,14 +553,20 @@ fn render_melee_section(
     filters: &FilterParams,
     query: &ViewerQuery,
 ) -> String {
-    let mut html = String::from("<h2>Melee</h2>");
+    let mut html = String::from(
+        "<h2 id=\"melee\">Melee <a class=\"heading-anchor\" href=\"#melee\" aria-label=\"Link to Melee\">#</a></h2>",
+    );
     if sections.is_empty() {
         html.push_str("<p class=\"empty-hint\">No melee damage recorded yet.</p>");
         return html;
     }
     for section in sections {
         html.push_str(&format!(
-            "<h3>{} ({})</h3>",
+            "<h3 id=\"melee-{}\">{} ({}) <a class=\"heading-anchor\" href=\"#melee-{}\" aria-label=\"Link to {} ({})\">#</a></h3>",
+            html_escape(&section.family_id),
+            html_escape(&section.family_title),
+            html_escape(&section.family_id),
+            percent_encode_path(&section.family_id),
             html_escape(&section.family_title),
             html_escape(&section.family_id)
         ));
@@ -578,7 +599,11 @@ fn render_drill_down(
     );
     html.push_str("</head><body>");
     html.push_str(&format!(
-        "<div class=\"drill-navigation\"><p class=\"back-link\"><a href=\"{back_href}\">&larr; Back</a></p>{}</div>",
+        "<div class=\"drill-navigation\"><p class=\"back-link\"><a href=\"{back_href}#{}\">&larr; Back</a></p>{}</div>",
+        percent_encode_path(&match (category, family) {
+            ("melee", Some(family)) => format!("melee-{family}"),
+            _ => category.to_string(),
+        }),
         render_filter_summary(filters, &back_href)
     ));
     let heading = match family {
@@ -590,7 +615,7 @@ fn render_drill_down(
         ),
         None => format!("{} / {}", html_escape(category), html_escape(verb)),
     };
-    html.push_str(&format!("<h1>{heading}</h1>"));
+    html.push_str(&format!("<h1 id=\"events\">{heading} <a class=\"heading-anchor\" href=\"#events\" aria-label=\"Link to {heading}\">#</a></h1>"));
     html.push_str("<table><thead><tr>");
     for (col, label) in [
         ("recorded_at", "Recorded at"),
@@ -666,7 +691,7 @@ fn render_drill_down(
                     ""
                 };
             html.push_str(&format!(
-                "<td class=\"verb-cell\"><a href=\"{verb_href}{}\">{}{verb_suffix}</a></td>",
+                "<td class=\"verb-cell\"><a href=\"{verb_href}{}#events\">{}{verb_suffix}</a></td>",
                 build_filter_query(filters),
                 html_escape(&event.message_verb)
             ));
@@ -704,13 +729,13 @@ fn render_filter_summary(filters: &FilterParams, main_href: &str) -> String {
         None => "All players".to_string(),
     };
     format!(
-        "<p class=\"filter-summary\">{range} · {player} · <a href=\"{}\">Change filters on main page</a></p>",
+        "<p class=\"filter-summary\">{range} · {player} · <a href=\"{}#filters\">Change filters on main page</a></p>",
         html_escape(main_href)
     )
 }
 
 fn render_filters(filters: &FilterParams, players: &[String], action: &str) -> String {
-    let mut html = String::from("<form class=\"filters\" method=\"get\" action=\"");
+    let mut html = String::from("<form id=\"filters\" class=\"filters\" method=\"get\" action=\"");
     html.push_str(action);
     html.push_str("\">");
     html.push_str("<label>Time range<select name=\"range\">");
@@ -761,10 +786,20 @@ fn render_category_table(
     let mut html = if title.is_empty() {
         String::new()
     } else {
-        format!("<h2>{title}</h2>")
+        format!(
+            "<h2 id=\"{category}\">{title} <a class=\"heading-anchor\" href=\"#{category}\" aria-label=\"Link to {title}\">#</a></h2>"
+        )
     };
     html.push_str("<table><thead><tr><th rowspan=\"2\">");
-    let verb_href = build_landing_sort_href(filters, "verb", query);
+    let anchor = match (category, family) {
+        ("melee", Some(family)) => format!("melee-{family}"),
+        _ => category.to_string(),
+    };
+    let anchor = percent_encode_path(&anchor);
+    let verb_href = format!(
+        "{}#{anchor}",
+        build_landing_sort_href(filters, "verb", query)
+    );
     html.push_str(&format!("<a href=\"{verb_href}\">Verb</a></th>"));
     html.push_str("<th colspan=\"4\" class=\"confirmed\">Confirmed</th>");
     html.push_str("<th colspan=\"4\" class=\"estimated\">Estimated</th></tr><tr>");
@@ -778,7 +813,7 @@ fn render_category_table(
         ("est_max", "Max"),
         ("est_avg", "Avg"),
     ] {
-        let href = build_landing_sort_href(filters, col, query);
+        let href = format!("{}#{anchor}", build_landing_sort_href(filters, col, query));
         let class = if col.starts_with("conf_") {
             "confirmed"
         } else {
@@ -809,6 +844,7 @@ fn render_category_table(
             href.push('?');
             href.push_str(&query_parts.join("&"));
         }
+        href.push_str("#events");
         html.push_str("<tr>");
         html.push_str(&format!(
             "<td><a href=\"{href}\">{}</a></td>",
@@ -931,7 +967,7 @@ fn build_event_sort_href(
     parts.push(format!("sort={column}"));
     parts.push(format!("dir={next_dir}"));
     format!(
-        "/events/{category}/{}?{}",
+        "/events/{category}/{}?{}#events",
         percent_encode_path(verb),
         parts.join("&")
     )
@@ -1177,12 +1213,12 @@ mod tests {
         for (id, expected_link, absent_label) in [
             (
                 3,
-                "<a href=\"/unattributed/1?player=A\">Next &rarr;</a>",
+                "<a href=\"/unattributed/1?player=A#unattributed\">Next &rarr;</a>",
                 "Previous",
             ),
             (
                 1,
-                "<a href=\"/unattributed/3?player=A\">&larr; Previous</a>",
+                "<a href=\"/unattributed/3?player=A#unattributed\">&larr; Previous</a>",
                 "Next",
             ),
         ] {
@@ -1417,6 +1453,12 @@ mod tests {
         assert!(body.contains("No melee damage recorded yet."));
         assert!(body.contains("Unattributed HP loss"));
         assert!(body.contains("No unattributed HP loss recorded for the current filters."));
+        assert_heading_anchors(
+            &body,
+            &["combat-damage", "melee", "skill", "spell", "unattributed"],
+        );
+        assert_eq!(body.matches("id=\"filters\"").count(), 1);
+        assert!(!body.contains("id=\"melee-"));
         assert!(!body.contains("bitchslap"));
         remove_db_files(&path);
     }
@@ -1526,6 +1568,21 @@ mod tests {
         assert!(body.contains("family=unarmed"));
         assert!(body.contains("Confirmed"));
         assert!(body.contains("Estimated"));
+        assert_heading_anchors(
+            &body,
+            &[
+                "combat-damage",
+                "melee",
+                "melee-unarmed",
+                "skill",
+                "spell",
+                "unattributed",
+            ],
+        );
+        assert!(body.contains("href=\"/?sort=verb&dir=desc#melee-unarmed\""));
+        assert!(body.contains("href=\"/?sort=conf_avg&dir=desc#skill\""));
+        assert!(body.contains("href=\"/?sort=est_avg&dir=desc#spell\""));
+        assert!(body.contains("href=\"/events/melee/bitchslap?family=unarmed#events\""));
         remove_db_files(&path);
     }
 
@@ -1550,6 +1607,27 @@ mod tests {
             .with_rank(22, "claw"),
         ];
         let (app, path) = app_with_rows(&rows);
+        let landing = body_string(
+            app.clone()
+                .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert_heading_anchors(
+            &landing,
+            &[
+                "combat-damage",
+                "melee",
+                "melee-bash",
+                "melee-claw",
+                "skill",
+                "spell",
+                "unattributed",
+            ],
+        );
+        assert!(landing.contains("href=\"/?sort=conf_avg&dir=desc#melee-bash\""));
+        assert!(landing.contains("href=\"/?sort=conf_avg&dir=desc#melee-claw\""));
         let response = app
             .oneshot(
                 Request::builder()
@@ -1562,7 +1640,10 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         let body = body_string(response).await;
         assert!(body.contains("melee / bash / savagely strike"));
-        assert!(body.contains("family=bash&sort=hp_delta&dir=asc"));
+        assert!(body.contains("family=bash&sort=hp_delta&dir=asc#events"));
+        assert_heading_anchors(&body, &["events"]);
+        assert!(body.contains("href=\"/#melee-bash\">&larr; Back</a>"));
+        assert!(body.contains("href=\"/#filters\">Change filters on main page</a>"));
         assert!(!body.contains("<select"));
         assert!(body.contains(">20<"));
         assert!(!body.contains(">35<"));
@@ -1645,20 +1726,26 @@ mod tests {
                     .unwrap()
                     .0;
                 assert!(navigation.contains("class=\"back-link\""));
+                let back_anchor = if route.starts_with("/unattributed") {
+                    "unattributed"
+                } else {
+                    "melee"
+                };
+                assert!(navigation.contains(&format!("#{back_anchor}\">&larr; Back</a>")));
                 assert!(navigation.contains("class=\"filter-summary\""));
                 assert!(navigation.contains(summary));
                 assert_eq!(body.matches("class=\"filter-summary\"").count(), 1);
                 assert!(body.contains(&format!(
-                    "href=\"{main_href}\">Change filters on main page</a>"
+                    "href=\"{main_href}#filters\">Change filters on main page</a>"
                 )));
                 assert!(!body.contains("<select"));
                 assert!(!body.contains("method=\"get\""));
                 if route.starts_with("/unattributed") {
                     assert!(body.contains("saved context"));
                     assert!(!body.contains("outside the active filters"));
-                    assert!(
-                        body.contains(&format!("/unattributed/2{query}\">&larr; Previous</a>"))
-                    );
+                    assert!(body.contains(&format!(
+                        "/unattributed/2{query}#unattributed\">&larr; Previous</a>"
+                    )));
                 } else if !query.is_empty() {
                     assert!(body.contains(">31<"));
                     assert!(!body.contains(">97<"));
@@ -1676,12 +1763,19 @@ mod tests {
             .unwrap(),
         )
         .await;
-        assert!(landing.contains("<form class=\"filters\" method=\"get\" action=\"/\">"));
-        assert!(landing.contains("value=\"7d\" selected"));
-        assert!(landing.contains("/unattributed/1?range=7d&player=A%3C%26%22"));
         assert!(
-            landing.contains("/events/melee/bitchslap?range=7d&player=A%3C%26%22&family=unarmed")
+            landing.contains("<form id=\"filters\" class=\"filters\" method=\"get\" action=\"/\">")
         );
+        assert!(landing.contains("value=\"7d\" selected"));
+        assert!(landing.contains(
+            "href=\"/?range=7d&player=A%3C%26%22&sort=conf_avg&dir=desc#melee-unarmed\""
+        ));
+        assert!(
+            landing.contains("href=\"/unattributed/1?range=7d&player=A%3C%26%22#unattributed\"")
+        );
+        assert!(landing.contains(
+            "href=\"/events/melee/bitchslap?range=7d&player=A%3C%26%22&family=unarmed#events\""
+        ));
         remove_db_files(&path);
     }
 
@@ -1772,7 +1866,7 @@ mod tests {
         assert!(body.contains("batch-group"));
         assert!(body.contains("0–22"));
         assert!(body.contains("Holy man boots you."));
-        assert!(body.contains("href=\"/events/melee/boot?player=Odefu\""));
+        assert!(body.contains("href=\"/events/melee/boot?player=Odefu#events\""));
         assert!(body.contains("player=Odefu&sort=hp_delta&dir=asc"));
         remove_db_files(&path);
     }
@@ -1792,7 +1886,64 @@ mod tests {
         let body = body_string(response).await;
         assert!(body.contains("player=Odefu"));
         assert!(body.contains("range=7d"));
+        for anchor in ["skill", "spell"] {
+            assert!(body.contains(&format!(
+                "href=\"/?range=7d&player=Odefu&sort=conf_avg&dir=desc#{anchor}\""
+            )));
+        }
         remove_db_files(&path);
+    }
+
+    fn assert_heading_anchors(body: &str, anchors: &[&str]) {
+        let heading_count = ["<h1", "<h2", "<h3"]
+            .iter()
+            .map(|tag| body.matches(tag).count())
+            .sum::<usize>();
+        assert_eq!(heading_count, anchors.len());
+        assert_eq!(
+            body.matches("class=\"heading-anchor\"").count(),
+            anchors.len()
+        );
+        for anchor in anchors {
+            assert_eq!(body.matches(&format!("id=\"{anchor}\"")).count(), 1);
+            assert_eq!(body.matches(&format!("href=\"#{anchor}\"")).count(), 1);
+        }
+        for link in body.split("class=\"heading-anchor\"").skip(1) {
+            assert!(
+                link.split_once('>')
+                    .unwrap()
+                    .0
+                    .contains("aria-label=\"Link to ")
+            );
+        }
+    }
+
+    #[test]
+    fn attributed_back_links_target_category_and_preserve_query() {
+        let filters = FilterParams::from_query(Some("7d"), Some("A & B"));
+        for (category, family, anchor) in [
+            ("melee", None, "melee"),
+            ("melee", Some("bash"), "melee-bash"),
+            ("skill", None, "skill"),
+            ("spell", None, "spell"),
+        ] {
+            let query = ViewerQuery {
+                range: Some("7d".to_string()),
+                player: Some("A & B".to_string()),
+                sort: Some("hp_delta".to_string()),
+                dir: Some("asc".to_string()),
+                family: family.map(str::to_string),
+            };
+            let body = render_drill_down(category, "hit <&\"", family, &filters, &[], &query);
+            assert_heading_anchors(&body, &["events"]);
+            assert!(body.contains(&format!("href=\"/?range=7d&player=A%20%26%20B&sort=hp_delta&dir=asc#{anchor}\">&larr; Back</a>")));
+            assert!(body.contains(
+                "href=\"/?range=7d&amp;player=A%20%26%20B&amp;sort=hp_delta&amp;dir=asc#filters\""
+            ));
+            assert!(body.contains("aria-label=\"Link to "));
+            assert!(body.contains("hit &lt;&amp;&quot;"));
+            assert!(!body.contains("hit <&\""));
+        }
     }
 
     #[test]
@@ -1829,6 +1980,9 @@ mod tests {
                 None,
             );
             assert!(body.contains("<li>H:545/938 [-4] &lt;test&gt;&amp;</li></ol>"));
+            assert_heading_anchors(&body, &["unattributed", "context-lines"]);
+            assert!(body.contains("href=\"/#unattributed\">&larr; Back</a>"));
+            assert!(body.contains("href=\"/#filters\">Change filters on main page</a>"));
             if !detail.context_lines.is_empty() {
                 assert!(
                     body.contains(
@@ -1937,6 +2091,10 @@ mod tests {
             .unwrap();
         let body = body_string(response).await;
         assert!(body.contains("(1 unreviewed)"));
+        assert_heading_anchors(
+            &body,
+            &["combat-damage", "melee", "skill", "spell", "unattributed"],
+        );
         assert!(body.contains("class=\"reviewed\""));
         assert!(body.contains(">yes<"));
         remove_db_files(&path);
@@ -2112,7 +2270,7 @@ mod tests {
         )
         .await;
         assert!(!body.contains("&larr; Previous</a>"));
-        assert!(body.contains("/unattributed/2\">Next &rarr;</a>"));
+        assert!(body.contains("/unattributed/2#unattributed\">Next &rarr;</a>"));
 
         let app = router(state.clone());
         let body = body_string(
@@ -2126,8 +2284,8 @@ mod tests {
             .unwrap(),
         )
         .await;
-        assert!(body.contains("/unattributed/3\">&larr; Previous</a>"));
-        assert!(body.contains("/unattributed/1\">Next &rarr;</a>"));
+        assert!(body.contains("/unattributed/3#unattributed\">&larr; Previous</a>"));
+        assert!(body.contains("/unattributed/1#unattributed\">Next &rarr;</a>"));
 
         let app = router(state.clone());
         let body = body_string(
@@ -2141,7 +2299,7 @@ mod tests {
             .unwrap(),
         )
         .await;
-        assert!(body.contains("/unattributed/2\">&larr; Previous</a>"));
+        assert!(body.contains("/unattributed/2#unattributed\">&larr; Previous</a>"));
         assert!(!body.contains("Next &rarr;</a>"));
 
         let single_path = open_fixture_db_with_unattributed(
@@ -2277,8 +2435,8 @@ mod tests {
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
         assert_eq!(
             response.headers().get("location").unwrap(),
-            "/",
-            "redirect preserves landing without filters"
+            "/#unattributed",
+            "redirect returns to the unattributed section without filters"
         );
 
         let app = router(Arc::new(ViewerState {
@@ -2338,6 +2496,10 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert_eq!(
+            response.headers()["location"],
+            "/?player=Odefu#unattributed"
+        );
 
         let conn = open_db(&path).unwrap();
         let remaining: i64 = conn

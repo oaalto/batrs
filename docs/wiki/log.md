@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-29] update | Combat Damage heading permalinks and section navigation
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md)
+- Sources: `src/combat_damage/viewer.rs`, `assets/combat_damage/style.css`, `README.md`
+- Notes: Added accessible native heading permalinks and a filter-form target; Back, sort, record/verb, Previous/Next, and bulk-removal returns now use the relevant heading/section. Existing single-delete `#unattributed` redirects, filter submission, query selection, storage, and review/deletion semantics remain unchanged.
+
 ## [2026-10-29] update | Unattributed record Delete tooltip
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md)
