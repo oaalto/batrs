@@ -50,6 +50,15 @@ Include output and screen-content regressions, final before/after release measur
 - [ ] Format → build/typecheck → warning-clean Clippy → complete automated tests pass, followed by wiki lint and strict docs build for documentation changes. Carry regression and performance evidence into risk-first and standards/spec review; report any existing manual-test skips.
 - [ ] No live BatMUD connection, user-local config/log/database access, or runtime session is needed for automated acceptance. Offline success is not reported as proof of every live-session performance contributor.
 
+## Implementation handoff
+
+**Implementation knowledge from slice 01**
+
+- **Contracts/seams:** `Scrollback::offset()` now returns `usize`; `visible_range()` selects clamped wrapped rows. Breaking view-model contract change: `ViewModel` no longer accepts a scroll offset. Slice 02 depends on this viewport-only presentation contract; rows are already selected, so do not scroll the paragraph again.
+- **Decisions:** No plan divergence or ADR candidate. Full-history append wrapping remains intentionally unchanged.
+- **Traps:** Use `Renderer::layout` for exact output dimensions, including tiny terminals. Preserve the 70,000-row regression, height-only cache reuse, and cached reconnect checks.
+- **File/API map:** `src/app/mod.rs::prepare_output`, `src/app/scrollback.rs`, and `src/ui/mod.rs`. Keep the benchmark's real viewport-preparation stage. At 10,000 initial lines, append-and-draw still costs 37.170–38.344 ms in three isolated release runs; slice 02 must address that remainder. See the [benchmark evidence](../../wiki/source-notes/output-history-benchmark.md).
+
 ## Blocked by
 
 - [Slice 01: Render only the selected output viewport](01-viewport-limited-rendering.md)

@@ -1,8 +1,8 @@
 ---
 title: Text input slowness profiling note
 type: source-note
-status: current
-updated: 2026-09-09
+status: historical
+updated: 2026-10-29
 sources:
   - src/main.rs
   - src/app/mod.rs
@@ -18,9 +18,11 @@ sources:
 
 ## Summary
 
-The most likely repo-specific cause of slow typing is not network I/O but per-keystroke work on the UI path: the app redraws the terminal every loop iteration, rebuilds wrapped output lines on every draw, clones the entire visible input string for rendering, and does `String::insert` plus full-string clone/sync on each typed character. The fastest way to confirm the real bottleneck is to profile the local input/render path while disconnected or otherwise idle, then compare that against runs with heavy server output. Sources: `src/main.rs`, `src/app/mod.rs`, `src/app/input_state.rs`, `src/ui/mod.rs`.
+This note preserves the 2026-09-09 profiling hypotheses, not current implementation facts. Current code uses dirty redraws, cached wrapping, borrowed visible input, and cached cursor offsets. Slice 01 now copies/renders only the selected viewport with `usize` row offsets and shared output/HUD geometry; cached redraws no longer traverse hidden history. Retained appends and width changes still re-wrap all history. See the [current output-history benchmark](output-history-benchmark.md) for isolated release evidence and remaining limits. No live-session diagnosis is established by these offline measurements.
 
-## Verified Facts
+Historical hypothesis: the most likely repo-specific cause of slow typing is not network I/O but per-keystroke work on the UI path: the app redraws the terminal every loop iteration, rebuilds wrapped output lines on every draw, clones the entire visible input string for rendering, and does `String::insert` plus full-string clone/sync on each typed character. The fastest way to confirm the real bottleneck is to profile the local input/render path while disconnected or otherwise idle, then compare that against runs with heavy server output. Sources: `src/main.rs`, `src/app/mod.rs`, `src/app/input_state.rs`, `src/ui/mod.rs`.
+
+## Historical Context
 
 - The main loop redraws the terminal every iteration with `terminal.draw(|frame| app.draw(frame))?` before waiting for new input events. It then polls crossterm events with a timeout derived from a fixed `tick_rate = Duration::from_millis(200)` and drains any immediately available terminal events with `while event::poll(Duration::ZERO)? { ... }`. Source: `src/main.rs`.
 - Key presses are handled synchronously in `BatApp::handle_key_event`; printable characters call `self.input.insert_char(c)`, and then the next loop iteration redraws the full frame. Source: `src/app/mod.rs`.
@@ -181,7 +183,7 @@ If profiling shows `process_input_lines` dominates while typing under spam, batc
 
 ## Agent Synthesis
 
-The repo-specific evidence points first at render-path cost, not exotic terminal-event latency. The unconditional `terminal.draw(...)` in the main loop plus output re-wrapping inside `BatApp::draw` means a single typed character can trigger work proportional to the whole visible screen and possibly the entire wrapped output state. `InputState` cloning is also real, but it is more likely a secondary bottleneck unless users commonly type very long commands or paste large blocks. Sources: `src/main.rs`, `src/app/mod.rs`, `src/app/input_state.rs`, `src/ui/mod.rs`.
+Historical interpretation (superseded for current loop/cache/render behavior): the repo-specific evidence points first at render-path cost, not exotic terminal-event latency. The unconditional `terminal.draw(...)` in the main loop plus output re-wrapping inside `BatApp::draw` means a single typed character can trigger work proportional to the whole visible screen and possibly the entire wrapped output state. `InputState` cloning is also real, but it is more likely a secondary bottleneck unless users commonly type very long commands or paste large blocks. Sources: `src/main.rs`, `src/app/mod.rs`, `src/app/input_state.rs`, `src/ui/mod.rs`.
 
 ## Open Questions
 

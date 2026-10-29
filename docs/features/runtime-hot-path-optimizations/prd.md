@@ -123,6 +123,10 @@ The intended user-visible outcome is a batrs client that stays more responsive d
 - Any optimization that depends on reading or changing user-local `~/.batrs/` data outside the current runtime behavior.
 - Any promise that secondary opportunities such as `Automation` waiter scaling or output-buffer append cleanup must ship in the first implementation round.
 
+## Current Render-Path Reconciliation
+
+The [output-history feature](../output-history-performance/prd.md) now implements viewport-limited output presentation at the existing batrs client view/render boundary. `BatApp::prepare_output` copies only selected wrapped rows; `Renderer` clones that viewport without paragraph scrolling. Shared layout preserves HUD geometry, and usize offsets correct long-history truncation. The [release benchmark](../../wiki/source-notes/output-history-benchmark.md) shows no material retained-history trend in cached redraws. Retained appends still trigger full-history wrapping pending slice 02. This addresses the output-history copy portion of the original render-path opportunity only; it does not mark unrelated input, guild-trigger, or optional append-cleanup work complete.
+
 ## Further Notes
 
 - This PRD is the runtime-only follow-up to the improvement scan: startup was intentionally excluded after user direction.

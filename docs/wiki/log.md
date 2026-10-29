@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-29] update | Viewport-limited output rendering
+
+- Updated: [batrs client application](subsystems/batrs-client.md), [Output history scaling benchmark](source-notes/output-history-benchmark.md), [Historical text input profiling note](source-notes/text-input-slow-profiling.md)
+- Sources: `src/app/mod.rs`, `src/app/scrollback.rs`, `src/ui/mod.rs`, three isolated release benchmark invocations
+- Notes: Presentation copies only selected wrapped rows using clamped usize offsets and exact shared HUD geometry. Cached redraws have no material history-size trend; append wrapping remains full-history for slice 02. Added screen, long-history, paging/following, geometry/style, and cached reconnect regressions; retained baseline measurements and explicitly marked obsolete profiling claims historical.
+
 ## [2026-10-29] skip | Output-history performance execution tickets
 
 - Sources: `docs/features/output-history-performance/01-viewport-limited-rendering.md`, `docs/features/output-history-performance/02-incremental-output-wrapping.md`

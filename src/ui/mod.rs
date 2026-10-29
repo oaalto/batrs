@@ -9,8 +9,8 @@ use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragra
 use unicode_width::UnicodeWidthStr;
 
 pub struct ViewModel<'a> {
+    /// Pre-wrapped rows for the selected viewport; no further scrolling is applied.
     pub output_lines: Vec<Line<'a>>,
-    pub scroll_offset: u16,
     pub show_stats: bool,
     pub stats_line: Line<'static>,
     /// Combat scan rows shown above the main stats line.
@@ -229,21 +229,27 @@ fn enemy_name_style() -> Style {
 }
 
 impl Renderer {
-    pub fn render(frame: &mut Frame<'_>, view: &ViewModel<'_>) {
+    /// Share the exact output/HUD/input geometry with viewport preparation,
+    /// including ratatui's constraint handling on tiny terminals.
+    pub fn layout(area: Rect, combat_count: usize, secondary_count: usize) -> Vec<Rect> {
         let mut constraints = vec![Constraint::Min(1)];
-        for _ in &view.combat_status_lines {
-            constraints.push(Constraint::Length(1));
-        }
+        constraints.extend(vec![Constraint::Length(1); combat_count]);
         constraints.push(Constraint::Length(1));
-        for _ in &view.secondary_status_lines {
-            constraints.push(Constraint::Length(1));
-        }
+        constraints.extend(vec![Constraint::Length(1); secondary_count]);
         constraints.push(Constraint::Length(1));
-
-        let root = Layout::default()
+        Layout::default()
             .direction(Direction::Vertical)
             .constraints(constraints)
-            .split(frame.area());
+            .split(area)
+            .to_vec()
+    }
+
+    pub fn render(frame: &mut Frame<'_>, view: &ViewModel<'_>) {
+        let root = Self::layout(
+            frame.area(),
+            view.combat_status_lines.len(),
+            view.secondary_status_lines.len(),
+        );
 
         let output_area = root[0];
         let combat_count = view.combat_status_lines.len();
@@ -251,8 +257,7 @@ impl Renderer {
         let secondary_count = view.secondary_status_lines.len();
         let input_area = root[1 + combat_count + 1 + secondary_count];
 
-        let output =
-            Paragraph::new(Text::from(view.output_lines.clone())).scroll((view.scroll_offset, 0));
+        let output = Paragraph::new(Text::from(view.output_lines.clone()));
         frame.render_widget(output, output_area);
 
         for index in 0..combat_count {
@@ -898,7 +903,6 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         let view = ViewModel {
             output_lines: vec!["output".into()],
-            scroll_offset: 0,
             show_stats: true,
             stats_line: "player stats".into(),
             combat_status_lines: vec!["enemy status".into()],

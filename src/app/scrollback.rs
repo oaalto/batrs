@@ -58,9 +58,19 @@ impl Scrollback {
         self.top_line = None;
     }
 
-    pub fn offset(&self) -> u16 {
+    /// Return the clamped top wrapped-row index, without terminal-widget truncation.
+    pub fn offset(&self) -> usize {
         let offset = self.top_line.unwrap_or_else(|| self.max_offset());
-        offset.min(self.max_offset()).min(u16::MAX as usize) as u16
+        offset.min(self.max_offset())
+    }
+
+    /// Select only the wrapped rows that fit the current output viewport.
+    pub fn visible_range(&self) -> std::ops::Range<usize> {
+        let start = self.offset();
+        start
+            ..start
+                .saturating_add(self.visible_height)
+                .min(self.total_lines)
     }
 
     fn max_offset(&self) -> usize {
@@ -75,6 +85,31 @@ impl Scrollback {
 #[cfg(test)]
 mod tests {
     use super::Scrollback;
+
+    #[test]
+    fn visible_ranges_are_clamped_without_truncation() {
+        let mut scrollback = Scrollback::new();
+        for (total, height, expected) in [
+            (0, 20, 0..0),
+            (10, 20, 0..10),
+            (100, 0, 100..100),
+            (70_000, 4, 69_996..70_000),
+            (usize::MAX, 4, usize::MAX - 4..usize::MAX),
+        ] {
+            scrollback.follow_latest();
+            scrollback.update_viewport(total, height);
+            assert_eq!(scrollback.visible_range(), expected);
+        }
+        scrollback.update_viewport(70_000, 4);
+        scrollback.page_up();
+        assert_eq!(scrollback.visible_range(), 69_992..69_996);
+        scrollback.update_viewport(70_002, 6);
+        assert_eq!(scrollback.visible_range(), 69_992..69_998);
+        scrollback.update_viewport(10, 6);
+        assert_eq!(scrollback.visible_range(), 4..10);
+        scrollback.update_viewport(10, 20);
+        assert_eq!(scrollback.visible_range(), 0..10);
+    }
 
     #[test]
     fn follows_latest_output_by_default() {

@@ -457,15 +457,12 @@ impl BatApp {
             Vec::new()
         };
 
-        let reserved_rows =
-            2 + combat_status_lines.len() as u16 + secondary_status_lines.len() as u16;
-        let output_area_height = frame.area().height.saturating_sub(reserved_rows);
-        let output_area_width = frame.area().width;
-        let visible_height = output_area_height as usize;
-        let output_lines = self.output.wrapped_lines(output_area_width);
-        self.scrollback
-            .update_viewport(output_lines.len(), visible_height);
-        let scroll_offset = self.scrollback.offset();
+        let output_area = Renderer::layout(
+            frame.area(),
+            combat_status_lines.len(),
+            secondary_status_lines.len(),
+        )[0];
+        let output_lines = self.prepare_output(output_area);
         let stats_line = if show_stats {
             self.stats.render_inline(&self.guild_selection)
         } else {
@@ -474,8 +471,7 @@ impl BatApp {
         let hide_input = self.session.login_state() == LoginState::Password;
         let input_text = self.input.render_line(hide_input);
         let view = ViewModel {
-            output_lines: output_lines.to_vec(),
-            scroll_offset,
+            output_lines,
             show_stats,
             stats_line,
             combat_status_lines,
@@ -505,6 +501,14 @@ impl BatApp {
         };
 
         Renderer::render(frame, &view);
+    }
+
+    /// Copy only selected wrapped rows; width/cache invalidation stays in OutputBuffer.
+    fn prepare_output(&mut self, area: ratatui::layout::Rect) -> Vec<Line<'static>> {
+        let rows = self.output.wrapped_lines(area.width);
+        self.scrollback
+            .update_viewport(rows.len(), usize::from(area.height));
+        rows[self.scrollback.visible_range()].to_vec()
     }
 
     fn submit_input(&mut self) {
@@ -1371,7 +1375,9 @@ mod tests {
             "\x1b[32mA goblin hits you hard.\x1b[0m You brace yourself for the next attack.";
         let line = StyledLine::new(TEXT);
         let rows_per_line = line.to_wrapped_lines(WIDTH).len();
-        println!("history,cache_hit_ms,rewrap_ms,two_copies_ms,cached_draw_ms,append_draw_ms");
+        println!(
+            "history,cache_hit_ms,rewrap_ms,viewport_prepare_ms,cached_draw_ms,append_draw_ms"
+        );
         for history in [100, 1_000, 10_000] {
             let (mut app, _commands) = test_app();
             app.output.append_lines(vec![line.clone(); history]);
@@ -1379,7 +1385,7 @@ mod tests {
             terminal.draw(|frame| app.draw(frame)).unwrap();
             let mut cache_hits = Vec::new();
             let mut rewraps = Vec::new();
-            let mut copies = Vec::new();
+            let mut preparations = Vec::new();
             let mut cached_draws = Vec::new();
             let mut append_draws = Vec::new();
             for sample in 0..SAMPLES {
@@ -1394,13 +1400,15 @@ mod tests {
                 assert_eq!(wrapped.len(), (history + sample * 2 + 1) * rows_per_line);
 
                 let start = Instant::now();
-                let view_lines = black_box(wrapped).to_vec();
+                let output_area =
+                    Renderer::layout(ratatui::layout::Rect::new(0, 0, WIDTH, HEIGHT), 0, 0)[0];
+                let view_lines = black_box(app.prepare_output(output_area));
                 let paragraph = ratatui::widgets::Paragraph::new(ratatui::text::Text::from(
                     black_box(&view_lines).clone(),
                 ));
                 drop(black_box(paragraph));
                 drop(black_box(view_lines));
-                copies.push(start.elapsed().as_secs_f64() * 1_000.0);
+                preparations.push(start.elapsed().as_secs_f64() * 1_000.0);
 
                 let start = Instant::now();
                 terminal.draw(|frame| app.draw(frame)).unwrap();
@@ -1421,7 +1429,7 @@ mod tests {
                 "{history},{:.6},{:.3},{:.3},{:.3},{:.3}",
                 median_ms(cache_hits),
                 median_ms(rewraps),
-                median_ms(copies),
+                median_ms(preparations),
                 median_ms(cached_draws),
                 median_ms(append_draws),
             );
@@ -2607,8 +2615,7 @@ mod tests {
 
         let hide_input = app.session.login_state() == LoginState::Password;
         let view = ViewModel {
-            output_lines: app.output.wrapped_lines(20).to_vec(),
-            scroll_offset: app.scrollback.offset(),
+            output_lines: app.prepare_output(ratatui::layout::Rect::new(0, 0, 20, 1)),
             show_stats: true,
             stats_line: app.stats.render_inline(&app.guild_selection),
             combat_status_lines: Vec::new(),
@@ -2629,6 +2636,198 @@ mod tests {
         };
 
         assert!(!view.show_cursor);
+    }
+
+    fn screen_row(terminal: &Terminal<TestBackend>, y: u16) -> String {
+        let buffer = terminal.backend().buffer();
+        (0..buffer.area.width)
+            .map(|x| buffer[(x, y)].symbol())
+            .collect::<String>()
+            .trim_end()
+            .to_string()
+    }
+
+    #[test]
+    fn viewport_reaches_long_history_and_preserves_paging_and_following() {
+        let (mut app, mut commands) = test_app();
+        app.output.append_lines(vec![StyledLine::new("x"); 69_988]);
+        app.output.append_lines(
+            (69_988..70_000)
+                .map(|index| StyledLine::new(&format!("line {index}")))
+                .collect(),
+        );
+        let mut terminal = Terminal::new(TestBackend::new(12, 6)).unwrap();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "line 69996");
+        assert_eq!(screen_row(&terminal, 3), "line 69999");
+
+        app.handle_key_event(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE));
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "line 69992");
+        assert_eq!(screen_row(&terminal, 3), "line 69995");
+        app.process_input_lines(vec!["incoming".to_string()]);
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "line 69992");
+        assert_eq!(screen_row(&terminal, 3), "line 69995");
+
+        for _ in 0..2 {
+            app.handle_key_event(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE));
+            terminal.draw(|frame| app.draw(frame)).unwrap();
+        }
+        assert_eq!(screen_row(&terminal, 0), "line 69997");
+        assert_eq!(screen_row(&terminal, 3), "incoming");
+        app.process_input_lines(vec!["following".to_string()]);
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 3), "following");
+
+        app.handle_key_event(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE));
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        let selected = screen_row(&terminal, 0);
+        app.input.insert_str("/clear");
+        app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert!(app.take_pending_terminal_clear());
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), selected);
+        app.input.insert_str("look");
+        app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(commands.try_recv().unwrap(), "look");
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 3), "following");
+    }
+
+    #[test]
+    fn viewport_preserves_styles_blank_unicode_and_resize_wrapping() {
+        let (mut app, _commands) = test_app();
+        app.output.append_lines(vec![
+            StyledLine::new("abcdefgh"),
+            StyledLine::new(""),
+            StyledLine::new("\x1b[32mhé界\x1b[0m"),
+        ]);
+        let mut terminal = Terminal::new(TestBackend::new(4, 6)).unwrap();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "abcd");
+        assert_eq!(screen_row(&terminal, 1), "efgh");
+        assert_eq!(screen_row(&terminal, 2), "");
+        assert_eq!(screen_row(&terminal, 3), "hé界");
+        assert_eq!(
+            terminal.backend().buffer()[(0, 3)].fg,
+            crate::ansi::palette::GREEN
+        );
+        let cached = app.output.wrapped_lines(4).as_ptr();
+        terminal.backend_mut().resize(4, 4);
+        terminal.autoresize().unwrap();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "");
+        assert_eq!(screen_row(&terminal, 1), "hé界");
+        assert_eq!(app.output.wrapped_lines(4).as_ptr(), cached);
+        terminal.backend_mut().resize(8, 6);
+        terminal.autoresize().unwrap();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "abcdefgh");
+        assert_eq!(screen_row(&terminal, 1), "");
+        assert_eq!(screen_row(&terminal, 2), "hé界");
+        assert_eq!(screen_row(&terminal, 3), "");
+    }
+
+    #[test]
+    fn viewport_selection_handles_empty_and_zero_geometry() {
+        let (mut app, _commands) = test_app();
+        let area = ratatui::layout::Rect::new(0, 0, 10, 4);
+        assert!(app.prepare_output(area).is_empty());
+        app.output.append_lines(vec![StyledLine::new("one")]);
+        assert_eq!(
+            app.prepare_output(area),
+            vec![app.output.wrapped_lines(10)[0].clone()]
+        );
+        assert!(
+            app.prepare_output(ratatui::layout::Rect::new(0, 0, 0, 4))
+                .is_empty()
+        );
+        assert!(
+            app.prepare_output(ratatui::layout::Rect::new(0, 0, 10, 0))
+                .is_empty()
+        );
+        assert_eq!(app.prepare_output(area).len(), 1);
+    }
+
+    #[test]
+    fn viewport_matches_hud_geometry_and_keeps_dialog_and_cursor() {
+        let (mut app, _commands) = test_app();
+        log_in(&mut app);
+        app.apply_guild_selection(GuildSelection::from_playable_keys(
+            [GuildKey::Animist],
+            Some("nature"),
+        ));
+        app.secondary_status
+            .set_soul_companion(75, "resting".to_string());
+        for line in [
+            "*** Round 1 ***",
+            "scan all",
+            "Guard is slightly hurt (70%).",
+            "done",
+        ] {
+            app.combat_awareness.handle_incoming_line(line);
+        }
+        app.output.append_lines(
+            (0..20)
+                .map(|i| StyledLine::new(&format!("line {i}")))
+                .collect(),
+        );
+        app.input.insert_str("hé");
+        let mut terminal = Terminal::new(TestBackend::new(40, 8)).unwrap();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "line 16");
+        assert_eq!(screen_row(&terminal, 3), "line 19");
+        assert_eq!(screen_row(&terminal, 4), "Guard is slightly hurt (70%).");
+        assert_eq!(screen_row(&terminal, 6), "Soul: 75% resting");
+        assert_eq!(screen_row(&terminal, 7), ">hé");
+        assert_eq!(
+            terminal.backend_mut().get_cursor_position().unwrap(),
+            (3, 7).into()
+        );
+        app.open_guilds_dialog();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert!(
+            terminal
+                .backend()
+                .buffer()
+                .content
+                .iter()
+                .any(|cell| cell.symbol() == "┌")
+        );
+        assert_eq!(screen_row(&terminal, 7), ">hé");
+        app.guild_dialog = None;
+
+        // Exercise ratatui's constrained HUD layout, not a guessed height subtraction.
+        for (width, height) in [(40, 4), (20, 3), (1, 1), (0, 0), (40, 8)] {
+            terminal.backend_mut().resize(width, height);
+            terminal.autoresize().unwrap();
+            terminal.draw(|frame| app.draw(frame)).unwrap();
+            let combat = crate::ui::render_combat_status_lines(
+                app.combat_awareness.is_active(),
+                app.combat_awareness.snapshot(),
+                width,
+            );
+            let secondary = app
+                .secondary_status
+                .render_lines(width, &app.guild_selection);
+            let area = Renderer::layout(
+                ratatui::layout::Rect::new(0, 0, width, height),
+                combat.len(),
+                secondary.len(),
+            )[0];
+            if area.width > 0 && area.height > 0 {
+                assert_eq!(
+                    screen_row(&terminal, area.y + area.height - 1),
+                    if width == 1 { "9" } else { "line 19" }
+                );
+            }
+        }
+        app.combat_awareness = CombatAwareness::default();
+        app.apply_guild_selection(GuildSelection::default());
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "line 14");
+        assert_eq!(screen_row(&terminal, 5), "line 19");
     }
 
     #[test]
@@ -2928,6 +3127,9 @@ mod tests {
         app.scrollback.page_up();
         let scroll_offset_before = app.scrollback.offset();
         log_in(&mut app);
+        let mut terminal = Terminal::new(TestBackend::new(40, 22)).unwrap();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "line 60");
 
         app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
 
@@ -2941,6 +3143,9 @@ mod tests {
                 .any(|line| line.starts_with("line "))
         );
         assert_eq!(app.scrollback.offset(), scroll_offset_before);
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "line 60");
+        assert_eq!(screen_row(&terminal, 19), "line 79");
     }
 
     #[test]
@@ -2951,6 +3156,9 @@ mod tests {
         let (mut app, _command_receiver, _event_sender) =
             test_app_with_coordinator(Box::new(coordinator));
         app.output.append_lines(vec![StyledLine::new("old output")]);
+        let mut terminal = Terminal::new(TestBackend::new(40, 22)).unwrap();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "old output");
         app.scrollback.update_viewport(1, 20);
         app.scrollback.page_up();
         log_in(&mut app);
@@ -2962,6 +3170,8 @@ mod tests {
 
         assert!(app.output.plain_lines().is_empty());
         assert_eq!(app.scrollback.offset(), 0);
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "");
     }
 
     #[test]
@@ -2973,6 +3183,9 @@ mod tests {
             test_app_with_coordinator(Box::new(coordinator));
         app.output
             .append_lines(vec![StyledLine::new("pre-connect output")]);
+        let mut terminal = Terminal::new(TestBackend::new(40, 22)).unwrap();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "pre-connect output");
 
         app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
 
@@ -2981,6 +3194,8 @@ mod tests {
 
         assert!(app.output.plain_lines().is_empty());
         assert_eq!(app.scrollback.offset(), 0);
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "");
     }
 
     #[test]

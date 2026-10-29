@@ -35,7 +35,11 @@ The batrs client redraws the terminal every main-loop iteration via `terminal.dr
 - No behavior change to Unicode/grapheme correctness.
 - No remote-runtime/network optimization work beyond reducing local shared-loop pressure when processing inbound lines.
 
-## Current Evidence
+## Current Implementation Reconciliation
+
+The evidence and proposed scope below describe the original planning baseline, not current behavior. Current code uses dirty redraws, a generation/width wrapping cache, borrowed visible input, history-aware edit copying, and cached cursor offsets (`src/main.rs`, `src/app/input_state.rs`, `src/app/output_buffer.rs`). The [output-history feature](../output-history-performance/prd.md) now limits presentation copies to the selected viewport using usize row offsets and shared output/HUD geometry. Its [release evidence](../../wiki/source-notes/output-history-benchmark.md) shows cached redraws without a material history-size trend; retained appends still re-wrap all history pending slice 02. This reconciliation does not close or change the status of this PRD or its sibling input tickets.
+
+## Historical Evidence
 
 - `run_app` redraws the terminal every loop iteration before polling for terminal events. Source: `src/main.rs`.
 - `BatApp::draw` calls `self.output.wrapped_lines(output_area_width)` on every frame. Source: `src/app/mod.rs`.
