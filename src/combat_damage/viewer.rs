@@ -436,7 +436,7 @@ fn render_delete_unattributed_form(id: i64, filters: &FilterParams) -> String {
         ));
     }
     html.push_str(&format!(
-        "<button type=\"submit\" aria-label=\"Delete unattributed HP loss record {id}\">Delete</button></form>"
+        "<button type=\"submit\" aria-label=\"Delete unattributed HP loss record {id}\" title=\"Delete permanently removes this record and its saved context. There is no undo.\">Delete</button></form>"
     ));
     html
 }
@@ -464,7 +464,7 @@ fn render_unattributed_drill_down(
     ));
     html.push_str("<div class=\"unattributed-detail-header\"><h1>Unattributed HP loss</h1>");
     html.push_str(&render_delete_unattributed_form(detail.id, filters));
-    html.push_str("</div><p class=\"empty-hint\">Delete permanently removes this record and its saved context. There is no undo.</p>");
+    html.push_str("</div>");
     if !filtered.iter().any(|row| row.id == detail.id) {
         html.push_str("<p class=\"empty-hint\">This record is outside the active filters. Previous/Next navigation is unavailable; its saved context is shown in full.</p>");
     }
@@ -1027,7 +1027,7 @@ mod tests {
         assert!(landing.contains("id=\"unattributed\""));
         assert!(landing.contains("Unattributed HP loss (1 unreviewed)"));
         assert!(landing.contains("Remove reviewed"));
-        assert!(landing.contains("There is no undo."));
+        assert!(landing.contains("<p class=\"empty-hint\">Delete permanently removes a record and its saved context. There is no undo.</p>"));
         for id in [1, 2] {
             assert!(landing.contains(&format!(
                 "method=\"post\" action=\"/unattributed/{id}/delete\""
@@ -1051,7 +1051,8 @@ mod tests {
         assert!(detail.contains("method=\"post\" action=\"/unattributed/2/delete\""));
         assert!(detail.contains("name=\"range\" value=\"7d\""));
         assert!(detail.contains("name=\"player\" value=\"Other\""));
-        assert!(detail.contains("There is no undo."));
+        assert!(detail.contains("title=\"Delete permanently removes this record and its saved context. There is no undo.\">Delete</button>"));
+        assert!(!detail.contains("<p class=\"empty-hint\">Delete permanently"));
         remove_db_files(&path);
     }
 

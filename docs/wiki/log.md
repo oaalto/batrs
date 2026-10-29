@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-29] update | Unattributed record Delete tooltip
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md)
+- Sources: `src/combat_damage/viewer.rs`
+- Notes: Moved the single-record permanence warning into the Delete button's native tooltip; landing-page warning and deletion behavior remain unchanged.
+
 ## [2026-10-29] update | Main-page-only Combat Damage filters
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md)
