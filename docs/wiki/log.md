@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-29] update | Refresh Nergal score on login and selection
+
+- Updated: [Nergal Status](concepts/nergal-status.md)
+- Sources: `src/app/mod.rs`, `docs/guilds/nergal.md`
+- Notes: Send literal `nergal sc` once on eligible login and newly selecting Nergal while logged in; unchanged selections and repeated prompts do not resend.
+
 ## [2026-10-29] update | Include HP-loss trigger in unattributed transcript
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md)

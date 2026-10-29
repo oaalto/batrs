@@ -90,7 +90,7 @@ impl SessionState {
 static PROMPT_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^Hp:(.+)/(.+) Sp:(.+)/(.+) Ep:(.+)/(.+) Exp:(.+) >$").unwrap());
 static SHORT_SCORE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^H:(.+)/(.+) \[(.*)\] S:(.+)/(.+) \[(.*)\] E:(.+)/(.+) \[(.*)\] \\$:(.+) \[(.*)\] exp:(.+) \[(.*)\]$")
+    Regex::new(r"^H:(.+)/(.+) \[(.*)\] S:(.+)/(.+) \[(.*)\] E:(.+)/(.+) \[(.*)\] \$:(.+) \[(.*)\] exp:(.+) \[(.*)\]$")
         .unwrap()
 });
 

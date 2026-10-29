@@ -225,7 +225,15 @@ impl BatApp {
                     self.output.clear();
                     self.scrollback.follow_latest();
                 }
+                let nergal_was_selected = self.guild_selection.is_selected(GuildKey::Nergal);
                 self.load_user_config();
+                // Profile loading already refreshes a newly selected Nergal.
+                if nergal_was_selected
+                    && self.guild_selection.is_selected(GuildKey::Nergal)
+                    && !self.send_command("nergal sc".to_string())
+                {
+                    warn!("failed to request Nergal score after login");
+                }
                 self.stats.set_recovery_bracket_defaults_for_login();
             }
             if let Some(player_name) = self.session.login_name()
@@ -862,6 +870,8 @@ impl BatApp {
     }
 
     fn apply_guild_selection(&mut self, selection: GuildSelection) {
+        let nergal_newly_selected = selection.is_selected(GuildKey::Nergal)
+            && !self.guild_selection.is_selected(GuildKey::Nergal);
         self.selected_guilds = selection.build_guilds();
         self.selected_guild_triggers = self
             .selected_guilds
@@ -876,6 +886,12 @@ impl BatApp {
         }
         self.automation.set_flag("in_battle", false);
         self.apply_player_profile_to_automation();
+        if self.session.is_logged_in()
+            && nergal_newly_selected
+            && !self.send_command("nergal sc".to_string())
+        {
+            warn!("failed to request Nergal score after selection");
+        }
         self.request_redraw();
     }
 
@@ -1390,6 +1406,93 @@ mod tests {
             scrollback: Scrollback::new(),
         };
         (app, command_receiver, event_sender)
+    }
+
+    #[test]
+    fn nergal_score_is_sent_once_per_login() {
+        for login_line in [
+            "Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >",
+            "H:1/2 [0] S:3/4 [0] E:5/6 [0] $:0 [0] exp:7 [0]",
+        ] {
+            for selected in [false, true] {
+                let (mut app, mut receiver) = test_app();
+                app.session.set_login_name("tester".to_string());
+                if selected {
+                    app.apply_guild_selection(GuildSelection::from_playable_keys(
+                        [GuildKey::Nergal],
+                        Some("evil_religious"),
+                    ));
+                }
+                app.process_input_lines(vec![
+                    "Password:".into(),
+                    "You entered a wrong password!".into(),
+                    "Random text".into(),
+                ]);
+                app.session.set_login_name("tester".to_string());
+                assert!(drain_commands(&mut receiver).is_empty());
+                app.process_input_lines(vec![login_line.into(), login_line.into()]);
+                let expected = if selected { vec!["nergal sc"] } else { vec![] };
+                assert_eq!(drain_commands(&mut receiver), expected);
+                app.process_input_lines(vec!["Please enter your choice or name:".into()]);
+                app.session.set_login_name("tester".to_string());
+                app.process_input_lines(vec![login_line.into()]);
+                assert_eq!(drain_commands(&mut receiver), expected);
+            }
+        }
+    }
+
+    #[test]
+    fn nergal_score_profile_load_and_reconnect_do_not_duplicate_sends() {
+        let base_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join(format!("nergal-login-test-{}", std::process::id()));
+        let mut manager = ConfigManager::with_test_base_dir(base_dir.clone());
+        manager.load_user("tester").unwrap();
+        manager
+            .save_user_guilds(&["nergal".to_string()], "evil_religious")
+            .unwrap();
+        let (channels, mut new_receiver, _events) = connection_channels();
+        let (coordinator, _calls, _results) =
+            FakeConnectionCoordinator::new(vec![ReconnectResult::Connected(channels)]);
+        let (mut app, mut receiver, _events) = test_app_with_coordinator(Box::new(coordinator));
+        app.config_manager = Some(manager);
+        app.user_config_loaded = false;
+        app.session.set_login_name("tester".to_string());
+        app.process_input_lines(vec!["Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >".into()]);
+        assert!(app.guild_selection.is_selected(GuildKey::Nergal));
+        assert_eq!(drain_commands(&mut receiver), vec!["nergal sc"]);
+        app.apply_command_effects(vec![command::CommandEffect::Reconnect]);
+        assert!(!app.guild_selection.is_selected(GuildKey::Nergal));
+        assert!(drain_commands(&mut new_receiver).is_empty());
+        app.session.set_login_name("tester".to_string());
+        app.process_input_lines(vec![
+            "Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >".into(),
+            "Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >".into(),
+        ]);
+        assert_eq!(drain_commands(&mut new_receiver), vec!["nergal sc"]);
+        app.apply_fresh_session_plan(FreshSessionPlan::new(2));
+        // A different player's empty profile must replace the prior guild selection.
+        app.session.set_login_name("other".to_string());
+        app.process_input_lines(vec!["Hp:1/2 Sp:3/4 Ep:5/6 Exp:7 >".into()]);
+        assert!(!app.guild_selection.is_selected(GuildKey::Nergal));
+        assert!(drain_commands(&mut new_receiver).is_empty());
+        std::fs::remove_dir_all(base_dir).unwrap();
+    }
+
+    #[test]
+    fn nergal_score_is_sent_only_when_newly_selected_while_logged_in() {
+        let (mut app, mut receiver) = test_app();
+        log_in(&mut app);
+        let selection =
+            GuildSelection::from_playable_keys([GuildKey::Nergal], Some("evil_religious"));
+        app.apply_guild_selection(selection.clone());
+        assert_eq!(drain_commands(&mut receiver), vec!["nergal sc"]);
+        app.apply_guild_selection(selection.clone());
+        assert!(drain_commands(&mut receiver).is_empty());
+        app.apply_guild_selection(GuildSelection::default());
+        assert!(drain_commands(&mut receiver).is_empty());
+        app.apply_guild_selection(selection);
+        assert_eq!(drain_commands(&mut receiver), vec!["nergal sc"]);
     }
 
     #[test]

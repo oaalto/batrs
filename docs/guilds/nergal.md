@@ -36,4 +36,4 @@ Minion status lines are absorbed into the HUD row (original line hidden). Unsumm
 
 ## Profile
 
-Enable **`nergal`** in **`/guilds`** so the minion row appears when the game sends status.
+Enable **`nergal`** in **`/guilds`** so the minion row appears when the game sends status. The client sends **`nergal sc`** once after login (including login after `/connect`) when Nergal is selected, and when you newly select Nergal while logged in. Saving an unchanged selection does not resend it; deselecting and reselecting does. No BatMUD `nc` alias is required.
