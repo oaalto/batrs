@@ -1376,7 +1376,7 @@ mod tests {
         let line = StyledLine::new(TEXT);
         let rows_per_line = line.to_wrapped_lines(WIDTH).len();
         println!(
-            "history,cache_hit_ms,rewrap_ms,viewport_prepare_ms,cached_draw_ms,append_draw_ms"
+            "history,cache_hit_ms,append_cache_update_ms,viewport_prepare_ms,cached_draw_ms,append_draw_ms,append_cache_update_max_ms"
         );
         for history in [100, 1_000, 10_000] {
             let (mut app, _commands) = test_app();
@@ -1384,7 +1384,7 @@ mod tests {
             let mut terminal = Terminal::new(TestBackend::new(WIDTH, HEIGHT)).unwrap();
             terminal.draw(|frame| app.draw(frame)).unwrap();
             let mut cache_hits = Vec::new();
-            let mut rewraps = Vec::new();
+            let mut cache_updates = Vec::new();
             let mut preparations = Vec::new();
             let mut cached_draws = Vec::new();
             let mut append_draws = Vec::new();
@@ -1396,7 +1396,7 @@ mod tests {
                 app.output.append_lines(vec![line.clone()]);
                 let start = Instant::now();
                 let wrapped = app.output.wrapped_lines(WIDTH);
-                rewraps.push(start.elapsed().as_secs_f64() * 1_000.0);
+                cache_updates.push(start.elapsed().as_secs_f64() * 1_000.0);
                 assert_eq!(wrapped.len(), (history + sample * 2 + 1) * rows_per_line);
 
                 let start = Instant::now();
@@ -1425,15 +1425,42 @@ mod tests {
                 assert_eq!(terminal.backend().buffer().area.width, WIDTH);
                 assert_eq!(terminal.backend().buffer().area.height, HEIGHT);
             }
+            let max_cache_update = cache_updates.iter().copied().fold(0.0, f64::max);
             println!(
-                "{history},{:.6},{:.3},{:.3},{:.3},{:.3}",
+                "{history},{:.6},{:.6},{:.3},{:.3},{:.3},{:.6}",
                 median_ms(cache_hits),
-                median_ms(rewraps),
+                median_ms(cache_updates),
                 median_ms(preparations),
                 median_ms(cached_draws),
                 median_ms(append_draws),
+                max_cache_update,
             );
         }
+
+        // Separate long-run extension outliers from the five-sample steady-state medians.
+        let mut output = OutputBuffer::new();
+        output.append_lines(vec![line.clone(); 10_000]);
+        black_box(output.wrapped_lines(WIDTH));
+        let mut extensions = Vec::new();
+        for _ in 0..10_000 {
+            output.append_lines(vec![line.clone()]);
+            let start = Instant::now();
+            black_box(output.wrapped_lines(WIDTH));
+            extensions.push(start.elapsed().as_secs_f64() * 1_000.0);
+        }
+        assert_eq!(output.wrapped_lines(WIDTH).len(), 20_000 * rows_per_line);
+        let (slowest_index, slowest_ms) = extensions
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.total_cmp(b))
+            .unwrap();
+        println!(
+            "extension_probe: initial=10000,appends=10000,first_half_median_ms={:.6},second_half_median_ms={:.6},max_ms={:.6},max_at_append={}",
+            median_ms(extensions[..5_000].to_vec()),
+            median_ms(extensions[5_000..].to_vec()),
+            slowest_ms,
+            slowest_index + 1,
+        );
     }
 
     fn log_in(app: &mut BatApp) {
@@ -2559,34 +2586,107 @@ mod tests {
         assert_eq!(app.scrollback.offset(), scroll_offset_before);
     }
 
+    fn wrapped_text(output: &mut OutputBuffer, width: u16) -> Vec<String> {
+        output
+            .wrapped_lines(width)
+            .iter()
+            .map(ToString::to_string)
+            .collect()
+    }
+
     #[test]
-    fn output_buffer_reuses_wrapped_cache_until_output_changes() {
+    fn output_buffer_extends_pending_batches_in_order() {
         let mut output = OutputBuffer::new();
         output.append_lines(vec![StyledLine::new("abcdefgh")]);
+        assert_eq!(wrapped_text(&mut output, 4), ["abcd", "efgh"]);
+        assert_eq!(wrapped_text(&mut output, 4), ["abcd", "efgh"]);
 
-        let first = output.wrapped_lines(4).as_ptr();
-        let second = output.wrapped_lines(4).as_ptr();
-        assert_eq!(first, second);
-
-        output.append_lines(vec![StyledLine::new("ijkl")]);
-
-        let third = output.wrapped_lines(4).as_ptr();
-        assert_ne!(second, third);
+        let mut gagged = StyledLine::new("hidden");
+        gagged.gag = true;
+        output.append_lines(Vec::new());
+        output.append_lines(vec![gagged.clone()]);
+        assert_eq!(wrapped_text(&mut output, 4), ["abcd", "efgh"]);
+        output.append_lines(vec![StyledLine::new("ijklmnop"), gagged]);
+        output.append_lines(vec![
+            StyledLine::new(""),
+            StyledLine::new("\x1b[32mhé界\x1b[0m"),
+        ]);
+        for _ in 0..2 {
+            assert_eq!(
+                wrapped_text(&mut output, 4),
+                ["abcd", "efgh", "ijkl", "mnop", "", "hé界"]
+            );
+            let unicode = &output.wrapped_lines(4)[5];
+            assert!(
+                unicode
+                    .spans
+                    .iter()
+                    .all(|span| span.style.fg == Some(crate::ansi::palette::GREEN))
+            );
+        }
     }
 
     #[test]
     fn output_buffer_rewraps_when_width_changes() {
         let mut output = OutputBuffer::new();
         output.append_lines(vec![StyledLine::new("abcdefgh")]);
+        assert_eq!(wrapped_text(&mut output, 8), ["abcdefgh"]);
+        output.append_lines(vec![StyledLine::new("ijklmnop")]);
+        assert_eq!(
+            wrapped_text(&mut output, 4),
+            ["abcd", "efgh", "ijkl", "mnop"]
+        );
+        output.append_lines(vec![StyledLine::new("qrst")]);
+        assert_eq!(
+            wrapped_text(&mut output, 8),
+            ["abcdefgh", "ijklmnop", "qrst"]
+        );
+    }
 
-        let wide_ptr = output.wrapped_lines(8).as_ptr();
-        let wide_len = output.wrapped_lines(8).len();
-        let narrow_ptr = output.wrapped_lines(4).as_ptr();
-        let narrow_len = output.wrapped_lines(4).len();
+    #[test]
+    fn output_buffer_clear_resets_progress_before_refill() {
+        for refill in [
+            Vec::new(),
+            vec!["new"],
+            vec!["new", "more"],
+            vec!["a", "b", "c"],
+        ] {
+            let mut output = OutputBuffer::new();
+            output.append_lines(vec![StyledLine::new("old"), StyledLine::new("stale")]);
+            assert_eq!(wrapped_text(&mut output, 8), ["old", "stale"]);
+            output.append_lines(vec![StyledLine::new("pending")]);
+            output.clear();
+            output.append_lines(refill.iter().map(|line| StyledLine::new(line)).collect());
+            assert_eq!(wrapped_text(&mut output, 8), refill);
+            output.clear();
+            assert!(output.wrapped_lines(8).is_empty());
+            output.clear();
+            output.append_lines(vec![StyledLine::new("fresh")]);
+            assert_eq!(wrapped_text(&mut output, 8), ["fresh"]);
+        }
+    }
 
-        assert_ne!(wide_ptr, narrow_ptr);
-        assert_eq!(wide_len, 1);
-        assert_eq!(narrow_len, 2);
+    #[test]
+    fn output_buffer_zero_width_preserves_pending_content_and_clear() {
+        let mut output = OutputBuffer::new();
+        output.append_lines(vec![StyledLine::new("abcdefgh")]);
+        assert!(output.wrapped_lines(0).is_empty());
+        assert_eq!(wrapped_text(&mut output, 4), ["abcd", "efgh"]);
+        output.append_lines(vec![StyledLine::new("ijkl")]);
+        assert!(output.wrapped_lines(0).is_empty());
+        output.append_lines(vec![StyledLine::new("mnop")]);
+        assert_eq!(
+            wrapped_text(&mut output, 4),
+            ["abcd", "efgh", "ijkl", "mnop"]
+        );
+        output.append_lines(vec![StyledLine::new("pending")]);
+        assert!(output.wrapped_lines(0).is_empty());
+        output.clear();
+        output.append_lines(vec![StyledLine::new("fresh"), StyledLine::new("text")]);
+        assert!(output.wrapped_lines(0).is_empty());
+        output.append_lines(vec![StyledLine::new("new")]);
+        assert_eq!(wrapped_text(&mut output, 8), ["fresh", "text", "new"]);
+        assert_eq!(wrapped_text(&mut output, 4), ["fres", "h", "text", "new"]);
     }
 
     #[test]
@@ -2638,13 +2738,17 @@ mod tests {
         assert!(!view.show_cursor);
     }
 
+    /// Read displayed symbols, skipping cells covered by a wide grapheme.
     fn screen_row(terminal: &Terminal<TestBackend>, y: u16) -> String {
         let buffer = terminal.backend().buffer();
-        (0..buffer.area.width)
-            .map(|x| buffer[(x, y)].symbol())
-            .collect::<String>()
-            .trim_end()
-            .to_string()
+        let mut row = String::new();
+        let mut x = 0;
+        while x < usize::from(buffer.area.width) {
+            let symbol = buffer[(x as u16, y)].symbol();
+            row.push_str(symbol);
+            x += unicode_width::UnicodeWidthStr::width(symbol).max(1);
+        }
+        row.trim_end().to_string()
     }
 
     #[test]
@@ -2696,6 +2800,51 @@ mod tests {
     }
 
     #[test]
+    fn append_and_draw_batches_preserve_selected_rows_and_follow_latest() {
+        let (mut app, _commands) = test_app();
+        app.process_input_lines((0..8).map(|index| format!("old{index}")).collect());
+        let mut terminal = Terminal::new(TestBackend::new(8, 6)).unwrap();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(screen_row(&terminal, 0), "old4");
+        assert_eq!(app.scrollback.offset(), 4);
+        app.handle_key_event(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE));
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(app.scrollback.offset(), 0);
+
+        app.process_input_lines(vec!["".into(), "\x1b[32mhé界\x1b[0m".into()]);
+        app.process_input_lines(vec!["abcdefghijk".into()]);
+        for _ in 0..2 {
+            terminal.draw(|frame| app.draw(frame)).unwrap();
+            assert_eq!(app.scrollback.offset(), 0);
+            assert_eq!(screen_row(&terminal, 0), "old0");
+            assert_eq!(screen_row(&terminal, 3), "old3");
+        }
+        for _ in 0..2 {
+            app.handle_key_event(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE));
+            terminal.draw(|frame| app.draw(frame)).unwrap();
+        }
+        assert_eq!(app.scrollback.offset(), 8);
+        assert_eq!(screen_row(&terminal, 0), "");
+        assert_eq!(screen_row(&terminal, 1), "hé界");
+        assert_eq!(
+            terminal.backend().buffer()[(0, 1)].fg,
+            crate::ansi::palette::GREEN
+        );
+        assert_eq!(screen_row(&terminal, 2), "abcdefgh");
+        assert_eq!(screen_row(&terminal, 3), "ijk");
+        app.process_input_lines(Vec::new());
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(app.scrollback.offset(), 8);
+        app.process_input_lines(vec!["latest1".into()]);
+        app.process_input_lines(vec!["latest2".into()]);
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert_eq!(app.scrollback.offset(), 10);
+        assert_eq!(screen_row(&terminal, 0), "abcdefgh");
+        assert_eq!(screen_row(&terminal, 2), "latest1");
+        assert_eq!(screen_row(&terminal, 3), "latest2");
+    }
+
+    #[test]
     fn viewport_preserves_styles_blank_unicode_and_resize_wrapping() {
         let (mut app, _commands) = test_app();
         app.output.append_lines(vec![
@@ -2713,13 +2862,13 @@ mod tests {
             terminal.backend().buffer()[(0, 3)].fg,
             crate::ansi::palette::GREEN
         );
-        let cached = app.output.wrapped_lines(4).as_ptr();
+        let cached = app.output.wrapped_lines(4).to_vec();
         terminal.backend_mut().resize(4, 4);
         terminal.autoresize().unwrap();
         terminal.draw(|frame| app.draw(frame)).unwrap();
         assert_eq!(screen_row(&terminal, 0), "");
         assert_eq!(screen_row(&terminal, 1), "hé界");
-        assert_eq!(app.output.wrapped_lines(4).as_ptr(), cached);
+        assert_eq!(app.output.wrapped_lines(4), cached);
         terminal.backend_mut().resize(8, 6);
         terminal.autoresize().unwrap();
         terminal.draw(|frame| app.draw(frame)).unwrap();

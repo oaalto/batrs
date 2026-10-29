@@ -1,5 +1,11 @@
 # Slice 02: Wrap appended output incrementally
 
+## Status
+
+done
+
+Completed on 2026-10-29 after risk-first and standards/spec review found no issues. Format, build, warning-clean Clippy, 799 automated tests, wiki lint, and strict docs build passed; the existing manual `backfill_user_damage_db` test remains ignored. Three isolated release runs measured 10,000-line append-and-draw at 0.163–0.168 ms versus the original 101.132 ms. The user confirmed it works and approved completion and commit. See the [benchmark evidence](../../wiki/source-notes/output-history-benchmark.md) for methodology, extension outliers, and remaining memory/width-change limits.
+
 ## Suggested branch name
 
 `feature/output-history-performance`
@@ -34,21 +40,21 @@ Include output and screen-content regressions, final before/after release measur
 
 ## Acceptance criteria
 
-- [ ] At unchanged width, cache updates incorporate only source lines appended after the last completed update; subsequent unchanged requests return cached rows without wrapping old content.
-- [ ] Multiple appends before a draw produce every retained wrapped row exactly once and in order, with no omitted or duplicated output.
-- [ ] Initial population and terminal-width changes produce correct full-history wrapping in both resize directions; height-only changes do not invalidate wrapping.
-- [ ] Clear empties cached rows and resets source progress; tests cover clear/refill to the same count before a draw, different counts, and clear followed by an empty draw.
-- [ ] Empty and fully gagged batches do not add rows or force old wrapping; mixed batches preserve retained order, text, styles, blank lines, and Unicode behavior.
-- [ ] Zero-width requests leave pending output intact; restoring a nonzero width produces correct content without stale rows or duplication, including when pending appends and clear occur between draws.
-- [ ] App-level `TestBackend` checks exercise real append-and-draw behavior while following latest and while scrolled back; viewport content and selected row positions remain correct.
-- [ ] Existing reconnect preservation/clearing and terminal-redraw regressions pass with the new cache contract. Keep the greater-than-65,535-row viewport regression from slice 01 passing.
-- [ ] Replace existing cache pointer-inequality assertions with output correctness checks. Tests cover contracts and real rendering, not allocation movement, cache field names, or container choices.
-- [ ] Keep `cargo test --release benchmark_output_history -- --nocapture --test-threads=1` runnable with the baseline's synthetic input, 100/1,000/10,000 initial histories, and fixed 80×24 geometry. Label the wrapping stage as append-cache update, retain viewport preparation measurements, and preserve the recorded original baseline.
-- [ ] In repeated isolated release runs on the same machine, the 10,000-line median append-and-draw time is at least 10× faster than the approximately 101 ms baseline (approximately 10.1 ms or less). Cached redraw and ordinary append/update costs show no material retained-history trend; report occasional allocation growth separately from sustained full-history work. Keep timing thresholds out of ordinary CI assertions.
-- [ ] If the benchmark still shows sustained history-dependent work, investigate the measured remainder at the existing seams before widening scope or declaring the target met.
-- [ ] Update benchmark evidence and the client subsystem documentation with before/after timings, methodology, and limitations. Reconcile historical profiling/PRD statements about full-history re-wrapping; retain unrelated plans. Explicitly document growing history memory and full-history work on width changes.
-- [ ] Format → build/typecheck → warning-clean Clippy → complete automated tests pass, followed by wiki lint and strict docs build for documentation changes. Carry regression and performance evidence into risk-first and standards/spec review; report any existing manual-test skips.
-- [ ] No live BatMUD connection, user-local config/log/database access, or runtime session is needed for automated acceptance. Offline success is not reported as proof of every live-session performance contributor.
+- [x] At unchanged width, cache updates incorporate only source lines appended after the last completed update; subsequent unchanged requests return cached rows without wrapping old content.
+- [x] Multiple appends before a draw produce every retained wrapped row exactly once and in order, with no omitted or duplicated output.
+- [x] Initial population and terminal-width changes produce correct full-history wrapping in both resize directions; height-only changes do not invalidate wrapping.
+- [x] Clear empties cached rows and resets source progress; tests cover clear/refill to the same count before a draw, different counts, and clear followed by an empty draw.
+- [x] Empty and fully gagged batches do not add rows or force old wrapping; mixed batches preserve retained order, text, styles, blank lines, and Unicode behavior.
+- [x] Zero-width requests leave pending output intact; restoring a nonzero width produces correct content without stale rows or duplication, including when pending appends and clear occur between draws.
+- [x] App-level `TestBackend` checks exercise real append-and-draw behavior while following latest and while scrolled back; viewport content and selected row positions remain correct.
+- [x] Existing reconnect preservation/clearing and terminal-redraw regressions pass with the new cache contract. Keep the greater-than-65,535-row viewport regression from slice 01 passing.
+- [x] Replace existing cache pointer-inequality assertions with output correctness checks. Tests cover contracts and real rendering, not allocation movement, cache field names, or container choices.
+- [x] Keep `cargo test --release benchmark_output_history -- --nocapture --test-threads=1` runnable with the baseline's synthetic input, 100/1,000/10,000 initial histories, and fixed 80×24 geometry. Label the wrapping stage as append-cache update, retain viewport preparation measurements, and preserve the recorded original baseline.
+- [x] In repeated isolated release runs on the same machine, the 10,000-line median append-and-draw time is at least 10× faster than the approximately 101 ms baseline (approximately 10.1 ms or less). Cached redraw and ordinary append/update costs show no material retained-history trend; report occasional allocation growth separately from sustained full-history work. Keep timing thresholds out of ordinary CI assertions.
+- [x] If the benchmark still shows sustained history-dependent work, investigate the measured remainder at the existing seams before widening scope or declaring the target met.
+- [x] Update benchmark evidence and the client subsystem documentation with before/after timings, methodology, and limitations. Reconcile historical profiling/PRD statements about full-history re-wrapping; retain unrelated plans. Explicitly document growing history memory and full-history work on width changes.
+- [x] Format → build/typecheck → warning-clean Clippy → complete automated tests pass, followed by wiki lint and strict docs build for documentation changes. Carry regression and performance evidence into risk-first and standards/spec review; report any existing manual-test skips.
+- [x] No live BatMUD connection, user-local config/log/database access, or runtime session is needed for automated acceptance. Offline success is not reported as proof of every live-session performance contributor.
 
 ## Implementation handoff
 

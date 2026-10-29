@@ -1,5 +1,16 @@
 # Engineering Wiki Log
 
+## [2026-10-29] skip | Complete incremental output wrapping ticket
+
+- Sources: `docs/features/output-history-performance/02-incremental-output-wrapping.md`, `docs/features/output-history-performance/prd.md`
+- Notes: Marked slice 02 done and recorded combined delivery completion after validation, three independent reviews, and user confirmation that it works. Tracker status only; benchmark and subsystem knowledge are unchanged from the incremental wrapping update below.
+
+## [2026-10-29] update | Incremental output wrapping
+
+- Updated: [batrs client application](subsystems/batrs-client.md), [Output history scaling benchmark](source-notes/output-history-benchmark.md), [Historical text input profiling note](source-notes/text-input-slow-profiling.md), [index](index.md)
+- Sources: `src/app/output_buffer.rs`, `src/app/mod.rs`, three isolated final release benchmark invocations
+- Notes: Cache updates wrap only the pending retained source suffix at unchanged width; clear resets progress and zero width preserves pending content. Added content/style/order, clear/refill, zero-width, real batched append/draw and selected-row regressions; replaced allocator-pointer assertions. Recorded 0.163–0.168 ms 10,000-line append/draw versus original 101.132 ms, separate extension outliers, unbounded history memory, and full-history initial/width-change work. Reconciled the UI manual and affected PRDs without closing tickets or unrelated plans.
+
 ## [2026-10-29] skip | Complete viewport-limited rendering ticket
 
 - Sources: `docs/features/output-history-performance/01-viewport-limited-rendering.md`, `docs/features/output-history-performance/prd.md`

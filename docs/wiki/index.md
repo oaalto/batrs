@@ -27,6 +27,6 @@
 ## Source Notes
 
 - [Text input slowness profiling note](source-notes/text-input-slow-profiling.md)
-- [Output history scaling benchmark](source-notes/output-history-benchmark.md)
+- [Output history scaling benchmark: viewport and incremental wrapping](source-notes/output-history-benchmark.md)
 
 ## Synthesis

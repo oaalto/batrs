@@ -4,14 +4,13 @@ use ratatui::text::{Line, Span};
 #[derive(Default)]
 pub struct OutputBuffer {
     lines: Vec<StyledLine>,
-    generation: u64,
     wrapped_cache: Option<WrappedLinesCache>,
 }
 
 #[derive(Default)]
 struct WrappedLinesCache {
     width: u16,
-    generation: u64,
+    source_count: usize,
     lines: Vec<ratatui::text::Line<'static>>,
 }
 
@@ -20,7 +19,8 @@ impl OutputBuffer {
         Self::default()
     }
 
-    /// Return wrapped output lines cached by terminal width and output generation.
+    /// Return cached rows, wrapping only pending source lines at an unchanged width.
+    /// Width changes rebuild all rows; zero width leaves pending output untouched.
     ///
     /// The returned slice is borrowed from internal cache storage and stays valid
     /// until the next mutable `OutputBuffer` operation.
@@ -32,35 +32,36 @@ impl OutputBuffer {
         let cache = self
             .wrapped_cache
             .get_or_insert_with(WrappedLinesCache::default);
-        if cache.width != width || cache.generation != self.generation {
+        // ponytail: growing history and full width-change wrapping remain; revisit storage if measured limits warrant it.
+        if cache.width != width {
             cache.width = width;
-            cache.generation = self.generation;
-            cache.lines = self
-                .lines
+            cache.source_count = 0;
+            cache.lines.clear();
+        }
+        cache.lines.extend(
+            self.lines[cache.source_count..]
                 .iter()
                 .flat_map(|line| line.to_wrapped_lines(width))
-                .map(owned_line)
-                .collect();
-        }
+                .map(owned_line),
+        );
+        cache.source_count = self.lines.len();
 
         cache.lines.as_slice()
     }
 
+    /// Retain non-gagged source lines in order; existing lines remain immutable.
     pub fn append_lines(&mut self, mut lines: Vec<StyledLine>) {
         remove_gagged_lines(&mut lines);
         if lines.is_empty() {
             return;
         }
         self.lines.append(&mut lines);
-        self.generation = self.generation.wrapping_add(1);
     }
 
+    /// Discard source and cached output, including progress from before a refill.
     pub fn clear(&mut self) {
-        if self.lines.is_empty() {
-            return;
-        }
         self.lines.clear();
-        self.generation = self.generation.wrapping_add(1);
+        self.wrapped_cache = None;
     }
 
     #[cfg(test)]

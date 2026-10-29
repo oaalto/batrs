@@ -4,7 +4,7 @@
 
 accepted
 
-The resolved plan review is the basis of this spec; the user directed the planning lane to `to-spec`. Slice 01 implementation now selects the visible viewport with clamped usize row offsets. Slice 01 is complete in commit `16b0fe0`; slice 02 incremental append wrapping remains pending.
+The resolved plan review is the basis of this spec; the user directed the planning lane to `to-spec`. Slice 01 implementation now selects the visible viewport with clamped usize row offsets. Slice 01 is complete in commit `16b0fe0`; slice 02 incremental append wrapping is complete. Both slices passed validation and risk-first plus standards/spec review; the user confirmed slice 02 works and approved completion on 2026-10-29.
 
 ## Triage label
 
@@ -16,7 +16,7 @@ The resolved plan review is the basis of this spec; the user directed the planni
 
 ## Problem Statement
 
-Original baseline problem: the batrs client becomes less responsive during long play sessions as game output accumulates. New displayed lines cause the entire retained output history to be wrapped again, and drawing copies the complete wrapped history even when only a screenful is visible. Typing and other UI updates also pay the copying cost when wrapping is already cached. Slice 01 now eliminates hidden-history presentation copies; append wrapping is still full-history.
+Original baseline problem: the batrs client becomes less responsive during long play sessions as game output accumulates. New displayed lines cause the entire retained output history to be wrapped again, and drawing copies the complete wrapped history even when only a screenful is visible. Typing and other UI updates also pay the copying cost when wrapping is already cached. Slice 01 eliminates hidden-history presentation copies; slice 02 now wraps only pending retained lines at unchanged width.
 
 An offline release benchmark with a fixed 80×24 terminal measured the following median costs:
 
@@ -28,7 +28,7 @@ An offline release benchmark with a fixed 80×24 terminal measured the following
 
 Growing history 100-fold increased append-and-draw cost approximately 99-fold. Repeated release invocations put the 10,000-line update at approximately 98–109 ms. This demonstrates a local output-history scaling problem; it does not establish every contributor to a particular live-session slowdown. The benchmark excludes live networking, logged-in triggers, persistence, and the real terminal backend.
 
-At specification time, the dirty-redraw mechanism and wrapped-output cache avoided some unnecessary work but did not prevent a full re-wrap after append or full-history copies on redraw. After slice 01, cached redraws take 0.163–0.226 ms across 100/1,000/10,000 initial lines in three isolated release invocations. Append-and-draw at 10,000 lines still takes 37.170–38.344 ms, short of the combined 10× target; see the linked benchmark evidence. Game triggers process incoming lines, not the entire stored history; this feature addresses output preparation and presentation.
+At specification time, the dirty-redraw mechanism and wrapped-output cache avoided some unnecessary work but did not prevent a full re-wrap after append or full-history copies on redraw. After slice 01, cached redraws take 0.163–0.226 ms across 100/1,000/10,000 initial lines in three isolated release invocations. At the slice 01 checkpoint, append-and-draw at 10,000 lines still took 37.170–38.344 ms, short of the combined 10× target. After slice 02, three isolated release runs measure 0.163–0.168 ms (about 602–620× faster than the original baseline), with no material retained-history trend in ordinary append-cache updates or cached redraws; see the linked benchmark evidence and separate extension-outlier measurements. Game triggers process incoming lines, not the entire stored history; this feature addresses output preparation and presentation.
 
 ## Solution
 
@@ -156,5 +156,5 @@ cargo test --release benchmark_output_history -- --nocapture --test-threads=1
 - The [client subsystem page](../../wiki/subsystems/batrs-client.md) describes current dirty redraws and cached wrapping. The [older profiling note](../../wiki/source-notes/text-input-slow-profiling.md) contains historical loop/render claims and should be reconciled during implementation.
 - This spec narrows the history-scaling work overlapping the [text input performance PRD](../text-input-performance/prd.md) and [runtime hot path optimizations PRD](../runtime-hot-path-optimizations/prd.md). It does not supersede their unrelated input or trigger work. Reconcile affected descriptions when implementation changes current behavior; do not mark unrelated work completed.
 - Update benchmark evidence, client subsystem knowledge, and the UI manual's corrected long-history scrolling behavior with the implementation. No new glossary terms or ADR are required: ownership remains unchanged and the implementation choices are local and reversible.
-- Slice 01 applies viewport-limited presentation only; the original offline baseline and slice 01 measurements remain in the benchmark evidence. Slice 02 still needs to remove full-history wrapping after ordinary append.
-- Next planning step: `to-tickets`, producing viewport-limited rendering and incremental-wrapping slices under this feature, both sharing the suggested feature branch.
+- Slice 01 applies viewport-limited presentation only; the original offline baseline and slice 01 measurements remain in the benchmark evidence. Slice 02 now removes full-history wrapping after ordinary append. Initial population, width changes, growing memory, and occasional vector allocation growth remain explicit limits.
+- Delivery is complete: both implementation slices are done, with the original baseline and final release evidence preserved. The user chose execution on `master` instead of the suggested feature branch.
