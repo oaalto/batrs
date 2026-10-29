@@ -19,6 +19,10 @@ If the initial BatMUD connection fails, the client prints only the error message
 
 After you are logged in, a **single summary line** can show combat and character info. Before login it stays empty.
 
+The recovery bracket shows ready skills in order: green **`c`** for camping, yellow **`m`** for meditation, and normal-colored **`d`** for dreary hibernation only when **Nergal** is selected in `/guilds`. For example, `[cmd]` means all three are ready. Starting a skill hides its letter; recovery messages restore it. Dreary hibernation and meditation share the harmony recovery message, which restores both letters when their trigger groups are enabled.
+
+Readiness defaults to ready on login; newly selecting Nergal also initializes `d` as ready. These defaults are not server-confirmed cooldown checks. Deselecting Nergal clears and hides `d`. Disabling guild triggers freezes dreary hibernation updates; disabling core triggers freezes camping and meditation updates.
+
 ## Extra status rows
 
 Sometimes the client adds **another line or two** under the main status:

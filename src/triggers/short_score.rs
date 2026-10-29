@@ -45,7 +45,8 @@ mod tests {
         output.apply_line_effects_to(&mut line);
 
         assert!(line.gag);
-        let status_line = rendered_text(&stats.render_inline());
+        let status_line =
+            rendered_text(&stats.render_inline(&crate::guilds::catalog::GuildSelection::default()));
         assert!(status_line.contains("Hp: 571/802 (+20)"));
         assert!(status_line.contains("Sp: 635/635"));
         assert!(status_line.contains("Ep: 311/311"));

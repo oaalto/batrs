@@ -3,9 +3,14 @@ use crate::automation::Action;
 use crate::command::TriggerCatalogEntry;
 use crate::guilds::NergalGuild;
 use crate::secondary_status::{NergalMinion, NergalResourceStatus, SecondaryStatusEffect};
+use crate::stats::StatsEffect;
 use crate::triggers::{Trigger, TriggerContext, TriggerEffects, TriggerLine};
 use regex::Regex;
 use std::sync::LazyLock;
+
+const DREARY_HIBERNATION_START: &str = "Dark mist floods the area around you as twisted, rotting roots spew forth from it, enveloping you in a cocoon.";
+const RECOVERY_HARMONY: &str =
+    "You feel in harmony with yourself, the universe and life in general.";
 
 impl NergalGuild {
     pub fn get_triggers(&self) -> Vec<Trigger> {
@@ -14,6 +19,14 @@ impl NergalGuild {
 
     pub fn get_trigger_catalog(&self) -> Vec<TriggerCatalogEntry> {
         vec![
+            TriggerCatalogEntry::new(
+                DREARY_HIBERNATION_START,
+                "Clear dreary hibernation readiness (d).",
+            ),
+            TriggerCatalogEntry::new(
+                RECOVERY_HARMONY,
+                "Restore dreary hibernation readiness (d).",
+            ),
             TriggerCatalogEntry::new(
                 r"^::\.\.:\. (.+) \[Hp: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*, Sp: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*, Ep: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*\]$",
                 "Gag line and upsert Nergal minion secondary status.",
@@ -95,6 +108,16 @@ impl NergalGuild {
     pub fn nergal_trigger(line: &TriggerLine<'_>, _facts: &TriggerContext<'_>) -> TriggerEffects {
         let mut output = TriggerEffects::default();
         let line = line.plain_line.trim_end_matches('\r').trim();
+
+        match line {
+            DREARY_HIBERNATION_START => {
+                return output.stat(StatsEffect::SetRecoveryBracketDrearyHibernation(false));
+            }
+            RECOVERY_HARMONY => {
+                return output.stat(StatsEffect::SetRecoveryBracketDrearyHibernation(true));
+            }
+            _ => {}
+        }
 
         if let Some(captures) = MINION_STATUS.captures(line) {
             let minion = NergalMinion {
@@ -279,6 +302,34 @@ mod tests {
         let mut styled = StyledLine::new(line_text);
         output.apply_line_effects_to(&mut styled);
         (output, styled)
+    }
+
+    #[test]
+    fn dreary_hibernation_messages_update_readiness_without_output_side_effects() {
+        for (message, ready) in [(DREARY_HIBERNATION_START, false), (RECOVERY_HARMONY, true)] {
+            let padded = format!("  {message}\r");
+            let output =
+                NergalGuild::nergal_trigger(&TriggerLine::new(&padded), &TriggerContext::default());
+            assert_eq!(
+                output.stats,
+                vec![StatsEffect::SetRecoveryBracketDrearyHibernation(ready)]
+            );
+            let mut styled = StyledLine::new(&padded);
+            output.apply_line_effects_to(&mut styled);
+            assert!(!styled.gag);
+            assert!(output.actions.is_empty());
+            assert!(output.lines.is_empty());
+            assert!(output.secondary_status.is_empty());
+            let near_match = format!("{message} extra");
+            assert!(
+                NergalGuild::nergal_trigger(
+                    &TriggerLine::new(&near_match),
+                    &TriggerContext::default()
+                )
+                .stats
+                .is_empty()
+            );
+        }
     }
 
     #[test]

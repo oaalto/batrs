@@ -50,19 +50,34 @@ mod tests {
     fn camping_and_meditation_lines_toggle_flags() {
         let mut stats = Stats::default();
 
-        assert!(line_plain(&stats.render_inline()).ends_with("  []"));
+        assert!(
+            line_plain(&stats.render_inline(&crate::guilds::catalog::GuildSelection::default()))
+                .ends_with("  []")
+        );
 
         apply_trigger(FEEL_TIRED, &mut stats);
-        assert!(line_plain(&stats.render_inline()).ends_with("  [c]"));
+        assert!(
+            line_plain(&stats.render_inline(&crate::guilds::catalog::GuildSelection::default()))
+                .ends_with("  [c]")
+        );
 
         apply_trigger(LIE_DOWN_REST, &mut stats);
-        assert!(line_plain(&stats.render_inline()).ends_with("  []"));
+        assert!(
+            line_plain(&stats.render_inline(&crate::guilds::catalog::GuildSelection::default()))
+                .ends_with("  []")
+        );
 
         apply_trigger(MEDITATION_HARMONY, &mut stats);
-        assert!(line_plain(&stats.render_inline()).ends_with("  [m]"));
+        assert!(
+            line_plain(&stats.render_inline(&crate::guilds::catalog::GuildSelection::default()))
+                .ends_with("  [m]")
+        );
 
         apply_trigger(START_MEDITATING, &mut stats);
-        assert!(line_plain(&stats.render_inline()).ends_with("  []"));
+        assert!(
+            line_plain(&stats.render_inline(&crate::guilds::catalog::GuildSelection::default()))
+                .ends_with("  []")
+        );
     }
 
     #[test]
@@ -70,10 +85,16 @@ mod tests {
         let mut stats = Stats::default();
         stats.set_recovery_bracket_defaults_for_login();
 
-        assert!(line_plain(&stats.render_inline()).ends_with("  [cm]"));
+        assert!(
+            line_plain(&stats.render_inline(&crate::guilds::catalog::GuildSelection::default()))
+                .ends_with("  [cm]")
+        );
 
         apply_trigger("Something irrelevant.", &mut stats);
-        assert!(line_plain(&stats.render_inline()).ends_with("  [cm]"));
+        assert!(
+            line_plain(&stats.render_inline(&crate::guilds::catalog::GuildSelection::default()))
+                .ends_with("  [cm]")
+        );
     }
 
     #[test]
@@ -82,12 +103,18 @@ mod tests {
             let mut stats = Stats::default();
             apply_trigger(LIE_DOWN_REST, &mut stats);
             assert!(
-                line_plain(&stats.render_inline()).ends_with("  []"),
+                line_plain(
+                    &stats.render_inline(&crate::guilds::catalog::GuildSelection::default())
+                )
+                .ends_with("  []"),
                 "lie down should clear c for {msg:?}"
             );
             apply_trigger(msg, &mut stats);
             assert!(
-                line_plain(&stats.render_inline()).ends_with("  [c]"),
+                line_plain(
+                    &stats.render_inline(&crate::guilds::catalog::GuildSelection::default())
+                )
+                .ends_with("  [c]"),
                 "expected c on for {msg:?}"
             );
         }

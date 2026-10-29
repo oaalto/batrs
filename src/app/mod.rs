@@ -467,7 +467,7 @@ impl BatApp {
             .update_viewport(output_lines.len(), visible_height);
         let scroll_offset = self.scrollback.offset();
         let stats_line = if show_stats {
-            self.stats.render_inline()
+            self.stats.render_inline(&self.guild_selection)
         } else {
             Line::from("")
         };
@@ -878,6 +878,10 @@ impl BatApp {
             .iter()
             .flat_map(|guild| guild.triggers())
             .collect();
+        if nergal_newly_selected || !selection.is_selected(GuildKey::Nergal) {
+            self.stats
+                .set_recovery_bracket_dreary_hibernation(nergal_newly_selected);
+        }
         self.guild_selection = selection.clone();
         self.secondary_status.sync_guild_selection(&selection);
         self.automation = Automation::new();
@@ -1336,6 +1340,7 @@ mod tests {
     use crate::app::fake_connection_coordinator::{FakeConnectionCoordinator, connection_channels};
     use crate::automation::Waiter;
     use crate::guilds::catalog::GuildKey;
+    use crate::stats::StatsEffect;
     use ratatui::Terminal;
     use ratatui::backend::{Backend, TestBackend};
     use regex::Regex;
@@ -1433,6 +1438,14 @@ mod tests {
                 app.process_input_lines(vec![login_line.into(), login_line.into()]);
                 let expected = if selected { vec!["nergal sc"] } else { vec![] };
                 assert_eq!(drain_commands(&mut receiver), expected);
+                assert_eq!(
+                    app.stats
+                        .render_inline(&app.guild_selection)
+                        .spans
+                        .iter()
+                        .any(|span| span.content == "d"),
+                    selected
+                );
                 app.process_input_lines(vec!["Please enter your choice or name:".into()]);
                 app.session.set_login_name("tester".to_string());
                 app.process_input_lines(vec![login_line.into()]);
@@ -1477,6 +1490,109 @@ mod tests {
         assert!(!app.guild_selection.is_selected(GuildKey::Nergal));
         assert!(drain_commands(&mut new_receiver).is_empty());
         std::fs::remove_dir_all(base_dir).unwrap();
+    }
+
+    #[test]
+    fn dreary_hibernation_readiness_tracks_messages_and_selection_lifecycle() {
+        let (mut app, mut receiver) = test_app();
+        log_in(&mut app);
+        app.stats.set_recovery_bracket_defaults_for_login();
+        let selection = GuildSelection::from_playable_keys(
+            [GuildKey::Nergal, GuildKey::Monk],
+            Some("evil_religious"),
+        );
+        let bracket = |app: &BatApp| -> String {
+            app.stats
+                .render_inline(&app.guild_selection)
+                .spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect()
+        };
+        let start = "Dark mist floods the area around you as twisted, rotting roots spew forth from it, enveloping you in a cocoon.";
+        let harmony = "You feel in harmony with yourself, the universe and life in general.";
+        assert!(bracket(&app).ends_with("  [cm]"));
+        app.process_input_lines(vec![harmony.into()]);
+        assert!(bracket(&app).ends_with("  [cm]"));
+        app.apply_guild_selection(selection.clone());
+        drain_commands(&mut receiver);
+        assert!(bracket(&app).ends_with("  [cmd]"));
+        app.process_input_lines(vec![
+            start.into(),
+            "You sit down and start meditating.".into(),
+        ]);
+        assert!(bracket(&app).ends_with("  [c]"));
+        app.apply_guild_selection(selection.clone());
+        assert!(bracket(&app).ends_with("  [c]"));
+        app.process_input_lines(vec![harmony.into()]);
+        assert!(bracket(&app).ends_with("  [cmd]"));
+        let output = app.output.plain_lines();
+        assert!(output.contains(&start));
+        assert!(output.contains(&harmony));
+        assert!(drain_commands(&mut receiver).is_empty());
+        app.apply_guild_selection(GuildSelection::default());
+        assert!(bracket(&app).ends_with("  [cm]"));
+        assert!(
+            app.stats
+                .render_inline(&selection)
+                .spans
+                .iter()
+                .all(|span| span.content != "d")
+        );
+        app.process_input_lines(vec![start.into()]);
+        app.apply_guild_selection(selection.clone());
+        assert!(bracket(&app).ends_with("  [cmd]"));
+        app.apply_fresh_session_plan(FreshSessionPlan::new(1));
+        assert!(
+            app.stats
+                .render_inline(&selection)
+                .spans
+                .iter()
+                .all(|span| span.content != "d")
+        );
+    }
+
+    #[test]
+    fn dreary_hibernation_and_meditation_respect_their_trigger_switches() {
+        let start = "Dark mist floods the area around you as twisted, rotting roots spew forth from it, enveloping you in a cocoon.";
+        let harmony = "You feel in harmony with yourself, the universe and life in general.";
+        for guild_triggers in [false, true] {
+            for core_triggers in [false, true] {
+                let (mut app, _receiver) = test_app();
+                log_in(&mut app);
+                app.apply_guild_selection(GuildSelection::from_playable_keys(
+                    [GuildKey::Nergal],
+                    Some("evil_religious"),
+                ));
+                app.stats
+                    .apply_effect(StatsEffect::SetRecoveryBracketDrearyHibernation(false));
+                app.stats
+                    .apply_effect(StatsEffect::SetRecoveryBracketMeditation(false));
+                app.player_profile.trigger_config.guild_triggers = guild_triggers;
+                app.player_profile.trigger_config.core_triggers = core_triggers;
+                app.process_input_lines(vec![harmony.into()]);
+                let rendered = app.stats.render_inline(&app.guild_selection);
+                assert_eq!(
+                    rendered.spans.iter().any(|span| span.content == "d"),
+                    guild_triggers
+                );
+                assert_eq!(
+                    rendered.spans.iter().any(|span| span.content == "m"),
+                    core_triggers
+                );
+                app.stats
+                    .apply_effect(StatsEffect::SetRecoveryBracketDrearyHibernation(true));
+                app.process_input_lines(vec![start.into()]);
+                assert_eq!(
+                    app.stats
+                        .render_inline(&app.guild_selection)
+                        .spans
+                        .iter()
+                        .any(|span| span.content == "d"),
+                    !guild_triggers
+                );
+            }
+        }
     }
 
     #[test]
@@ -1957,7 +2073,7 @@ mod tests {
 
         let line_with_diffs: String = app
             .stats
-            .render_inline()
+            .render_inline(&app.guild_selection)
             .spans
             .iter()
             .map(|span| span.content.as_ref())
@@ -1972,7 +2088,7 @@ mod tests {
 
         let line_after_round: String = app
             .stats
-            .render_inline()
+            .render_inline(&app.guild_selection)
             .spans
             .iter()
             .map(|span| span.content.as_ref())
@@ -2000,7 +2116,7 @@ mod tests {
 
         let rendered: String = app
             .stats
-            .render_inline()
+            .render_inline(&app.guild_selection)
             .spans
             .iter()
             .map(|span| span.content.as_ref())
@@ -2099,7 +2215,7 @@ mod tests {
 
         let rendered: String = app
             .stats
-            .render_inline()
+            .render_inline(&app.guild_selection)
             .spans
             .iter()
             .map(|span| span.content.as_ref())
@@ -2384,7 +2500,7 @@ mod tests {
             output_lines: app.output.wrapped_lines(20).to_vec(),
             scroll_offset: app.scrollback.offset(),
             show_stats: true,
-            stats_line: app.stats.render_inline(),
+            stats_line: app.stats.render_inline(&app.guild_selection),
             combat_status_lines: Vec::new(),
             secondary_status_lines: app.secondary_status.render_lines(20, &app.guild_selection),
             clock: show_clock(),

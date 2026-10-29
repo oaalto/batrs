@@ -34,6 +34,15 @@ Minion status lines are absorbed into the HUD row (original line hidden). Unsumm
 !!! note "Overlaps"
     **`cps`** clashes with **Psionicist** **`cps`**. **`us`** overlaps **Liberator slash** / **Spider stab**.
 
+## Dreary hibernation readiness
+
+The main status recovery bracket adds **`d`** after camping (`c`) and meditation (`m`) only while Nergal is selected in `/guilds`. The letter means **ready**, not currently hibernating; the existing `udh` shortcut is unchanged.
+
+- **Start:** “Dark mist floods the area around you as twisted, rotting roots spew forth from it, enveloping you in a cocoon.” hides `d`.
+- **Ready again:** “You feel in harmony with yourself, the universe and life in general.” restores `d`. This also restores meditation readiness when core triggers are enabled.
+
+Both messages remain in game output. Login and newly selecting Nergal optimistically initialize `d` as ready; no server cooldown query is made. Saving an unchanged selection preserves readiness, deselecting clears it, and reselecting initializes it again. Disabling guild triggers freezes message-driven updates without changing guild-selected visibility.
+
 ## Profile
 
 Enable **`nergal`** in **`/guilds`** so the minion row appears when the game sends status. The client sends **`nergal sc`** once after login (including login after `/connect`) when Nergal is selected, and when you newly select Nergal while logged in. Saving an unchanged selection does not resend it; deselecting and reselecting does. No BatMUD `nc` alias is required.

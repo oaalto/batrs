@@ -1,4 +1,5 @@
 use crate::ansi::palette;
+use crate::guilds::catalog::{GuildKey, GuildSelection};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
@@ -22,6 +23,8 @@ pub struct Stats {
     recovery_bracket_camping: bool,
     /// Yellow `m`: on after meditation harmony line, off when meditation starts.
     recovery_bracket_meditation: bool,
+    /// Nergal-only `d`: ready until dreary hibernation starts.
+    recovery_bracket_dreary_hibernation: bool,
     #[cfg(test)]
     end_combat_invocations: u32,
     #[cfg(test)]
@@ -36,6 +39,7 @@ pub enum StatsEffect {
     EndCombat,
     SetRecoveryBracketCamping(bool),
     SetRecoveryBracketMeditation(bool),
+    SetRecoveryBracketDrearyHibernation(bool),
 }
 
 impl Stats {
@@ -83,6 +87,9 @@ impl Stats {
             StatsEffect::SetRecoveryBracketMeditation(active) => {
                 self.set_recovery_bracket_meditation(active);
             }
+            StatsEffect::SetRecoveryBracketDrearyHibernation(ready) => {
+                self.set_recovery_bracket_dreary_hibernation(ready);
+            }
         }
     }
 
@@ -96,6 +103,7 @@ impl Stats {
         let money = self.money;
         let recovery_bracket_camping = self.recovery_bracket_camping;
         let recovery_bracket_meditation = self.recovery_bracket_meditation;
+        let recovery_bracket_dreary_hibernation = self.recovery_bracket_dreary_hibernation;
         #[cfg(test)]
         let end_combat_invocations = self.end_combat_invocations;
         #[cfg(test)]
@@ -110,6 +118,7 @@ impl Stats {
         self.money = money;
         self.recovery_bracket_camping = recovery_bracket_camping;
         self.recovery_bracket_meditation = recovery_bracket_meditation;
+        self.recovery_bracket_dreary_hibernation = recovery_bracket_dreary_hibernation;
         #[cfg(test)]
         {
             self.end_combat_invocations = end_combat_invocations;
@@ -126,6 +135,7 @@ impl Stats {
         let combat_round_active = self.combat_round_active;
         let recovery_bracket_camping = self.recovery_bracket_camping;
         let recovery_bracket_meditation = self.recovery_bracket_meditation;
+        let recovery_bracket_dreary_hibernation = self.recovery_bracket_dreary_hibernation;
         #[cfg(test)]
         let end_combat_invocations = self.end_combat_invocations;
         #[cfg(test)]
@@ -141,6 +151,7 @@ impl Stats {
         self.combat_round_active = combat_round_active;
         self.recovery_bracket_camping = recovery_bracket_camping;
         self.recovery_bracket_meditation = recovery_bracket_meditation;
+        self.recovery_bracket_dreary_hibernation = recovery_bracket_dreary_hibernation;
         #[cfg(test)]
         {
             self.end_combat_invocations = end_combat_invocations;
@@ -186,6 +197,7 @@ impl Stats {
     pub fn set_recovery_bracket_defaults_for_login(&mut self) {
         self.recovery_bracket_camping = true;
         self.recovery_bracket_meditation = true;
+        self.recovery_bracket_dreary_hibernation = true;
     }
 
     pub(crate) fn set_recovery_bracket_camping(&mut self, active: bool) {
@@ -196,7 +208,12 @@ impl Stats {
         self.recovery_bracket_meditation = active;
     }
 
-    pub fn render_inline(&self) -> Line<'static> {
+    pub(crate) fn set_recovery_bracket_dreary_hibernation(&mut self, ready: bool) {
+        self.recovery_bracket_dreary_hibernation = ready;
+    }
+
+    /// Render primary stats and recovery readiness; `d` is visible only for selected Nergal.
+    pub fn render_inline(&self, guild_selection: &GuildSelection) -> Line<'static> {
         let mut spans = Vec::new();
         spans.extend(self.inline_stat_spans("Hp", self.hp, self.max_hp, self.diff_hp));
         spans.push(Span::raw("  "));
@@ -213,6 +230,10 @@ impl Stats {
         }
         if self.recovery_bracket_meditation {
             spans.push(Span::styled("m", Style::default().fg(palette::YELLOW)));
+        }
+        if guild_selection.is_selected(GuildKey::Nergal) && self.recovery_bracket_dreary_hibernation
+        {
+            spans.push(Span::raw("d"));
         }
         spans.push(Span::raw("]"));
 
@@ -326,10 +347,40 @@ mod tests {
     }
 
     #[test]
+    fn dreary_hibernation_readiness_is_guild_gated_and_survives_stats_updates() {
+        let nergal = GuildSelection::from_playable_keys(
+            [GuildKey::Nergal, GuildKey::Monk],
+            Some("evil_religious"),
+        );
+        let mut stats = Stats::default();
+        assert!(line_text(&stats.render_inline(&nergal)).ends_with("  []"));
+        stats.set_recovery_bracket_defaults_for_login();
+        assert!(line_text(&stats.render_inline(&nergal)).ends_with("  [cmd]"));
+        assert!(line_text(&stats.render_inline(&GuildSelection::default())).ends_with("  [cm]"));
+        stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
+        let rendered = stats.render_inline(&nergal);
+        assert!(line_text(&rendered).ends_with("  [cmd]"));
+        assert_eq!(
+            rendered
+                .spans
+                .iter()
+                .find(|span| span.content == "d")
+                .unwrap()
+                .style,
+            Style::default()
+        );
+        stats.apply_effect(StatsEffect::SetRecoveryBracketDrearyHibernation(false));
+        stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
+        stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
+        assert!(line_text(&stats.render_inline(&nergal)).ends_with("  [cm]"));
+    }
+
+    #[test]
     fn render_inline_exp_and_money_values_are_bold_white_with_colored_diffs() {
         let mut stats = Stats::default();
         stats.update_from_short_score([1, 100, 0, 2, 200, 0, 3, 300, 0, 88_888, 15, 77_777, -20]);
-        let line = stats.render_inline();
+        let line = stats.render_inline(&GuildSelection::default());
 
         let exp_val = line
             .spans
@@ -380,17 +431,17 @@ mod tests {
     fn render_inline_recovery_bracket_suffix() {
         let mut stats = Stats::default();
         stats.update_from_short_score([905, 905, 0, 143, 143, 0, 474, 474, 0, 0, 0, 87_333, 0]);
-        assert!(line_text(&stats.render_inline()).ends_with("  []"));
+        assert!(line_text(&stats.render_inline(&GuildSelection::default())).ends_with("  []"));
 
         stats.set_recovery_bracket_camping(true);
         stats.set_recovery_bracket_meditation(false);
-        assert!(line_text(&stats.render_inline()).ends_with("  [c]"));
+        assert!(line_text(&stats.render_inline(&GuildSelection::default())).ends_with("  [c]"));
 
         stats.set_recovery_bracket_meditation(true);
-        let line = line_text(&stats.render_inline());
+        let line = line_text(&stats.render_inline(&GuildSelection::default()));
         assert!(line.ends_with("  [cm]"), "got {line:?}");
 
-        let rendered = stats.render_inline();
+        let rendered = stats.render_inline(&GuildSelection::default());
         let camping = rendered
             .spans
             .iter()
@@ -412,7 +463,7 @@ mod tests {
         stats.set_recovery_bracket_meditation(false);
         stats.set_recovery_bracket_defaults_for_login();
         stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
-        assert!(line_text(&stats.render_inline()).ends_with("  [cm]"));
+        assert!(line_text(&stats.render_inline(&GuildSelection::default())).ends_with("  [cm]"));
     }
 
     #[test]
@@ -421,7 +472,7 @@ mod tests {
         stats.set_recovery_bracket_camping(false);
         stats.set_recovery_bracket_meditation(true);
         stats.update_from_prompt([10, 20, 30, 40, 50, 60, 70]);
-        let line = line_text(&stats.render_inline());
+        let line = line_text(&stats.render_inline(&GuildSelection::default()));
         assert!(line.ends_with("  [m]"), "got {line:?}");
     }
 
@@ -431,7 +482,7 @@ mod tests {
         stats.set_recovery_bracket_camping(true);
         stats.set_recovery_bracket_meditation(false);
         stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
-        assert!(line_text(&stats.render_inline()).ends_with("  [c]"));
+        assert!(line_text(&stats.render_inline(&GuildSelection::default())).ends_with("  [c]"));
     }
 
     #[test]
@@ -441,7 +492,7 @@ mod tests {
 
         stats.update_from_prompt([10, 20, 30, 40, 50, 60, 70]);
 
-        let line = line_text(&stats.render_inline());
+        let line = line_text(&stats.render_inline(&GuildSelection::default()));
         assert!(
             line.contains("$: 2786"),
             "expected money from short score after prompt; got {line:?}"
@@ -459,7 +510,7 @@ mod tests {
 
         stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
 
-        let line = line_text(&stats.render_inline());
+        let line = line_text(&stats.render_inline(&GuildSelection::default()));
         assert!(
             line.contains("$: 500"),
             "expected money from short score after prompt; got {line:?}"
@@ -478,7 +529,7 @@ mod tests {
 
         stats.update_from_prompt([10, 20, 30, 40, 50, 60, 70]);
 
-        let line = line_text(&stats.render_inline());
+        let line = line_text(&stats.render_inline(&GuildSelection::default()));
         assert!(line.contains("$: 100"));
         assert!(line.contains("+10"), "hp diff should persist; got {line:?}");
         assert!(
@@ -499,7 +550,7 @@ mod tests {
 
         stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 100, 0, 8, 0]);
 
-        let line = line_text(&stats.render_inline());
+        let line = line_text(&stats.render_inline(&GuildSelection::default()));
         assert!(line.contains("+10"), "hp diff should persist; got {line:?}");
         assert!(
             line.contains("-5"),
@@ -518,7 +569,7 @@ mod tests {
 
         stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 100, 0, 8, 0]);
 
-        let line = line_text(&stats.render_inline());
+        let line = line_text(&stats.render_inline(&GuildSelection::default()));
         assert!(
             !line.contains("+10") && !line.contains("-5") && !line.contains("+9"),
             "zero-diff short score outside combat should clear previous diffs; got {line:?}"
@@ -532,7 +583,7 @@ mod tests {
         stats.update_from_short_score([1, 2, 10, 3, 4, -5, 5, 6, 7, 100, -5, 8, 9]);
         stats.update_from_short_score([1, 2, -2, 3, 4, 0, 5, 6, -3, 100, 4, 8, 1]);
 
-        let line = line_text(&stats.render_inline());
+        let line = line_text(&stats.render_inline(&GuildSelection::default()));
         assert!(
             line.contains("+8"),
             "hp diffs should accumulate; got {line:?}"
@@ -560,7 +611,7 @@ mod tests {
 
         stats.start_combat_round();
 
-        let line = line_text(&stats.render_inline());
+        let line = line_text(&stats.render_inline(&GuildSelection::default()));
         assert!(
             !line.contains("+10") && !line.contains("-5") && !line.contains("+9"),
             "new combat round should clear previous diffs; got {line:?}"
@@ -575,7 +626,7 @@ mod tests {
 
         stats.end_combat();
 
-        let line = line_text(&stats.render_inline());
+        let line = line_text(&stats.render_inline(&GuildSelection::default()));
         assert!(line.contains("+10"), "hp diff should remain; got {line:?}");
         assert!(
             line.contains("-5"),
@@ -593,7 +644,7 @@ mod tests {
 
         stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 100, 0, 8, 0]);
 
-        let line = line_text(&stats.render_inline());
+        let line = line_text(&stats.render_inline(&GuildSelection::default()));
         assert!(
             !line.contains("+10") && !line.contains("-5") && !line.contains("+9"),
             "post-combat short score should replace final round diffs; got {line:?}"

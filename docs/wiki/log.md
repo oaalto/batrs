@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-29] update | Nergal dreary hibernation recovery readiness
+
+- Updated: [Nergal Status](concepts/nergal-status.md)
+- Sources: `src/stats.rs`, `src/guilds/nergal/triggers.rs`, `src/app/mod.rs`, `docs/manual/ui.md`, `docs/guilds/nergal.md`
+- Notes: Main-line `d` is Nergal-selected-only, clears on cocoon start, and restores on the shared harmony message. Login/selection use optimistic ready defaults; deselection and fresh sessions clear transient state.
+
 ## [2026-10-29] update | Refresh Nergal score on login and selection
 
 - Updated: [Nergal Status](concepts/nergal-status.md)
