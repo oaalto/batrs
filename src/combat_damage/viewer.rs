@@ -244,7 +244,6 @@ fn unattributed_drill_down_data(
     filters: &FilterParams,
     query: &ViewerQuery,
 ) -> Result<String, String> {
-    let players = list_players(conn, &FilterParams::from_query(None, None))?;
     let detail =
         get_unattributed(conn, id)?.ok_or_else(|| format!("unattributed event {id} not found"))?;
     if let Err(err) = mark_unattributed_reviewed(conn, id) {
@@ -253,7 +252,7 @@ fn unattributed_drill_down_data(
     let filtered = list_unattributed(conn, filters)?;
     let (prev_id, next_id) = unattributed_neighbor_ids(&filtered, id);
     Ok(render_unattributed_drill_down(
-        &detail, filters, &players, query, prev_id, next_id,
+        &detail, filters, &filtered, query, prev_id, next_id,
     ))
 }
 
@@ -301,11 +300,10 @@ fn drill_down_data(
     sort_dir: SortDirection,
     query: &ViewerQuery,
 ) -> Result<String, String> {
-    let players = list_players(conn, &FilterParams::from_query(None, None))?;
     let family = query.family.as_deref().filter(|value| !value.is_empty());
     let events = list_events(conn, category, verb, family, filters, sort_col, sort_dir)?;
     Ok(render_drill_down(
-        category, verb, family, filters, &players, &events, query,
+        category, verb, family, filters, &events, query,
     ))
 }
 
@@ -446,7 +444,7 @@ fn render_delete_unattributed_form(id: i64, filters: &FilterParams) -> String {
 fn render_unattributed_drill_down(
     detail: &UnattributedHpDetail,
     filters: &FilterParams,
-    players: &[String],
+    filtered: &[UnattributedHpSummary],
     query: &ViewerQuery,
     prev_id: Option<i64>,
     next_id: Option<i64>,
@@ -467,11 +465,9 @@ fn render_unattributed_drill_down(
     html.push_str("<div class=\"unattributed-detail-header\"><h1>Unattributed HP loss</h1>");
     html.push_str(&render_delete_unattributed_form(detail.id, filters));
     html.push_str("</div><p class=\"empty-hint\">Delete permanently removes this record and its saved context. There is no undo.</p>");
-    html.push_str(&render_filters(
-        filters,
-        players,
-        &format!("/unattributed/{}", detail.id),
-    ));
+    if !filtered.iter().any(|row| row.id == detail.id) {
+        html.push_str("<p class=\"empty-hint\">This record is outside the active filters. Previous/Next navigation is unavailable; its saved context is shown in full.</p>");
+    }
     html.push_str("<table><tbody>");
     html.push_str(&format!(
         "<tr><th>Recorded at</th><td>{}</td></tr>",
@@ -530,7 +526,11 @@ fn render_unattributed_nav(
         let href = format!("/unattributed/{id}{}", build_filter_query(filters));
         parts.push(format!("<a href=\"{href}\">Next &rarr;</a>"));
     }
-    format!("<p class=\"back-link\">{}</p>", parts.join(" · "))
+    format!(
+        "<div class=\"drill-navigation\"><p class=\"back-link\">{}</p>{}</div>",
+        parts.join(" · "),
+        render_filter_summary(filters, back_href)
+    )
 }
 
 fn render_melee_section(
@@ -567,7 +567,6 @@ fn render_drill_down(
     verb: &str,
     family: Option<&str>,
     filters: &FilterParams,
-    players: &[String],
     events: &[crate::combat_damage::aggregate::DamageEvent],
     query: &ViewerQuery,
 ) -> String {
@@ -579,7 +578,8 @@ fn render_drill_down(
     );
     html.push_str("</head><body>");
     html.push_str(&format!(
-        "<p class=\"back-link\"><a href=\"{back_href}\">&larr; Back</a></p>"
+        "<div class=\"drill-navigation\"><p class=\"back-link\"><a href=\"{back_href}\">&larr; Back</a></p>{}</div>",
+        render_filter_summary(filters, &back_href)
     ));
     let heading = match family {
         Some(family) => format!(
@@ -591,11 +591,6 @@ fn render_drill_down(
         None => format!("{} / {}", html_escape(category), html_escape(verb)),
     };
     html.push_str(&format!("<h1>{heading}</h1>"));
-    html.push_str(&render_filters(
-        filters,
-        players,
-        &format!("/events/{category}/{verb}"),
-    ));
     html.push_str("<table><thead><tr>");
     for (col, label) in [
         ("recorded_at", "Recorded at"),
@@ -695,6 +690,23 @@ fn render_drill_down(
     html.push_str(render_sort_script());
     html.push_str("</body></html>");
     html
+}
+
+/// Shows inherited time/player scope and links to the main page for changes.
+fn render_filter_summary(filters: &FilterParams, main_href: &str) -> String {
+    let range = match filters.range {
+        TimeRange::All => "All time",
+        TimeRange::Hours24 => "Last 24h",
+        TimeRange::Days7 => "Last 7d",
+    };
+    let player = match &filters.player {
+        Some(player) => format!("Player: {}", html_escape(player)),
+        None => "All players".to_string(),
+    };
+    format!(
+        "<p class=\"filter-summary\">{range} · {player} · <a href=\"{}\">Change filters on main page</a></p>",
+        html_escape(main_href)
+    )
 }
 
 fn render_filters(filters: &FilterParams, players: &[String], action: &str) -> String {
@@ -1549,6 +1561,8 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         let body = body_string(response).await;
         assert!(body.contains("melee / bash / savagely strike"));
+        assert!(body.contains("family=bash&sort=hp_delta&dir=asc"));
+        assert!(!body.contains("<select"));
         assert!(body.contains(">20<"));
         assert!(!body.contains(">35<"));
         remove_db_files(&path);
@@ -1569,6 +1583,143 @@ mod tests {
         let body = body_string(response).await;
         assert!(body.contains("value=\"7d\" selected"));
         assert!(body.contains("Odefu"));
+        remove_db_files(&path);
+    }
+
+    #[tokio::test]
+    async fn drill_downs_inherit_main_filters_without_editable_controls() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let now = chrono::Utc::now().to_rfc3339();
+        let player = "A<&\"";
+        let path = open_fixture_db_with_unattributed(
+            &[
+                FixtureRow::isolated("melee", "bitchslap", player, 31, &now)
+                    .with_rank(1, "unarmed"),
+                FixtureRow::isolated("melee", "bitchslap", "Other", 97, &now)
+                    .with_rank(1, "unarmed"),
+            ],
+            &[
+                UnattributedFixtureRow::new(player, 10, &now, "H:90 [-10]", &["saved context"]),
+                UnattributedFixtureRow::new(player, 20, &now, "H:80 [-20]", &[]),
+                UnattributedFixtureRow::new("Other", 30, &now, "H:70 [-30]", &[]),
+            ],
+        );
+        let app = router(Arc::new(ViewerState {
+            db_path: path.clone(),
+        }));
+        for (query, summary, main_href) in [
+            ("", "All time · All players", "/"),
+            (
+                "?range=24h&player=A%3C%26%22",
+                "Last 24h · Player: A&lt;&amp;&quot;",
+                "/?range=24h&amp;player=A%3C%26%22",
+            ),
+            (
+                "?range=7d&player=A%3C%26%22",
+                "Last 7d · Player: A&lt;&amp;&quot;",
+                "/?range=7d&amp;player=A%3C%26%22",
+            ),
+        ] {
+            for route in ["/unattributed/1", "/events/melee/bitchslap"] {
+                let response = app
+                    .clone()
+                    .oneshot(
+                        Request::builder()
+                            .uri(format!("{route}{query}"))
+                            .body(Body::empty())
+                            .unwrap(),
+                    )
+                    .await
+                    .unwrap();
+                assert_eq!(response.status(), StatusCode::OK);
+                let body = body_string(response).await;
+                assert!(body.contains(summary));
+                let navigation = body
+                    .split_once("<div class=\"drill-navigation\">")
+                    .unwrap()
+                    .1
+                    .split_once("</div>")
+                    .unwrap()
+                    .0;
+                assert!(navigation.contains("class=\"back-link\""));
+                assert!(navigation.contains("class=\"filter-summary\""));
+                assert!(navigation.contains(summary));
+                assert_eq!(body.matches("class=\"filter-summary\"").count(), 1);
+                assert!(body.contains(&format!(
+                    "href=\"{main_href}\">Change filters on main page</a>"
+                )));
+                assert!(!body.contains("<select"));
+                assert!(!body.contains("method=\"get\""));
+                if route.starts_with("/unattributed") {
+                    assert!(body.contains("saved context"));
+                    assert!(!body.contains("outside the active filters"));
+                    assert!(
+                        body.contains(&format!("/unattributed/2{query}\">&larr; Previous</a>"))
+                    );
+                } else if !query.is_empty() {
+                    assert!(body.contains(">31<"));
+                    assert!(!body.contains(">97<"));
+                }
+            }
+        }
+        let landing = body_string(
+            app.oneshot(
+                Request::builder()
+                    .uri("/?range=7d&player=A%3C%26%22")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap(),
+        )
+        .await;
+        assert!(landing.contains("<form class=\"filters\" method=\"get\" action=\"/\">"));
+        assert!(landing.contains("value=\"7d\" selected"));
+        assert!(landing.contains("/unattributed/1?range=7d&player=A%3C%26%22"));
+        assert!(
+            landing.contains("/events/melee/bitchslap?range=7d&player=A%3C%26%22&family=unarmed")
+        );
+        remove_db_files(&path);
+    }
+
+    #[tokio::test]
+    async fn outside_filter_record_keeps_context_and_explains_missing_navigation() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let path = open_fixture_db_with_unattributed(
+            &[],
+            &[UnattributedFixtureRow::new(
+                "A",
+                10,
+                "2020-01-01T00:00:00Z",
+                "H:90 [-10]",
+                &["saved context"],
+            )],
+        );
+        let app = router(Arc::new(ViewerState {
+            db_path: path.clone(),
+        }));
+        for query in ["?range=24h", "?range=7d", "?player=Other"] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/unattributed/1{query}"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            let body = body_string(response).await;
+            assert!(body.contains("This record is outside the active filters."));
+            assert!(!body.contains("&larr; Previous</a>"));
+            assert!(!body.contains("Next &rarr;</a>"));
+            assert!(body.contains("<li>saved context</li><li>H:90 [-10]</li>"));
+        }
         remove_db_files(&path);
     }
 
@@ -1610,7 +1761,7 @@ mod tests {
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri("/events/melee/bitchslap")
+                    .uri("/events/melee/bitchslap?player=Odefu")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -1620,6 +1771,8 @@ mod tests {
         assert!(body.contains("batch-group"));
         assert!(body.contains("0–22"));
         assert!(body.contains("Holy man boots you."));
+        assert!(body.contains("href=\"/events/melee/boot?player=Odefu\""));
+        assert!(body.contains("player=Odefu&sort=hp_delta&dir=asc"));
         remove_db_files(&path);
     }
 

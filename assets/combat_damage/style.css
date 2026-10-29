@@ -182,8 +182,22 @@ tbody tr:hover {
   font-size: 0.875rem;
 }
 
-.back-link {
+.drill-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
   margin-bottom: 1rem;
+}
+
+.drill-navigation p {
+  margin: 0;
+}
+
+.drill-navigation .filter-summary {
+  margin-inline-start: auto;
+  text-align: end;
+  overflow-wrap: anywhere;
 }
 
 .batch-group {

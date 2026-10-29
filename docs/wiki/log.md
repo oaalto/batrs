@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-29] update | Main-page-only Combat Damage filters
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md)
+- Sources: `src/combat_damage/viewer.rs`, `README.md`
+- Notes: Both drill-down types replace editable time/player forms with an inherited-scope summary and main-page change link, right-aligned beside navigation in a wrapping flex row (`assets/combat_damage/style.css`). URL-based selection, rolling ranges, sorting, family scoping, review writes, and deletion semantics remain unchanged. Out-of-filter unattributed records retain their full transcript and explain missing Previous/Next navigation; direct links default to All time / All players.
+
 ## [2026-10-29] update | Delete individual unattributed HP loss records
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md)
