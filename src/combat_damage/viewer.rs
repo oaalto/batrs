@@ -1,14 +1,14 @@
 use crate::combat_damage::aggregate::{
     EventSortColumn, FilterParams, LandingSortColumn, MeleeFamilySection, SortDirection, TimeRange,
     UnattributedHpDetail, UnattributedHpSummary, VerbAggregate, category_aggregates,
-    delete_reviewed_unattributed, get_unattributed, list_events, list_players, list_unattributed,
-    mark_unattributed_reviewed, melee_family_aggregates,
+    delete_reviewed_unattributed, delete_unattributed, get_unattributed, list_events, list_players,
+    list_unattributed, mark_unattributed_reviewed, melee_family_aggregates,
 };
 use crate::combat_damage::storage::{open_readonly_db, open_validated_db};
 use axum::{
     Form, Router,
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode, Uri, uri::Authority},
     response::{Html, IntoResponse, Redirect},
     routing::{get, post},
 };
@@ -93,6 +93,7 @@ pub fn router(state: Arc<ViewerState>) -> Router {
         .route("/", get(landing))
         .route("/events/{category}/{verb}", get(drill_down))
         .route("/unattributed/{id}", get(unattributed_drill_down))
+        .route("/unattributed/{id}/delete", post(delete_unattributed_event))
         .route(
             "/unattributed/remove-reviewed",
             post(remove_reviewed_unattributed),
@@ -156,6 +157,70 @@ async fn remove_reviewed_unattributed(
         }
     }
     Redirect::to(&build_query_string("/", &filters, None, None))
+}
+
+/// Deletes one ID and returns to the filtered landing section; failures return 503.
+async fn delete_unattributed_event(
+    State(state): State<Arc<ViewerState>>,
+    Path(id): Path<i64>,
+    headers: HeaderMap,
+    Form(form): Form<RemoveReviewedForm>,
+) -> axum::response::Response {
+    if !is_local_submission(&headers) {
+        return (
+            StatusCode::FORBIDDEN,
+            "Cross-origin deletion is not allowed",
+        )
+            .into_response();
+    }
+    let filters = FilterParams::from_query(form.range.as_deref(), form.player.as_deref());
+    match open_validated_db(&state.db_path).and_then(|conn| delete_unattributed(&conn, id)) {
+        Ok(_) => Redirect::to(&format!(
+            "{}#unattributed",
+            build_query_string("/", &filters, None, None)
+        ))
+        .into_response(),
+        Err(message) => {
+            log::warn!("failed to delete unattributed event {id}: {message}");
+            service_unavailable(format!("Could not delete unattributed HP loss record {id}"))
+        }
+    }
+}
+
+/// Rejects foreign browser submissions and non-loopback hosts (including rebinding).
+/// Headerless non-browser clients are allowed; browsers supply Origin or Fetch Metadata.
+fn is_local_submission(headers: &HeaderMap) -> bool {
+    if let Some(site) = headers.get("sec-fetch-site")
+        && site != "same-origin"
+        && site != "none"
+    {
+        return false;
+    }
+    let host = headers.get("host").and_then(|value| value.to_str().ok());
+    if headers.contains_key("host")
+        && !host
+            .and_then(|value| value.parse::<Authority>().ok())
+            .is_some_and(|authority| {
+                authority.host() == BIND_ADDR || authority.host().eq_ignore_ascii_case("localhost")
+            })
+    {
+        return false;
+    }
+    match headers.get("origin") {
+        None => true,
+        Some(origin) => origin
+            .to_str()
+            .ok()
+            .and_then(|value| value.parse::<Uri>().ok())
+            .is_some_and(|uri| {
+                uri.scheme_str() == Some("http")
+                    && uri.path() == "/"
+                    && uri.query().is_none()
+                    && uri.authority().zip(host).is_some_and(|(authority, host)| {
+                        authority.as_str().eq_ignore_ascii_case(host)
+                    })
+            }),
+    }
 }
 
 async fn unattributed_drill_down(
@@ -299,7 +364,7 @@ fn render_unattributed_section(rows: &[UnattributedHpSummary], filters: &FilterP
     } else {
         String::from("Unattributed HP loss")
     };
-    let mut html = String::from("<div class=\"unattributed-header\"><h2>");
+    let mut html = String::from("<div id=\"unattributed\" class=\"unattributed-header\"><h2>");
     html.push_str(&heading);
     html.push_str("</h2>");
     if reviewed_count > 0 {
@@ -327,9 +392,10 @@ fn render_unattributed_section(rows: &[UnattributedHpSummary], filters: &FilterP
         );
         return html;
     }
+    html.push_str("<p class=\"empty-hint\">Delete permanently removes a record and its saved context. There is no undo.</p>");
     html.push_str("<table><thead><tr>");
     html.push_str(
-        "<th>Recorded at</th><th>Player</th><th>HP delta</th><th>Lines</th><th>Reviewed</th>",
+        "<th>Recorded at</th><th>Player</th><th>HP delta</th><th>Lines</th><th>Reviewed</th><th>Actions</th>",
     );
     html.push_str("</tr></thead><tbody>");
     for row in rows {
@@ -348,10 +414,32 @@ fn render_unattributed_section(rows: &[UnattributedHpSummary], filters: &FilterP
         html.push_str(&format!("<td class=\"numeric\">{}</td>", row.hp_delta));
         html.push_str(&format!("<td class=\"numeric\">{}</td>", row.line_count));
         let reviewed_cell = if row.reviewed { "yes" } else { "" };
-        html.push_str(&format!("<td>{reviewed_cell}</td>"));
-        html.push_str("</tr>");
+        html.push_str(&format!("<td>{reviewed_cell}</td><td>"));
+        html.push_str(&render_delete_unattributed_form(row.id, filters));
+        html.push_str("</td></tr>");
     }
     html.push_str("</tbody></table>");
+    html
+}
+
+/// Renders the shared single-record POST action, preserving only return filters.
+fn render_delete_unattributed_form(id: i64, filters: &FilterParams) -> String {
+    let mut html = format!(
+        "<form method=\"post\" action=\"/unattributed/{id}/delete\" class=\"delete-unattributed-form\">"
+    );
+    html.push_str(&format!(
+        "<input type=\"hidden\" name=\"range\" value=\"{}\">",
+        filters.range.as_str()
+    ));
+    if let Some(player) = &filters.player {
+        html.push_str(&format!(
+            "<input type=\"hidden\" name=\"player\" value=\"{}\">",
+            html_escape(player)
+        ));
+    }
+    html.push_str(&format!(
+        "<button type=\"submit\" aria-label=\"Delete unattributed HP loss record {id}\">Delete</button></form>"
+    ));
     html
 }
 
@@ -376,7 +464,9 @@ fn render_unattributed_drill_down(
         prev_id,
         next_id,
     ));
-    html.push_str("<h1>Unattributed HP loss</h1>");
+    html.push_str("<div class=\"unattributed-detail-header\"><h1>Unattributed HP loss</h1>");
+    html.push_str(&render_delete_unattributed_form(detail.id, filters));
+    html.push_str("</div><p class=\"empty-hint\">Delete permanently removes this record and its saved context. There is no undo.</p>");
     html.push_str(&render_filters(
         filters,
         players,
@@ -885,6 +975,372 @@ mod tests {
             .await
             .unwrap();
         String::from_utf8(bytes.to_vec()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn single_delete_forms_cover_reviewed_and_unreviewed_rows_and_detail() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let path = open_fixture_db_with_unattributed(
+            &[],
+            &[
+                UnattributedFixtureRow::new("A<&\"", 10, "2020-01-01T00:00:00Z", "H:90 [-10]", &[]),
+                UnattributedFixtureRow::new(
+                    "A<&\"",
+                    20,
+                    "2020-01-01T00:00:00Z",
+                    "H:80 [-20]",
+                    &["context"],
+                ),
+            ],
+        );
+        mark_unattributed_reviewed_fixture(&path, &[1]);
+        let app = router(Arc::new(ViewerState {
+            db_path: path.clone(),
+        }));
+        let landing = body_string(
+            app.clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/?player=A%3C%26%22")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert!(landing.contains("<th>Actions</th>"));
+        assert!(landing.contains("id=\"unattributed\""));
+        assert!(landing.contains("Unattributed HP loss (1 unreviewed)"));
+        assert!(landing.contains("Remove reviewed"));
+        assert!(landing.contains("There is no undo."));
+        for id in [1, 2] {
+            assert!(landing.contains(&format!(
+                "method=\"post\" action=\"/unattributed/{id}/delete\""
+            )));
+            assert!(landing.contains(&format!(
+                "aria-label=\"Delete unattributed HP loss record {id}\""
+            )));
+        }
+        assert!(landing.contains("name=\"player\" value=\"A&lt;&amp;&quot;\""));
+        let detail = body_string(
+            app.oneshot(
+                Request::builder()
+                    .uri("/unattributed/2?range=7d&player=Other")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap(),
+        )
+        .await;
+        assert!(detail.contains("method=\"post\" action=\"/unattributed/2/delete\""));
+        assert!(detail.contains("name=\"range\" value=\"7d\""));
+        assert!(detail.contains("name=\"player\" value=\"Other\""));
+        assert!(detail.contains("There is no undo."));
+        remove_db_files(&path);
+    }
+
+    #[tokio::test]
+    async fn single_delete_is_id_scoped_idempotent_and_preserves_damage_and_review_state() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let path = open_fixture_db_with_unattributed(
+            &[FixtureRow::isolated(
+                "skill",
+                "bash",
+                "A",
+                30,
+                "2020-01-01T00:00:00Z",
+            )],
+            &[
+                UnattributedFixtureRow::new(
+                    "A",
+                    10,
+                    "2020-01-01T00:00:00Z",
+                    "H:90 [-10]",
+                    &["one"],
+                ),
+                UnattributedFixtureRow::new(
+                    "B",
+                    20,
+                    "2020-01-01T00:00:00Z",
+                    "H:80 [-20]",
+                    &["two"],
+                ),
+                UnattributedFixtureRow::new("A", 30, "2020-01-01T00:00:00Z", "H:70 [-30]", &[]),
+            ],
+        );
+        mark_unattributed_reviewed_fixture(&path, &[2]);
+        let app = router(Arc::new(ViewerState {
+            db_path: path.clone(),
+        }));
+        // IDs 1 and 2 are outside these filters; the filters are return context only.
+        for id in [1, 1, 2, 999] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri(format!("/unattributed/{id}/delete"))
+                        .header("content-type", "application/x-www-form-urlencoded")
+                        .header("host", "localhost:8080")
+                        .header("origin", "http://localhost:8080")
+                        .header("sec-fetch-site", "same-origin")
+                        .body(Body::from("range=24h&player=Other%20%26%20Player"))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::SEE_OTHER);
+            assert_eq!(
+                response.headers()["location"],
+                "/?range=24h&player=Other%20%26%20Player#unattributed"
+            );
+        }
+        let conn = open_readonly_db(&path).unwrap();
+        let remaining = list_unattributed(&conn, &FilterParams::from_query(None, None)).unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].id, 3);
+        assert!(
+            !remaining[0].reviewed,
+            "redirect must not auto-review a neighbor"
+        );
+        assert!(get_unattributed(&conn, 1).unwrap().is_none());
+        assert!(get_unattributed(&conn, 2).unwrap().is_none());
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM damage_events", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+        drop(conn);
+        let landing = body_string(
+            app.oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert!(landing.contains("Unattributed HP loss (1 unreviewed)"));
+        assert!(!landing.contains("Remove reviewed"));
+        assert!(!landing.contains("action=\"/unattributed/1/delete\""));
+        assert!(landing.contains("action=\"/unattributed/3/delete\""));
+        remove_db_files(&path);
+    }
+
+    #[tokio::test]
+    async fn single_delete_refreshes_filtered_previous_and_next_links() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let path = open_fixture_db_with_unattributed(
+            &[],
+            &[
+                UnattributedFixtureRow::new("A", 10, "2020-01-01T00:00:00Z", "H:90 [-10]", &[]),
+                UnattributedFixtureRow::new("A", 20, "2020-01-01T00:00:00Z", "H:80 [-20]", &[]),
+                UnattributedFixtureRow::new("A", 30, "2020-01-01T00:00:00Z", "H:70 [-30]", &[]),
+                UnattributedFixtureRow::new("B", 40, "2020-01-01T00:00:00Z", "H:60 [-40]", &[]),
+            ],
+        );
+        let app = router(Arc::new(ViewerState {
+            db_path: path.clone(),
+        }));
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/unattributed/2/delete")
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .body(Body::from("player=A"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        for (id, expected_link, absent_label) in [
+            (
+                3,
+                "<a href=\"/unattributed/1?player=A\">Next &rarr;</a>",
+                "Previous",
+            ),
+            (
+                1,
+                "<a href=\"/unattributed/3?player=A\">&larr; Previous</a>",
+                "Next",
+            ),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/unattributed/{id}?player=A"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            let detail = body_string(response).await;
+            assert!(detail.contains(expected_link));
+            assert!(!detail.contains(absent_label));
+            assert!(!detail.contains("href=\"/unattributed/2"));
+            assert!(!detail.contains("href=\"/unattributed/4"));
+        }
+        remove_db_files(&path);
+    }
+
+    #[tokio::test]
+    async fn single_delete_rejects_foreign_submissions_get_and_malformed_ids() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed,
+        };
+        let path = open_fixture_db_with_unattributed(
+            &[],
+            &[UnattributedFixtureRow::new(
+                "A",
+                10,
+                "2020-01-01T00:00:00Z",
+                "H:90 [-10]",
+                &[],
+            )],
+        );
+        let app = router(Arc::new(ViewerState {
+            db_path: path.clone(),
+        }));
+        for (host, origin, site) in [
+            ("127.0.0.1:6464", Some("https://evil.example"), None),
+            ("127.0.0.1:6464", Some("http://127.0.0.1:9999"), None),
+            ("127.0.0.1:6464", Some("null"), None),
+            ("127.0.0.1:6464", Some("http://127.0.0.1:6464/path"), None),
+            ("127.0.0.1:6464", None, Some("cross-site")),
+            ("127.0.0.1:6464", None, Some("same-site")),
+            (
+                "evil.example:6464",
+                Some("http://evil.example:6464"),
+                Some("same-origin"),
+            ),
+            ("evil.example:6464", None, None),
+        ] {
+            let mut request = Request::builder()
+                .method("POST")
+                .uri("/unattributed/1/delete")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .header("host", host);
+            if let Some(origin) = origin {
+                request = request.header("origin", origin);
+            }
+            if let Some(site) = site {
+                request = request.header("sec-fetch-site", site);
+            }
+            let response = app
+                .clone()
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                StatusCode::FORBIDDEN,
+                "{host} {origin:?} {site:?}"
+            );
+        }
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/unattributed/1/delete")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/unattributed/not-an-id/delete")
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let conn = open_readonly_db(&path).unwrap();
+        assert!(get_unattributed(&conn, 1).unwrap().is_some());
+        drop(conn);
+        // Non-browser clients need no Origin/Fetch Metadata; browser forms need no JS.
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/unattributed/1/delete")
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert_eq!(response.headers()["location"], "/#unattributed");
+        let conn = open_readonly_db(&path).unwrap();
+        assert!(get_unattributed(&conn, 1).unwrap().is_none());
+        drop(conn);
+        remove_db_files(&path);
+    }
+
+    #[tokio::test]
+    async fn single_delete_database_failures_return_503_without_redirect() {
+        use crate::combat_damage::test_fixtures::{
+            UnattributedFixtureRow, open_fixture_db_with_unattributed, temp_db_path,
+        };
+        let missing = temp_db_path("single-delete-missing");
+        let path = open_fixture_db_with_unattributed(
+            &[],
+            &[UnattributedFixtureRow::new(
+                "A",
+                10,
+                "2020-01-01T00:00:00Z",
+                "H:90 [-10]",
+                &[],
+            )],
+        );
+        let conn = open_validated_db(&path).unwrap();
+        conn.execute_batch("CREATE TRIGGER reject_delete BEFORE DELETE ON unattributed_hp_events BEGIN SELECT RAISE(ABORT, 'test failure'); END;").unwrap();
+        drop(conn);
+        for db_path in [&missing, &path] {
+            let app = router(Arc::new(ViewerState {
+                db_path: db_path.clone(),
+            }));
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/unattributed/1/delete")
+                        .header("content-type", "application/x-www-form-urlencoded")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+            assert!(response.headers().get("location").is_none());
+            assert!(
+                body_string(response)
+                    .await
+                    .contains("Could not delete unattributed HP loss record 1")
+            );
+        }
+        let conn = open_readonly_db(&path).unwrap();
+        assert!(get_unattributed(&conn, 1).unwrap().is_some());
+        drop(conn);
+        remove_db_files(&path);
+        remove_db_files(&missing);
     }
 
     #[tokio::test]

@@ -61,7 +61,20 @@ h2 {
   margin: 0;
 }
 
-.remove-reviewed-form button {
+.unattributed-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.unattributed-detail-header h1 {
+  margin: 0;
+}
+
+.remove-reviewed-form button,
+.delete-unattributed-form button {
   font: inherit;
   padding: 0.375rem 0.5rem;
 }

@@ -930,6 +930,13 @@ pub fn mark_unattributed_reviewed(conn: &Connection, id: i64) -> Result<(), Stri
     .map_err(|err| err.to_string())
 }
 
+/// Permanently deletes the unattributed record with `id`, regardless of review state.
+/// Returns the affected row count (zero if already absent), or a database error.
+pub fn delete_unattributed(conn: &Connection, id: i64) -> Result<usize, String> {
+    conn.execute("DELETE FROM unattributed_hp_events WHERE id = ?1", [id])
+        .map_err(|err| format!("failed to delete unattributed event {id}: {err}"))
+}
+
 pub fn delete_reviewed_unattributed(
     conn: &Connection,
     filters: &FilterParams,

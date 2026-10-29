@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-29] update | Delete individual unattributed HP loss records
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md)
+- Sources: `src/combat_damage/aggregate.rs`, `src/combat_damage/viewer.rs`, `assets/combat_damage/style.css`, `README.md`
+- Notes: Native Delete forms on each landing row and single-record page remove only the selected ID, reviewed or not. Permanent deletion has no undo or confirmation; 303 returns to the filtered landing section without reviewing a neighbor. Single-delete rejects foreign browser submissions and reports database failures with 503. Bulk reviewed removal and attributed damage are unchanged.
+
 ## [2026-10-29] update | Guild-gated meditation and dark meditation indicator
 
 - Updated: [Nergal Status](concepts/nergal-status.md)

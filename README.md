@@ -34,6 +34,6 @@ cargo run -- --port 8080
 
 **Drill-down (`/events/{category}/{verb}`):** individual events with timestamp, player, HP delta, source, weight, and original message text. Rows that share a `batch_id` (one HP loss split across multiple candidate lines) are grouped.
 
-**Unattributed HP loss (`/unattributed/{id}`):** review the saved context followed by the triggering `H:` HP-loss line. This includes existing records and losses with no preceding context. The triggering line also appears in the event details table.
+**Unattributed HP loss (`/unattributed/{id}`):** review the saved context followed by the triggering `H:` HP-loss line. This includes existing records and losses with no preceding context. The triggering line also appears in the event details table. **Delete** is available on each landing-table row and on the single-record page, for both reviewed and unreviewed records. It permanently removes only that record and its saved context, without confirmation or undo, then returns to the landing section with the current time-range and player filters. Other records and attributed damage statistics are unchanged. **Remove reviewed** still removes only reviewed records within the current filters.
 
 An empty database still shows the full page structure with zero rows. If the database cannot be opened, the viewer returns HTTP 503; the TUI keeps running.
