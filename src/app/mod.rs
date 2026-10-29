@@ -1352,6 +1352,82 @@ mod tests {
         (app, command_receiver)
     }
 
+    /// Measure real output preparation and drawing against synthetic history, without I/O.
+    /// Run with `cargo test --release benchmark_output_history -- --nocapture --test-threads=1`.
+    #[test]
+    fn benchmark_output_history() {
+        use std::hint::black_box;
+        use std::time::Instant;
+
+        fn median_ms(mut samples: Vec<f64>) -> f64 {
+            samples.sort_by(f64::total_cmp);
+            samples[samples.len() / 2]
+        }
+
+        const WIDTH: u16 = 80;
+        const HEIGHT: u16 = 24;
+        const SAMPLES: usize = 5;
+        const TEXT: &str =
+            "\x1b[32mA goblin hits you hard.\x1b[0m You brace yourself for the next attack.";
+        let line = StyledLine::new(TEXT);
+        let rows_per_line = line.to_wrapped_lines(WIDTH).len();
+        println!("history,cache_hit_ms,rewrap_ms,two_copies_ms,cached_draw_ms,append_draw_ms");
+        for history in [100, 1_000, 10_000] {
+            let (mut app, _commands) = test_app();
+            app.output.append_lines(vec![line.clone(); history]);
+            let mut terminal = Terminal::new(TestBackend::new(WIDTH, HEIGHT)).unwrap();
+            terminal.draw(|frame| app.draw(frame)).unwrap();
+            let mut cache_hits = Vec::new();
+            let mut rewraps = Vec::new();
+            let mut copies = Vec::new();
+            let mut cached_draws = Vec::new();
+            let mut append_draws = Vec::new();
+            for sample in 0..SAMPLES {
+                let start = Instant::now();
+                black_box(app.output.wrapped_lines(WIDTH));
+                cache_hits.push(start.elapsed().as_secs_f64() * 1_000.0);
+
+                app.output.append_lines(vec![line.clone()]);
+                let start = Instant::now();
+                let wrapped = app.output.wrapped_lines(WIDTH);
+                rewraps.push(start.elapsed().as_secs_f64() * 1_000.0);
+                assert_eq!(wrapped.len(), (history + sample * 2 + 1) * rows_per_line);
+
+                let start = Instant::now();
+                let view_lines = black_box(wrapped).to_vec();
+                let paragraph = ratatui::widgets::Paragraph::new(ratatui::text::Text::from(
+                    black_box(&view_lines).clone(),
+                ));
+                drop(black_box(paragraph));
+                drop(black_box(view_lines));
+                copies.push(start.elapsed().as_secs_f64() * 1_000.0);
+
+                let start = Instant::now();
+                terminal.draw(|frame| app.draw(frame)).unwrap();
+                cached_draws.push(start.elapsed().as_secs_f64() * 1_000.0);
+
+                let start = Instant::now();
+                app.process_input_lines(vec![TEXT.to_string()]);
+                terminal.draw(|frame| app.draw(frame)).unwrap();
+                append_draws.push(start.elapsed().as_secs_f64() * 1_000.0);
+                assert_eq!(
+                    app.output.wrapped_lines(WIDTH).len(),
+                    (history + (sample + 1) * 2) * rows_per_line
+                );
+                assert_eq!(terminal.backend().buffer().area.width, WIDTH);
+                assert_eq!(terminal.backend().buffer().area.height, HEIGHT);
+            }
+            println!(
+                "{history},{:.6},{:.3},{:.3},{:.3},{:.3}",
+                median_ms(cache_hits),
+                median_ms(rewraps),
+                median_ms(copies),
+                median_ms(cached_draws),
+                median_ms(append_draws),
+            );
+        }
+    }
+
     fn log_in(app: &mut BatApp) {
         app.session.set_login_name("tester".to_string());
         app.session

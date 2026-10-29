@@ -1,5 +1,21 @@
 # Engineering Wiki Log
 
+## [2026-10-29] skip | Output-history performance execution tickets
+
+- Sources: `docs/features/output-history-performance/01-viewport-limited-rendering.md`, `docs/features/output-history-performance/02-incremental-output-wrapping.md`
+- Notes: Published the approved AFK breakdown in dependency order; parent PRD is unchanged. Tickets describe planned implementation only, so current wiki behavior remains unchanged until execution provides evidence.
+
+## [2026-10-29] skip | Output-history performance specification
+
+- Sources: `docs/features/output-history-performance/prd.md`
+- Notes: Accepted planning intent only; production behavior and domain vocabulary are unchanged. Implementation will update the existing benchmark evidence and client subsystem documentation rather than presenting planned behavior as current wiki facts.
+
+## [2026-10-29] ingest | Offline output-history scaling benchmark
+
+- Created: [Output history scaling benchmark](source-notes/output-history-benchmark.md)
+- Sources: `src/app/mod.rs`, `src/app/output_buffer.rs`, `src/ansi/styled_line.rs`, `src/ui/mod.rs`
+- Notes: Recorded release measurements of real append/wrap/draw paths at fixed viewport size. Full-history wrapping and copying scale with retained output; synthetic offline results do not establish the cause of a particular live slowdown. Production behavior is unchanged.
+
 ## [2026-10-29] update | Combat Damage heading permalinks and section navigation
 
 - Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md)
