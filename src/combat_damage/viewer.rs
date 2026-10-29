@@ -411,13 +411,16 @@ fn render_unattributed_drill_down(
     html.push_str("<h2>Context lines</h2>");
     if detail.context_lines.is_empty() {
         html.push_str("<p class=\"empty-hint\">No context lines before this H line.</p>");
-    } else {
-        html.push_str("<ol class=\"context-lines\">");
-        for line in &detail.context_lines {
-            html.push_str(&format!("<li>{}</li>", html_escape(line)));
-        }
-        html.push_str("</ol>");
     }
+    html.push_str("<ol class=\"context-lines\">");
+    for line in detail
+        .context_lines
+        .iter()
+        .chain(std::iter::once(&detail.h_line_text))
+    {
+        html.push_str(&format!("<li>{}</li>", html_escape(line)));
+    }
+    html.push_str("</ol>");
     html.push_str("</body></html>");
     html
 }
@@ -1188,6 +1191,44 @@ mod tests {
         assert_eq!(CURRENT_SCHEMA_VERSION, 5);
     }
 
+    #[test]
+    fn unattributed_transcript_ends_with_escaped_hp_loss_line() {
+        for context_lines in [vec![], vec!["Knight misses.".to_string()]] {
+            let detail = UnattributedHpDetail {
+                id: 997,
+                recorded_at: "2026-10-28T07:29:02Z".to_string(),
+                player: "Fueryon".to_string(),
+                hp_delta: 4,
+                hp_before: 549,
+                hp_after: 545,
+                h_line_text: "H:545/938 [-4] <test>&".to_string(),
+                context_lines,
+            };
+            let body = render_unattributed_drill_down(
+                &detail,
+                &FilterParams::from_query(None, None),
+                &[],
+                &ViewerQuery {
+                    range: None,
+                    player: None,
+                    sort: None,
+                    dir: None,
+                    family: None,
+                },
+                None,
+                None,
+            );
+            assert!(body.contains("<li>H:545/938 [-4] &lt;test&gt;&amp;</li></ol>"));
+            if !detail.context_lines.is_empty() {
+                assert!(
+                    body.contains(
+                        "<li>Knight misses.</li><li>H:545/938 [-4] &lt;test&gt;&amp;</li>"
+                    )
+                );
+            }
+        }
+    }
+
     #[tokio::test]
     async fn unattributed_fixture_landing_and_drill_down() {
         use crate::combat_damage::test_fixtures::{
@@ -1234,7 +1275,9 @@ mod tests {
         let body = body_string(response).await;
         assert!(body.contains("Holy man misses."));
         assert!(body.contains("You miss."));
-        assert!(body.contains("H:760/782 [-22]"));
+        assert!(body.contains(
+            "<li>H:760/782 [-22] S:100/100 [] E:100/100 [] $:100 [] exp:100 []</li></ol>"
+        ));
         remove_db_files(&path);
     }
 

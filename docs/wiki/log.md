@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-10-29] update | Include HP-loss trigger in unattributed transcript
+
+- Updated: [Combat Damage Tracking](concepts/combat-damage-tracking.md)
+- Sources: `src/combat_damage/viewer.rs`, `README.md`
+- Notes: Append the separately stored triggering `H:` line to the displayed context transcript, including empty-context and existing records. Database storage and backfill remain unchanged.
+
 ## [2026-10-22] update | Plain fatal error output
 
 - Updated: [batrs client application](subsystems/batrs-client.md)
