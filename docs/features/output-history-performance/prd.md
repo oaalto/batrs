@@ -4,7 +4,7 @@
 
 accepted
 
-The resolved plan review is the basis of this spec; the user directed the planning lane to `to-spec`. Slice 01 implementation now selects the visible viewport with clamped usize row offsets. Slice 02 incremental append wrapping remains pending; this does not mark either ticket complete.
+The resolved plan review is the basis of this spec; the user directed the planning lane to `to-spec`. Slice 01 implementation now selects the visible viewport with clamped usize row offsets. Slice 01 is complete in commit `16b0fe0`; slice 02 incremental append wrapping remains pending.
 
 ## Triage label
 

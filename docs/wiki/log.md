@@ -1,5 +1,10 @@
 # Engineering Wiki Log
 
+## [2026-10-29] skip | Complete viewport-limited rendering ticket
+
+- Sources: `docs/features/output-history-performance/01-viewport-limited-rendering.md`, `docs/features/output-history-performance/prd.md`
+- Notes: Marked slice 01 done after implementation, validation, review, sibling handoff, and user confirmation that the game still works. Tracker status only; current subsystem knowledge and benchmark evidence are unchanged. Slice 02 remains pending.
+
 ## [2026-10-29] update | Viewport-limited output rendering
 
 - Updated: [batrs client application](subsystems/batrs-client.md), [Output history scaling benchmark](source-notes/output-history-benchmark.md), [Historical text input profiling note](source-notes/text-input-slow-profiling.md)
