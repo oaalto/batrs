@@ -637,6 +637,18 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_nergal_us_without_target_sends_stab() {
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(crate::guilds::NergalGuild::default())];
+        assert_eq!(
+            send_effects(&dispatch_line("us orc", true, &guilds)),
+            vec!["@target orc;use 'stab' orc"]
+        );
+        let effects = dispatch_line("us", true, &guilds);
+
+        assert_eq!(send_effects(&effects), vec!["@use 'stab'"]);
+    }
+
+    #[test]
     fn dispatch_runs_generic_commands_after_guild_commands() {
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(DummyGuild)];
         let effects = dispatch_line("ping world", true, &guilds);

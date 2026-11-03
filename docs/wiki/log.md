@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-11-03] update | Nergal stab accepts an optional target
+
+- Updated: [Command Dispatch](concepts/command-dispatch.md)
+- Sources: `src/guilds/nergal/commands.rs`, `src/command/mod.rs`, `docs/guilds/nergal.md`
+- Notes: Removed the empty-target no-op by reusing Abilities `use_skill`; bare `us` now sends stab while explicit targets remain supported. Added dispatch regression coverage and aligned shortcut discovery and the guild manual.
+
 ## [2026-10-29] skip | Complete incremental output wrapping ticket
 
 - Sources: `docs/features/output-history-performance/02-incremental-output-wrapping.md`, `docs/features/output-history-performance/prd.md`

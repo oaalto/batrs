@@ -44,7 +44,7 @@ impl NergalGuild {
             ShortcutEntry::new("aura", "Use embrace the gifts (aura)."),
             ShortcutEntry::new("mutation", "Use embrace the gifts (mutation)."),
             ShortcutEntry::new("udh", "Use dreary hibernation."),
-            ShortcutEntry::new("us", "Use stab at a required target."),
+            ShortcutEntry::new("us", "Use stab, optionally at a target."),
         ]
     }
 
@@ -192,13 +192,7 @@ impl NergalGuild {
         data: &command::Data,
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        if data.args.trim().is_empty() {
-            return Vec::new();
-        }
-        command::send(abilities::compound_send(&[
-            &format!("target {}", data.args),
-            &format!("use 'stab' {}", data.args),
-        ]))
+        command::send(use_skill("stab", data))
     }
 }
 
@@ -328,11 +322,20 @@ mod tests {
     }
 
     #[test]
-    fn us_requires_target() {
-        let data = Data {
-            cmd: "us".into(),
-            args: "".into(),
-        };
-        assert!(NergalGuild::use_stab(&data, &command::CommandEnvironment::empty()).is_none());
+    fn us_uses_stab_with_optional_target() {
+        for (args, expected) in [
+            ("", "@use 'stab'"),
+            ("   ", "@use 'stab'"),
+            (" orc ", "@target orc;use 'stab' orc"),
+        ] {
+            let data = Data {
+                cmd: "us".into(),
+                args: args.into(),
+            };
+            assert_eq!(
+                NergalGuild::use_stab(&data, &command::CommandEnvironment::empty()),
+                command::send(expected)
+            );
+        }
     }
 }

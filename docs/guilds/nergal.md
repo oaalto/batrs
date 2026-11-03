@@ -15,7 +15,7 @@ Minion status lines are absorbed into the HUD row (original line hidden). Unsumm
 | `aura` | Embrace the gifts (aura) | Args required: `use embrace the gifts at start aura <args>`. |
 | `mutation` | Embrace the gifts (mutation) | Args required: `use embrace the gifts at start mutation <args>`. |
 | `udh` | Dreary hibernation | `use dreary hibernation`. |
-| `us` | Stab | Target required: `target`; `use 'stab' <target>`. |
+| `us` | Stab | Bare: `use 'stab'`. With a target: `target <target>;use 'stab' <target>`. |
 
 ### Spells
 
