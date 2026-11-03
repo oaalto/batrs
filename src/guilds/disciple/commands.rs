@@ -1,5 +1,6 @@
 use crate::abilities;
 use crate::abilities::use_skill;
+use crate::ansi::StyledLine;
 use crate::command;
 use crate::command::Command;
 use crate::command::ShortcutEntry;
@@ -48,8 +49,8 @@ impl DiscipleGuild {
         data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        if data.args.is_empty() {
-            Vec::new()
+        if data.args.trim().is_empty() {
+            vec![command::output(StyledLine::new("No target!"))]
         } else {
             command::send(abilities::client_send_line(&format!(
                 "target {};use 'kiss of death' {}",

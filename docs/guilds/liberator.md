@@ -8,6 +8,8 @@ Red on swing miss and holy buff drop; ghost farewell whisper in red.
 
 ## Shortcuts
 
+Bare `cgs` shows **“No target!”** without sending a game command.
+
 ### Skills
 
 | Shortcut | Full name | Notes |

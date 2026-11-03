@@ -10,6 +10,8 @@ Kata and meditation state, rotating combat skills (disrupt / area / armour / avo
 
 ## Shortcuts
 
+Bare `cs` shows **“No target!”** without sending a game command or resetting rotation variables. Rotation resets only when kiai-cry is sent.
+
 ### Skills
 
 | Shortcut | Full name | Notes |

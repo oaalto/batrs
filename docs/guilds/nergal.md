@@ -8,6 +8,8 @@ Minion status lines are absorbed into the HUD row (original line hidden). Unsumm
 
 ## Shortcuts
 
+Missing required arguments produce a local message without sending a game command: `cee` shows **“No target!”**; `cne` shows **“Need three arguments: cne <host> <a> <b>.”**; `aura` and `mutation` show usage for their missing arguments.
+
 ### Skills
 
 | Shortcut | Full name | Notes |

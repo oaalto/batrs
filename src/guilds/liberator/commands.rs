@@ -2,6 +2,7 @@
 
 use crate::abilities;
 use crate::abilities::use_skill;
+use crate::ansi::StyledLine;
 use crate::command;
 use crate::command::Command;
 use crate::command::ShortcutEntry;
@@ -131,7 +132,7 @@ impl LiberatorGuild {
     ) -> Vec<command::CommandEffect> {
         let tail = data.args.trim();
         if tail.is_empty() {
-            return Vec::new();
+            return vec![command::output(StyledLine::new("No target!"))];
         }
         command::send(abilities::compound_send(&[
             "liberator select weakest weaponsmith",
@@ -295,7 +296,7 @@ mod tests {
     fn ghost_sword_requires_target() {
         assert_eq!(
             LiberatorGuild::cast_ghost_sword(&data("cgs", ""), &empty_ctx()),
-            Vec::new()
+            vec![command::output(StyledLine::new("No target!"))]
         );
         let out = LiberatorGuild::cast_ghost_sword(&data("cgs", "troll"), &empty_ctx());
         assert_eq!(

@@ -9,6 +9,8 @@ Chaos spawn cues, colored combat lines, and **`@wearall`** after the chaotic spa
 
 ## Shortcuts
 
+Bare `ukd` shows **“No target!”** without sending a game command.
+
 ### Skills
 
 | Shortcut | Full name | Notes |

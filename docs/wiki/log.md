@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-11-03] update | Required guild arguments report local errors
+
+- Updated: [Command Dispatch](concepts/command-dispatch.md)
+- Sources: `src/command/mod.rs`, `src/guilds/disciple/commands.rs`, `src/guilds/liberator/commands.rs`, `src/guilds/monk/commands.rs`, `src/guilds/nergal/commands.rs`, `src/guilds/reaver/commands.rs`, `src/guilds/spider/commands.rs`, corresponding guild manuals
+- Notes: Preserved mandatory targets while replacing twelve missing-input no-send paths with local target/argument diagnostics. Monk kiai-cry now validates before creating rotation resets. Dispatch regression checks diagnostics without automation/send effects and preserves valid-input sends.
+
 ## [2026-11-03] update | Nergal stab accepts an optional target
 
 - Updated: [Command Dispatch](concepts/command-dispatch.md)

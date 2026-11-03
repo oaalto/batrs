@@ -637,6 +637,76 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_required_guild_arguments_report_errors_without_side_effects() {
+        use crate::guilds::{
+            DiscipleGuild, LiberatorGuild, MonkGuild, NergalGuild, ReaverGuild, SpiderGuild,
+        };
+
+        let cases: Vec<(Box<dyn Guild>, &str, &str)> = vec![
+            (Box::new(DiscipleGuild::default()), "ukd", "No target!"),
+            (Box::new(LiberatorGuild::default()), "cgs", "No target!"),
+            (Box::new(MonkGuild::default()), "cs", "No target!"),
+            (Box::new(NergalGuild::default()), "cee", "No target!"),
+            (Box::new(ReaverGuild::default()), "rt", "No target!"),
+            (Box::new(ReaverGuild::default()), "cwa", "No target!"),
+            (Box::new(ReaverGuild::default()), "csd", "No target!"),
+            (Box::new(SpiderGuild::default()), "chs", "No target!"),
+            (
+                Box::new(NergalGuild::default()),
+                "cne",
+                "Need three arguments: cne <host> <a> <b>.",
+            ),
+            (
+                Box::new(NergalGuild::default()),
+                "aura",
+                "Missing aura arguments: aura <args>.",
+            ),
+            (
+                Box::new(NergalGuild::default()),
+                "mutation",
+                "Missing mutation arguments: mutation <args>.",
+            ),
+            (
+                Box::new(ReaverGuild::default()),
+                "cca",
+                "No amount! Usage: cca <amount>.",
+            ),
+        ];
+        for (guild, alias, message) in cases {
+            let guilds = vec![guild];
+            for line in [alias.to_string(), format!(" {alias}   ")] {
+                let effects = dispatch_line(&line, true, &guilds);
+                assert_eq!(effects.len(), 1, "{line}: {effects:?}");
+                assert!(
+                    matches!(
+                        &effects[0],
+                        CommandEffect::Output(output) if output.plain_line == message
+                    ),
+                    "{line}: {effects:?}"
+                );
+            }
+            let args = match alias {
+                "cne" => "host minor vitae",
+                "cca" => "100",
+                _ => "orc",
+            };
+            let line = format!("{alias} {args}");
+            assert!(
+                !send_effects(&dispatch_line(&line, true, &guilds)).is_empty(),
+                "{line}"
+            );
+        }
+        let guilds: Vec<Box<dyn Guild>> = vec![Box::new(NergalGuild::default())];
+        for line in ["cne host", "cne host minor"] {
+            assert!(matches!(
+                dispatch_line(line, true, &guilds).as_slice(),
+                [CommandEffect::Output(output)]
+                    if output.plain_line == "Need three arguments: cne <host> <a> <b>."
+            ));
+        }
+    }
+
+    #[test]
     fn dispatch_nergal_us_without_target_sends_stab() {
         let guilds: Vec<Box<dyn Guild>> = vec![Box::new(crate::guilds::NergalGuild::default())];
         assert_eq!(

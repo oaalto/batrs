@@ -1,5 +1,6 @@
 use crate::abilities;
 use crate::abilities::use_skill;
+use crate::ansi::StyledLine;
 use crate::command;
 use crate::command::Command;
 use crate::command::ShortcutEntry;
@@ -117,7 +118,7 @@ impl NergalGuild {
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
         if data.args.trim().is_empty() {
-            return Vec::new();
+            return vec![command::output(StyledLine::new("No target!"))];
         }
         command::send(abilities::cast_quoted_with_suffix(
             "end enthrallment",
@@ -130,14 +131,11 @@ impl NergalGuild {
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
         let mut parts = data.args.split_whitespace();
-        let Some(first) = parts.next() else {
-            return Vec::new();
-        };
-        let Some(second) = parts.next() else {
-            return Vec::new();
-        };
-        let Some(third) = parts.next() else {
-            return Vec::new();
+        let (Some(first), Some(second), Some(third)) = (parts.next(), parts.next(), parts.next())
+        else {
+            return vec![command::output(StyledLine::new(
+                "Need three arguments: cne <host> <a> <b>.",
+            ))];
         };
         command::send(abilities::cast_quoted_with_suffix(
             "nourish enthralled",
@@ -160,7 +158,9 @@ impl NergalGuild {
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
         if data.args.trim().is_empty() {
-            return Vec::new();
+            return vec![command::output(StyledLine::new(
+                "Missing aura arguments: aura <args>.",
+            ))];
         }
         command::send(abilities::use_quoted_with_suffix(
             "embrace the gifts",
@@ -173,7 +173,9 @@ impl NergalGuild {
         _: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
         if data.args.trim().is_empty() {
-            return Vec::new();
+            return vec![command::output(StyledLine::new(
+                "Missing mutation arguments: mutation <args>.",
+            ))];
         }
         command::send(abilities::use_quoted_with_suffix(
             "embrace the gifts",
@@ -203,17 +205,12 @@ mod tests {
 
     trait CommandEffectTestExt {
         fn as_deref(&self) -> Vec<command::CommandEffect>;
-        fn is_none(&self) -> bool;
         fn unwrap(self) -> String;
     }
 
     impl CommandEffectTestExt for Vec<command::CommandEffect> {
         fn as_deref(&self) -> Vec<command::CommandEffect> {
             self.clone()
-        }
-
-        fn is_none(&self) -> bool {
-            self.is_empty()
         }
 
         fn unwrap(self) -> String {
@@ -269,9 +266,9 @@ mod tests {
             cmd: "cee".into(),
             args: "   ".into(),
         };
-        assert!(
-            NergalGuild::cast_end_enthrallment(&data, &command::CommandEnvironment::empty())
-                .is_none()
+        assert_eq!(
+            NergalGuild::cast_end_enthrallment(&data, &command::CommandEnvironment::empty()),
+            vec![command::output(StyledLine::new("No target!"))]
         );
     }
 
@@ -292,9 +289,11 @@ mod tests {
             cmd: "cne".into(),
             args: "a b".into(),
         };
-        assert!(
-            NergalGuild::cast_nourish_enthralled(&data, &command::CommandEnvironment::empty())
-                .is_none()
+        assert_eq!(
+            NergalGuild::cast_nourish_enthralled(&data, &command::CommandEnvironment::empty()),
+            vec![command::output(StyledLine::new(
+                "Need three arguments: cne <host> <a> <b>.",
+            ))]
         );
     }
 

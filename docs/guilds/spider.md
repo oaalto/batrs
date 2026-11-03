@@ -8,6 +8,8 @@ Color-coded feedback for queen boons, demon struggles, poison streak successes, 
 
 ## Shortcuts
 
+Bare `chs` shows **“No target!”** without sending a game command.
+
 ### Skills
 
 | Shortcut | Full name | Notes |

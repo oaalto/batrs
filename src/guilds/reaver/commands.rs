@@ -112,8 +112,8 @@ impl ReaverGuild {
         data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        if data.args.is_empty() {
-            Vec::new()
+        if data.args.trim().is_empty() {
+            vec![command::output(StyledLine::new("No target!"))]
         } else {
             command::send(abilities::client_send_line(&format!(
                 "reaver threaten {}",
@@ -244,8 +244,8 @@ impl ReaverGuild {
         data: &command::Data,
         _ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        if data.args.is_empty() {
-            Vec::new()
+        if data.args.trim().is_empty() {
+            vec![command::output(StyledLine::new("No target!"))]
         } else {
             command::send(abilities::client_send_line(&format!(
                 "cast 'word of attrition' {}",
@@ -314,8 +314,10 @@ impl ReaverGuild {
         data: &command::Data,
         ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        if data.args.is_empty() {
-            Vec::new()
+        if data.args.trim().is_empty() {
+            vec![command::output(StyledLine::new(
+                "No amount! Usage: cca <amount>.",
+            ))]
         } else {
             if ctx.flag("prayer_done") {
                 return command::send(abilities::client_send_line(&format!(
@@ -340,8 +342,8 @@ impl ReaverGuild {
         data: &command::Data,
         ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        if data.args.is_empty() {
-            Vec::new()
+        if data.args.trim().is_empty() {
+            vec![command::output(StyledLine::new("No target!"))]
         } else {
             if ctx.flag("prayer_done") {
                 return command::send(abilities::client_send_line(&format!(

@@ -8,6 +8,8 @@ Many attack, miss, killing blow, blight, and gear-break lines are colored (blue 
 
 ## Shortcuts
 
+Missing targets for `rt`, `cwa`, and `csd` show **“No target!”** without sending a game command or staging prayer. Bare `cca` shows **“No amount! Usage: cca <amount>.”**.
+
 ### Skills
 
 | Shortcut | Full name | Notes |

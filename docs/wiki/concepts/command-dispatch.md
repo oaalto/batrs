@@ -7,6 +7,11 @@ sources:
   - CONTEXT.md
   - src/command/mod.rs
   - src/guilds/nergal/commands.rs
+  - src/guilds/disciple/commands.rs
+  - src/guilds/liberator/commands.rs
+  - src/guilds/monk/commands.rs
+  - src/guilds/reaver/commands.rs
+  - src/guilds/spider/commands.rs
 ---
 
 # Command Dispatch
@@ -25,6 +30,8 @@ Command Dispatch interprets a command input line into client effects (send text 
 - Connect Command (`/connect`): relaunches login-dependent state; only one connect attempt active at a time; never forwarded to BatMUD. On failure the client stays in fresh-session state (`CONTEXT.md`). Reconnect orchestration and reset manifest live in [Session Lifecycle](session-lifecycle.md).
 - Command environment facts (runtime flags, variables) are snapshots from the application, not Player Profile data.
 - With Nergal owning `us`, bare `us` sends `@use 'stab'`; `us <target>` sends `@target <target>;use 'stab' <target>`. The guild uses the shared Abilities `use_skill` helper; the dispatch regression covers both forms (`src/guilds/nergal/commands.rs`, `src/command/mod.rs`).
+
+- Required-target shortcuts `ukd` (Disciple), `cgs` (Liberator), `cs` (Monk), `cee` (Nergal), `rt`/`cwa`/`csd` (Reaver), and `chs` (Spider) emit only local **“No target!”** output when arguments are missing. Monk validates before creating rotation-reset effects. Nergal `cne` reports its three-argument syntax; `aura`/`mutation` report missing arguments; Reaver `cca` reports its required amount. Missing-input paths neither send game commands nor change automation state; dispatch regression covers every shortcut, incomplete `cne`, and valid-input sends (`src/command/mod.rs`).
 
 ## Related
 

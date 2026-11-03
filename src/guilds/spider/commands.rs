@@ -79,7 +79,7 @@ impl SpiderGuild {
     ) -> Vec<command::CommandEffect> {
         let args = data.args.trim();
         if args.is_empty() {
-            return Vec::new();
+            return vec![command::output(StyledLine::new("No target!"))];
         }
         command::send(abilities::compound_send(&[
             &format!("target {args}"),
@@ -315,7 +315,10 @@ mod tests {
             cmd: "chs".into(),
             args: "".into(),
         };
-        assert!(SpiderGuild::cast_hunger_of_the_spider(&data, &ctx()).is_empty());
+        assert_eq!(
+            SpiderGuild::cast_hunger_of_the_spider(&data, &ctx()),
+            vec![command::output(StyledLine::new("No target!"))]
+        );
     }
 
     #[test]

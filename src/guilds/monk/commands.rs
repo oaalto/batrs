@@ -1,5 +1,6 @@
 use crate::abilities;
 use crate::abilities::use_skill;
+use crate::ansi::StyledLine;
 use crate::automation::Action;
 use crate::command;
 use crate::command::Command;
@@ -59,16 +60,15 @@ impl MonkGuild {
         data: &command::Data,
         ctx: &command::CommandEnvironment,
     ) -> Vec<command::CommandEffect> {
-        let mut effects = reset_current_skill_effects(ctx);
-        if data.args.is_empty() {
-            effects
-        } else {
-            effects.extend(command::send(abilities::client_send_line(&format!(
-                "target {};use 'kiai-cry' {}",
-                data.args, data.args
-            ))));
-            effects
+        if data.args.trim().is_empty() {
+            return vec![command::output(StyledLine::new("No target!"))];
         }
+        let mut effects = reset_current_skill_effects(ctx);
+        effects.extend(command::send(abilities::client_send_line(&format!(
+            "target {};use 'kiai-cry' {}",
+            data.args, data.args
+        ))));
+        effects
     }
 
     pub fn use_joint_lock(
