@@ -345,9 +345,8 @@ mod tests {
 
     #[tokio::test]
     async fn reconnect_failure_wakes_client_and_reports_connection_error() {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
-        drop(listener);
+        // Port zero cannot be a listener's assigned port; a released ephemeral port can be reused.
+        let address = std::net::SocketAddr::from(([127, 0, 0, 1], 0));
         let ready = Arc::new(Notify::new());
         let mut coordinator = TcpConnectionCoordinator {
             runtime: Handle::current(),

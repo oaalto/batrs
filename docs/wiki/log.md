@@ -6,6 +6,11 @@
 - Sources: `src/config.rs`, `src/player_profile/registry.rs`, `src/player_profile/runtime.rs`, `src/player_profile/persistence.rs`, `src/guilds/triad/commands.rs`, `src/ui/mod.rs`, `src/app/mod.rs`, corresponding guild and settings manuals
 - Notes: Added per-character `damn_armament_target`, displayed as Damn Armament in `/settings` and exported through the existing registry. Triad `cda` no longer hardcodes weapon2: missing/blank targets produce a local setup error and no send; unsafe separators are rejected. Regression checks cover persistence, runtime export, save/cancel/reload, failed-save nonactivation, formatting, and display-label cursor alignment. Bulk settings saves now persist a cloned candidate before replacing loaded settings; the failure regression exercises a loaded profile with a real disk-write error and subsequent refresh.
 
+## [2026-11-05] skip | Remove reconnect failure test port-reuse race
+
+- Sources: `src/main.rs`
+- Notes: Full-suite validation exposed a test-only race where a released ephemeral port was reused by another listener. The failure test now connects to loopback port zero, which cannot be a listener’s assigned port. Production reconnect behavior and wiki knowledge are unchanged.
+
 ## [2026-11-03] update | Required guild arguments report local errors
 
 - Updated: [Command Dispatch](concepts/command-dispatch.md)
