@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-11-05] update | Configurable Damn Armament target
+
+- Updated: [Player Profile](concepts/player-profile.md)
+- Sources: `src/config.rs`, `src/player_profile/registry.rs`, `src/player_profile/runtime.rs`, `src/player_profile/persistence.rs`, `src/guilds/triad/commands.rs`, `src/ui/mod.rs`, `src/app/mod.rs`, corresponding guild and settings manuals
+- Notes: Added per-character `damn_armament_target`, displayed as Damn Armament in `/settings` and exported through the existing registry. Triad `cda` no longer hardcodes weapon2: missing/blank targets produce a local setup error and no send; unsafe separators are rejected. Regression checks cover persistence, runtime export, save/cancel/reload, failed-save nonactivation, formatting, and display-label cursor alignment. Bulk settings saves now persist a cloned candidate before replacing loaded settings; the failure regression exercises a loaded profile with a real disk-write error and subsequent refresh.
+
 ## [2026-11-03] update | Required guild arguments report local errors
 
 - Updated: [Command Dispatch](concepts/command-dispatch.md)

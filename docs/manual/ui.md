@@ -61,7 +61,9 @@ Turn whole groups of shortcuts (cures, travel spells, and so on) on or off. Chan
 
 ### Settings (`/settings`)
 
-Edit key/value settings in a simple list. Saving updates your profile file on disk.
+Edit key/value settings in a simple list. **Up/Down** selects a row, typing edits its value, **Backspace/Delete** removes the last character, **Enter** saves, and **Esc** cancels. A successful save updates your profile file and takes effect immediately.
+
+The **Damn Armament:** row saves `damn_armament_target` for Triad’s `cda`. It is visible regardless of guild selection and defaults to empty. If left empty or whitespace-only, `cda` sends nothing and displays **`Set the Damn Armament target in /settings`**. Set an item target such as `weapon2`; semicolons and line breaks are not valid targets.
 
 ### Monk skills (`/monk`)
 

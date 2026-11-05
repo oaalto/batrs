@@ -4,7 +4,9 @@ pub mod persistence;
 pub mod registry;
 pub mod runtime;
 
-pub use registry::{RIFTWALKER_ENTITY_LABEL_KEYS, SABRE_WEAPON_KEY, TZARAKK_MOUNT_KEY};
+pub use registry::{
+    DAMN_ARMAMENT_TARGET_KEY, RIFTWALKER_ENTITY_LABEL_KEYS, SABRE_WEAPON_KEY, TZARAKK_MOUNT_KEY,
+};
 pub use runtime::{InterpretedPlayerProfile, PlayerRuntimeProfile};
 
 use crate::config::{PlayerToml, SettingEntry, SettingsTable, UserSettings};
@@ -304,15 +306,17 @@ mod tests {
             SettingSlot::Rig => 0,
             SettingSlot::TzarakkMount => 1,
             SettingSlot::SabreWeapon => 2,
-            SettingSlot::RiftwalkerEntity(index) => 3 + index,
-            SettingSlot::IsLich => 7,
+            SettingSlot::DamnArmamentTarget => 3,
+            SettingSlot::RiftwalkerEntity(index) => 4 + index,
+            SettingSlot::IsLich => 8,
         });
-        assert_eq!(slots.len(), 8);
+        assert_eq!(slots.len(), 9);
         assert_eq!(slots, {
             let mut expected = vec![
                 SettingSlot::Rig,
                 SettingSlot::TzarakkMount,
                 SettingSlot::SabreWeapon,
+                SettingSlot::DamnArmamentTarget,
             ];
             expected.extend((0..4).map(SettingSlot::RiftwalkerEntity));
             expected.push(SettingSlot::IsLich);
@@ -320,7 +324,7 @@ mod tests {
         });
 
         let entries = normalize_settings_entries(Vec::new()).0;
-        assert_eq!(entries.len(), 8);
+        assert_eq!(entries.len(), 9);
         for definition in SETTINGS_DEFS {
             assert!(
                 entries.iter().any(|entry| entry.key == definition.key),
@@ -520,6 +524,7 @@ mod tests {
                 (RIG_KEY.to_string(), "bag".to_string()),
                 (TZARAKK_MOUNT_KEY.to_string(), "Vedir".to_string()),
                 (SABRE_WEAPON_KEY.to_string(), "sabre".to_string()),
+                (DAMN_ARMAMENT_TARGET_KEY.to_string(), String::new()),
                 (RIFTWALKER_ENTITY_FIRE_KEY.to_string(), "flame".to_string()),
                 (RIFTWALKER_ENTITY_AIR_KEY.to_string(), "entity".to_string()),
                 (

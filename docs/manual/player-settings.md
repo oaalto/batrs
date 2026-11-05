@@ -17,12 +17,15 @@ You usually edit this through **`/guilds`** and **`/settings`**, but advanced us
 | `rig` | Your automation rig name (set in **`/settings`** or edit the profile file) |
 | `tzarakk_mount` | Mount name used for Tzarakk features |
 | `sabre_weapon` | Main-hand weapon for Sabres shortcuts |
+| `damn_armament_target` | Item target for Triad’s `cda`, edited as **Damn Armament:** in **`/settings`** (default empty) |
 | `riftwalker_entity_fire` | Label you use for your fire entity (default **`entity`**) |
 | `riftwalker_entity_air` | Air entity label (default **`entity`**) |
 | `riftwalker_entity_water` | Water entity label (default **`entity`**) |
 | `riftwalker_entity_earth` | Earth entity label (default **`entity`**) |
 
-Omitted or empty values are rewritten to **`entity`** when the profile is loaded and normalized.
+Omitted or empty riftwalker entity labels are rewritten to **`entity`** when the profile is loaded and normalized.
+
+For **`damn_armament_target`**, missing, empty, or whitespace-only values instead prevent `cda` from sending and display **`Set the Damn Armament target in /settings`**. Set an item target such as `weapon2`; successful dialog saves apply immediately and persist for later logins. Surrounding whitespace is trimmed when casting. Semicolons and line breaks are rejected with a local error.
 
 Any other **`key = "value"`** lines are kept as extra settings. One common extra:
 

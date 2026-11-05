@@ -8,6 +8,7 @@ impl PersistSlot {
             PersistSlot::Rig => table.rig.clone(),
             PersistSlot::TzarakkMount => table.tzarakk_mount.clone(),
             PersistSlot::SabreWeapon => table.sabre_weapon.clone(),
+            PersistSlot::DamnArmamentTarget => table.damn_armament_target.clone(),
             PersistSlot::RiftwalkerEntityFire => table.riftwalker_entity_fire.clone(),
             PersistSlot::RiftwalkerEntityAir => table.riftwalker_entity_air.clone(),
             PersistSlot::RiftwalkerEntityWater => table.riftwalker_entity_water.clone(),
@@ -27,6 +28,7 @@ impl PersistSlot {
             PersistSlot::Rig => table.rig = value,
             PersistSlot::TzarakkMount => table.tzarakk_mount = value,
             PersistSlot::SabreWeapon => table.sabre_weapon = value,
+            PersistSlot::DamnArmamentTarget => table.damn_armament_target = value,
             PersistSlot::RiftwalkerEntityFire => table.riftwalker_entity_fire = value,
             PersistSlot::RiftwalkerEntityAir => table.riftwalker_entity_air = value,
             PersistSlot::RiftwalkerEntityWater => table.riftwalker_entity_water = value,
@@ -48,6 +50,7 @@ impl SettingSlot {
             SettingSlot::Rig => settings.rig.clone(),
             SettingSlot::TzarakkMount => settings.tzarakk_mount.clone(),
             SettingSlot::SabreWeapon => settings.sabre_weapon.clone(),
+            SettingSlot::DamnArmamentTarget => settings.damn_armament_target.clone(),
             SettingSlot::RiftwalkerEntity(index) => {
                 settings.riftwalker_entity_labels[*index].clone()
             }
@@ -60,6 +63,7 @@ impl SettingSlot {
             SettingSlot::Rig => settings.rig = value,
             SettingSlot::TzarakkMount => settings.tzarakk_mount = value,
             SettingSlot::SabreWeapon => settings.sabre_weapon = value,
+            SettingSlot::DamnArmamentTarget => settings.damn_armament_target = value,
             SettingSlot::RiftwalkerEntity(index) => {
                 settings.riftwalker_entity_labels[*index] = value
             }
@@ -78,7 +82,7 @@ impl SettingSlot {
             SettingSlot::RiftwalkerEntity(index) => {
                 defaults.riftwalker_entity_labels[*index] = value
             }
-            SettingSlot::Rig | SettingSlot::IsLich => {}
+            SettingSlot::Rig | SettingSlot::DamnArmamentTarget | SettingSlot::IsLich => {}
         }
     }
 }

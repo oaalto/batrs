@@ -1,6 +1,7 @@
 pub const RIG_KEY: &str = "rig";
 pub const TZARAKK_MOUNT_KEY: &str = "tzarakk_mount";
 pub const SABRE_WEAPON_KEY: &str = "sabre_weapon";
+pub const DAMN_ARMAMENT_TARGET_KEY: &str = "damn_armament_target";
 pub(crate) const RIFTWALKER_ENTITY_FIRE_KEY: &str = "riftwalker_entity_fire";
 pub(crate) const RIFTWALKER_ENTITY_AIR_KEY: &str = "riftwalker_entity_air";
 pub(crate) const RIFTWALKER_ENTITY_WATER_KEY: &str = "riftwalker_entity_water";
@@ -26,6 +27,7 @@ pub enum SettingSlot {
     Rig,
     TzarakkMount,
     SabreWeapon,
+    DamnArmamentTarget,
     RiftwalkerEntity(usize),
     IsLich,
 }
@@ -35,6 +37,7 @@ pub enum PersistSlot {
     Rig,
     TzarakkMount,
     SabreWeapon,
+    DamnArmamentTarget,
     RiftwalkerEntityFire,
     RiftwalkerEntityAir,
     RiftwalkerEntityWater,
@@ -89,6 +92,16 @@ pub const SETTINGS_DEFS: &[SettingDefinition] = &[
         persist: PersistSlot::SabreWeapon,
         sparse_when_default: false,
         guild_dialog: true,
+        automation_export: AutomationExport::Var,
+    },
+    SettingDefinition {
+        key: DAMN_ARMAMENT_TARGET_KEY,
+        default: "",
+        kind: SettingKind::String,
+        slot: SettingSlot::DamnArmamentTarget,
+        persist: PersistSlot::DamnArmamentTarget,
+        sparse_when_default: false,
+        guild_dialog: false,
         automation_export: AutomationExport::Var,
     },
     SettingDefinition {

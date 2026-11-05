@@ -2486,6 +2486,98 @@ mod tests {
     }
 
     #[test]
+    fn damn_armament_settings_save_cancel_and_reload() {
+        let base_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join(format!(
+                "damn-armament-settings-test-{}",
+                std::process::id()
+            ));
+        let mut manager = ConfigManager::with_test_base_dir(base_dir.clone());
+        manager.load_user("tester").unwrap();
+        manager
+            .save_user_setting(player_profile::DAMN_ARMAMENT_TARGET_KEY, "")
+            .unwrap();
+        let (mut app, mut receiver) = test_app();
+        log_in(&mut app);
+        app.config_manager = Some(manager);
+        app.refresh_player_profile_from_config(false);
+        app.apply_guild_selection(GuildSelection::from_playable_keys(
+            [GuildKey::Triad],
+            Some("evil_religious"),
+        ));
+        app.input.insert_str("cda");
+        app.submit_input();
+        assert!(drain_commands(&mut receiver).is_empty());
+
+        app.open_settings_dialog();
+        let entries = app.settings_dialog.as_ref().unwrap().entries();
+        let index = entries
+            .iter()
+            .position(|entry| entry.key == player_profile::DAMN_ARMAMENT_TARGET_KEY)
+            .unwrap();
+        let dialog = app.settings_dialog.as_mut().unwrap();
+        dialog.move_cursor(index as i32);
+        for c in "weapon1".chars() {
+            dialog.insert_char(c);
+        }
+        app.handle_settings_dialog_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        app.input.insert_str("cda");
+        app.submit_input();
+        assert_eq!(
+            drain_commands(&mut receiver),
+            vec!["@cast 'damn armament' weapon1"]
+        );
+
+        app.open_settings_dialog();
+        let dialog = app.settings_dialog.as_mut().unwrap();
+        dialog.move_cursor(index as i32);
+        dialog.insert_char('2');
+        app.handle_settings_dialog_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        app.input.insert_str("cda");
+        app.submit_input();
+        assert_eq!(
+            drain_commands(&mut receiver),
+            vec!["@cast 'damn armament' weapon1"]
+        );
+
+        app.config_manager
+            .as_mut()
+            .unwrap()
+            .load_user("tester")
+            .unwrap();
+        app.refresh_player_profile_from_config(false);
+        assert_eq!(app.player_profile.settings.damn_armament_target, "weapon1");
+        app.input.insert_str("cda");
+        app.submit_input();
+        assert_eq!(
+            drain_commands(&mut receiver),
+            vec!["@cast 'damn armament' weapon1"]
+        );
+
+        let path = base_dir.join("tester").join("tester.toml");
+        std::fs::remove_file(&path).unwrap();
+        std::fs::create_dir(&path).unwrap();
+        app.apply_user_settings(UserSettings {
+            entries: vec![crate::config::SettingEntry {
+                key: player_profile::DAMN_ARMAMENT_TARGET_KEY.to_string(),
+                value: "weapon2".to_string(),
+            }],
+        });
+        assert_eq!(app.player_profile.settings.damn_armament_target, "weapon1");
+        // A later profile refresh must not activate the rejected disk write.
+        app.refresh_player_profile_from_config(false);
+        assert_eq!(app.player_profile.settings.damn_armament_target, "weapon1");
+        app.input.insert_str("cda");
+        app.submit_input();
+        assert_eq!(
+            drain_commands(&mut receiver),
+            vec!["@cast 'damn armament' weapon1"]
+        );
+        std::fs::remove_dir_all(base_dir).unwrap();
+    }
+
+    #[test]
     fn delete_removes_character_from_settings_dialog_value() {
         let (mut app, _command_receiver) = test_app();
         app.settings_dialog = Some(SettingsDialog::new(vec![crate::config::SettingEntry {

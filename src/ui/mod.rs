@@ -75,6 +75,17 @@ pub struct SettingsDialogItem {
     pub value: String,
 }
 
+impl SettingsDialogItem {
+    /// Display name shared by row rendering and cursor placement; storage keys stay unchanged.
+    fn label(&self) -> &str {
+        if self.key == crate::player_profile::DAMN_ARMAMENT_TARGET_KEY {
+            "Damn Armament"
+        } else {
+            &self.key
+        }
+    }
+}
+
 pub struct SettingsDialogViewModel {
     pub items: Vec<SettingsDialogItem>,
     pub cursor: usize,
@@ -571,7 +582,7 @@ fn render_settings_dialog(frame: &mut Frame<'_>, dialog: &SettingsDialogViewMode
     let items = dialog
         .items
         .iter()
-        .map(|item| ListItem::new(format!("{}: {}", item.key, item.value)))
+        .map(|item| ListItem::new(format!("{}: {}", item.label(), item.value)))
         .collect::<Vec<ListItem<'_>>>();
 
     let list = List::new(items)
@@ -611,7 +622,7 @@ fn set_settings_dialog_cursor_position(
 
     let item = &dialog.items[selected_index];
     let cursor_offset = 2u16
-        .saturating_add(item.key.chars().count() as u16)
+        .saturating_add(item.label().chars().count() as u16)
         .saturating_add(2)
         .saturating_add(item.value.chars().count() as u16);
     let cursor_x = list_area
@@ -928,6 +939,36 @@ mod tests {
         assert!(row_text(buffer, 2).starts_with("player stats"));
         assert_eq!(row_text(buffer, 3), "guild status");
         assert_eq!(row_text(buffer, 4), ">look");
+    }
+
+    #[test]
+    fn settings_damn_armament_label_and_cursor_align() {
+        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+        let dialog = SettingsDialogViewModel {
+            items: vec![
+                SettingsDialogItem {
+                    key: "rig".to_string(),
+                    value: "bag".to_string(),
+                },
+                SettingsDialogItem {
+                    key: crate::player_profile::DAMN_ARMAMENT_TARGET_KEY.to_string(),
+                    value: "weapon1".to_string(),
+                },
+            ],
+            cursor: 1,
+        };
+        terminal
+            .draw(|frame| render_settings_dialog(frame, &dialog))
+            .unwrap();
+        let area = centered_rect(60, 60, Rect::new(0, 0, 80, 24));
+        let x = area.x + 1;
+        let y = area.y + 2;
+        assert!(row_text(terminal.backend().buffer(), y).contains("> Damn Armament: weapon1"));
+        assert!(row_text(terminal.backend().buffer(), y - 1).contains("rig: bag"));
+        assert_eq!(
+            terminal.get_cursor_position().unwrap(),
+            ratatui::layout::Position::new(x + 24, y)
+        );
     }
 
     fn row_text(buffer: &Buffer, y: u16) -> String {

@@ -12,6 +12,7 @@ pub struct KnownProfileSettings {
     pub rig: String,
     pub tzarakk_mount: String,
     pub sabre_weapon: String,
+    pub damn_armament_target: String,
     pub riftwalker_entity_labels: [String; 4],
     pub is_lich: bool,
 }
@@ -28,6 +29,7 @@ impl KnownProfileSettings {
             rig: String::new(),
             tzarakk_mount: String::new(),
             sabre_weapon: String::new(),
+            damn_armament_target: String::new(),
             riftwalker_entity_labels: default_riftwalker_entity_labels(),
             is_lich: false,
         };
