@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-11-05] update | Consistent settings dialog labels
+
+- Updated: [Player Profile](concepts/player-profile.md), UI manual
+- Sources: `src/ui/mod.rs`, `docs/manual/ui.md`
+- Notes: Known and custom settings now use title-cased, space-separated labels matching Damn Armament. Stored keys and values are unchanged; rendering and cursor positioning share the label function. UI regression checks cover every registered setting, custom and Unicode keys, and cursor alignment. Cursor placement uses terminal display widths rather than scalar counts, including uppercase combining-character expansion and wide values.
+
 ## [2026-11-05] update | Configurable Damn Armament target
 
 - Updated: [Player Profile](concepts/player-profile.md)

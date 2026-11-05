@@ -77,12 +77,21 @@ pub struct SettingsDialogItem {
 
 impl SettingsDialogItem {
     /// Display name shared by row rendering and cursor placement; storage keys stay unchanged.
-    fn label(&self) -> &str {
+    fn label(&self) -> String {
         if self.key == crate::player_profile::DAMN_ARMAMENT_TARGET_KEY {
-            "Damn Armament"
-        } else {
-            &self.key
+            return "Damn Armament".to_string();
         }
+        self.key
+            .split('_')
+            .map(|word| {
+                let mut chars = word.chars();
+                match chars.next() {
+                    Some(first) => first.to_uppercase().chain(chars).collect(),
+                    None => String::new(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
     }
 }
 
@@ -621,13 +630,13 @@ fn set_settings_dialog_cursor_position(
     }
 
     let item = &dialog.items[selected_index];
-    let cursor_offset = 2u16
-        .saturating_add(item.label().chars().count() as u16)
+    let cursor_offset = 2usize
+        .saturating_add(item.label().width())
         .saturating_add(2)
-        .saturating_add(item.value.chars().count() as u16);
+        .saturating_add(item.value.width());
     let cursor_x = list_area
         .x
-        .saturating_add(cursor_offset.min(list_area.width.saturating_sub(1)));
+        .saturating_add(cursor_offset.min(list_area.width.saturating_sub(1) as usize) as u16);
     let cursor_y = list_area.y.saturating_add(visible_row as u16);
     frame.set_cursor_position((cursor_x, cursor_y));
 }
@@ -964,11 +973,55 @@ mod tests {
         let x = area.x + 1;
         let y = area.y + 2;
         assert!(row_text(terminal.backend().buffer(), y).contains("> Damn Armament: weapon1"));
-        assert!(row_text(terminal.backend().buffer(), y - 1).contains("rig: bag"));
+        assert!(row_text(terminal.backend().buffer(), y - 1).contains("Rig: bag"));
         assert_eq!(
             terminal.get_cursor_position().unwrap(),
             ratatui::layout::Position::new(x + 24, y)
         );
+    }
+
+    #[test]
+    fn settings_labels_use_title_case_without_changing_keys() {
+        for (key, label) in [
+            ("rig", "Rig"),
+            ("tzarakk_mount", "Tzarakk Mount"),
+            ("sabre_weapon", "Sabre Weapon"),
+            ("damn_armament_target", "Damn Armament"),
+            ("riftwalker_entity_fire", "Riftwalker Entity Fire"),
+            ("riftwalker_entity_air", "Riftwalker Entity Air"),
+            ("riftwalker_entity_water", "Riftwalker Entity Water"),
+            ("riftwalker_entity_earth", "Riftwalker Entity Earth"),
+            ("is_lich", "Is Lich"),
+            ("custom_note", "Custom Note"),
+            ("élan_note", "Élan Note"),
+            ("ǰ_note", "J\u{030c} Note"),
+            ("", ""),
+        ] {
+            let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+            let dialog = SettingsDialogViewModel {
+                items: vec![SettingsDialogItem {
+                    key: key.to_string(),
+                    value: "界".to_string(),
+                }],
+                cursor: 0,
+            };
+            terminal
+                .draw(|frame| render_settings_dialog(frame, &dialog))
+                .unwrap();
+            let area = centered_rect(60, 60, Rect::new(0, 0, 80, 24));
+            assert!(
+                row_text(terminal.backend().buffer(), area.y + 1)
+                    .contains(&format!("> {label}: 界"))
+            );
+            assert_eq!(
+                terminal.get_cursor_position().unwrap(),
+                ratatui::layout::Position::new(
+                    area.x + 1 + 2 + label.width() as u16 + 2 + 2,
+                    area.y + 1,
+                )
+            );
+            assert_eq!(dialog.items[0].key, key);
+        }
     }
 
     fn row_text(buffer: &Buffer, y: u16) -> String {
