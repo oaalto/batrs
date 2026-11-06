@@ -1,5 +1,11 @@
 # Engineering Wiki Log
 
+## [2026-11-06] update | Shared meditation and dreary hibernation cooldown
+
+- Updated: [Nergal Status](concepts/nergal-status.md), UI and Nergal manuals
+- Sources: `src/stats.rs`, `src/app/mod.rs`, `src/guilds/nergal/triggers.rs`
+- Notes: Both recovery markers now use one readiness value. Either recognized skill-start message clears both eligible markers; harmony restores both through either enabled matching trigger path. Guild selection changes preserve shared readiness. Regression checks cover each start independently, selection during cooldown, and all core/guild trigger-switch combinations. Dark-meditation-specific server messages remain unverified.
+
 ## [2026-11-05] update | Consistent settings dialog labels
 
 - Updated: [Player Profile](concepts/player-profile.md), UI manual

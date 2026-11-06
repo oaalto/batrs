@@ -882,10 +882,6 @@ impl BatApp {
             .iter()
             .flat_map(|guild| guild.triggers())
             .collect();
-        if nergal_newly_selected || !selection.is_selected(GuildKey::Nergal) {
-            self.stats
-                .set_recovery_bracket_dreary_hibernation(nergal_newly_selected);
-        }
         self.guild_selection = selection.clone();
         self.secondary_status.sync_guild_selection(&selection);
         self.automation = Automation::new();
@@ -1604,6 +1600,41 @@ mod tests {
     }
 
     #[test]
+    fn recovery_skills_share_readiness() {
+        let (mut app, _receiver) = test_app();
+        log_in(&mut app);
+        app.stats.set_recovery_bracket_defaults_for_login();
+        let selection = GuildSelection::from_playable_keys(
+            [GuildKey::Nergal, GuildKey::Tzarakk],
+            Some("evil_religious"),
+        );
+        app.apply_guild_selection(selection.clone());
+        let bracket = |app: &BatApp| -> String {
+            app.stats
+                .render_inline(&app.guild_selection)
+                .spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect()
+        };
+        let harmony = "You feel in harmony with yourself, the universe and life in general.";
+        for start in [
+            "You sit down and start meditating.",
+            "Dark mist floods the area around you as twisted, rotting roots spew forth from it, enveloping you in a cocoon.",
+        ] {
+            app.process_input_lines(vec![format!("  {harmony}\r")]);
+            assert!(bracket(&app).ends_with("  [cmd]"));
+            app.process_input_lines(vec![format!("  {start}\r")]);
+            assert!(bracket(&app).ends_with("  [c]"), "{start}");
+            app.apply_guild_selection(GuildSelection::default());
+            app.apply_guild_selection(selection.clone());
+            assert!(bracket(&app).ends_with("  [c]"));
+            app.process_input_lines(vec![harmony.into()]);
+            assert!(bracket(&app).ends_with("  [cmd]"));
+        }
+    }
+
+    #[test]
     fn dreary_hibernation_readiness_tracks_messages_and_selection_lifecycle() {
         let (mut app, mut receiver) = test_app();
         log_in(&mut app);
@@ -1648,7 +1679,7 @@ mod tests {
                 .render_inline(&selection)
                 .spans
                 .iter()
-                .all(|span| span.content != "d")
+                .any(|span| span.content == "d")
         );
         app.process_input_lines(vec![start.into()]);
         app.apply_guild_selection(selection.clone());
@@ -1664,7 +1695,7 @@ mod tests {
     }
 
     #[test]
-    fn dreary_hibernation_and_meditation_respect_their_trigger_switches() {
+    fn shared_recovery_readiness_respects_message_trigger_switches() {
         let start = "Dark mist floods the area around you as twisted, rotting roots spew forth from it, enveloping you in a cocoon.";
         let harmony = "You feel in harmony with yourself, the universe and life in general.";
         for guild_triggers in [false, true] {
@@ -1685,23 +1716,28 @@ mod tests {
                 let rendered = app.stats.render_inline(&app.guild_selection);
                 assert_eq!(
                     rendered.spans.iter().any(|span| span.content == "d"),
-                    guild_triggers
+                    guild_triggers || core_triggers
                 );
                 assert_eq!(
                     rendered.spans.iter().any(|span| span.content == "m"),
-                    core_triggers
+                    guild_triggers || core_triggers
                 );
-                app.stats
-                    .apply_effect(StatsEffect::SetRecoveryBracketDrearyHibernation(true));
-                app.process_input_lines(vec![start.into()]);
-                assert_eq!(
+                for (message, enabled) in [
+                    (start, guild_triggers),
+                    ("You sit down and start meditating.", core_triggers),
+                ] {
                     app.stats
-                        .render_inline(&app.guild_selection)
-                        .spans
-                        .iter()
-                        .any(|span| span.content == "d"),
-                    !guild_triggers
-                );
+                        .apply_effect(StatsEffect::SetRecoveryBracketDrearyHibernation(true));
+                    app.process_input_lines(vec![message.into()]);
+                    let rendered = app.stats.render_inline(&app.guild_selection);
+                    for marker in ["m", "d"] {
+                        assert_eq!(
+                            rendered.spans.iter().any(|span| span.content == marker),
+                            !enabled,
+                            "{message}: {marker}, guild={guild_triggers}, core={core_triggers}"
+                        );
+                    }
+                }
             }
         }
     }

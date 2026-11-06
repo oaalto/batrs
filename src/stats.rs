@@ -21,10 +21,8 @@ pub struct Stats {
     combat_round_active: bool,
     /// Green `c` in the recovery bracket: on when the MUD hints you may want to camp; off while resting (lie-down line).
     recovery_bracket_camping: bool,
-    /// Yellow `m`: on after meditation harmony line, off when meditation starts.
+    /// Shared readiness for yellow `m` and Nergal-only `d`: cleared by either skill's start, restored by harmony.
     recovery_bracket_meditation: bool,
-    /// Nergal-only `d`: ready until dreary hibernation starts.
-    recovery_bracket_dreary_hibernation: bool,
     #[cfg(test)]
     end_combat_invocations: u32,
     #[cfg(test)]
@@ -103,7 +101,6 @@ impl Stats {
         let money = self.money;
         let recovery_bracket_camping = self.recovery_bracket_camping;
         let recovery_bracket_meditation = self.recovery_bracket_meditation;
-        let recovery_bracket_dreary_hibernation = self.recovery_bracket_dreary_hibernation;
         #[cfg(test)]
         let end_combat_invocations = self.end_combat_invocations;
         #[cfg(test)]
@@ -118,7 +115,6 @@ impl Stats {
         self.money = money;
         self.recovery_bracket_camping = recovery_bracket_camping;
         self.recovery_bracket_meditation = recovery_bracket_meditation;
-        self.recovery_bracket_dreary_hibernation = recovery_bracket_dreary_hibernation;
         #[cfg(test)]
         {
             self.end_combat_invocations = end_combat_invocations;
@@ -135,7 +131,6 @@ impl Stats {
         let combat_round_active = self.combat_round_active;
         let recovery_bracket_camping = self.recovery_bracket_camping;
         let recovery_bracket_meditation = self.recovery_bracket_meditation;
-        let recovery_bracket_dreary_hibernation = self.recovery_bracket_dreary_hibernation;
         #[cfg(test)]
         let end_combat_invocations = self.end_combat_invocations;
         #[cfg(test)]
@@ -151,7 +146,6 @@ impl Stats {
         self.combat_round_active = combat_round_active;
         self.recovery_bracket_camping = recovery_bracket_camping;
         self.recovery_bracket_meditation = recovery_bracket_meditation;
-        self.recovery_bracket_dreary_hibernation = recovery_bracket_dreary_hibernation;
         #[cfg(test)]
         {
             self.end_combat_invocations = end_combat_invocations;
@@ -197,7 +191,6 @@ impl Stats {
     pub fn set_recovery_bracket_defaults_for_login(&mut self) {
         self.recovery_bracket_camping = true;
         self.recovery_bracket_meditation = true;
-        self.recovery_bracket_dreary_hibernation = true;
     }
 
     pub(crate) fn set_recovery_bracket_camping(&mut self, active: bool) {
@@ -209,7 +202,7 @@ impl Stats {
     }
 
     pub(crate) fn set_recovery_bracket_dreary_hibernation(&mut self, ready: bool) {
-        self.recovery_bracket_dreary_hibernation = ready;
+        self.set_recovery_bracket_meditation(ready);
     }
 
     /// Render primary stats and recovery readiness, gated by selected guilds for `m` and `d`.
@@ -241,8 +234,7 @@ impl Stats {
         {
             spans.push(Span::styled("m", Style::default().fg(palette::YELLOW)));
         }
-        if guild_selection.is_selected(GuildKey::Nergal) && self.recovery_bracket_dreary_hibernation
-        {
+        if guild_selection.is_selected(GuildKey::Nergal) && self.recovery_bracket_meditation {
             spans.push(Span::raw("d"));
         }
         spans.push(Span::raw("]"));
@@ -383,7 +375,7 @@ mod tests {
         stats.apply_effect(StatsEffect::SetRecoveryBracketDrearyHibernation(false));
         stats.update_from_prompt([1, 2, 3, 4, 5, 6, 7]);
         stats.update_from_short_score([1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 0, 8, 0]);
-        assert!(line_text(&stats.render_inline(&nergal)).ends_with("  [cm]"));
+        assert!(line_text(&stats.render_inline(&nergal)).ends_with("  [c]"));
     }
 
     #[test]

@@ -2,7 +2,7 @@
 title: Nergal Status
 type: concept
 status: current
-updated: 2026-10-29
+updated: 2026-11-06
 sources:
   - CONTEXT.md
   - src/guilds/nergal/triggers.rs
@@ -32,9 +32,9 @@ Nergal Resource Status is the player's current Nergal-specific resource state: V
 
 - Dreary hibernation readiness belongs to the **main-line recovery bracket** in `Stats`, not Secondary Status. `Stats::render_inline` receives guild selection and renders normal-colored `d` after `c` and `m` only while Nergal is selected.
 - The Nergal guild trigger emits `StatsEffect::SetRecoveryBracketDrearyHibernation(false)` for the exact cocoon start message and `true` for the exact harmony message; both remain visible in scrollback. Parsing respects the guild-trigger switch.
-- The harmony message also restores meditation through the existing core recovery trigger when core triggers are enabled; neither trigger tries to infer which skill produced it. Yellow `m` renders only when Curate, Monk, Psionicist, Tiger, or Tzarakk is selected (the guilds registering `med` or `dmed`). Nergal alone can show `[cd]`, while Nergal plus Tzarakk can show `[cmd]`. Selection changes hide/reveal `m` without resetting its readiness (`src/stats.rs`, `src/app/mod.rs` tests).
+- Meditation and dreary hibernation share one readiness value in `Stats`: either recognized start clears both eligible markers, and harmony restores both. The existing meditation and Nergal effects update this same value. Meditation start requires core triggers; cocoon start requires Nergal guild triggers; harmony restores readiness if either matching trigger path runs. Yellow `m` renders only when Curate, Monk, Psionicist, Tiger, or Tzarakk is selected (the guilds registering `med` or `dmed`). Nergal alone can show `[cd]`, while Nergal plus Tzarakk can show `[cmd]` (`src/stats.rs`, `src/app/mod.rs` regression tests).
 - Dark meditation shares the existing `m` tracker for display eligibility. Its actual server start/recovery messages remain unverified; no dark-meditation-specific matcher has been added (`src/triggers/recovery_bracket.rs`).
-- Login defaults readiness to true. Newly selecting Nergal initializes it to true, unchanged selections preserve it, and deselecting clears it. These are optimistic defaults, not server-confirmed cooldown state. Fresh-session reset clears it; prompt and short-score updates preserve it (`src/app/mod.rs`, `src/stats.rs` tests).
+- Login defaults shared readiness to true, optimistically rather than from server-confirmed cooldown state. All guild selection changes only hide/reveal eligible markers without changing readiness; selecting Nergal during cooldown does not restore it. Fresh-session reset clears it; prompt and short-score updates preserve it (`src/app/mod.rs`, `src/stats.rs` tests).
 
 ## Related
 

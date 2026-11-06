@@ -40,10 +40,10 @@ Missing required arguments produce a local message without sending a game comman
 
 The main status recovery bracket adds **`d`** after camping (`c`) and meditation (`m`) only while Nergal is selected in `/guilds`. The letter means **ready**, not currently hibernating; the existing `udh` shortcut is unchanged.
 
-- **Start:** “Dark mist floods the area around you as twisted, rotting roots spew forth from it, enveloping you in a cocoon.” hides `d`.
-- **Ready again:** “You feel in harmony with yourself, the universe and life in general.” restores `d`. This also restores meditation readiness when core triggers are enabled.
+- **Start:** “Dark mist floods the area around you as twisted, rotting roots spew forth from it, enveloping you in a cocoon.” clears shared readiness, hiding both `d` and any eligible `m`. Meditation’s “You sit down and start meditating.” does the same.
+- **Ready again:** “You feel in harmony with yourself, the universe and life in general.” restores shared readiness, showing both eligible markers.
 
-Both messages remain in game output. Login and newly selecting Nergal optimistically initialize `d` as ready; no server cooldown query is made. Saving an unchanged selection preserves readiness, deselecting clears it, and reselecting initializes it again. Disabling guild triggers freezes message-driven updates without changing guild-selected visibility.
+Both messages remain in game output. Login optimistically initializes shared readiness as ready; no server cooldown query is made. Guild selection changes only hide or reveal markers, preserving readiness even when Nergal is deselected and reselected. Cocoon-start detection requires Nergal guild triggers; meditation-start detection requires core triggers. Harmony restores shared readiness when either matching trigger group is enabled.
 
 ## Profile
 

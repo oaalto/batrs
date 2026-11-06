@@ -21,11 +21,11 @@ impl NergalGuild {
         vec![
             TriggerCatalogEntry::new(
                 DREARY_HIBERNATION_START,
-                "Clear dreary hibernation readiness (d).",
+                "Clear shared meditation / dreary hibernation readiness (m/d).",
             ),
             TriggerCatalogEntry::new(
                 RECOVERY_HARMONY,
-                "Restore dreary hibernation readiness (d).",
+                "Restore shared meditation / dreary hibernation readiness (m/d).",
             ),
             TriggerCatalogEntry::new(
                 r"^::\.\.:\. (.+) \[Hp: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*, Sp: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*, Ep: (-?[0-9]+) \(([0-9]+)\)[ \-+()0-9]*\]$",
